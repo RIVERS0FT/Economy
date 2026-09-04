@@ -151,6 +151,7 @@ for (const text of [
 
 for (const text of [
   '<EmbeddedMarketPage model={model} embedded />',
+  '<EmbeddedCommercePage',
   '<EmbeddedBuildingsPage',
   'onDetailFacilityChange={handleFacilityDetailChange}',
   "import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';",
@@ -350,7 +351,7 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商�
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '连续 48 州从玩家首次建档起全部可直接经营');
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '任一州都可直接进行商品即时交易');
 requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '连续 48 州均直接显示本地库存内容');
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑与仓库直接显示本地经营内容');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商业、工业与仓库直接显示本地经营内容');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品列表字段名使用独立表头');

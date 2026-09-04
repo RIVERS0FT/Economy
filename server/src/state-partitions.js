@@ -58,12 +58,11 @@ function validPartitionSnapshot(value) {
 function catalogIntegrityIssue(catalog) {
   if (!validPartitionSnapshot(catalog)) return 'catalog 分区缺失';
   if (!Number.isInteger(catalog.version)) return 'catalog.version 无效';
-  for (const key of ['products', 'facilityTypes', 'commercialBuildingTypes', 'researchLevels', 'provinces']) {
+  for (const key of ['products', 'facilityTypes', 'researchLevels', 'provinces']) {
     if (!Array.isArray(catalog[key])) return `catalog.${key} 不是有效数组`;
   }
   if (catalog.products.length === 0) return 'catalog.products 为空';
   if (catalog.facilityTypes.length === 0) return 'catalog.facilityTypes 为空';
-  if (catalog.commercialBuildingTypes.length === 0) return 'catalog.commercialBuildingTypes 为空';
   if (catalog.researchLevels.length === 0) return 'catalog.researchLevels 为空';
   if (catalog.provinces.length === 0) return 'catalog.provinces 为空';
   if (typeof catalog.defaultProvinceId !== 'string' || !catalog.defaultProvinceId) {

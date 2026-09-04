@@ -218,7 +218,7 @@ for (const text of ['appendPlayerPageHistory', 'pushPlayerPage', 'replacePlayerP
 }
 const pageStack = read('src/navigation/playerPageStack.ts');
 for (const text of [
-  'MAX_PLAYER_PAGE_STACK_DEPTH = 20', "type: 'province'", "type: 'regional-product'", "type: 'regional-facility'",
+  'MAX_PLAYER_PAGE_STACK_DEPTH = 20', "type: 'province'", "type: 'regional-product'", "type: 'regional-commercial'", "type: 'regional-facility'",
   'maximumHistoryDepth = MAX_PLAYER_PAGE_STACK_DEPTH - 1',
 ]) assert.ok(pageStack.includes(text), `受限页面栈缺少: ${text}`);
 
@@ -226,8 +226,8 @@ const provincePage = read('src/pages/ProvincePage.tsx');
 for (const text of [
   'export function ProvincePage', 'title={isMarketDetail && marketDetailProduct ? (', 'role="tablist"', 'role="tab"', 'role="tabpanel"',
   "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }",
-  "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
-  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedBuildingsPage',
+  "{ id: 'commerce', label: '商业' }", "{ id: 'buildings', label: '工业' }", "{ id: 'warehouse', label: '仓库' }",
+  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedCommercePage', '<EmbeddedBuildingsPage',
   '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
   "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);',
   'pageNavigation.replacePage(provinceLocation);',
@@ -236,7 +236,7 @@ for (const forbidden of ['isUnlocked', 'provinceUnlockCostBreakdown', 'unlockPro
   assert.equal(provincePage.includes(forbidden), false, `州级上下文页不得恢复地区解锁分支: ${forbidden}`);
 }
 const provinceStyles = read('src/styles/province-page.css');
-assert.ok(provinceStyles.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'), '州级上下文切换必须保持四个等宽按钮');
+assert.ok(provinceStyles.includes('grid-template-columns: repeat(5, minmax(0, 1fr));'), '州级上下文切换必须保持五个等宽按钮');
 assert.ok(provinceStyles.includes('min-height: 44px;'), '州级上下文切换必须保持 44px 触控高度');
 
 const mapComponent = read('src/components/provinces/UsMainlandMap.tsx');
