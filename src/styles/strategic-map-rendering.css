@@ -24,12 +24,9 @@
   text-rendering: optimizeLegibility;
 }
 
-/* The formal 10m state polygons and contiguous-US outline stay mounted for hit testing and the settled vector result,
-   but they do not participate in paint while the transient camera is moving. This isolates high-detail SVG raster cost;
-   the existing 110m world layer remains as the active geographic silhouette until a lightweight state-boundary LOD replaces it. */
-.province-map-static-viewport[data-map-zoom-active='true'] .province-map-regions,
-.province-map-static-viewport[data-map-zoom-active='true'] .province-map-mainland-seam,
-.province-map-static-viewport[data-map-zoom-active='true'] .province-map-mainland-outline {
+/* Each Chinese state label is built from multiple independently rotated SVG text glyphs. Keep their exact geometry mounted,
+   but remove only their active paint while profiling transient-camera raster cost; settled viewBox commits restore them unchanged. */
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-label-camera {
   display: none;
 }
 
