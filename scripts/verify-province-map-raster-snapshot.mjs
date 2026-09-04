@@ -8,13 +8,14 @@ const requiredFiles = [
   'src/components/provinces/UsMainlandMap.tsx',
   'src/styles/strategic-map-rendering.css',
   'tests/browser/map-zoom-transient.spec.ts',
+  'tests/browser/map-zoom-out-boundary.spec.ts',
   'docs/STRATEGIC_MAP_RENDERING_DESIGN.md',
 ];
 for (const path of requiredFiles) assert.equal(existsSync(path), true, `地图栅格快照缺少文件: ${path}`);
 
 const rasterSource = read('src/components/provinces/provinceMapRasterSnapshot.ts');
 for (const text of [
-  "sourceSvg.cloneNode(true)",
+  'sourceSvg.cloneNode(true)',
   'getComputedStyle(source)',
   "new Blob([markup], { type: 'image/svg+xml;charset=utf-8' })",
   "typeof createImageBitmap === 'function'",
@@ -56,52 +57,99 @@ for (const forbidden of [
 
 const cameraSource = read('src/components/provinces/provinceMapCamera.ts');
 for (const text of [
+  "const raster = surface.querySelector<HTMLCanvasElement>('.province-map-camera-raster');",
   "container.dataset.mapCameraRasterMode = 'settled-svg-active-raster-snapshot';",
   'container.dataset.mapCameraPreloadViewBox = serializeViewBox(preloadViewFor(currentMetrics));',
-  "const rasterReady = container.dataset.mapRasterReady === 'true';",
-  "if (rasterReady) svg.style.opacity = '0';",
+  'let transientUsesRaster = false;',
+  "transientUsesRaster = container.dataset.mapRasterReady === 'true';",
+  'const writeTransientTransform = (transform: string) => {',
+  'if (transientUsesRaster) raster.style.transform = transform;',
+  'else surface.style.transform = transform;',
+  "svg.style.opacity = '0';",
+  'raster.style.transform = transform;',
   "svg.style.removeProperty('opacity');",
-  'surface.style.transform = transientTransformFor(current, metrics);',
-]) assert.ok(cameraSource.includes(text), `单一 Camera 未正确接入栅格快照边界: ${text}`);
+]) assert.ok(cameraSource.includes(text), `单一 Camera 未正确接入 raster-only transient 边界: ${text}`);
 assert.equal(cameraSource.includes('createProvinceMapRasterSnapshot'), false, 'Camera 热路径不得直接生成或更新栅格快照');
+
 const writeCameraStart = cameraSource.indexOf('const writeCamera = () => {');
 const writeCameraEnd = cameraSource.indexOf('\n  };', writeCameraStart);
 assert.ok(writeCameraStart >= 0 && writeCameraEnd > writeCameraStart, '必须能定位地图 Camera RAF');
 const writeCamera = cameraSource.slice(writeCameraStart, writeCameraEnd);
-assert.ok(writeCamera.includes('surface.style.transform = transientTransformFor(current, metrics);'), 'Camera RAF 必须继续只直接写唯一 transform');
+assert.ok(
+  writeCamera.includes('writeTransientTransform(transientTransformFor(current, metrics));'),
+  'Camera RAF 必须只通过统一写入口更新当前 transient target',
+);
 for (const forbidden of [
   "svg.setAttribute('viewBox'",
   'createProvinceMapRasterSnapshot',
-  'canvas',
   'container.dataset',
   'getBoundingClientRect(',
   'setTimeout(',
 ]) assert.equal(writeCamera.includes(forbidden), false, `Camera RAF 不得恢复额外栅格／DOM 热路径: ${forbidden}`);
 
+const prepareStart = cameraSource.indexOf('const prepareTransientSurface = () => {');
+const prepareEnd = cameraSource.indexOf('\n  };', prepareStart);
+assert.ok(prepareStart >= 0 && prepareEnd > prepareStart, '必须能定位 Camera active 准备边界');
+const prepareTransient = cameraSource.slice(prepareStart, prepareEnd);
+for (const text of [
+  "transientUsesRaster = container.dataset.mapRasterReady === 'true';",
+  'if (transientUsesRaster) {',
+  "svg.style.opacity = '0';",
+  'raster.style.transform = transform;',
+  'return;',
+  "svg.setAttribute('viewBox', serializeViewBox(transientBasisView));",
+  'surface.style.transform = transform;',
+]) assert.ok(prepareTransient.includes(text), `Camera active 准备缺少 raster-ready／SVG fallback 分流: ${text}`);
+
 const renderingCss = read('src/styles/strategic-map-rendering.css');
 for (const text of [
   '.province-map-camera-raster {',
+  'transform-origin: 0 0;',
   'opacity: 0;',
   'pointer-events: none;',
+  ".province-map-static-viewport[data-map-zoom-active='true']:not([data-map-raster-ready='true']) .province-map-camera-surface",
   ".province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-camera-raster",
+  'will-change: transform;',
   ".province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-world-svg",
-  'will-change: transform !important;',
-]) assert.ok(renderingCss.includes(text), `战略地图最终 CSS 缺少栅格快照可见性规则: ${text}`);
+  'opacity: 0;',
+]) assert.ok(renderingCss.includes(text), `战略地图最终 CSS 缺少 raster-only transient 规则: ${text}`);
 assert.ok(renderingCss.includes('.province-map-camera-surface {\n  contain: none;'), 'Camera Surface 必须继续禁用重复 paint containment');
+assert.equal(
+  renderingCss.includes(".province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-world-svg {\n  display: none;"),
+  false,
+  'raster active 时权威 SVG 必须保留 settled 几何，不得从渲染树移除',
+);
 
 const browserSource = read('tests/browser/map-zoom-transient.spec.ts');
 for (const text of [
   'waitForRasterReady',
-  "data-map-raster-ready",
-  "data-map-raster-revision",
-  ".province-map-camera-raster",
-  "expect(activeBoundary.svgOpacity).toBe('0');",
-  "expect(activeBoundary.rasterOpacity).toBe('1');",
+  'data-map-raster-ready',
+  'data-map-raster-revision',
+  '.province-map-camera-raster',
+  "expect(activeBoundary.cameraTransform).toBe('none')",
+  "expect(activeBoundary.rasterTransform).not.toBe('none')",
+  "expect(activeBoundary.rasterWillChange).toBe('transform')",
+  'expect(activeBoundary.viewBox).toBe(baseline.viewBox)',
+  "expect(activeBoundary.svgOpacity).toBe('0')",
+  "expect(activeBoundary.rasterOpacity).toBe('1')",
   'result.emptyFrameMedianMs * 2 + 8',
   'expect(result.viewBoxMutations).toBe(0)',
-  'expect(result.cameraStyleMutations).toBe(1)',
+  'expect(result.cameraStyleMutations).toBe(0)',
+  'expect(result.rasterStyleMutations).toBe(1)',
   'expect(result.diagnosticMutations).toBe(0)',
-]) assert.ok(browserSource.includes(text), `地图浏览器回归缺少栅格 Camera 门禁: ${text}`);
+]) assert.ok(browserSource.includes(text), `地图浏览器回归缺少 raster-only Camera 门禁: ${text}`);
+
+const zoomOutSource = read('tests/browser/map-zoom-out-boundary.spec.ts');
+for (const text of [
+  'rasterActive',
+  'rasterTransform',
+  'expect(zoomedInFrame.viewBox).toBe(initialViewBox)',
+  'expect(zoomOutActiveFrame.viewBox).toBe(zoomedSettledViewBox)',
+  "expect(zoomOutActiveFrame.cameraTransform).toBe('none')",
+  "expect(zoomOutActiveFrame.rasterTransform).not.toBe('none')",
+  "toHaveCount(48)",
+  "toHaveAttribute('data-map-zoom-current', '1.00000')",
+]) assert.ok(zoomOutSource.includes(text), `地图 zoom-out 回归缺少 settled SVG + active raster 边界: ${text}`);
 
 const designSource = read('docs/STRATEGIC_MAP_RENDERING_DESIGN.md');
 for (const text of [
@@ -112,4 +160,4 @@ for (const text of [
   '在 Camera RAF、wheel/pointermove 热路径或运输 `500ms` tick 中序列化 SVG',
 ]) assert.ok(designSource.includes(text), `权威地图 DESIGN 缺少栅格快照规则: ${text}`);
 
-console.log('地图 active 栅格快照验证通过：唯一逻辑 Camera 与权威 SVG 保持不变；Canvas 只缓存 idle 派生的完整世界画面，active RAF 仍只有一次 transform，settle 后立即恢复最终 SVG viewBox。');
+console.log('地图 active 栅格快照验证通过：唯一逻辑 Camera 与权威 SVG 保持不变；snapshot ready 时 active RAF 只变换 Canvas，SVG 保持 settled 几何，snapshot 缺失时才回退 live SVG，settle 后提交最终 SVG viewBox。');
