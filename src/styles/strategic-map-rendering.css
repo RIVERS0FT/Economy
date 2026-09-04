@@ -24,6 +24,15 @@
   text-rendering: optimizeLegibility;
 }
 
+/* The formal 10m state polygons and contiguous-US outline stay mounted for hit testing and the settled vector result,
+   but they do not participate in paint while the transient camera is moving. This isolates high-detail SVG raster cost;
+   the existing 110m world layer remains as the active geographic silhouette until a lightweight state-boundary LOD replaces it. */
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-regions,
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-mainland-seam,
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-mainland-outline {
+  display: none;
+}
+
 /* viewBox settle re-rasterizes the visible vectors. Keep the map world filter-free so the final vector commit does not rerun large SVG filters. */
 .province-map-world-shadow {
   fill: none !important;
