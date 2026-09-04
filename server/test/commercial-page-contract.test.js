@@ -46,4 +46,7 @@ test('commercial rules remain independently documented from industrial productio
   assert.match(design, /不是市场成交/);
   assert.match(pageDesign, /概览｜市场｜商业｜工业｜仓库/);
   assert.match(pageDesign, /技术 section ID 不迁移/);
+  assert.match(pageDesign, /`ProvincePage` 内的市场、商业与工业分区仍始终是地图所打开当前州的本地视图/);
+  assert.match(pageDesign, /商业、工业与仓库直接显示本地经营内容/);
+  assert.match(pageDesign, /概览始终显示官方常住人口以及该玩家在该州的只读经营摘要/);
 });
