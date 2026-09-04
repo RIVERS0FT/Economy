@@ -16,7 +16,7 @@
 |---|---|---|---|---|
 | 协作层 | `AGENTS.md` | 如何开始任务、验证、集成和交付 | 协作流程、冲突处理、验证与部署门禁 | 项目介绍、业务参数、产品规则、运行时版本、页面细节 |
 | 项目入口 | 根 `README.md` | 让读者理解、启动和导航项目 | 项目简介、稳定高层能力、在线入口、技术栈、本地启动、常用命令、目录与文档入口 | 金额、费率、配额、周期、业务算法、协议字段、UI 几何、迁移细节、生产服务器内部路径 |
-| 设计索引 | `docs/README.md` | 告诉维护者“某条规则归谁负责” | README 层级、DESIGN 职责与不负责范围、规则路由、文档治理 | 实际业务口径、算法公式、UI 尺寸、API 细节、实现文件清单、专项防回退字符串副本 |
+| 设计索引 | `docs/README.md` | 告诉维护者“某条规则归谁负责” | README 层级、DESIGN 职责与不负责范围、规则路由、文档治理 | 实际业务口径、算法公式、UI 尺寸、API 细节、实现路径清单、专项防回退字符串副本 |
 | 目录导航 | 可选目录级 `README.md` | 解释一个复杂目录如何维护 | 本目录职责、入口、依赖方向、开发或测试操作 | 产品规则、跨目录架构规范、其他 README 或 DESIGN 的正文副本 |
 | 规则权威 | `docs/*_DESIGN.md` | 定义某一领域当前唯一最终规则 | 领域语义、约束、职责边界、必要的 non-obvious reason、防回退边界、实现与验证映射 | 方案演进、失败尝试、临时状态、已替代规则、其他领域完整规则 |
 | 运行事实 | 代码与正式数据文件 | 当前实际运行行为和常量 | 运行时常量、协议实现、业务实现、正式数据 | 用注释创建第二套产品设计 |
@@ -57,16 +57,17 @@
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 工厂目录与已拥有工厂的展示顺序 | 工厂经济规则、卡片通用视觉、服务器目录生成 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品即时交易、每日官方系统价、服务器内部消费／储备订单边界与历史玩家挂单迁移 | 市场页面布局、人口需求预算细节、服务器容量与部署实现 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 仓库、地区库存、运输和工厂自动经营业务语义 | 市场撮合、生产配方、通用页面 Chrome、服务器部署 |
-| `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` | 运输地图公路／铁路首府物理中心线的数据源、离线派生、压缩与运行时加载边界 | 运输经济结算、路线通用视觉、服务器协议与存储 |
+| `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` | 运输地图公路／铁路首府物理中心线的数据源、离线派生、压缩及航空虚拟航路的数据边界 | 运输经济结算、战略地图 Camera／路线渲染、服务器协议与存储 |
+| `STRATEGIC_MAP_RENDERING_DESIGN.md` | 战略地图 SVG Camera、固定视场边界、州名清晰度、路线显示／运动／高亮与地图专属表面材质 | 运输经济结算、原始 GIS 数据、全应用通用视觉与根 Chrome |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 页面模块归属、导航、页面内容与玩家信息架构 | 业务算法、通用视觉令牌、服务器事务和存储 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场行情图的布局、坐标、交互几何和浏览器回归 | 行情数据生成、撮合价格规则、通用 UI 设计系统 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 登录/注册/密码重置入口与邀请流程的玩家可见行为 | 通用表单视觉、账号服务安全与存储、部署路由实现 |
-| `UI_DESIGN_SYSTEM.md` | 通用设计令牌、共享组件、州级中文短名、商品与工厂场景插画主视觉、视觉语义、响应式与可访问性 | 单页业务内容、玩法资格、服务器逻辑 |
+| `UI_DESIGN_SYSTEM.md` | 通用设计令牌、共享组件、州级中文短名、商品与工厂场景插画主视觉、视觉语义、响应式与可访问性 | 战略地图 Camera／路线渲染、单页业务内容、玩法资格、服务器逻辑 |
 | `AUTHORITATIVE_COUNTDOWN_DESIGN.md` | 客户端权威时间、倒计时确认、状态读取恢复与 ready 生命周期 | 各业务领域的结算结果、普通页面内容、服务器容量 |
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家一级表面的统一外层内边距与贴边例外 | 通用卡片视觉、页面业务结构、其他布局系统 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览页布局完整性、宽度断点与局部几何回归 | 概览业务数据含义、通用响应式系统、服务器数据来源 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 建筑页生产状态胶囊和开关的局部对齐几何 | 生产状态业务语义、通用控件设计、工厂算法 |
-| `LIQUID_GLASS_CHROME_DESIGN.md` | 根外壳、毛玻璃材质与 Chrome、战略地图与工作区层级结构 | 页面业务内容、通用表单/颜色令牌、经济规则 |
+| `LIQUID_GLASS_CHROME_DESIGN.md` | 根外壳、通用毛玻璃材质与 Chrome、工作区及浮层层级结构 | 战略地图 Camera／路线渲染／地图专属表面材质、页面业务内容、通用表单/颜色令牌、经济规则 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威、API、事务、存储、缓存、安全、容量与生产部署 | 玩家可见玩法定义、页面模块归属、通用视觉设计 |
 | `CI_EXECUTION_DESIGN.md` | PR、分支、主线与手动 GitHub Actions 的选择、并行、分片、超时、发布前门禁和生产只读诊断执行安全 | 业务规则、服务器运行时实现、SQLite 维护语义、生产业务配置 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地活动记录的最小数据、迁移、展示与清除边界 | 服务器权威账本、市场撮合、全局通知系统 |
@@ -82,12 +83,13 @@
 | 商品、工厂、生产、配方、产业科技 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` |
 | 商品即时交易、每日官方系统价、内部人口／储备订单边界、历史挂单迁移 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` |
 | 仓库、地区库存、运输、工厂自动经营 | `WAREHOUSE_EXPANSION_DESIGN.md` |
-| 运输地图公路／铁路首府几何的数据源、离线生成与运行时加载 | `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` |
+| 运输地图公路／铁路首府几何的数据源、离线生成及航空虚拟航路数据 | `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` |
+| 战略地图 Camera、固定视场边界、地图路线显示／运动／高亮和地图专属表面 | `STRATEGIC_MAP_RENDERING_DESIGN.md` |
 | 页面有哪些模块、导航到哪里、内容放在哪页 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | 通用颜色、字体、控件、列表、响应式、可访问性 | `UI_DESIGN_SYSTEM.md` |
 | 州级中文短名与跨页面州名视觉语义 | `UI_DESIGN_SYSTEM.md` |
 | 商品与工厂场景插画主视觉 | `UI_DESIGN_SYSTEM.md` |
-| 根外壳、毛玻璃材质、地图和工作区层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |
+| 根外壳、通用毛玻璃材质、Chrome、工作区与浮层层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |
 | 市场行情图局部几何 | `MARKET_CHART_LAYOUT_DESIGN.md` |
 | 概览、一级表面 inset、生产胶囊等局部布局专项 | 对应布局专项 DESIGN |
 | 注册、邀请、登录入口的玩家流程 | `REGISTRATION_INVITE_FLOW_DESIGN.md` |

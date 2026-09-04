@@ -238,6 +238,8 @@ forbidText(transportCoordinator, 'setInterval', '在线运输协调器不得新�
 for (const text of [
   'data-transport-route-index="true"',
   "currentLocation?.type === 'transport-route'",
+  'routeTripLabel',
+  'isTransportRouteClosed',
   '等待在线规划',
   '节点装卸',
   '周期距离',
@@ -245,7 +247,7 @@ for (const text of [
   '周期燃料费',
   '周期总费用',
   '客户端离线时车辆最多到达当前下一节点',
-]) requireText(transportPage, text, `运输页缺少新周期/节点状态：${text}`);
+]) requireText(transportPage, text, `运输页缺少新周期/节点状态或行程业务语义：${text}`);
 forbidText(transportPage, 'dispatchTransportRoute', '运输页不得恢复手动发运动作。');
 forbidText(transportPage, 'ToggleField', '运输页不得恢复自动发运开关。');
 forbidText(transportPage, 'IntegerInput', '运输路线不得恢复固定运输数量输入。');
@@ -257,9 +259,10 @@ forbidText(routeDraft, 'autoDispatch:', '路线草稿不得保存自动发运开
 for (const text of [
   '起终点不同则自动沿原路往返',
   'label="运输方式"',
-  "tripType: closed ? 'one-way' : 'round'",
+  'const draftClosed = Boolean(routeDraft?.draft && isTransportRouteClosed(routeDraft.draft));',
 ]) requireText(strategicWorkspace, text, `战略地图路线编辑缺少：${text}`);
 forbidText(strategicWorkspace, 'label="行程"', '战略地图不得恢复玩家可选单程/往返控件。');
+forbidText(strategicWorkspace, 'tripType:', '地图 overlay 不得把业务行程类型重新编码为返程视觉变体。');
 
 requireText(pageStack, "| { type: 'transport-route'; routeId: string }", '页面栈必须提供运输路线详情位置。');
 requireText(navigation, "{ id: 'transport', label: '运输' }", '一级导航必须保留运输入口。');
@@ -294,4 +297,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('州级经济与节点循环运输验证通过：路线形态、客户端装卸、距离计费、整周期燃料预付、单段离线到站与私有状态切片均已锁定。');
+console.log('州级经济与节点循环运输验证通过：路线业务行程仍按环线／往返结算，地图只使用单一正式几何；客户端装卸、距离计费、整周期燃料预付、单段离线到站与私有状态切片均已锁定。');

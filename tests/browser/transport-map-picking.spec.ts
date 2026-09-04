@@ -29,12 +29,13 @@ test('transport route editor picks ordered stops directly on the strategic map a
 
   const draftRoute = page.locator('.province-map-route[data-route-kind="draft"]');
   await expect(draftRoute).toHaveAttribute('data-route-stop-count', '3');
-  await expect(draftRoute).toHaveAttribute('data-route-closed', 'false');
+  expect(await draftRoute.getAttribute('data-route-closed')).toBeNull();
   await expect(draftRoute.locator('.province-map-route-stop')).toHaveCount(3);
 
   await provinceRegion(page, '加利福尼亚').click();
-  await expect(draftRoute).toHaveAttribute('data-route-closed', 'true');
+  expect(await draftRoute.getAttribute('data-route-closed')).toBeNull();
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '4');
+  await expect(draftRoute).toHaveAttribute('data-route-stop-count', '4');
 
   await provinceRegion(page, '得克萨斯').click();
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '4');
@@ -52,6 +53,7 @@ test('transport route editor picks ordered stops directly on the strategic map a
   await expect(pendingDraft.locator('.transport-route-path-stop')).toHaveCount(4);
   await expect(pendingDraft.getByText('环线', { exact: true })).toBeVisible();
   await expect(draftRoute).toHaveAttribute('data-route-stop-count', '4');
+  expect(await draftRoute.getAttribute('data-route-closed')).toBeNull();
 
   await pendingDraft.getByRole('button', { name: '取消', exact: true }).click();
   await expect(pendingDraft).toHaveCount(0);

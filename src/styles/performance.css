@@ -20,9 +20,9 @@ body::before { display: none; }
   contain: paint;
 }
 
-/* The single strategic-map camera remains promoted so wheel/pinch bursts do not repeatedly re-rasterize the SVG world. */
+/* The strategic map camera is SVG viewBox-driven; do not promote the full SVG world as a scaled texture. */
 .province-map-camera-surface {
-  will-change: transform;
+  will-change: auto;
 }
 
 /* Skip layout and paint work for records outside the active scrollport. */

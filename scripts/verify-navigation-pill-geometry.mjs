@@ -14,9 +14,11 @@ const forbidText = (path, text) => {
 const mobilePath = 'src/styles/mobile-status-navigation.css';
 const iconPath = 'src/styles/icon-system.css';
 const strategicPath = 'src/styles/strategic-game-shell.css';
+const mapRenderingPath = 'src/styles/strategic-map-rendering.css';
 const workspacePath = 'src/components/shell/StrategicWorkspace.tsx';
 const glassPath = 'src/styles/frosted-glass-surfaces.css';
 const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
+const mapDesignPath = 'docs/STRATEGIC_MAP_RENDERING_DESIGN.md';
 const ciDesignPath = 'docs/CI_EXECUTION_DESIGN.md';
 const browserPath = 'tests/browser/navigation-pill-geometry.spec.ts';
 
@@ -67,6 +69,17 @@ for (const text of [
 ]) requireText(strategicPath, text);
 
 for (const text of [
+  '.application-map-layer > .strategic-map-lens-bar,',
+  'background: var(--color-surface-panel);',
+  '-webkit-backdrop-filter: none;',
+  'backdrop-filter: none;',
+]) requireText(mapRenderingPath, text);
+
+for (const text of [
+  'solid non-glass map surface',
+  'barBackground: barStyle.backgroundColor,',
+  "expect(geometry.barBackground).not.toBe('rgba(0, 0, 0, 0)');",
+  "expect(geometry.barFilter).toBe('none');",
   'await expect(buttons.nth(2)).toHaveClass(/is-active/);',
   'await expect.poll(async () => {',
   'colorChanged: activeVisual.color !== geometry.color,',
@@ -78,6 +91,7 @@ for (const text of [
   'backgroundChanged: true,',
 ]) requireText(browserPath, text);
 for (const text of [
+  "expect(geometry.barFilter).toContain('blur(18px)');",
   'expect(activeVisual.color).not.toBe(geometry.color);',
   'expect(activeVisual.border).not.toBe(geometry.border);',
   'expect(activeVisual.background).not.toBe(geometry.background);',
@@ -97,6 +111,10 @@ for (const text of [
   '`scripts/verify-navigation-pill-geometry.mjs`',
   '`tests/browser/navigation-pill-geometry.spec.ts`',
 ]) requireText(designPath, text);
+for (const text of [
+  '战略地图镜头栏和运输地图选路面板属于地图专属操作表面',
+  '`backdrop-filter` 与 `-webkit-backdrop-filter` 必须为 `none`',
+]) requireText(mapDesignPath, text);
 
 for (const text of [
   '必须先等待权威 DOM 状态',
@@ -109,4 +127,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('玩家移动导航与桌面地图镜头胶囊几何及异步激活视觉验证通过。');
+console.log('玩家移动导航与桌面地图镜头胶囊几何、地图镜头实体无玻璃表面及异步激活视觉验证通过。');

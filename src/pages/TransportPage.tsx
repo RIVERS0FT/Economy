@@ -121,6 +121,11 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     setRouteNameDraft(detailRoute ? visibleRouteName(detailRoute) : '');
   }, [detailRoute?.destinationProvinceId, detailRoute?.id, detailRoute?.name, detailRoute?.sourceProvinceId]);
 
+  useEffect(() => {
+    setHighlightedRouteId(detailRouteId);
+    return () => setHighlightedRouteId(null);
+  }, [detailRouteId, setHighlightedRouteId]);
+
   async function runMutation(key: string, operation: () => Promise<{ ok: boolean; message: string }>) {
     if (pendingAction) return false;
     setPendingAction(key);

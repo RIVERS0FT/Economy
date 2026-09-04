@@ -1,0 +1,92 @@
+/* Strategic map rendering owns only the map camera viewport, route strokes and map-only floating surfaces. */
+.province-map-static-viewport,
+.province-map-world-svg {
+  overflow: hidden;
+}
+
+.province-map-camera-surface {
+  transform: none !important;
+  will-change: auto !important;
+  backface-visibility: visible;
+}
+
+.province-map-world-svg {
+  shape-rendering: auto;
+}
+
+.province-map-label {
+  text-rendering: optimizeLegibility;
+}
+
+/* viewBox zoom re-rasterizes the visible vectors. Keep the map world filter-free so each frame does not rerun large SVG filters. */
+.province-map-world-shadow {
+  fill: none !important;
+  stroke: color-mix(in srgb, var(--color-map-region-border) 28%, transparent) !important;
+  stroke-width: 4;
+  opacity: .22;
+  filter: none !important;
+}
+
+.province-map-region[data-selected='true'],
+.province-map-region:focus-visible,
+.province-map-shipment[data-selected='true'] .province-map-shipment-badge,
+.province-map-shipment:focus-visible .province-map-shipment-badge {
+  filter: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse'] .province-map-region[data-selected='true']:hover {
+    filter: none;
+  }
+}
+
+.province-map-chart[data-route-picking='true'] .province-map-region[data-route-pickable='false'] {
+  filter: none;
+  opacity: .48;
+}
+
+.province-map-route[data-transport-mode='road'] .province-map-route-path {
+  stroke-dasharray: none;
+}
+
+.province-map-route[data-transport-mode='rail'] .province-map-route-path {
+  stroke-dasharray: 3 2 10 2;
+}
+
+.province-map-route[data-transport-mode='air'] .province-map-route-path {
+  stroke-dasharray: 12 8;
+}
+
+/* Map-only operational surfaces are solid. :root raises final-owner specificity so stale legacy map CSS cannot restore glass or an invalid transparent fallback regardless of load order. */
+:root .application-map-layer > .strategic-map-lens-bar.panel,
+:root .transport-map-picking-bar {
+  background: var(--color-surface-panel) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.application-map-layer > .strategic-map-lens-bar,
+.strategic-map-lens-bar,
+.transport-map-picking-bar {
+  background: var(--color-surface-panel);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.strategic-map-lens-bar.panel,
+.transport-map-picking-bar.panel {
+  background: var(--color-surface-panel) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.application-map-layer > .strategic-map-lens-bar,
+.strategic-map-lens-bar,
+.strategic-map-lens-bar.panel {
+  box-shadow: 0 8px 20px rgb(0 0 0 / 18%);
+}
+
+.transport-map-picking-bar,
+.transport-map-picking-bar.panel {
+  box-shadow: 0 10px 24px rgb(0 0 0 / 20%);
+}

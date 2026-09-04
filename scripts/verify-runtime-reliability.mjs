@@ -104,10 +104,15 @@ for (const text of [
   'verify-head-ci-registration:',
   'actions: read',
   'No push workflow run found for the pull request head SHA',
-  'npm run build',
+  'dt:',
+  'it:',
+  'needs: dt',
   'browser-test:',
-  'needs: build',
-  "if: needs.build.outputs.browser == 'true'",
+  'needs: [dt, it]',
+  "if: needs.dt.outputs.browser == 'true'",
+  'build:',
+  'needs: [verify-head-ci-registration, dt, it, browser-test]',
+  'Aggregate DT IT ST quality gate',
   'fail-fast: false',
   'shard: [1, 2, 3, 4]',
   'bash scripts/prepare-playwright-chromium.sh',
@@ -258,7 +263,7 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '浏览器 CDN'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '45 秒真实健康检查门槛保持不变'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'exact `location = /economy-api/health`'],
-  ['docs/CI_EXECUTION_DESIGN.md', '只要选择器要求浏览器验证，PR 与非 `main` push 的浏览器硬门禁固定拆成四个独立 shard'],
+  ['docs/CI_EXECUTION_DESIGN.md', '只要选择器要求浏览器验证，ST-browser 固定拆成四个独立 shard'],
   ['docs/CI_EXECUTION_DESIGN.md', '不得通过提高 Job 超时'],
   ['docs/CI_EXECUTION_DESIGN.md', 'ECONOMY_PLAYWRIGHT_SHARD=N/4'],
   ['docs/CI_EXECUTION_DESIGN.md', '必须在测试声明期按视口生成独立 Playwright test'],
@@ -271,4 +276,4 @@ if (failures.length) {
   console.error(`运行时可靠性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('依赖锁、CI 去重、PR/分支四分片浏览器硬门禁、失败步骤日志 Artifact、API 就绪与共享运行时数据、浏览器存储容错、管理员分页、验证码保留、限流清理、冷加载兼容迁移和浏览器测试均符合当前设计。');
+console.log('依赖锁、DT/IT/ST 分层 CI、PR/分支四分片浏览器硬门禁、失败步骤日志 Artifact、API 就绪与共享运行时数据、浏览器存储容错、管理员分页、验证码保留、限流清理、冷加载兼容迁移和浏览器测试均符合当前设计。');

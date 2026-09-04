@@ -129,62 +129,32 @@ export function StrategicMapStage({ model, lens }: {
   const draftSetupCost = routeDraft?.draft && draftStops.length >= 2
     ? transportRouteSetupCost(routeDraft.draft, routeDraft.draft.mode, provinceById)
     : 0;
+  const highlightedRouteId = routeDraft?.highlightedRouteId ?? null;
   const routeOverlays = useMemo<ProvinceMapRouteOverlay[]>(() => {
     const overlays: ProvinceMapRouteOverlay[] = [];
     if (model.tab === 'transport') {
       for (const route of transportRoutes) {
         const stops = transportRouteStopIds(route);
         if (stops.length < 2) continue;
-        const closed = isTransportRouteClosed(route);
         overlays.push({
           id: `saved-${route.mode}-${route.id}`,
           routeId: route.id,
-          laneOwnerId: route.id,
-          sortKey: `${String(route.createdAt).padStart(16, '0')}-${route.id}`,
           mode: route.mode,
           stops,
-          closed,
-          tripType: closed ? 'one-way' : 'round',
-          kind: 'saved',
-        });
-      }
-    }
-    const highlightedRouteId = routeDraft?.highlightedRouteId;
-    const highlightedRoute = highlightedRouteId
-      ? transportRoutes.find((route) => route.id === highlightedRouteId)
-      : undefined;
-    if (highlightedRoute) {
-      const highlightedStops = transportRouteStopIds(highlightedRoute);
-      if (highlightedStops.length >= 2) {
-        const closed = isTransportRouteClosed(highlightedRoute);
-        overlays.push({
-          id: `highlighted-${highlightedRoute.mode}-route`,
-          routeId: highlightedRoute.id,
-          laneOwnerId: highlightedRoute.id,
-          sortKey: `${String(highlightedRoute.createdAt).padStart(16, '0')}-${highlightedRoute.id}`,
-          mode: highlightedRoute.mode,
-          stops: highlightedStops,
-          closed,
-          tripType: closed ? 'one-way' : 'round',
-          kind: 'highlight',
+          kind: route.id === highlightedRouteId ? 'highlight' : 'saved',
         });
       }
     }
     if (routeDraft?.draft && draftStops.length >= 2) {
-      const closed = isTransportRouteClosed(routeDraft.draft);
       overlays.push({
         id: `draft-${routeDraft.draft.mode}-route`,
-        laneOwnerId: 'draft-route',
-        sortKey: 'zzzz-draft-route',
         mode: routeDraft.draft.mode,
         stops: draftStops,
-        closed,
-        tripType: closed ? 'one-way' : 'round',
         kind: 'draft',
       });
     }
     return overlays;
-  }, [draftStops, model.tab, routeDraft?.draft, routeDraft?.highlightedRouteId, transportRoutes]);
+  }, [draftStops, highlightedRouteId, model.tab, routeDraft?.draft, transportRoutes]);
 
   const shipmentOverlays = useMemo<ProvinceMapShipmentOverlay[]>(() => {
     return ((model.game.transportShipments || []) as ShipmentView[])

@@ -26,6 +26,7 @@ test('transport draft line style and physical geometry follow mode while the map
   const statusBar = page.locator('.asset-bar');
   const pickingBar = page.locator('.transport-map-picking-bar');
   await expect(pickingBar).toBeVisible();
+  await expect(pickingBar).toHaveCSS('backdrop-filter', 'none');
   const [desktopStatusBox, desktopPickingBox] = await Promise.all([statusBar.boundingBox(), pickingBar.boundingBox()]);
   expect(desktopStatusBox).not.toBeNull();
   expect(desktopPickingBox).not.toBeNull();
@@ -34,34 +35,46 @@ test('transport draft line style and physical geometry follow mode while the map
   await provinceRegion(page, '加利福尼亚').click();
   await provinceRegion(page, '得克萨斯').click();
 
+  const map = page.locator('.province-map-chart');
   const draft = page.locator('.province-map-route[data-route-kind="draft"]');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-road-route');
   await expect(draft).toHaveAttribute('data-route-geometry-source', 'network');
+  expect(await draft.getAttribute('data-route-lane-owner-id')).toBeNull();
+  expect(await draft.getAttribute('data-route-forward-lanes')).toBeNull();
+  expect(await map.getAttribute('data-route-lane-edge-count')).toBeNull();
   const roadPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const roadDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
+  await expect(draft.locator('.province-map-route-return-path')).toHaveCount(0);
 
   await chooseRichSelectOption(page, pickingBar, '运输方式', '铁路运输');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-rail-route');
   await expect(draft).toHaveAttribute('data-route-geometry-source', 'network');
+  expect(await draft.getAttribute('data-route-lane-owner-id')).toBeNull();
+  expect(await draft.getAttribute('data-route-forward-lanes')).toBeNull();
   const railPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const railDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
+  await expect(draft.locator('.province-map-route-return-path')).toHaveCount(0);
 
   await chooseRichSelectOption(page, pickingBar, '运输方式', '航空运输');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-air-route');
-  await expect(draft).toHaveAttribute('data-route-geometry-source', 'direct');
+  expect(await draft.getAttribute('data-route-lane-owner-id')).toBeNull();
+  expect(await draft.getAttribute('data-route-forward-lanes')).toBeNull();
   const airPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const airDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
+  await expect(draft.locator('.province-map-route-return-path')).toHaveCount(0);
 
   expect(new Set([roadDash, railDash, airDash]).size).toBe(3);
   expect(roadPath).toBeTruthy();
   expect(railPath).toBeTruthy();
   expect(airPath).toBeTruthy();
+  expect(airPath).toMatch(/\sQ[-\d.]+\s[-\d.]+\s[-\d.]+\s[-\d.]+/u);
   expect(new Set([roadPath, railPath, airPath]).size).toBe(3);
   await expect(pickingBar.locator('.transport-map-picking-cost')).toContainText('一次性建线费');
   await expect(pickingBar.locator('.transport-map-picking-cost')).not.toContainText('选择完整路线后计算');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(pickingBar).toBeVisible();
+  await expect(pickingBar).toHaveCSS('backdrop-filter', 'none');
   const [mobileStatusBox, mobilePickingBox] = await Promise.all([statusBar.boundingBox(), pickingBar.boundingBox()]);
   expect(mobileStatusBox).not.toBeNull();
   expect(mobilePickingBox).not.toBeNull();

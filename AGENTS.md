@@ -32,7 +32,7 @@
 - 修改应遵守任务对应的权威设计；新增或改变规则时，在同一变更中更新权威文档和防回退检查，避免后续修改回来。
 - 涉及页面标题的修改时，除非对应权威设计明确要求副标题，默认不得在主标题下新增灰色小标题；需要例外时先更新对应权威设计文档并写明必要的 `non-obvious reason`。
 - 使用精确依赖版本和 `package-lock.json`；安装依赖使用 `npm ci`，不要通过无关升级扩大变更范围。
-- 小范围改动默认按 `scripts/select-ci-tests.mjs` 生成的计划执行分域 checks 与 browser；仅在计划为 `full`、涉及部署链路或共享基础设施、或排查测试波动时运行完整 `npm run build` 与 `npm run test:browser`。
+- 小范围改动默认按 `scripts/select-ci-tests.mjs` 生成的同一计划分域执行 DT、IT 与需要的 ST；仅在计划为 `full`、涉及部署链路或共享基础设施、或排查测试波动时运行完整 `npm run build` 与 `npm run test:browser`。
 - 提交前检查 `git diff --check`、完整差异和工作区状态，确保没有秘密、生成垃圾、调试输出或无关文件。
 - 测试报告、截图、trace、覆盖率及其他可再生成产物不得提交到 `main`；手写测试、fixture 和有意维护的测试页面除外。
 

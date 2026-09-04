@@ -64,7 +64,7 @@ test.describe('navigation pill geometry', () => {
     await expect(hiddenOverview).toHaveAttribute('aria-current', 'page');
   });
 
-  test('desktop map lens controls use horizontal pills while retaining the existing map glass and colors', async ({ page }) => {
+  test('desktop map lens controls use horizontal pills on a solid non-glass map surface while retaining state colors', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=map&scenario=empty');
 
@@ -96,6 +96,7 @@ test.describe('navigation pill geometry', () => {
         color: style.color,
         background: style.backgroundColor,
         border: style.borderTopColor,
+        barBackground: barStyle.backgroundColor,
         barFilter: barStyle.backdropFilter,
       };
     });
@@ -108,7 +109,8 @@ test.describe('navigation pill geometry', () => {
     expect(geometry.iconRight).toBeLessThan(geometry.labelLeft);
     expect(Math.abs(geometry.iconCenterY - geometry.labelCenterY)).toBeLessThanOrEqual(0.75);
     expect(geometry.background).toBe('rgba(0, 0, 0, 0)');
-    expect(geometry.barFilter).toContain('blur(18px)');
+    expect(geometry.barBackground).not.toBe('rgba(0, 0, 0, 0)');
+    expect(geometry.barFilter).toBe('none');
 
     await buttons.nth(2).click();
     await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'industry');

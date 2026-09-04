@@ -18,6 +18,7 @@ function rejectText(source, rejected, message) {
 
 const mapSource = read('src/components/provinces/UsMainlandMap.tsx');
 const styleSource = read('src/styles/province-map.css');
+const renderingSource = read('src/styles/strategic-map-rendering.css');
 const designSource = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 const browserSource = read('tests/browser/province-map-focus.spec.ts');
 
@@ -77,14 +78,14 @@ requireText(
   'selected-hover must remain visually stronger than persistent selection',
 );
 requireText(
-  styleSource,
-  'drop-shadow(0 0 5px',
-  'selected province focus must retain a low-strength 5px outline glow',
+  renderingSource,
+  ".province-map-region[data-selected='true']",
+  'final strategic map rendering must explicitly own the filter-free selected state',
 );
 requireText(
-  styleSource,
-  'drop-shadow(0 0 7px',
-  'selected-hover must retain the stronger 7px outline glow',
+  renderingSource,
+  'filter: none;',
+  'viewBox zoom must not rerun SVG drop-shadow filters for province selection',
 );
 requireText(
   styleSource,
@@ -130,7 +131,7 @@ requireText(
 
 requireText(
   browserSource,
-  "test('province hover and selection preserve lens fill and neutral focus hierarchy'",
+  "test('province hover and selection preserve lens fill and neutral focus hierarchy without changing the SVG viewBox'",
   'province focus browser regression must exist',
 );
 requireText(
@@ -145,8 +146,8 @@ requireText(
 );
 requireText(
   browserSource,
-  "data-map-camera-mode', 'html-compositor-transform'",
-  'province focus regression must confirm focus changes do not replace the compositor camera',
+  "data-map-camera-mode', 'svg-viewbox'",
+  'province focus regression must confirm focus changes do not replace the SVG viewBox camera',
 );
 
 console.log('province map focus verification passed');
