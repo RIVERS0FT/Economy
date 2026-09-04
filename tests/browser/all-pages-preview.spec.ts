@@ -29,6 +29,22 @@ async function clickMapProvinceLabel(page: import('@playwright/test').Page, prov
   await page.mouse.click(point.x, point.y);
 }
 
+async function openPersistentLayoutPreview(page: import('@playwright/test').Page) {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('?preview=game');
+  const sidebar = page.locator('.desktop-sidebar');
+  const workspace = page.locator('.workspace');
+  const workspaceCard = page.locator('.signed-in-shell__primary-card');
+  const outliner = page.locator('.strategic-outliner');
+  await expect(workspaceCard).toHaveCount(1);
+  await expect(workspaceCard.locator(':scope .desktop-sidebar')).toHaveCount(1);
+  await expect(workspaceCard.locator(':scope .strategic-page-host')).toHaveCount(1);
+  await expect(outliner).toBeVisible();
+  await outliner.evaluate((element) => element.setAttribute('data-preview-outliner-sentinel', 'persistent'));
+  return { sidebar, workspace, workspaceCard, outliner };
+}
+
 test('account-free mode redirects into the complete game shell without API traffic', async ({ page }) => {
   const apiRequests: string[] = [];
   page.on('request', (request) => {
@@ -324,30 +340,16 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
   }
 });
 
-test('overview, market, buildings, transport, and settings share a one-third card width while research, auction, contracts, bank, leaderboard, and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
-  test.setTimeout(60_000);
-  const pageReadyTimeout = 15_000;
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.setViewportSize({ width: 1684, height: 931 });
-  await page.goto('?preview=game');
-  const sidebar = page.locator('.desktop-sidebar');
-  const workspace = page.locator('.workspace');
-  const workspaceCard = page.locator('.signed-in-shell__primary-card');
-  const outliner = page.locator('.strategic-outliner');
+test('province, overview, market, buildings, transport, and settings share a one-third card width with one persistent strategic outliner', async ({ page }) => {
+  const { sidebar, workspaceCard, outliner } = await openPersistentLayoutPreview(page);
   const compactWidths: number[] = [];
   const compactCardWidths: number[] = [];
-
-  await expect(workspaceCard).toHaveCount(1);
-  await expect(workspaceCard.locator(':scope .desktop-sidebar')).toHaveCount(1);
-  await expect(workspaceCard.locator(':scope .strategic-page-host')).toHaveCount(1);
-  await expect(outliner).toBeVisible();
-  await outliner.evaluate((element) => element.setAttribute('data-preview-outliner-sentinel', 'persistent'));
 
   await clickMapProvinceLabel(page, '得克萨斯');
   const provinceHost = page.locator('.strategic-page-host');
   const provinceContent = provinceHost.locator(':scope > .page-content:not(.page-loading)');
   await expect(provinceHost).toHaveAttribute('data-strategic-presentation', 'building');
-  await expect(provinceHost.locator(':scope > .page-loading')).toHaveCount(0, { timeout: pageReadyTimeout });
+  await expect(provinceHost.locator(':scope > .page-loading')).toHaveCount(0);
   await expect(page.getByRole('heading', { level: 1, name: '得克萨斯' })).toBeVisible();
   await expect(provinceContent).toBeVisible();
   await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
@@ -364,7 +366,7 @@ test('overview, market, buildings, transport, and settings share a one-third car
       : sidebar.getByRole('button', { name: new RegExp(`^${label}`) });
     await button.click();
     const host = page.locator('.strategic-page-host');
-    await expect(host.locator(':scope > .page-loading')).toHaveCount(0, { timeout: pageReadyTimeout });
+    await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
     const content = host.locator(':scope > .page-content:not(.page-loading)');
     await expect(host).toHaveAttribute('data-strategic-presentation', 'building');
     await expect(content).toBeVisible();
@@ -385,10 +387,22 @@ test('overview, market, buildings, transport, and settings share a one-third car
   expect(Math.max(...compactCardWidths) - Math.min(...compactCardWidths)).toBeLessThanOrEqual(1);
   expect(compactCardWidths[0]).toBeLessThanOrEqual(1684 / 3);
   expect(compactCardWidths[0]).toBeCloseTo(1684 / 3, 0);
+});
 
+test('transport route picking keeps the persistent strategic outliner and compact page geometry', async ({ page }) => {
+  const { sidebar, workspaceCard, outliner } = await openPersistentLayoutPreview(page);
   await sidebar.getByRole('button', { name: /^运输/ }).click();
+  const host = page.locator('.strategic-page-host');
+  await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
+  await expect(host).toHaveAttribute('data-strategic-presentation', 'building');
   const transportContent = page.locator('.transport-page-content');
   await expect(transportContent).toBeVisible();
+  await expect(outliner).toBeVisible();
+  await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
+  const cardBox = await workspaceCard.boundingBox();
+  expect(cardBox).not.toBeNull();
+  expect(cardBox!.width).toBeCloseTo(1684 / 3, 0);
+
   const transportHeader = page.locator('.page-fixed-header');
   const addRouteButton = transportContent.locator('.transport-page-footer').getByRole('button', { name: '增加路线', exact: true });
   await expect(transportHeader.getByRole('button')).toHaveCount(2);
@@ -405,12 +419,26 @@ test('overview, market, buildings, transport, and settings share a one-third car
   await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
   await transportMapPickingBar.getByRole('button', { name: '取消', exact: true }).click();
   await expect(page.getByTestId('us-mainland-map')).toHaveAttribute('data-route-picking', 'false');
+});
+
+test('research, auction, contracts, bank, leaderboard, and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
+  const { sidebar, workspace, workspaceCard, outliner } = await openPersistentLayoutPreview(page);
+  await sidebar.getByRole('button', { name: /^概览/ }).click();
+  const compactHost = page.locator('.strategic-page-host');
+  await expect(compactHost.locator(':scope > .page-loading')).toHaveCount(0);
+  const compactContent = compactHost.locator(':scope > .page-content:not(.page-loading)');
+  await expect(compactHost).toHaveAttribute('data-strategic-presentation', 'building');
+  await expect(compactContent).toBeVisible();
+  await expect(outliner).toBeVisible();
+  await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
+  const compactContentBox = await compactContent.boundingBox();
+  expect(compactContentBox).not.toBeNull();
 
   const fullAreaWidths = new Map<string, number>();
   for (const label of ['研发', '拍卖', '合同', '银行', '排行', '商店']) {
     await sidebar.getByRole('button', { name: new RegExp(`^${label}`) }).click();
     const host = page.locator('.strategic-page-host');
-    await expect(host.locator(':scope > .page-loading')).toHaveCount(0, { timeout: pageReadyTimeout });
+    await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
     const content = host.locator(':scope > .page-content:not(.page-loading)');
     await expect(host).toHaveAttribute('data-strategic-presentation', 'fullscreen');
     await expect(content).toBeVisible();
@@ -425,7 +453,7 @@ test('overview, market, buildings, transport, and settings share a one-third car
     expect(cardBox).not.toBeNull();
     expect(workspaceBox).not.toBeNull();
     expect(contentBox!.width).toBeCloseTo(hostBox!.width, 0);
-    expect(contentBox!.width).toBeGreaterThan(compactWidths[0] + 200);
+    expect(contentBox!.width).toBeGreaterThan(compactContentBox!.width + 200);
     expect(workspaceBox!.x + workspaceBox!.width - (cardBox!.x + cardBox!.width)).toBeCloseTo(8, 0);
     fullAreaWidths.set(label, contentBox!.width);
   }
