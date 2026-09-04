@@ -37,6 +37,7 @@ test.describe('production cluster status summary', () => {
     await expect(profit).toContainText('单厂平均利润／分钟');
     await expect(profit).not.toContainText('当前配方预计');
     await expect(profit).not.toContainText('最近真实成交价');
+    await expect(profit).toHaveAttribute('title', /按当日官方系统价/);
     await expect(profit.locator('small')).toHaveCount(0);
     await expect(profit).toContainText('5.38');
     await expect(profit).not.toContainText('缺少');
