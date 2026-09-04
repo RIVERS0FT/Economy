@@ -21,6 +21,7 @@
 - `us-atlas` 州 path、世界大陆 path、中文州名基础布局、公路／铁路投影折线在模块初始化或真实容器尺寸变化之外不得重新生成。手势期间所有州 path `d`、世界 path `d`、州名基础中心和 glyph `transform` 必须保持不变。
 - `.province-map-camera-surface` 是唯一世界宿主，也是 active 阶段唯一允许发生瞬时合成变换的节点。**idle／settled 最终样式必须恢复 `transform:none`、`will-change:auto`**，不得把完整 SVG 世界长期提升为可缩放纹理。
 - 根 SVG 继续承担 settled 状态的物理视口裁剪；屏幕外州始终完整挂载，不得按 Camera 可见性卸载或重建州面。active 阶段为了避免 transient transform 被已提交 SVG viewport 二次裁剪，最终 owner 样式可以临时允许该 SVG overflow 显示，但外层战略地图视口仍是最终裁剪边界。
+- `.province-map-camera-surface` 自身固定 `contain:none`，不得使用 `contain:paint`、clip-path 或其他重复 paint 裁剪建立第二层瞬时裁剪边界。外层战略地图视口已经负责最终屏幕裁剪；实测 active SVG overflow 已移交外层后继续保留 `contain:paint`，Chrome Camera 帧仍约 `50–65ms`，会迫使完整 SVG 世界在 transient transform 中重复 paint，超过同浏览器 `empty×2+8ms` 预算。
 
 ## 3. Transient Camera + settled viewBox
 
@@ -98,6 +99,7 @@
 - 使用 1:10m 北美土地完整 path 重复绘制世界背景海岸主线或外侧描边；
 - 在 active Camera 输入期间继续让约十万级 1:10m 世界底色 path 参与 paint，或把背景 LOD 扩大到 48 州、州名、路线、美国本土最终轮廓；
 - 为背景 LOD 在 RAF 中改 DOM／path、建立第二 Camera，或在 settle 后不恢复 1:10m 世界底色；
+- 在 `.province-map-camera-surface` 恢复 `contain:paint`、额外 clip-path 或其他会让 transient 世界重复 paint 的第二层裁剪；
 - 公路／铁路共享同一中心线、地面运输首府直线正式几何；
 - 运输路线强制并排、车道数据结构、laneOffset 或返程第二条线；
 - 航空首府直线正式显示和直线运动；
@@ -112,7 +114,7 @@
 - `src/pages/TransportPage.tsx` 与 `TransportRouteDraftContext`：路线 hover／focus／详情高亮身份。
 - `src/styles/province-map.css` 与 `src/styles/strategic-map-rendering.css`：idle 矢量层级、active compositor promotion、active/idle 世界背景 LOD、无滤镜热路径、三种方式线型和地图专属实体表面；CSS 不再拥有逐帧 Camera transform 值。
 - `scripts/verify-provincial-economy.mjs`、`scripts/verify-transport-route-lanes.mjs` 与 `scripts/verify-province-map-focus.mjs`：结构防回退。
-- `tests/browser/map-zoom-transient.spec.ts`：同帧 wheel burst 在 active 阶段必须是 `0` 次根 SVG `viewBox` 变化、`1` 次 Camera Surface style 变化、`0` 次诊断属性变化；active 边界与 transform 必须在同一浏览器 RAF 中原子捕获，避免跨 90ms settle 窗口轮询；同时锁定 path/glyph 静态、active 110m 背景 LOD、settle 单次最终 viewBox、idle `transform:none / will-change:auto`，并继续以同浏览器空帧中位数验证 `empty×2+8ms` 的真实 Camera 帧预算。
+- `tests/browser/map-zoom-transient.spec.ts`：同帧 wheel burst 在 active 阶段必须是 `0` 次根 SVG `viewBox` 变化、`1` 次 Camera Surface style 变化、`0` 次诊断属性变化；active 边界与 transform 必须在同一浏览器 RAF 中原子捕获，避免跨 90ms settle 窗口轮询；同时锁定 path/glyph 静态、active 110m 背景 LOD、active SVG 内裁剪关闭与 Camera `contain:none`、settle 单次最终 viewBox、idle `transform:none / will-change:auto`，并继续以同浏览器空帧中位数验证 `empty×2+8ms` 的真实 Camera 帧预算。
 - `tests/browser/province-map-world-boundary.spec.ts`：锁定闲置态 10m 土地填充、同源 110m 背景描边、10m 美国本土最终轮廓及背景描边复杂度预算；所有边界重复拖拽比较必须先等待 Camera settle，再以最终 viewBox 验证固定 world bounds，不得把 transient 帧误当 settled 边界。
 - `tests/browser/map-zoom-out-boundary.spec.ts`：锁定缩小 active 阶段已提交 viewBox 不变、transient transform 即时把屏外州带回视口、48 个 path 始终挂载，settle 后再回写 1× viewBox。
 - `tests/browser/map-reset-sync.spec.ts`、`map-mobile-pinch.spec.ts`、`map-zoom-render-sync.spec.ts`、`province-map-focus.spec.ts`：重置、移动双指、settled SVG 同步和州交互不破坏同一 Camera。
