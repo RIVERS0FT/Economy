@@ -320,8 +320,8 @@ const writeCameraStart = camera.indexOf('const writeCamera = () => {');
 const writeCameraEnd = camera.indexOf('\n  };', writeCameraStart);
 assert.ok(writeCameraStart >= 0 && writeCameraEnd > writeCameraStart, '必须能定位地图相机 RAF 热路径');
 const writeCameraSource = camera.slice(writeCameraStart, writeCameraEnd);
-assert.ok(writeCameraSource.includes('surface.style.setProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY'), '地图 active RAF 必须只写唯一 transient Camera transform');
-for (const forbidden of ["svg.setAttribute('viewBox'", 'container.dataset', 'publishState(', 'getBoundingClientRect(', 'setTimeout(', 'setActive(', 'setState(', 'surface.style.transform']) {
+assert.ok(writeCameraSource.includes('surface.style.transform = transientTransformFor(current, metrics);'), '地图 active RAF 必须直接写唯一内建 transform');
+for (const forbidden of ["svg.setAttribute('viewBox'", 'container.dataset', 'publishState(', 'getBoundingClientRect(', 'setTimeout(', 'setActive(', 'setState(', 'setProperty(', 'TRANSIENT_CAMERA_TRANSFORM_PROPERTY']) {
   assert.equal(writeCameraSource.includes(forbidden), false, `地图相机 RAF 热路径不得包含: ${forbidden}`);
 }
 const commitCameraStart = camera.indexOf('const commitCamera = () => {');
@@ -329,15 +329,15 @@ const commitCameraEnd = camera.indexOf('\n  };', commitCameraStart);
 assert.ok(commitCameraStart >= 0 && commitCameraEnd > commitCameraStart, '必须能定位地图 settle viewBox 提交');
 const commitCameraSource = camera.slice(commitCameraStart, commitCameraEnd);
 assert.ok(commitCameraSource.includes("svg.setAttribute('viewBox'"), '地图 settle 必须一次性提交最终 SVG viewBox');
-assert.ok(commitCameraSource.includes('surface.style.removeProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY)'), '地图 settle 必须清除 transient Camera transform');
-for (const forbidden of ['requestAnimationFrame(', 'container.dataset', 'getBoundingClientRect(', 'setState(']) {
+assert.ok(commitCameraSource.includes("surface.style.removeProperty('transform')"), '地图 settle 必须清除 transient Camera transform');
+for (const forbidden of ['requestAnimationFrame(', 'container.dataset', 'getBoundingClientRect(', 'setState(', 'TRANSIENT_CAMERA_TRANSFORM_PROPERTY']) {
   assert.equal(commitCameraSource.includes(forbidden), false, `地图 settle 提交不得引入第二热路径: ${forbidden}`);
 }
 for (const forbidden of [
   'geoRoam', 'dispatchAction', 'setOption(', 'convertToPixel', 'layoutSize', 'layoutCenter',
   "mapCameraMode = 'html-compositor-transform'", "mapCameraHotPath = 'single-svg-viewbox-write'",
-  'surface.style.transform = `translate3d(', "surface.style.willChange = nextActive ? 'transform' : ''",
-]) assert.equal(camera.includes(forbidden), false, `地图交互不得恢复旧 Camera 实现: ${forbidden}`);
+  'TRANSIENT_CAMERA_TRANSFORM_PROPERTY', '--province-map-camera-transform', "surface.style.willChange = nextActive ? 'transform' : ''",
+]) assert.equal(camera.includes(forbidden), false, `地图交互不得恢复旧 Camera 或 custom-property 间接层: ${forbidden}`);
 
 const labels = read('src/components/provinces/provinceMapStaticLabels.ts');
 for (const text of [
@@ -380,13 +380,15 @@ assert.ok(performanceStyles.includes('.province-map-camera-surface') && performa
 assert.equal(performanceStyles.includes('will-change: transform;'), false, 'performance 基础样式不得永久提升 Camera');
 const renderingStyles = read('src/styles/strategic-map-rendering.css');
 for (const text of [
-  '.province-map-static-viewport[data-map-zoom-active=\'true\'] .province-map-camera-surface',
-  'transform: var(--province-map-camera-transform, none) !important;', 'will-change: transform !important;',
+  ".province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface", 'will-change: transform !important;',
   ".province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-fill", 'display: none;',
   ".province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-shadow", 'fill-opacity: .78;',
   '.application-map-layer > .strategic-map-lens-bar', '.transport-map-picking-bar',
   'backdrop-filter: none;', '-webkit-backdrop-filter: none;',
 ]) assert.ok(renderingStyles.includes(text), `战略地图最终渲染覆盖缺少: ${text}`);
+for (const forbidden of ['--province-map-camera-transform', '@property --province-map-camera-transform', 'transform: var(--province-map-camera-transform']) {
+  assert.equal(renderingStyles.includes(forbidden), false, `战略地图 CSS 不得恢复 Camera custom-property 间接层: ${forbidden}`);
+}
 assert.ok(read('src/main.tsx').includes("import './styles/strategic-map-rendering.css';"), '战略地图最终渲染样式必须被正式入口加载');
 for (const forbidden of ['.province-map-marker', '.province-map-silhouette', '.province-map-command-panel', '.province-map-meta', '.province-map-legend']) {
   assert.equal(mapStyles.includes(forbidden), false, `地图样式不得恢复旧地图标记或卡片: ${forbidden}`);
@@ -415,7 +417,7 @@ for (const text of [
   'continents-10m-fill-110m-stroke', 'data-map-world-fill-resolution', 'data-map-world-stroke-resolution',
   'states-10m-union', 'data-map-focus-area-target', 'vertices).toBeLessThan(2_000)',
   'baseline.areaRatio', 'centerOffsetX', 'fixed-world-context', 'fixed-world-viewbox', 'fixed-world-bounds',
-  'data-map-camera-world-bounds', 'expectViewInsideBounds',
+  'data-map-camera-world-bounds', 'expectViewInsideBounds', 'waitForSettledCamera',
 ]) assert.ok(worldBoundaryTest.includes(text), `战略地图固定边界浏览器回归缺少: ${text}`);
 const mapBrowserTest = read('tests/browser/province-map.spec.ts');
 for (const text of [
@@ -471,7 +473,8 @@ for (const text of [
   '本文是战略地图', 'Transient Camera + settled viewBox', '该 world bounds 不得随 zoom 改变',
   '`viewWidth = baseViewWidth / zoom`', '真实 SVG `text`', '二次贝塞尔抛物线',
   '1:10m countries', '1:110m TopoJSON', '低于 `2,000` 个 `M/L` 顶点',
-  'settle 后必须清除', '不得生成平行车道', '`backdrop-filter` 与 `-webkit-backdrop-filter` 必须为 `none`',
+  '直接写浏览器内建的 `style.transform`', 'CSS custom property', 'settle 后必须清除',
+  '不得生成平行车道', '`backdrop-filter` 与 `-webkit-backdrop-filter` 必须为 `none`',
 ]) assert.ok(mapDesign.includes(text), `战略地图渲染 DESIGN 缺少: ${text}`);
 const networkDesign = read('docs/TRANSPORT_NETWORK_GEOMETRY_DESIGN.md');
 for (const text of [
@@ -495,4 +498,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、中文展示名、首府目录和州级经济隔离保持稳定；所有州直接经营；战略地图闲置使用 10m 土地填充和轻量 110m 背景描边，active RAF 只写 transient compositor transform，settle 后单次提交根 SVG viewBox 并恢复 transform:none / will-change:auto；固定 world bounds 与州面、州名、路线矢量几何保持同一 Camera；公路、铁路和航空沿各自正式几何运动，运行时不保留车道数据模型或返程副线，地图专属镜头栏和选路面板不使用毛玻璃。');
+console.log('地区经济验证通过：美国连续 48 州、中文展示名、首府目录和州级经济隔离保持稳定；所有州直接经营；战略地图闲置使用 10m 土地填充和轻量 110m 背景描边，active RAF 只直接写浏览器内建 transform，settle 后单次提交根 SVG viewBox 并恢复 transform:none / will-change:auto；固定 world bounds 与州面、州名、路线矢量几何保持同一 Camera；公路、铁路和航空沿各自正式几何运动，运行时不保留车道数据模型或返程副线，地图专属镜头栏和选路面板不使用毛玻璃。');
