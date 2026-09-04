@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FACILITY_TYPE_CATALOG } from '../src/domain.js';
+import { dailyCheckInPeriodFor } from '../src/daily-check-in.js';
 import { EconomyStore } from '../src/runtime-store.js';
 import { DEFAULT_PROVINCE_ID, provinceScopedKey } from '../src/provinces.js';
 
@@ -29,7 +30,13 @@ test('decimal daily-price commodity buy settles exactly without frozen funds or 
     const loaded = store.loadWorld(now + 1);
     const player = loaded.world.players[String(user.id)];
     player.credits = 100;
-    loaded.world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')].officialPrice = 0.41;
+    const market = loaded.world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')];
+    const pricePeriod = dailyCheckInPeriodFor(now + 2);
+    market.officialPrice = 0.41;
+    market.priceDateKey = pricePeriod.todayKey;
+    market.nextPriceAt = pricePeriod.nextResetAt;
+    market.todayBuyQuantity = 0;
+    market.todaySellQuantity = 0;
     store.saveWorld(loaded.revision, loaded.world, now + 1);
 
     const placed = applyOrderAction(store, 'placeOrder', {

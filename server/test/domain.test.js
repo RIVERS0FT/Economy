@@ -388,7 +388,7 @@ test('market demand retains a partially filled internal carried order and publis
   ));
   assert.ok(nextOrder);
   assert.equal(nextOrder.price, Number(nextOrder.price.toFixed(2)));
-}
+});
 
 test('population-funded market demand does not scale with active player count', () => {
   const foodBudgetFor = (playerCount) => {
