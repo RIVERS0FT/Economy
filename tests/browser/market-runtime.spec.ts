@@ -1,10 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 async function openCommodityDetail(page: Page) {
-  await page.goto('/market-runtime-test.html');
-  const wheat = page.getByRole('button', { name: /查看.*详情/ }).first();
-  await expect(wheat).toBeVisible();
-  await wheat.click();
+  await page.goto('market-runtime-test.html?scenario=active');
   await expect(page.getByText('即时交易', { exact: true })).toBeVisible();
 }
 
@@ -31,8 +28,9 @@ async function inspectChartAxis(chart: Locator) {
 test('commodity detail uses the daily server price and has no resting-order UI', async ({ page }) => {
   await openCommodityDetail(page);
   await expect(page.locator('.market-immediate-trade-card')).toBeVisible();
-  await expect(page.getByText('今日成交价')).toBeVisible();
-  await expect(page.getByText('下次调价')).toBeVisible();
+  const entry = page.locator('.market-immediate-trade');
+  await expect(entry.getByText('今日成交价', { exact: true })).toBeVisible();
+  await expect(entry.getByText('下次调价', { exact: true })).toBeVisible();
   await expect(page.getByLabel('调整交易数量')).toBeVisible();
   await expect(page.getByRole('button', { name: /立即买入/ })).toBeVisible();
   await expect(page.locator('#market-order-price')).toHaveCount(0);

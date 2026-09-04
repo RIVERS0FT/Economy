@@ -103,8 +103,8 @@ test('global market drills from commodity to regional quotes and existing trade 
   await expect(regionalRow).toBeVisible();
   const regionalHeader = page.locator('.market-commodity-row-header');
   await expect(regionalHeader).toHaveCount(1);
-  for (const label of ['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();
-  for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
+  for (const label of ['地区', '今日价格', '24h成交量', '24h价格变化']) await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ['卖单量', '买单量', '今日价格', '24h成交量', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
   const geometry = await regionalRow.evaluate((row) => ({ clientWidth: row.clientWidth, scrollWidth: row.scrollWidth }));
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
 
@@ -324,12 +324,11 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
   }
 });
 
-test('overview, market, buildings, transport, and settings share a one-third card width while research, auction, contracts, bank, leaderboard, and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
+test('overview, market, buildings, transport, and settings share a one-third card width with one persistent strategic outliner', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
-  const workspace = page.locator('.workspace');
   const workspaceCard = page.locator('.signed-in-shell__primary-card');
   const outliner = page.locator('.strategic-outliner');
   const compactWidths: number[] = [];
@@ -383,6 +382,16 @@ test('overview, market, buildings, transport, and settings share a one-third car
   expect(Math.max(...compactCardWidths) - Math.min(...compactCardWidths)).toBeLessThanOrEqual(1);
   expect(compactCardWidths[0]).toBeLessThanOrEqual(1684 / 3);
   expect(compactCardWidths[0]).toBeCloseTo(1684 / 3, 0);
+});
+
+test('transport route picking keeps the one-third card and persistent strategic outliner', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('?preview=game');
+  const sidebar = page.locator('.desktop-sidebar');
+  const outliner = page.locator('.strategic-outliner');
+  await expect(outliner).toBeVisible();
+  await outliner.evaluate((element) => element.setAttribute('data-preview-outliner-sentinel', 'persistent'));
 
   await sidebar.getByRole('button', { name: /^运输/ }).click();
   const transportContent = page.locator('.transport-page-content');
@@ -403,6 +412,26 @@ test('overview, market, buildings, transport, and settings share a one-third car
   await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
   await transportMapPickingBar.getByRole('button', { name: '取消', exact: true }).click();
   await expect(page.getByTestId('us-mainland-map')).toHaveAttribute('data-route-picking', 'false');
+});
+
+test('research, auction, contracts, bank, leaderboard, and shop stay full-area while preserving the strategic outliner instance', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('?preview=game');
+  const sidebar = page.locator('.desktop-sidebar');
+  const workspace = page.locator('.workspace');
+  const workspaceCard = page.locator('.signed-in-shell__primary-card');
+  const outliner = page.locator('.strategic-outliner');
+  await expect(outliner).toBeVisible();
+  await outliner.evaluate((element) => element.setAttribute('data-preview-outliner-sentinel', 'persistent'));
+
+  await sidebar.getByRole('button', { name: /^市场/ }).click();
+  const compactHost = page.locator('.strategic-page-host');
+  await expect(compactHost).toHaveAttribute('data-strategic-presentation', 'building');
+  const compactContent = compactHost.locator(':scope > .page-content:not(.page-loading)');
+  await expect(compactContent).toBeVisible();
+  const compactBox = await compactContent.boundingBox();
+  expect(compactBox).not.toBeNull();
 
   const fullAreaWidths = new Map<string, number>();
   for (const label of ['研发', '拍卖', '合同', '银行', '排行', '商店']) {
@@ -423,7 +452,7 @@ test('overview, market, buildings, transport, and settings share a one-third car
     expect(cardBox).not.toBeNull();
     expect(workspaceBox).not.toBeNull();
     expect(contentBox!.width).toBeCloseTo(hostBox!.width, 0);
-    expect(contentBox!.width).toBeGreaterThan(compactWidths[0] + 200);
+    expect(contentBox!.width).toBeGreaterThan(compactBox!.width + 200);
     expect(workspaceBox!.x + workspaceBox!.width - (cardBox!.x + cardBox!.width)).toBeCloseTo(8, 0);
     fullAreaWidths.set(label, contentBox!.width);
   }

@@ -281,6 +281,14 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
+for (const [path, texts] of [
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['订单簿深度加权报价', '输入卖单覆盖率', '有效卖单覆盖率', '玩家主动买卖失衡与公开卖单覆盖']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['只有有效卖单深度可以影响可购性', '各输入公开卖单覆盖率', '订单簿挂单', '工厂买单', '订单簿卖单撤销', '运行中提交工厂卖单']],
+]) {
+  const source = read(path);
+  for (const text of texts) assert.equal(source.includes(text), false, `${path} 不得保留退役玩家盘口／工厂订单设计: ${text}`);
+}
+
 console.log('市场需求验证通过：模型 20 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并按州级 PCE 权重生成本地需求；共享撮合只服务服务器内部人口／储备模拟，玩家商品交易保持每日系统价即时成交。');
 
 const populationPolicy = read('server/src/population-policy.js');

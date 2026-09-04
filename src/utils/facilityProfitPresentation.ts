@@ -61,15 +61,15 @@ export function resolveFacilityProfitPresentation({
   const fallback = scopeCount < 1
     ? '暂无范围'
     : missingPriceNames.length > 0
-      ? `缺少${missingPriceLabel}成交价`
+      ? `缺少${missingPriceLabel}当日官方价`
       : '暂无成交数据';
   const detail = scopeCount < 1
     ? `${description}；没有可计算的工厂范围`
     : profitPerMinute === null
       ? missingPriceNames.length > 0
-        ? `${description}；缺少${missingPriceLabel}的最近真实成交价，无法估算`
-        : `${description}；缺少最近真实成交价，无法估算`
-      : `${description}；按最近真实成交价和 ${staffingPercent}% 满员率线性估算，已扣除对应有效产能的单座原料成本与周期运营成本，不计玩家库存、挂单深度和交易手续费`;
+        ? `${description}；缺少${missingPriceLabel}的当日官方系统价，无法估算`
+        : `${description}；缺少当日官方系统价，无法估算`
+      : `${description}；按当日官方系统价和 ${staffingPercent}% 满员率线性估算，已扣除对应有效产能的单座原料成本与周期运营成本，不计玩家库存、挂单深度和交易手续费`;
   const tone: FacilityProfitTone = profitPerMinute === null
     ? 'unavailable'
     : profitPerMinute > 0

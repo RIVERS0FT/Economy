@@ -100,10 +100,11 @@ test('game ECharts tooltip uses the shared tooltip host and never covers shell c
   expect(intersectionArea(geometry.tooltip, geometry.status)).toBe(0);
   expect(intersectionArea(geometry.tooltip, geometry.sidebar)).toBe(0);
 
-  const priceInput = page.getByRole('textbox', { name: '价格', exact: true });
-  await expect(priceInput).toHaveValue('2');
-  await page.getByRole('button', { name: '价格增加 0.01' }).click();
-  await expect(priceInput).toHaveValue('2.01');
+  const quantityInput = page.locator('#market-trade-quantity');
+  await expect(quantityInput).toHaveValue('1');
+  await page.getByRole('button', { name: '数量增加 1' }).click();
+  await expect(quantityInput).toHaveValue('2');
+  await expect(page.locator('#market-order-price')).toHaveCount(0);
 });
 
 test('mobile workspace floating layer excludes the top status bar and bottom navigation', async ({ page }) => {

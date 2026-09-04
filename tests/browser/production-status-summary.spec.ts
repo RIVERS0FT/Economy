@@ -28,7 +28,7 @@ test.describe('production cluster status summary', () => {
     await expect(page.locator('.facility-cluster-selector-card[data-status="constructing"]')).toHaveCount(0);
   });
 
-  test('renders decimal last trade prices in single-factory profit', async ({ page }) => {
+  test('renders decimal daily official prices in single-factory profit', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=decimal-profit');
     await page.locator('.facility-cluster-selector-card').first().click();
 

@@ -29,8 +29,8 @@ const analyzeRecipeProfit = new Function(
   executableRecipeSource + '\nreturn analyzeRecipeProfit;',
 )(isValidOrderPrice);
 
-function market(productId, lastTradePrice, lastPrice = 999) {
-  return { productId, lastPrice, lastTradePrice, priceHistory: [], demand: {} };
+function market(productId, officialPrice, lastTradePrice = 998, lastPrice = 999) {
+  return { productId, officialPrice, lastPrice, lastTradePrice, priceHistory: [], demand: {} };
 }
 
 const recipe = {
@@ -52,7 +52,7 @@ assert.equal(cluster.outputMarketValue, 48);
 assert.equal(cluster.operatingCost, 4);
 assert.equal(cluster.cycleProfit, 32);
 assert.equal(cluster.profitPerMinute, 32);
-assert.equal(cluster.inputs[0].lastTradePrice, 3, '不得回退到 lastPrice');
+assert.equal(cluster.inputs[0].officialPrice, 3, '不得回退到 lastTradePrice 或 lastPrice');
 
 const singleFactory = analyzeRecipeProfit({ recipe, scopeCount: 1, markets, buildCost: 0 });
 assert.equal(singleFactory.inputMarketCost, 6);
@@ -74,7 +74,7 @@ assert.equal(decimalPrices.inputMarketCost, 2.5);
 assert.equal(decimalPrices.outputMarketValue, 9.5);
 assert.equal(decimalPrices.operatingCost, 2);
 assert.equal(decimalPrices.cycleProfit, 5);
-assert.equal(decimalPrices.profitPerMinute, 5, '合法两位小数成交价必须参与工厂产值计算');
+assert.equal(decimalPrices.profitPerMinute, 5, '合法两位小数官方价必须参与工厂产值计算');
 assert.deepEqual(decimalPrices.missingPriceProductIds, []);
 
 const minimumPrice = analyzeRecipeProfit({
@@ -91,7 +91,7 @@ const minimumPrice = analyzeRecipeProfit({
   buildCost: 0,
 });
 assert.equal(minimumPrice.outputMarketValue, 0.01);
-assert.equal(minimumPrice.profitPerMinute, 0.01, '0.01 最小合法成交价必须参与工厂产值计算');
+assert.equal(minimumPrice.profitPerMinute, 0.01, '0.01 最小合法官方价必须参与工厂产值计算');
 
 for (const invalidPrice of [0, -1, 1.234, Number.POSITIVE_INFINITY]) {
   const invalid = analyzeRecipeProfit({
@@ -163,7 +163,10 @@ const marketDesignSource = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 for (const text of [
   "import { isValidOrderPrice } from './defaultOrderPrice';",
   'isValidOrderPrice(value)',
-]) assert.ok(profitSource.includes(text), `工厂产值计算缺少统一价格边界: ${text}`);
+  'markets[productId]?.officialPrice',
+]) assert.ok(profitSource.includes(text), `工厂产值计算缺少统一官方价边界: ${text}`);
+assert.equal(profitSource.includes('markets[productId]?.lastTradePrice'), false, '单厂利润不得回退最近成交价');
+assert.ok(presentationSource.includes('按当日官方系统价和'), '单厂利润说明必须使用当日官方系统价');
 assert.doesNotMatch(
   profitSource,
   /Number\.isInteger\(value\)|Number\(value\)\s*>=\s*1/,
@@ -172,13 +175,13 @@ assert.doesNotMatch(
 for (const text of [
   "scenario === 'decimal-profit'",
   "scenario === 'facility-card-profit'",
-  'lastTradePrice: 28.75',
-  'lastTradePrice: 76.25',
+  'officialPrice: 28.75',
+  'officialPrice: 76.25',
   "id: 'sawmill-loss-recipe'",
   'FacilityRecipeProfitMarketsProvider markets={model.game.markets}',
 ]) assert.ok(runtimeHarnessSource.includes(text), `生产运行时小数产值场景缺少: ${text}`);
 for (const text of [
-  'renders decimal last trade prices in single-factory profit',
+  'renders decimal daily official prices in single-factory profit',
   "toContainText('5.38')",
   "not.toContainText('缺少')",
 ]) assert.ok(browserSource.includes(text), `建筑页小数产值浏览器回归缺少: ${text}`);
@@ -291,7 +294,7 @@ for (const text of [
   '必须直接显示缺失商品名称',
   '不得只显示笼统的“暂无成交数据”',
   '工厂信息是唯一身份与经营摘要区',
-  '最近真实成交价必须使用统一订单簿的价格边界',
+  '当日官方系统价必须使用统一两位小数价格边界',
   '客户端不得要求成交价为整数或不低于 1',
   '选择卡只显示格式化数字或缺价占位',
   '正数不加正号并使用绿色，负数显示绝对值、不显示负号并使用红色',
@@ -300,7 +303,9 @@ for (const removedText of [
   '### 9.5 玩家可见配方利润分析',
   '界面必须展示原料市场成本、产出市场价值',
   '窄屏利润分析保持紧凑而不删减信息',
-]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡规则: ${removedText}`);
+  '单厂平均利润只读取商品最近一次统一订单簿真实成交价',
+  '最近真实成交价 · 满员率',
+]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡或旧成交价规则: ${removedText}`);
 assert.ok(
   marketDesignSource.includes('一级商品目录与商品全局详情使用各地区 `officialPrice` 作为市场价格摘要'),
   '即时市场设计必须锁定地区商品列表使用官方系统价',

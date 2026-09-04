@@ -92,6 +92,7 @@ for (const token of [
 ]) requireText(marketPage, token, `地区商品详情缺少市场事实: ${token}`);
 requireText(detailStyles, '.market-detail-surface .market-trade-card {', '详情样式必须继续拥有直接交易区。');
 requireText(detailStyles, 'background: transparent;', '直接交易区不得恢复一级卡片背景。');
+forbidText(detailStyles, '.market-trade-summary > span:nth-child(2)', '今日成交量不得被响应式样式隐藏。');
 
 requireText(marketPage, 'const marketDetailRefreshToken = [', '详情刷新必须使用稳定令牌。');
 requireText(marketPage, 'selectedProductMarket?.officialPrice', '详情刷新必须跟随官方价格变化。');
@@ -106,6 +107,7 @@ for (const token of [
   '北京时间每日 `00:00`',
   '客户端提交的 `price` 不是手动交易成交价',
   '不得恢复成玩家盘口玩法',
+  '“今日成交量”与“24h 成交量”在桌面和移动端均为可见市场事实',
 ]) requireText(marketDesign, token, `商品市场设计必须锁定即时交易边界: ${token}`);
 
 if (failures.length) {

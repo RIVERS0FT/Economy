@@ -17,7 +17,9 @@ test('legacy access fields cannot make a regional market read-only', async ({ pa
   await page.getByRole('button', { name: '查看机械详情' }).click();
   await expect(page.getByText('该地区尚未解锁，市场仅供查看。', { exact: true })).toHaveCount(0);
   await expect(page.locator('.market-submit-order')).toBeVisible();
-  await expect(page.getByText('实时五档 · 点击填价', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('即时交易', { exact: true })).toBeVisible();
+  await expect(page.locator('#market-trade-quantity')).toBeVisible();
+  await expect(page.getByText('实时五档 · 点击填价', { exact: true })).toHaveCount(0);
 });
 
 test('legacy access fields cannot hide regional buildings or warehouse', async ({ page }) => {

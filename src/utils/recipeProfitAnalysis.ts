@@ -7,7 +7,7 @@ import { isValidOrderPrice } from './defaultOrderPrice';
 export interface RecipeMarketPriceLine {
   productId: string;
   quantity: number;
-  lastTradePrice: number | null;
+  officialPrice: number | null;
   totalValue: number | null;
 }
 
@@ -29,8 +29,8 @@ function normalizedQuantity(value: number) {
   return Math.max(0, Math.floor(value));
 }
 
-function lastTradePrice(markets: Record<string, ProductMarketState>, productId: string) {
-  const value = markets[productId]?.lastTradePrice;
+function officialPrice(markets: Record<string, ProductMarketState>, productId: string) {
+  const value = markets[productId]?.officialPrice;
   return typeof value === 'number' && isValidOrderPrice(value) ? value : null;
 }
 
@@ -40,11 +40,11 @@ function marketPriceLine(
   quantity: number,
 ): RecipeMarketPriceLine {
   const normalized = normalizedQuantity(quantity);
-  const price = normalized > 0 ? lastTradePrice(markets, productId) : null;
+  const price = normalized > 0 ? officialPrice(markets, productId) : null;
   return {
     productId,
     quantity: normalized,
-    lastTradePrice: price,
+    officialPrice: price,
     totalValue: normalized === 0 ? 0 : price === null ? null : normalized * price,
   };
 }
@@ -72,9 +72,9 @@ export function analyzeRecipeProfit({
   );
   const missingPriceProductIds = Array.from(new Set([
     ...inputs
-      .filter((input) => input.quantity > 0 && input.lastTradePrice === null)
+      .filter((input) => input.quantity > 0 && input.officialPrice === null)
       .map((input) => input.productId),
-    ...(output.quantity > 0 && output.lastTradePrice === null ? [output.productId] : []),
+    ...(output.quantity > 0 && output.officialPrice === null ? [output.productId] : []),
   ]));
   const inputMarketCost = count > 0 && inputs.every((input) => input.totalValue !== null)
     ? inputs.reduce((sum, input) => sum + Number(input.totalValue || 0), 0)
