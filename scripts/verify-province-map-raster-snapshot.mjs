@@ -154,7 +154,9 @@ for (const text of [
   '`.province-map-camera-raster` 是唯一允许存在的 active 临时栅格层',
   '不得拥有 center、zoom、world bounds、投影、路线几何或独立时间状态',
   'idle／settled 状态必须由最终根 SVG `viewBox`',
-  '直接写浏览器内建的 `style.transform` 一次',
+  '二选一直接写一次浏览器内建 `style.transform`',
+  'raster-ready active 时变换 `.province-map-camera-surface`',
+  '`Image` + `decode()`',
   '在 Camera RAF、wheel/pointermove 热路径或运输 `500ms` tick 中序列化 SVG',
 ]) assert.ok(designSource.includes(text), `权威地图 DESIGN 缺少栅格快照规则: ${text}`);
 
