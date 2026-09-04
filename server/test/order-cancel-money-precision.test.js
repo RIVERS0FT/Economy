@@ -74,6 +74,7 @@ test('valid decimal daily-price commodity buy settles exactly without frozen fun
     assert.equal(afterCancel.frozenCredits, 0);
     assert.equal(afterCancel.credits, 98.17);
     assert.equal(afterCancel.inventories.wheat.available, 3);
+    assert.equal(afterCancel.provinceMarkets[DEFAULT_PROVINCE_ID].wheat.officialPrice, 0.61);
   } finally {
     store.close();
   }
