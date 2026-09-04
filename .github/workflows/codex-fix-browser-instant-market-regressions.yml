@@ -20,25 +20,30 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node scripts/codex-fix-browser-instant-market-regressions.mjs
+      - run: node scripts/codex-fix-market-runtime-base.mjs
+      - run: npm run generate:local-preview
+      - run: npx tsc --noEmit
+      - run: node scripts/verify-market-page-layout.mjs
+      - run: node scripts/verify-market-desktop-cleanup.mjs
+      - run: node scripts/verify-market-information-hierarchy.mjs
+      - run: node scripts/verify-market-order-entry-compact.mjs
       - run: bash scripts/prepare-playwright-chromium.sh
-      - name: Diagnose market runtime page
-        run: |
-          cat > tests/browser/market-runtime-diagnostic.spec.ts <<'EOF'
-          import { test } from '@playwright/test';
-
-          test('diagnose market runtime page', async ({ page }) => {
-            const errors: string[] = [];
-            page.on('pageerror', (error) => errors.push(error.stack || error.message));
-            page.on('console', (message) => {
-              if (message.type() === 'error') console.log(`BROWSER_CONSOLE_ERROR: ${message.text()}`);
-            });
-            await page.goto('/market-runtime-test.html');
-            await page.waitForTimeout(1500);
-            console.log(`MARKET_RUNTIME_URL: ${page.url()}`);
-            console.log(`MARKET_RUNTIME_ERRORS: ${JSON.stringify(errors)}`);
-            console.log(`MARKET_RUNTIME_BODY: ${JSON.stringify(await page.locator('body').innerText())}`);
-            console.log(`MARKET_RUNTIME_ROOT_HTML: ${JSON.stringify((await page.locator('#root').innerHTML()).slice(0, 12000))}`);
-          });
-          EOF
-          npm run test:browser -- tests/browser/market-runtime-diagnostic.spec.ts
-          exit 1
+      - run: >-
+          npm run test:browser --
+          tests/browser/all-pages-preview.spec.ts
+          tests/browser/province-locked-access.spec.ts
+          tests/browser/market-desktop-cleanup.spec.ts
+          tests/browser/market-detail-direct-flow.spec.ts
+          tests/browser/market-information-hierarchy.spec.ts
+          tests/browser/market-order-entry-compact.spec.ts
+          tests/browser/market-runtime.spec.ts
+          tests/browser/shell-floating-safe-zone.spec.ts
+          tests/browser/warehouse-auto-sell.spec.ts
+      - run: git diff --check
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "收口即时市场浏览器回归"
+          git push origin HEAD:codex/daily-system-market
