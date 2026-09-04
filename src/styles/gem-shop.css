@@ -1,7 +1,7 @@
 .gem-shop-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(18rem, 0.92fr);
-  gap: var(--space-3);
+  gap: var(--layout-gutter);
   align-items: start;
 }
 
@@ -15,7 +15,7 @@
 .gem-shop-side-column {
   min-width: 0;
   display: grid;
-  gap: var(--space-3);
+  gap: var(--layout-gutter);
   align-content: start;
 }
 

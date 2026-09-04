@@ -2,7 +2,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 async function openCommodityDetail(page: Page) {
   await page.goto('market-runtime-test.html?scenario=active');
-  await expect(page.getByText('即时交易', { exact: true })).toBeVisible();
+  await expect(page.getByText('即时交易', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('商品交易')).toBeVisible();
 }
 
 async function requireBox(locator: Locator) {
@@ -29,8 +30,8 @@ test('commodity detail uses the daily server price and has no resting-order UI',
   await openCommodityDetail(page);
   await expect(page.locator('.market-immediate-trade-card')).toBeVisible();
   const entry = page.locator('.market-immediate-trade');
-  await expect(entry.getByText('今日成交价', { exact: true })).toBeVisible();
-  await expect(entry.getByText('下次调价', { exact: true })).toBeVisible();
+  await expect(entry.getByText('今日成交价', { exact: true })).toHaveCount(0);
+  await expect(entry.getByText('下次调价', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('调整交易数量')).toBeVisible();
   await expect(page.getByRole('button', { name: /立即买入/ })).toBeVisible();
   await expect(page.locator('#market-order-price')).toHaveCount(0);
@@ -52,8 +53,8 @@ test('commodity quantity shortcuts remain available for immediate trading', asyn
 
 test('recent local trades remain separate from retired resting orders', async ({ page }) => {
   await openCommodityDetail(page);
-  await expect(page.getByText(/最近成交/).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: '清除全部本地成交' })).toBeVisible();
+  await expect(page.getByText('成交记录', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '清除记录' })).toBeVisible();
 });
 
 test('market chart uses one linked hover state and keeps the price line protected', async ({ page }) => {

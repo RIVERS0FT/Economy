@@ -62,11 +62,11 @@ test('regional market detail exposes daily-price immediate trading only', async 
 
   const detail = page.locator('.market-detail-surface');
   await expect(detail).toBeVisible();
-  const heroMetrics = await detail.locator('.market-detail-hero__metrics small').allTextContents();
-  expect(heroMetrics).toEqual(['今日价格', '24h 变化', '可用库存']);
+  await expect(detail.locator('.market-detail-hero')).toHaveCount(0);
   await expect(detail.locator('.market-immediate-trade-card')).toBeVisible();
-  for (const label of ['今日价格', '今日成交量', '24h 成交量', '下次调价']) {
-    await expect(detail.locator('.market-trade-summary').getByText(label, { exact: true })).toBeVisible();
+  await expect(detail.locator('.market-detail-trade-summary')).toHaveClass(/ui-entity-card/);
+  for (const label of ['今日价格', '今日成交量', '可用库存', '冻结库存']) {
+    await expect(detail.locator('.market-detail-trade-summary').getByText(label, { exact: true })).toBeVisible();
   }
   await expect(detail.locator('#market-trade-quantity')).toBeVisible();
   await expect(detail.locator('.local-trades-section')).toBeVisible();

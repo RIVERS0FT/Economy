@@ -56,18 +56,21 @@ requireText(commodityRowStyles, '@container (max-width: 360px)', '共享商品�
 
 for (const token of [
   'function MarketImmediateTradeEntry({',
-  '<h3 id="market-immediate-trade-title" className="market-trade-section-title">即时交易</h3>',
-  '<small>今日成交价</small>',
-  '<small>下次调价</small>',
+  'aria-label="商品交易"',
   'id="market-trade-quantity"',
   'aria-label="数量增加 1"',
   '>25%</Button>',
   '>50%</Button>',
   '>最大</Button>',
   '<small>交易总额</small>',
+  '<small>预计到账</small>',
+  '<small>手续费</small>',
   "placeAssetOrder('commodity', assetId, orderSide, parsedQuantity, officialPrice)",
   "{orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`}",
 ]) requireText(marketPage, token, `地区商品详情缺少即时成交结构: ${token}`);
+for (const token of ['<small>今日成交价</small>', '<small>下次调价</small>', '<h3 id="market-immediate-trade-title" className="market-trade-section-title">即时交易</h3>']) forbidText(marketPage, token, `地区商品详情不得恢复重复行情字段或操作区标题: ${token}`);
+requireText(marketPage, 'aria-label="交易摘要"', '地区商品详情的交易摘要必须保留无障碍名称。');
+forbidText(marketPage, '`${assetName}即时交易`', '地区商品详情不得恢复重复的商品即时交易标题。');
 for (const token of [
   'MoneyInput',
   'market-order-price',
@@ -85,11 +88,16 @@ for (const token of [
 
 for (const token of [
   '<small>今日价格</small>',
-  '<small>24h 变化</small>',
-  '<small>可用库存</small>',
   '<small>今日成交量</small>',
-  '<small>24h 成交量</small>',
+  '<small>可用库存</small>',
+  '<small>冻结库存</small>',
 ]) requireText(marketPage, token, `地区商品详情缺少市场事实: ${token}`);
+requireText(marketPage, 'className="market-trade-summary market-detail-trade-summary ui-entity-card"', '地区商品详情必须把四项摘要合并为同一实体卡。');
+requireText(detailStyles, '.market-detail-surface .market-detail-trade-summary.ui-entity-card {', '地区商品详情必须使用单一顶部四项摘要卡。');
+requireText(detailStyles, 'grid-template-columns: repeat(4, minmax(0, 1fr));', '宽布局顶部摘要必须保持四列。');
+requireText(detailStyles, 'grid-template-columns: repeat(2, minmax(0, 1fr));', '窄布局顶部摘要必须收敛为两列。');
+requireText(detailStyles, '.market-detail-surface .market-detail-trade-summary.ui-entity-card > span {', '摘要卡内部指标必须取消逐项卡片外壳。');
+requireText(detailStyles, 'background: transparent;', '摘要卡内部指标不得恢复独立背景。');
 requireText(detailStyles, '.market-detail-surface .market-trade-card {', '详情样式必须继续拥有直接交易区。');
 requireText(detailStyles, 'background: transparent;', '直接交易区不得恢复一级卡片背景。');
 forbidText(detailStyles, '.market-trade-summary > span:nth-child(2)', '今日成交量不得被响应式样式隐藏。');
@@ -107,7 +115,7 @@ for (const token of [
   '北京时间每日 `00:00`',
   '客户端提交的 `price` 不是手动交易成交价',
   '不得恢复成玩家盘口玩法',
-  '“今日成交量”与“24h 成交量”在桌面和移动端均为可见市场事实',
+  '顶部摘要字段及响应式呈现唯一由 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 定义',
 ]) requireText(marketDesign, token, `商品市场设计必须锁定即时交易边界: ${token}`);
 
 if (failures.length) {
@@ -116,4 +124,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('地区商品市场验证通过：目录只展示 24h 成交量、今日官方价与 24h 变化，详情只允许数量型即时交易，不存在价格输入、盘口、开放订单或撤单。');
+console.log('地区商品市场验证通过：目录只展示 24h 成交量、今日官方价与 24h 变化，详情顶部固定四项摘要并只允许数量型即时交易，不存在价格输入、盘口、开放订单或撤单。');

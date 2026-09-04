@@ -24,6 +24,7 @@ const paths = {
   entityHeaderStyles: 'src/styles/entity-list-header.css',
   productionStyles: 'src/styles/production-surface.css',
   assetStyles: 'src/styles/asset-overview.css',
+  auctionStyles: 'src/styles/asset-auctions.css',
   shopStyles: 'src/styles/gem-shop.css',
   leaderboardStyles: 'src/styles/leaderboards.css',
   provincePage: 'src/pages/ProvincePage.tsx',
@@ -179,9 +180,16 @@ if (failures.length === 0) {
     [paths.productionStyles, '--production-surface-inset'],
     [paths.productionStyles, 'padding: var(--production-surface-inset);'],
     [paths.assetStyles, '.asset-overview-card,\n  .asset-event-panel {\n    padding: var(--space-3);'],
+    [paths.auctionStyles, '.asset-auction-card {\n  min-width: 0;\n  overflow: hidden;\n  padding: 0;'],
     [paths.shopStyles, '.gem-shop-grid > .widget { padding: var(--space-3); }'],
     [paths.leaderboardStyles, 'grid-template-rows: auto auto minmax(0, 1fr) auto;\n  padding: var(--space-4);'],
   ]) forbidText(path, forbidden);
+
+  for (const text of [
+    '.asset-auction-grid {',
+    '.asset-auction-workspace {',
+    'gap: var(--layout-gutter);',
+  ]) requireText(paths.auctionStyles, text);
 
   for (const text of [
     '是否滚动不再决定卡片资格',

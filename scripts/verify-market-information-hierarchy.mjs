@@ -61,22 +61,34 @@ requireText(commodityCss, '--entity-list-columns: minmax(8rem, 1.55fr) repeat(3,
 for (const token of ['role="columnheader"', 'aria-sort={ariaSort}', 'nextEntityListSort']) requireText(entityHeader, token, 'shared entity header');
 
 for (const token of [
-  'market-detail-hero__metrics',
+   '!selectedProduct ? <Panel className="widget market-detail-hero">',
+   'className="market-detail-product-summary"',
+  'className="market-detail-product-icon-card ui-entity-card"',
+  '<ProductArtwork productId={selectedProduct.id} className="market-detail-product-artwork" />',
+  'className="market-trade-summary market-detail-trade-summary ui-entity-card"',
   '<small>今日价格</small>',
-  '<small>24h 变化</small>',
-  '<small>可用库存</small>',
-  '<Panel className="widget market-chart-card">',
-  '<section className="market-trade-card market-immediate-trade-card">',
   '<small>今日成交量</small>',
-  '<small>24h 成交量</small>',
-  '<small>下次调价</small>',
+  '<small>可用库存</small>',
+  '<small>冻结库存</small>',
+  'className={`widget market-chart-card ui-entity-card${marketDetailUnavailable ?',
+  'const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail);',
+  'className="market-chart-card__content" aria-disabled={marketDetailUnavailable || undefined}',
+  'market-chart-card__unavailable',
+  '<section className="market-trade-card market-immediate-trade-card">',
   'function MarketImmediateTradeEntry({',
   'id="market-trade-quantity"',
   '立即买入',
   '立即卖出',
   '<Panel className="widget span-3 market-account-panel">',
-  '最近成交',
+  '成交记录',
+  '清除记录',
 ]) requireText(regionalMarket, token, 'regional instant market hierarchy');
+for (const token of [
+  'grid-template-columns: auto minmax(0, 1fr);',
+  'aspect-ratio: 1;',
+  'padding-block: var(--space-2);',
+  '.market-detail-surface .market-detail-product-artwork {\n  width: 100%;\n  height: 72%;\n}',
+]) requireText('src/styles/market-detail-direct-flow.css', token, 'regional product summary geometry');
 for (const token of [
   'orderBook.bids',
   'orderBook.asks',
@@ -86,11 +98,15 @@ for (const token of [
   'market-account-view-switch',
   '<MarketAutoTradePanel',
 ]) forbidText(regionalMarket, token, 'regional retired orderbook hierarchy');
+for (const token of ['近 24h 成交趋势', 'market-chart-card ui-entity-card">\n          <WidgetHeading', '<small>今日成交价</small>', '<small>下次调价</small>']) {
+  forbidText(regionalMarket, token, 'regional chart title and trend tag');
+}
 
 for (const token of [
   '商品目录 → 商品全局详情 → 地区商品详情',
   '连续 48 州均为完整经营上下文',
   '市场提供商品目录、今日官方价格、真实成交行情和当日价即时交易写操作',
+  '趋势卡改为不可用状态',
 ]) requireText(pageDesign, token, 'page design');
 for (const token of [
   '玩家商品交易不得创建 `open`／`partial` 商品订单',

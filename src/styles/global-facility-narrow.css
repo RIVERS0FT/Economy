@@ -2,7 +2,7 @@
  * GlobalBuildingsPage lazily loads global-operation-pages.css, so these selectors deliberately
  * include the global-operation-page scope. Their higher specificity keeps the real artwork grid
  * authoritative regardless of stylesheet injection order, while this file also owns the
- * ultra-narrow carrier safety and the shared object-card treatment of building catalog rows.
+ * ultra-narrow carrier safety and the shared flat-list treatment of building catalog rows.
  */
 .global-operation-page .global-facility-catalog {
   --global-facility-layout-artwork-size: 104px;
@@ -25,9 +25,9 @@
   --entity-list-columns: var(--global-facility-layout-columns);
 }
 
-.global-operation-page .global-facility-catalog-header,
-.global-operation-page .global-facility-region-header {
-  border-bottom: 0;
+.global-operation-page .global-facility-catalog-list,
+.global-operation-page .global-facility-region-list {
+  gap: 0;
 }
 
 .global-operation-page .global-facility-catalog-header > :nth-child(1) {
@@ -48,7 +48,7 @@
 
 .global-operation-page .entity-list-row.global-facility-catalog-row {
   --global-facility-catalog-artwork-size: var(--global-facility-layout-artwork-size);
-  --global-facility-catalog-main-row-size: 48px;
+  --global-facility-catalog-main-row-size: 42px;
   --global-facility-catalog-row-gap: 8px;
   grid-template-columns: var(--global-facility-layout-columns);
   grid-template-rows: var(--global-facility-catalog-main-row-size) var(--global-facility-production-control-size);
@@ -57,19 +57,12 @@
   column-gap: var(--entity-list-gap);
   row-gap: var(--global-facility-catalog-row-gap);
   padding-block: .3rem;
-  padding-inline: var(--entity-list-inline-padding);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));
-  border-radius: var(--radius-card);
-  background-color: var(--color-surface-subtle);
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-surface-soft) 38%, transparent),
-    color-mix(in srgb, var(--color-bg-deep) 18%, transparent)
-  );
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 8%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, var(--color-bg-deep) 42%, transparent),
-    0 2px 8px color-mix(in srgb, var(--color-bg-deep) 24%, transparent);
+  padding-inline: 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   overflow: visible;
 }
 
@@ -105,19 +98,11 @@
   box-sizing: border-box;
   height: 100%;
   min-height: 0;
-  border: 0;
+  padding-inline: .625rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 82%, var(--color-border));
   border-radius: var(--radius-control);
-  background-color: var(--color-surface-control);
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-surface-soft) 58%, transparent),
-    color-mix(in srgb, var(--color-bg-deep) 15%, transparent)
-  );
-  box-shadow:
-    inset 0 0 0 1px var(--color-border-strong),
-    inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 11%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, var(--color-bg-deep) 38%, transparent),
-    0 1px 3px color-mix(in srgb, var(--color-bg-deep) 24%, transparent);
+  background-color: color-mix(in srgb, var(--color-surface-control) 88%, var(--color-surface-soft));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 10%, transparent);
 }
 
 .global-operation-page .global-facility-catalog-row__open {
@@ -129,7 +114,7 @@
 }
 
 .global-operation-page .global-facility-catalog-row__identity {
-  padding-left: .65rem;
+  padding-left: 0;
 }
 
 .global-operation-page .global-facility-catalog-row__identity > strong,
@@ -209,28 +194,21 @@
   justify-self: stretch;
 }
 
-/* Regional building rows mirror the object-card hierarchy without facility artwork. */
+/* Regional building rows follow the same flat list hierarchy without facility artwork. */
 .global-operation-page .entity-list-row.global-facility-region-row {
-  --global-facility-region-main-row-size: 48px;
+  --global-facility-region-main-row-size: 42px;
   --global-facility-region-row-gap: 8px;
   grid-template-rows: var(--global-facility-region-main-row-size) var(--global-facility-production-control-size);
   align-content: center;
   align-items: center;
   row-gap: var(--global-facility-region-row-gap);
   padding-block: .3rem;
-  padding-inline: var(--entity-list-inline-padding);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));
-  border-radius: var(--radius-card);
-  background-color: var(--color-surface-subtle);
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-surface-soft) 38%, transparent),
-    color-mix(in srgb, var(--color-bg-deep) 18%, transparent)
-  );
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 8%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, var(--color-bg-deep) 42%, transparent),
-    0 2px 8px color-mix(in srgb, var(--color-bg-deep) 24%, transparent);
+  padding-inline: 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   overflow: visible;
 }
 
@@ -253,17 +231,17 @@
   }
 
   .global-operation-page .entity-list-row.global-facility-catalog-row {
-    --global-facility-catalog-main-row-size: 46px;
+    --global-facility-catalog-main-row-size: 40px;
     --global-facility-catalog-row-gap: 6px;
   }
 
   .global-operation-page .entity-list-row.global-facility-region-row {
-    --global-facility-region-main-row-size: 46px;
+    --global-facility-region-main-row-size: 40px;
     --global-facility-region-row-gap: 6px;
   }
 
   .global-operation-page .global-facility-catalog-row__identity {
-    padding-left: .48rem;
+    padding-left: 0;
   }
 
   .global-operation-page .global-facility-catalog-row__quick-controls,
@@ -296,17 +274,17 @@
   }
 
   .global-operation-page .entity-list-row.global-facility-catalog-row {
-    --global-facility-catalog-main-row-size: 44px;
+    --global-facility-catalog-main-row-size: 40px;
     --global-facility-catalog-row-gap: 4px;
   }
 
   .global-operation-page .entity-list-row.global-facility-region-row {
-    --global-facility-region-main-row-size: 44px;
+    --global-facility-region-main-row-size: 40px;
     --global-facility-region-row-gap: 4px;
   }
 
   .global-operation-page .global-facility-catalog-row__identity {
-    padding-left: .4rem;
+    padding-left: 0;
   }
 
   .global-operation-page .global-facility-catalog-row__quick-controls,
@@ -359,7 +337,7 @@
   }
 
   .global-operation-page .global-facility-catalog-row__identity {
-    padding-left: .3rem;
+    padding-left: 0;
   }
 
   .global-operation-page .global-facility-catalog-row__quick-controls,

@@ -147,6 +147,8 @@ test('transport route cards stay rounded without row dividers and the add action
       firstSectionBorderTopWidth: firstSectionStyle.borderTopWidth,
       secondSectionBorderTopWidth: secondSectionStyle.borderTopWidth,
       secondSectionBorderTopStyle: secondSectionStyle.borderTopStyle,
+      footerAlignSelf: getComputedStyle(footer).alignSelf,
+      footerMarginTop: getComputedStyle(footer).marginTop,
     };
 
     legacyPanel.remove();
@@ -165,6 +167,8 @@ test('transport route cards stay rounded without row dividers and the add action
   expect(visual.firstSectionBorderTopWidth).toBe('0px');
   expect(visual.secondSectionBorderTopWidth).toBe('1px');
   expect(visual.secondSectionBorderTopStyle).toBe('solid');
+  expect(visual.footerAlignSelf).toBe('end');
+  expect(visual.footerMarginTop).not.toBe('0px');
 
   const scroll = page.locator('.page-card-scroll');
   const [scrollBox, footerBefore] = await Promise.all([scroll.boundingBox(), footer.boundingBox()]);

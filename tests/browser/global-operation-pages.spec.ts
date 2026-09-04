@@ -67,17 +67,17 @@ test('map keeps gesture zoom without a control panel and primary market/building
   const globalFacilityRows = page.locator('.global-buildings-page .global-facility-catalog-row');
   expect(await globalFacilityRows.count()).toBeGreaterThan(1);
   const initialFacilityNames = await globalFacilityRows.locator('.global-facility-catalog-row__identity strong').allTextContents();
-  const facilityNameSort = facilityHeader.getByRole('button', { name: '工厂', exact: true });
+  const facilityNameSort = facilityHeader.getByRole('button', { name: '建筑', exact: true });
   await facilityNameSort.click();
-  await expect(facilityHeader.getByRole('columnheader', { name: '工厂' })).toHaveAttribute('aria-sort', 'ascending');
+  await expect(facilityHeader.getByRole('columnheader', { name: '建筑' })).toHaveAttribute('aria-sort', 'ascending');
   expect(await globalFacilityRows.locator('.global-facility-catalog-row__identity strong').allTextContents())
     .toEqual([...initialFacilityNames].sort((left, right) => left.localeCompare(right, 'zh-CN')));
   await facilityNameSort.click();
-  await expect(facilityHeader.getByRole('columnheader', { name: '工厂' })).toHaveAttribute('aria-sort', 'descending');
+  await expect(facilityHeader.getByRole('columnheader', { name: '建筑' })).toHaveAttribute('aria-sort', 'descending');
   await facilityNameSort.click();
-  await expect(facilityHeader.getByRole('columnheader', { name: '工厂' })).toHaveAttribute('aria-sort', 'none');
+  await expect(facilityHeader.getByRole('columnheader', { name: '建筑' })).toHaveAttribute('aria-sort', 'none');
   expect(await globalFacilityRows.locator('.global-facility-catalog-row__identity strong').allTextContents()).toEqual(initialFacilityNames);
-  for (const label of ['平均利润／分钟', '拥有']) {
+  for (const label of ['利润', '拥有']) {
     const sortButton = facilityHeader.getByRole('button', { name: label, exact: true });
     await sortButton.click();
     await expect(facilityHeader.getByRole('columnheader', { name: label })).toHaveAttribute('aria-sort', 'descending');

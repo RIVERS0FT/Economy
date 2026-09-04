@@ -41,14 +41,14 @@ for (const text of [
   '25%',
   '50%',
   '最大',
-  '今日成交价',
-  '下次调价',
   '交易总额',
   '预计到账',
+  '手续费',
   'className="market-submit-order"',
   '立即买入',
   '立即卖出',
 ]) requireText(pagePath, text);
+for (const text of ['今日成交价', '下次调价']) forbidText(pagePath, text);
 for (const text of [
   'MoneyInput',
   'market-order-price',
@@ -64,6 +64,7 @@ for (const text of [
 for (const text of [
   '.market-page-surface .market-stepper__button {',
   '.market-page-surface .market-stepper__button:disabled {',
+  'grid-template-columns: repeat(3, minmax(0, 1fr));',
   '.market-submit-order',
 ]) requireText(stylePath, text);
 

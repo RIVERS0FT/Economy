@@ -26,6 +26,7 @@ for (const text of [
   'const estimatedFee = orderSide === \'sell\'',
   'const estimatedNet = Math.max(0, total - estimatedFee);',
   '预计到账',
+  '<small>手续费</small>',
   '手续费 / 实收',
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of ['fee: Number(fill.fee || 0)', 'netTotal: Number(fill.netTotal ?? fill.total)']) requireText('src/utils/localActivityStore.ts', text);

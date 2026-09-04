@@ -68,7 +68,7 @@ for (const text of [
   '地图不得提供独立的放大、缩小或重置功能面板',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
-  '运输页的“增加路线”固定放在页面正文承载面的底部 sticky 操作区',
+  '运输页的“增加路线”固定放在页面正文承载面的最下方 sticky 操作区',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   '玩家端 `PageLayout` 的标题区固定只包含返回、主标题和关闭三个槽位',
@@ -170,11 +170,10 @@ for (const text of [
   'province-unlock-button',
 ]) forbidText('src/pages/ProvincePage.tsx', text);
 for (const text of [
-  '即时交易',
-  '今日成交价',
-  '下次调价',
+  'aria-label="商品交易"',
   'local-trades-section',
 ]) requireText('src/pages/MarketPage.tsx', text);
+for (const text of ['今日成交价', '下次调价']) forbidText('src/pages/MarketPage.tsx', text);
 for (const text of [
   'readOnly = false',
   'readOnly?: boolean;',

@@ -230,8 +230,9 @@ assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, qua
 for (const text of [
   '商品地区详情必须包含今日官方价格',
   '近 24h 真实成交趋势',
+  '地区商品详情的成交趋势图必须由 `.market-chart-card.ui-entity-card` 承载',
   '24h 成交量',
-  '浏览器本地最近成交',
+  '浏览器本地成交记录',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
 for (const text of [
   '市场行情图几何、交互与可读性唯一专项基线', 'ECharts SVG', '零间距连续双 Grid',
