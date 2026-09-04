@@ -183,6 +183,10 @@ forbidText('server/src/state-partitions.js', [
 
 requireText('server/src/market-state-delivery.js', [
   'createMarketSummaryStatesByProvince',
+  "includeOrderBook: assetKind !== 'commodity'",
+  'todayBuyQuantity',
+  'todaySellQuantity',
+  'demand: { lastQuantity: demandLastQuantity, satisfaction: demandSatisfaction },
   'createMarketDetail',
   'eventTradeWindows',
   'getOrderBookDepth',
@@ -209,6 +213,8 @@ requireText('src/api/game.ts', [
 requireText('server/test/state-delivery-size.test.js', [
   '48-province initial state remains below two MiB without embedded market histories',
   'TWO_MIB',
+  "serialized.includes('cycleBuyQuantity')",
+  "serialized.includes('baselineQuantity')",
 ]);
 requireText('server/test/market-state-delivery.test.js', [
   'initial player state keeps market summaries and only the current player legacy orders',
@@ -219,6 +225,9 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '状态读取 p95 不超过 800 ms',
   '市场详情 p95 不超过 300 ms',
   '事件循环 p99 不超过 200 ms',
+  '普通商品市场状态摘要只允许携带玩家页面实际消费的当日 `officialPrice`',
+  '不得复制服务器内部完整 `demand`',
+  '只有独立市场详情接口负责返回有界成交历史与显式空盘口',
 ]);
 
 requireText('server/src/app.js', [

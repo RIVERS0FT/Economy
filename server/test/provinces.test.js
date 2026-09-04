@@ -207,7 +207,7 @@ test('same commodity immediate trades use independent state daily prices and inv
   assert.equal(world.markets[provinceScopedKey(GEORGIA, 'wheat')].todayBuyQuantity, 1);
   assert.equal(world.markets[provinceScopedKey(GEORGIA, 'wheat')].todaySellQuantity, 1);
   assert.equal(world.orders.some((order) => order.ownerType === 'player' && ['open', 'partial'].includes(order.status)), false);
-}
+});
 
 test('construction and production consume and output only the selected province inventory', () => {
   const world = createWorld(NOW);
