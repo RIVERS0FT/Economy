@@ -57,6 +57,8 @@ test('48-province initial state remains below two MiB without embedded market hi
     assert.equal(serialized.includes('spendingPower'), false);
     assert.equal(Object.hasOwn(wheatSummary, 'cycleBuyQuantity'), false);
     assert.equal(Object.hasOwn(wheatSummary, 'cycleSellQuantity'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'systemPriceVersion'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'lastImbalance'), false);
     assert.equal(Object.hasOwn(wheatSummary, 'orderBook'), false);
     assert.equal(Object.hasOwn(wheatSummary, 'buyVolume'), false);
     assert.equal(Object.hasOwn(wheatSummary, 'sellVolume'), false);
