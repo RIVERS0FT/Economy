@@ -67,17 +67,17 @@ test('map keeps gesture zoom without a control panel and primary market/building
   const globalFacilityRows = page.locator('.global-buildings-page .global-facility-catalog-row');
   expect(await globalFacilityRows.count()).toBeGreaterThan(1);
   const initialFacilityNames = await globalFacilityRows.locator('.global-facility-catalog-row__identity strong').allTextContents();
-  const facilityNameSort = facilityHeader.getByRole('button', { name: '工厂', exact: true });
+  const facilityNameSort = facilityHeader.getByRole('button', { name: '建筑', exact: true });
   await facilityNameSort.click();
-  await expect(facilityHeader.getByRole('columnheader', { name: '工厂' })).toHaveAttribute('aria-sort', 'ascending');
+  await expect(facilityHeader.getByRole('columnheader', { name: '建筑' })).toHaveAttribute('aria-sort', 'ascending');
   expect(await globalFacilityRows.locator('.global-facility-catalog-row__identity strong').allTextContents())
     .toEqual([...initialFacilityNames].sort((left, right) => left.localeCompare(right, 'zh-CN')));
   await facilityNameSort.click();
-  await expect(facilityHeader.getByRole('columnheader', { name: '工厂' })).toHaveAttribute('aria-sort', 'descending');
+  await expect(facilityHeader.getByRole('columnheader', { name: '建筑' })).toHaveAttribute('aria-sort', 'descending');
   await facilityNameSort.click();
-  await expect(facilityHeader.getByRole('columnheader', { name: '工厂' })).toHaveAttribute('aria-sort', 'none');
+  await expect(facilityHeader.getByRole('columnheader', { name: '建筑' })).toHaveAttribute('aria-sort', 'none');
   expect(await globalFacilityRows.locator('.global-facility-catalog-row__identity strong').allTextContents()).toEqual(initialFacilityNames);
-  for (const label of ['平均利润／分钟', '拥有']) {
+  for (const label of ['利润', '拥有']) {
     const sortButton = facilityHeader.getByRole('button', { name: label, exact: true });
     await sortButton.click();
     await expect(facilityHeader.getByRole('columnheader', { name: label })).toHaveAttribute('aria-sort', 'descending');
@@ -110,7 +110,8 @@ test('map keeps gesture zoom without a control panel and primary market/building
   expect(methodBox).not.toBeNull();
   expect(openBox).not.toBeNull();
   if (!nameBox || !productBox || !methodBox || !openBox) throw new Error('全局工厂两行布局未完整渲染');
-  expect(openBox.height).toBeGreaterThanOrEqual(44);
+  expect(openBox.height).toBeGreaterThanOrEqual(40);
+  expect(openBox.height).toBeLessThanOrEqual(42);
   expect(openBox.height).toBeLessThan(artworkBox.height);
   expect(artworkBox.y).toBeLessThan(openBox.y + openBox.height);
   expect(artworkBox.y + artworkBox.height).toBeGreaterThan(productBox.y);
@@ -122,8 +123,9 @@ test('map keeps gesture zoom without a control panel and primary market/building
     return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft];
   });
   expect(rowPadding[0]).toBe(rowPadding[2]);
-  expect(rowPadding[1]).toBe(rowPadding[3]);
-  expect(Number.parseFloat(rowPadding[0])).toBeLessThan(Number.parseFloat(rowPadding[1]));
+  expect(rowPadding[1]).toBe('0px');
+  expect(rowPadding[3]).toBe('0px');
+  expect(Number.parseFloat(rowPadding[0])).toBeGreaterThan(0);
 
   const productSelect = quickProduct.getByRole('combobox');
   await expect(productSelect).toHaveAttribute('data-variant', 'production-config');
@@ -185,8 +187,8 @@ test('map keeps gesture zoom without a control panel and primary market/building
   const regionOpenBox = await regionOpenButton.boundingBox();
   expect(regionOpenBox).not.toBeNull();
   if (!regionOpenBox) throw new Error('地区工厂第一行未渲染');
-  expect(regionOpenBox.height).toBeGreaterThanOrEqual(44);
-  expect(regionOpenBox.height).toBeLessThanOrEqual(48);
+  expect(regionOpenBox.height).toBeGreaterThanOrEqual(40);
+  expect(regionOpenBox.height).toBeLessThanOrEqual(42);
   const regionQuickProduct = regionalFacilityRow.locator('[data-quick-production="product"]');
   const regionQuickMethod = regionalFacilityRow.locator('[data-quick-production="method"]');
   await expect(regionQuickProduct).toHaveCount(1);

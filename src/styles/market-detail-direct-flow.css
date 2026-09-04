@@ -4,7 +4,6 @@
  * This page-flow contract is independent of unrelated global state-version migrations. */
 
 .market-detail-surface > .market-detail-hero.ui-primary-surface,
-.market-detail-surface .market-chart-card.ui-primary-surface,
 .market-detail-surface .market-account-panel.ui-primary-surface {
   border: 0 !important;
   border-radius: 0 !important;
@@ -17,8 +16,6 @@
 
 .market-detail-surface > .market-detail-hero.ui-primary-surface::before,
 .market-detail-surface > .market-detail-hero.ui-primary-surface::after,
-.market-detail-surface .market-chart-card.ui-primary-surface::before,
-.market-detail-surface .market-chart-card.ui-primary-surface::after,
 .market-detail-surface .market-account-panel.ui-primary-surface::before,
 .market-detail-surface .market-account-panel.ui-primary-surface::after {
   display: none !important;
@@ -29,20 +26,10 @@
   padding-block: 0 var(--layout-gutter) !important;
 }
 
-.market-detail-surface > .market-detail-hero--commodity {
-  grid-template-columns: 76px minmax(10rem, 1fr) repeat(2, minmax(6rem, auto));
-}
-
-.market-detail-surface .market-chart-card,
 .market-detail-surface .market-account-panel {
   padding-block: 0 !important;
 }
 
-.market-detail-surface .market-chart-card {
-  margin-block: var(--space-2) var(--layout-gutter);
-}
-
-.market-detail-surface .market-chart-card > .widget-heading,
 .market-detail-surface .market-account-panel > .widget-heading {
   margin-inline: 0;
 }
@@ -57,23 +44,54 @@
   box-shadow: none;
 }
 
-.market-detail-surface .market-trade-summary {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.market-detail-surface .market-detail-product-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-3);
+  margin: 0 0 var(--layout-gutter);
 }
 
-
-.market-detail-surface .market-account-panel {
-  margin-top: var(--space-2);
+.market-detail-surface .market-detail-product-icon-card.ui-entity-card {
+  display: grid;
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
+  padding: var(--space-2);
+  place-items: center;
 }
+
+.market-detail-surface .market-detail-product-artwork {
+  width: 100%;
+  height: 72%;
+}
+
+.market-detail-surface .market-detail-trade-summary.ui-entity-card {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding-block: var(--space-2);
+}
+
+.market-detail-surface .market-detail-trade-summary.ui-entity-card > span {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
 
 @container market-page (max-width: 720px) {
+  .market-detail-surface .market-detail-product-summary {
+    gap: var(--space-2);
+  }
+
+  .market-detail-surface .market-detail-trade-summary.ui-entity-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .market-detail-surface > .market-detail-hero {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-2) var(--space-3);
-  }
-
-  .market-detail-surface > .market-detail-hero--commodity {
-    grid-template-columns: 64px repeat(2, minmax(0, 1fr));
   }
 
   .market-detail-surface .market-detail-hero__artwork {
@@ -82,10 +100,6 @@
     grid-column: 1;
     grid-row: 1;
     justify-self: start;
-  }
-
-  .market-detail-surface .market-detail-hero--commodity .market-detail-hero__artwork {
-    grid-row: 1 / 3;
   }
 
   .market-detail-surface .market-detail-hero__artwork > .product-artwork {
@@ -120,10 +134,6 @@
 @container market-page (max-width: 420px) {
   .market-detail-surface > .market-detail-hero {
     gap: var(--space-2);
-  }
-
-  .market-detail-surface > .market-detail-hero--commodity {
-    grid-template-columns: 56px repeat(2, minmax(0, 1fr));
   }
 
   .market-detail-surface .market-detail-hero__artwork {

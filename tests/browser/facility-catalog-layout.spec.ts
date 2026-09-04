@@ -7,8 +7,8 @@ async function ensureFacilityCatalogFixture(page: import('@playwright/test').Pag
   await page.locator('.global-facility-catalog').evaluate((surface) => {
     surface.innerHTML = `
       <div class="entity-list-header global-facility-catalog-header">
-        <span class="entity-list-header__cell">工厂</span>
-        <span class="entity-list-header__cell">平均利润／分钟</span>
+        <span class="entity-list-header__cell">建筑</span>
+        <span class="entity-list-header__cell">利润</span>
         <span class="entity-list-header__cell">拥有</span>
         <span class="entity-list-header__cell"></span>
       </div>
@@ -117,6 +117,8 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
       rowBoxShadow: rowStyle.boxShadow,
       rowPaddingTop: Number.parseFloat(rowStyle.paddingTop),
       rowPaddingBottom: Number.parseFloat(rowStyle.paddingBottom),
+      rowPaddingLeft: Number.parseFloat(rowStyle.paddingLeft),
+      rowPaddingRight: Number.parseFloat(rowStyle.paddingRight),
       headerBorderBottom: headerStyle.borderBottomWidth,
       artworkPosition: artworkStyle.position,
       artworkTransform: artworkStyle.transform,
@@ -135,6 +137,8 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
       openTop: openBox.top,
       openBottom: openBox.bottom,
       openHeight: openBox.height,
+      openPaddingLeft: Number.parseFloat(openStyle.paddingLeft),
+      openPaddingRight: Number.parseFloat(openStyle.paddingRight),
       openBorderTop: openStyle.borderTopWidth,
       openBackground: openStyle.backgroundColor,
       openBackgroundImage: openStyle.backgroundImage,
@@ -203,7 +207,7 @@ async function inspectFacilityRegionRow(page: import('@playwright/test').Page) {
   });
 }
 
-test('global facility rows use object-card surfaces with square artwork and embedded production buttons', async ({ page }) => {
+test('global facility rows are flat lists with square artwork and embedded production buttons', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game', { waitUntil: 'domcontentloaded' });
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^建筑/ }).click();
@@ -240,20 +244,25 @@ test('global facility rows use object-card surfaces with square artwork and embe
   expect(desktop.artworkTop).toBeLessThanOrEqual(desktop.openTop);
   expect(desktop.artworkBottom).toBeGreaterThanOrEqual(desktop.quickBottom);
   expect(desktop.openBottom).toBeLessThan(desktop.quickTop);
-  expect(desktop.openHeight).toBeGreaterThanOrEqual(44);
-  expect(desktop.openHeight).toBeLessThanOrEqual(48);
+  expect(desktop.openHeight).toBe(42);
+  expect(desktop.openPaddingLeft).toBe(10);
+  expect(desktop.openPaddingRight).toBe(10);
   expect(desktop.openHeight).toBeLessThan(desktop.artworkHeight);
 
-  expect(desktop.rowBorderTop).toBe('1px');
-  expect(desktop.rowBackground).not.toBe('rgba(0, 0, 0, 0)');
-  expect(desktop.rowBackgroundImage).not.toBe('none');
-  expect(desktop.rowBoxShadow).not.toBe('none');
-  expect(desktop.listGap).toBeGreaterThanOrEqual(5);
-  expect(desktop.headerBorderBottom).toBe('0px');
+  expect(desktop.rowBorderTop).toBe('0px');
+  expect(desktop.rowBorderBottom).toBe('1px');
+  expect(desktop.rowBorderRadius).toBe('0px');
+  expect(desktop.rowPaddingLeft).toBe(0);
+  expect(desktop.rowPaddingRight).toBe(0);
+  expect(desktop.rowBackground).toBe('rgba(0, 0, 0, 0)');
+  expect(desktop.rowBackgroundImage).toBe('none');
+  expect(desktop.rowBoxShadow).toBe('none');
+  expect(desktop.listGap).toBe(0);
+  expect(desktop.headerBorderBottom).toBe('1px');
 
-  expect(desktop.openBorderTop).toBe('0px');
+  expect(desktop.openBorderTop).toBe('1px');
   expect(desktop.openBackground).not.toBe('rgba(0, 0, 0, 0)');
-  expect(desktop.openBackgroundImage).not.toBe('none');
+  expect(desktop.openBackgroundImage).toBe('none');
   expect(desktop.openBoxShadow).not.toBe('none');
 
   expect(desktop.quickBorderTop).toBe('0px');
@@ -270,17 +279,17 @@ test('global facility rows use object-card surfaces with square artwork and embe
   expect(desktop.productionTriggerBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(desktop.productionTriggerBackgroundImage).not.toBe('none');
   expect(desktop.productionTriggerBoxShadow).not.toBe('none');
-  expect(Math.abs(desktop.profitLeft - headerProfitLeft)).toBeLessThanOrEqual(2);
+  expect(Math.abs(desktop.profitLeft - headerProfitLeft)).toBeLessThanOrEqual(5);
   expect(desktop.rowScrollWidth).toBeLessThanOrEqual(desktop.rowClientWidth + 1);
 
   const region = await inspectFacilityRegionRow(page);
-  expect(region.rowBorderTop).toBe('1px');
-  expect(region.rowBackground).not.toBe('rgba(0, 0, 0, 0)');
-  expect(region.rowBackgroundImage).not.toBe('none');
-  expect(region.rowBoxShadow).not.toBe('none');
-  expect(region.listGap).toBeGreaterThanOrEqual(5);
+  expect(region.rowBorderTop).toBe('0px');
+  expect(region.rowBackground).toBe('rgba(0, 0, 0, 0)');
+  expect(region.rowBackgroundImage).toBe('none');
+  expect(region.rowBoxShadow).toBe('none');
+  expect(region.listGap).toBe(0);
   expect(region.openBackground).not.toBe('rgba(0, 0, 0, 0)');
-  expect(region.openBackgroundImage).not.toBe('none');
+  expect(region.openBackgroundImage).toBe('none');
   expect(region.openBoxShadow).not.toBe('none');
   expect(region.openBottom).toBeLessThan(region.quickTop);
   expect(region.quickBorderTop).toBe('0px');
@@ -307,10 +316,15 @@ test('global facility rows use object-card surfaces with square artwork and embe
   expect(narrow.artworkWidth).toBeGreaterThanOrEqual(95);
   expect(narrow.artworkRight).toBeLessThan(narrow.openLeft);
   expect(Math.abs(narrow.openLeft - narrow.quickLeft)).toBeLessThanOrEqual(1);
-  expect(narrow.rowBorderTop).toBe('1px');
-  expect(narrow.rowBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(narrow.rowBorderTop).toBe('0px');
+  expect(narrow.rowPaddingLeft).toBe(0);
+  expect(narrow.rowPaddingRight).toBe(0);
+  expect(narrow.rowBackground).toBe('rgba(0, 0, 0, 0)');
   expect(narrow.openBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(narrow.openHeight).toBeLessThan(narrow.artworkHeight);
+  expect(narrow.openHeight).toBe(40);
+  expect(narrow.openPaddingLeft).toBe(10);
+  expect(narrow.openPaddingRight).toBe(10);
   expect(narrow.quickBackground).toBe('rgba(0, 0, 0, 0)');
   expect(Number(narrow.nameFontWeight)).toBeGreaterThanOrEqual(700);
   expect(Number(narrow.profitFontWeight)).toBeGreaterThanOrEqual(700);
@@ -319,7 +333,7 @@ test('global facility rows use object-card surfaces with square artwork and embe
   expect(narrow.rowHeight).toBeGreaterThanOrEqual(100);
 
   const narrowRegion = await inspectFacilityRegionRow(page);
-  expect(narrowRegion.rowBorderTop).toBe('1px');
+  expect(narrowRegion.rowBorderTop).toBe('0px');
   expect(narrowRegion.openBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(narrowRegion.quickBackground).toBe('rgba(0, 0, 0, 0)');
   expect(narrowRegion.rowScrollWidth).toBeLessThanOrEqual(narrowRegion.rowClientWidth + 1);

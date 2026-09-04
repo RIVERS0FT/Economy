@@ -65,14 +65,13 @@ requireText(procurement, 'applyImmediateCommodityBuy', '建厂缺料必须即时
 forbidText(procurement, '继续挂在市场', '建厂购料不得留下剩余挂单。');
 
 for (const token of [
-  '即时交易',
-  '今日成交价',
+  'className="order-entry market-trade-entry market-immediate-trade"',
   '今日成交量',
-  '下次调价',
   '立即买入',
   '立即卖出',
-  '最近成交',
+  '成交记录',
 ]) requireText(marketPage, token, `地区市场必须展示即时交易字段：${token}`);
+for (const token of ['今日成交价', '下次调价']) forbidText(marketPage, token, `地区市场不得恢复重复行情字段：${token}`);
 for (const token of [
   'market-order-price',
   'market-order-book-title',

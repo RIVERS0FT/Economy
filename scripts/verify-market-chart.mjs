@@ -228,10 +228,11 @@ assert.ok(commodityMarket.includes('LIQUIDITY_SIGNAL_WEIGHT'), '储备成交必�
 assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt, incoming.provinceId);'), '工厂成交必须记录吃单方向与地区');
 
 for (const text of [
-  '商品地区详情必须包含今日官方价格',
+  '商品地区详情最上方固定为商品图标与四项交易摘要：今日价格、今日成交量、可用库存和冻结库存',
   '近 24h 真实成交趋势',
+  '市场行情图几何继续以 `MARKET_CHART_LAYOUT_DESIGN.md` 为准',
   '24h 成交量',
-  '浏览器本地最近成交',
+  '浏览器本地成交记录',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
 for (const text of [
   '市场行情图几何、交互与可读性唯一专项基线', 'ECharts SVG', '零间距连续双 Grid',

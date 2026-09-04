@@ -16,9 +16,9 @@ const forbidText = (path, text) => {
 
 const paths = {
   main: 'src/main.tsx',
-  finalLayout: 'src/styles/global-facility-narrow.css',
-  sharedLayout: 'src/styles/global-operation-pages.css',
+  layout: 'src/styles/global-facility-narrow.css',
   design: 'docs/UI_DESIGN_SYSTEM.md',
+  navigationDesign: 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   browser: 'tests/browser/facility-catalog-layout.spec.ts',
   crossPageBrowser: 'tests/browser/all-pages-preview.spec.ts',
   selector: 'scripts/select-ci-tests.mjs',
@@ -31,126 +31,83 @@ if (failures.length === 0) {
   requireText(paths.main, "import './styles/global-facility-narrow.css';");
 
   for (const text of [
-    'Final geometry authority for the global facility catalog two-line row.',
-    'GlobalBuildingsPage lazily loads global-operation-pages.css',
-    '.global-operation-page .global-facility-catalog {',
-    '--global-facility-layout-artwork-size: 104px;',
-    '--global-facility-layout-artwork-track: var(--global-facility-layout-artwork-size);',
-    '.global-facility-catalog-header > :nth-child(1) {',
-    'grid-column: 1 / 3;',
+    'shared flat-list treatment of building catalog rows',
+    '.global-operation-page .global-facility-catalog-list,',
+    '.global-operation-page .global-facility-region-list {',
+    'gap: 0;',
     '.entity-list-row.global-facility-catalog-row {',
-    '--global-facility-catalog-main-row-size: 48px;',
-    '--global-facility-catalog-row-gap: 8px;',
-    'padding-inline: var(--entity-list-inline-padding);',
-    'border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));',
-    'border-radius: var(--radius-card);',
-    'background-color: var(--color-surface-subtle);',
-    'background-image: linear-gradient(',
-    '.global-facility-catalog-row__artwork {',
-    'position: static;',
-    'grid-column: 1;',
-    'grid-row: 1 / 3;',
-    'aspect-ratio: 1;',
-    'margin: 0;',
-    'transform: none;',
-    '.global-facility-catalog-row__open,',
-    '--ui-interactive-hover-border-color: var(--color-border-strong);',
-    '--ui-interactive-active-transform: scale(.995);',
-    'background-color: var(--color-surface-control);',
-    'inset 0 0 0 1px var(--color-border-strong),',
-    '.global-facility-catalog-row__open {',
-    'grid-column: 2 / -1;',
-    'grid-row: 1;',
-    '.global-facility-catalog-row__quick-controls,',
-    'width: fit-content;',
-    'justify-self: start;',
+    '.entity-list-row.global-facility-region-row {',
+    'border-bottom: 1px solid var(--color-divider);',
+    'border-radius: 0;',
+    'padding-inline: 0;',
+    '--global-facility-catalog-main-row-size: 42px;',
+    '--global-facility-region-main-row-size: 42px;',
+    '--global-facility-catalog-main-row-size: 40px;',
+    '--global-facility-region-main-row-size: 40px;',
+    'padding-inline: .625rem;',
     'background: transparent;',
     'box-shadow: none;',
+    'border: 1px solid color-mix(in srgb, var(--color-border-strong) 82%, var(--color-border));',
+    'background-color: color-mix(in srgb, var(--color-surface-control) 88%, var(--color-surface-soft));',
+    '.global-facility-catalog-row__artwork {',
+    'position: static;',
+    'grid-row: 1 / 3;',
+    'aspect-ratio: 1;',
+    '.global-facility-catalog-row__open,',
     '.global-facility-catalog-row__quick-selector .ui-rich-select[data-variant=\'production-config\'] .ui-rich-select__trigger,',
-    'background-color: var(--color-surface-soft);',
-    '.entity-list-row.global-facility-region-row {',
-    '--global-facility-region-main-row-size: 48px;',
-    '--global-facility-region-row-gap: 8px;',
-    '.global-facility-region-row__open {',
-    '.global-facility-region-row__quick-controls {',
     '@container (max-width: 620px)',
-    '--global-facility-layout-artwork-size: 100px;',
     '@container (max-width: 360px)',
-    '--global-facility-layout-artwork-size: 96px;',
     '@container (max-width: 200px)',
-    '--global-facility-layout-artwork-size: 64px;',
-    'grid-row: 1;',
-    'grid-column: 1 / -1;',
-  ]) requireText(paths.finalLayout, text);
+  ]) requireText(paths.layout, text);
 
   for (const text of [
-    'padding-inline: calc(var(--entity-list-inline-padding) - 1px);',
-    'padding-left: calc(var(--global-facility-catalog-artwork-size)',
-    'transform: translateY(-50%)',
-    '--global-facility-catalog-main-row-size: 30px;',
-    '--global-facility-region-main-row-size: 30px;',
-    '--global-facility-layout-artwork-track: 84px;',
-    '--global-facility-layout-artwork-track: 72px;',
-    '--global-facility-layout-artwork-track: 60px;',
-    '--global-facility-layout-artwork-track: 42px;',
-  ]) forbidText(paths.finalLayout, text);
+    'border-radius: var(--radius-card);',
+    'background-color: var(--color-surface-subtle);',
+    '0 2px 8px color-mix',
+    'inset 0 0 0 1px var(--color-border-strong)',
+  ]) forbidText(paths.layout, text);
+
+  for (const text of [
+    '建筑目录等连续比较对象使用共享列表或表格行及细线分隔',
+    '一级与地区建筑条目保持透明、无圆角、无外层阴影，以相邻细线分隔',
+    '一级与地区建筑外层保持扁平实体行',
+    '共享表头和相邻条目细线继续可见',
+    '建筑两级条目及其名称槽不保留左右内边距',
+    '条目自身和名称槽的左右内边距必须为零',
+    '第一行下钻主按钮桌面为 `42px`、窄宽度为 `40px`',
+    '第一行信息按钮使用 `--radius-control`、实体底色和细边界、`.625rem` 左右内边距明确表示可下钻',
+    '第一行信息按钮桌面为 `42px`、窄宽度为 `40px`',
+    '全局建筑目录与其地区下钻列表的第一行信息按钮是第三个明确例外',
+    '第一行信息按钮桌面为 `42px`、窄宽度为 `40px`，低于插画高度，并以 `--radius-control`、实体底色、细边界、轻量内高光和 `.625rem` 左右内边距明确下钻交互',
+    '建筑保留两行内容密度、插画跨行和生产方案按钮自身边界',
+    '全局市场商品目录、全局工厂目录、全局工厂地区列表和银行资产构成表继续使用共享表头底线',
+    '不得恢复对象卡、圆角、外层阴影',
+  ]) requireText(paths.design, text);
+
+  requireText(paths.navigationDesign, '目录表头固定显示“建筑｜利润｜拥有”');
 
   for (const text of [
     '建筑两行目录是已登记例外，允许整条对象卡边界明确归属',
-    '建筑目录只按下文自身例外执行',
     '建筑对象卡使用实体轻量背景、共享对象卡圆角和边界',
-    '条目间继续使用共享 `.32rem` gap',
-    '生产配置容器保持透明且不得再绘制独立底卡',
-    '一级建筑插画保持 `1:1` 正方形且轨道宽度等于插画宽度',
-    '卡内两行内容高度与插画高度一致',
-    '主信息按钮高度低于插画高度并保持独立实体按钮质感',
-    '生产配置容器必须透明无独立底卡',
-    '极窄载体允许将生产按钮组移到插画下方以避免横向溢出',
-    '地区工厂列表同步对象卡、主按钮和透明生产按钮组层级但不渲染插画',
-    '`src/styles/global-facility-narrow.css` 是该两行条目的最终几何覆盖',
-    '`tests/browser/facility-catalog-layout.spec.ts`',
-    '`tests/browser/global-operation-pages.spec.ts`',
-    '`tests/browser/player-page-geometry.spec.ts`',
-  ]) requireText(paths.design, text);
-
-  for (const text of [
-    '外层行保持透明且不增加条目外边界',
-    '第二行生产配置必须使用独立可见底部卡片',
-    '桌面第一行收紧为 `30px`',
+    '地区工厂列表同步对象卡、主按钮和透明生产按钮组层级',
   ]) forbidText(paths.design, text);
 
   for (const text of [
-    "test('global facility rows use object-card surfaces with square artwork and embedded production buttons'",
-    "expect(desktop.rowBorderTop).toBe('1px');",
-    "expect(desktop.rowBackground).not.toBe('rgba(0, 0, 0, 0)');",
-    "expect(desktop.rowBackgroundImage).not.toBe('none');",
-    "expect(desktop.rowBoxShadow).not.toBe('none');",
-    'expect(desktop.listGap).toBeGreaterThanOrEqual(5);',
-    'expect(Math.abs(desktop.artworkWidth - desktop.artworkHeight)).toBeLessThanOrEqual(1);',
-    'expect(Math.abs(desktop.artworkTrackWidth - desktop.artworkWidth)).toBeLessThanOrEqual(1);',
-    'expect(desktop.openHeight).toBeLessThan(desktop.artworkHeight);',
+    "test('global facility rows are flat lists with square artwork and embedded production buttons'",
+    "expect(desktop.rowBorderBottom).toBe('1px');",
+    "expect(desktop.rowBorderRadius).toBe('0px');",
+    'expect(desktop.rowPaddingLeft).toBe(0);',
+    'expect(desktop.openHeight).toBe(42);',
+    'expect(desktop.openPaddingLeft).toBe(10);',
+    "expect(desktop.rowBackground).toBe('rgba(0, 0, 0, 0)');",
     "expect(desktop.openBackground).not.toBe('rgba(0, 0, 0, 0)');",
-    "expect(desktop.openBackgroundImage).not.toBe('none');",
-    "expect(desktop.openBoxShadow).not.toBe('none');",
-    "expect(desktop.quickBackground).toBe('rgba(0, 0, 0, 0)');",
-    "expect(desktop.quickBackgroundImage).toBe('none');",
-    "expect(desktop.quickBoxShadow).toBe('none');",
+    "expect(desktop.headerBorderBottom).toBe('1px');",
+    'expect(desktop.listGap).toBe(0);',
+    'expect(Math.abs(desktop.artworkWidth - desktop.artworkHeight)).toBeLessThanOrEqual(1);',
     "expect(desktop.productionTriggerBorderWidth).toBe('1px');",
-    "expect(desktop.productionTriggerBackground).not.toBe('rgba(0, 0, 0, 0)');",
-    "expect(desktop.productionTriggerBackgroundImage).not.toBe('none');",
-    "expect(desktop.productionTriggerBoxShadow).not.toBe('none');",
-    "expect(region.rowBorderTop).toBe('1px');",
-    "expect(region.quickBackground).toBe('rgba(0, 0, 0, 0)');",
-    'expect(narrow.artworkWidth).toBeGreaterThanOrEqual(95);',
-    'expect(narrow.rowScrollWidth).toBeLessThanOrEqual(narrow.rowClientWidth + 1);',
   ]) requireText(paths.browser, text);
 
-  for (const text of [
-    "if (key === 'borderRadius') {",
-    'borderRadius should match inside commodity lists',
-    'borderRadius should match inside facility object cards',
-    'facility object-card radius should remain distinct from commodity rows',
-  ]) requireText(paths.crossPageBrowser, text);
+  forbidText(paths.crossPageBrowser, 'facility object-card radius should remain distinct from commodity rows');
 
   for (const text of [
     "'tests/browser/all-pages-preview.spec.ts'",
@@ -162,8 +119,8 @@ if (failures.length === 0) {
 }
 
 if (failures.length) {
-  console.error(`工厂目录对象卡验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`工厂目录扁平列表验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('工厂目录对象卡验证通过：一级与地区建筑使用实体对象卡，一级插画保持正方形并决定两行内容高度，主信息按钮具有独立质感，生产配置容器透明且按钮自身承担可见表面。');
+console.log('工厂目录扁平列表验证通过：一级与地区建筑保持两行生产配置与插画几何，但不再使用对象卡。');

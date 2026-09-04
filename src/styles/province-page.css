@@ -18,7 +18,7 @@
 
 .province-overview-content {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--layout-gutter);
 }
 
 .province-overview-metrics {

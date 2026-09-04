@@ -53,7 +53,8 @@ test.describe('warehouse and factory automatic operation responsibilities', () =
     expect(await rows.count()).toBeGreaterThan(1);
     await rows.last().click();
     await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
-    await expect(page.locator('.market-detail-hero__metrics > span')).toHaveCount(3);
+    await expect(page.locator('.market-detail-product-summary')).toBeVisible();
+    await expect(page.locator('.market-detail-trade-summary > span')).toHaveCount(4);
   });
 
   test('regional commodity detail stays direct at 720px without a second strategy sheet', async ({ page }) => {
@@ -92,7 +93,8 @@ test.describe('warehouse and factory automatic operation responsibilities', () =
     await expect(warehouse.getByText('自动经营', { exact: true })).toHaveCount(0);
 
     await productCards.first().click();
-    await expect(page.locator('.market-detail-hero')).toBeVisible();
+    await expect(page.locator('.market-detail-product-summary')).toBeVisible();
+    await expect(page.locator('.market-detail-trade-summary > span')).toHaveCount(4);
     await expect(page.getByText('生产者与消费者', { exact: true })).toHaveCount(0);
     await expect(page.getByText('可用库存', { exact: true })).toBeVisible();
     await expect(page.locator('.market-inventory-production-card')).toHaveCount(0);
@@ -111,7 +113,8 @@ test.describe('warehouse and factory automatic operation responsibilities', () =
     await page.getByRole('button', { name: '查看小麦详情' }).click();
 
     await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
-    await expect(page.locator('.market-detail-hero__metrics > span')).toHaveCount(3);
+    await expect(page.locator('.market-detail-product-summary')).toBeVisible();
+    await expect(page.locator('.market-detail-trade-summary > span')).toHaveCount(4);
     await expect(page.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
   });
 });

@@ -21,7 +21,7 @@ const transportMapPickingTest = read('tests/browser/transport-map-picking.spec.t
 const pageContentVerifier = read('scripts/verify-page-content.mjs');
 
 for (const text of [
-  '底部 sticky 操作区',
+  '最下方 sticky 操作区',
   '不得显示路线数量／上限胶囊',
   '一级目录不重复显示“运输路线”分区标题',
   '独立业务对象',
@@ -33,7 +33,7 @@ for (const text of [
   '每条路线固定使用 `.ui-entity-card`',
   '路线卡之间只使用共享 `gap` 分隔',
   '不显示路线数量／上限胶囊',
-  '底部 sticky 操作区',
+  '最下方 sticky 操作区',
 ]) requireText(uiDesign, text, `UI 设计缺少运输路线对象卡规则：${text}`);
 
 requireText(
@@ -65,6 +65,8 @@ for (const text of [
   '.transport-page-footer {',
   'position: sticky;',
   'bottom: 0;',
+  'align-self: end;',
+  'margin-top: auto;',
   '.transport-route-grid {',
   'gap: var(--space-3);',
 ]) requireText(transportCss, text, `运输页样式缺少：${text}`);
@@ -86,6 +88,10 @@ for (const text of [
   'routeBorderRadius',
   'footerBefore',
   'footerAfter',
+  'footerPosition',
+  'footerBottom',
+  'footerAlignSelf',
+  'footerPaddingTop',
 ]) requireText(browserTest, text, `运输浏览器回归缺少：${text}`);
 forbidText(browserTest, "toContainText('0/50')", '运输浏览器回归不得要求已删除的路线数量胶囊。');
 
@@ -107,7 +113,7 @@ for (const [source, label] of [
 }
 
 for (const text of [
-  "'运输页的“增加路线”固定放在页面正文承载面的底部 sticky 操作区'",
+  "'运输页的“增加路线”固定放在页面正文承载面的最下方 sticky 操作区'",
   "'className=\"transport-page-footer\"'",
   "requireText('src/styles/transport-page.css', '.transport-page-footer {');",
   "forbidText('src/pages/TransportPage.tsx', 'className=\"transport-page-actions\"');",

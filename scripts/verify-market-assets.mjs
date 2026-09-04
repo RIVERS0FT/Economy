@@ -30,7 +30,6 @@ for (const path of [
 for (const text of [
   "import { FacilityIcon } from '../components/icons/FacilityIcons';",
   "import { FactoryIcon } from '../components/icons/GameIcons';",
-  "import { ProductIconLabel } from '../components/icons/ProductIcons';",
   "import { ProductArtwork } from '../components/products/ProductArtwork';",
   "import { VirtualRecordTable } from '../components/ui/VirtualRecordTable';",
   'function MarketImmediateTradeEntry({',
@@ -40,8 +39,6 @@ for (const text of [
   'marketDetailRefreshToken',
   'getMarketDetail(',
   'detailedMarket?.priceHistory',
-  'className="market-detail-hero__artwork"',
-  '<ProductArtwork productId={selectedProduct.id} />',
   '<FacilityIcon facilityTypeId={selectedFacility.id} />',
   'className="market-stepper market-quantity-stepper"',
   'id="market-trade-quantity"',
@@ -49,13 +46,13 @@ for (const text of [
   '25%',
   '50%',
   '最大',
-  '今日成交价',
   '今日成交量',
-  '下次调价',
+  'market-detail-product-icon-card ui-entity-card',
   '立即买入',
   '立即卖出',
-  '最近成交',
+  '成交记录',
 ]) requireText('src/pages/MarketPage.tsx', text);
+for (const text of ['今日成交价', '下次调价']) forbidText('src/pages/MarketPage.tsx', text);
 for (const text of [
   'MoneyInput',
   'market-order-price',

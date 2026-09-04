@@ -33,12 +33,10 @@ if (failures.length === 0) {
     'game-preferences-card',
     'account-management-card',
     '账号与管理',
-    '当前会话',
     '存档管理',
     '删除存档',
     '<PlayerAvatar',
     '<FileInput',
-    '64×64 WebP',
   ]) {
     if (!page.includes(text)) failures.push(`SettingsPage 缺少设置页结构或文案: ${text}`);
   }
@@ -55,6 +53,9 @@ if (failures.length === 0) {
     'riversoft.top/profile',
     'redeemGift',
     '危险区域',
+    '当前会话',
+    '原图只在浏览器本地处理；服务器只接收并加载 64×64 WebP 缩略图。',
+    '恢复为新玩家初始经济状态。普通货币、库存、工厂、研发、银行资产和经营统计将被清空；',
   ]) {
     if (page.includes(forbidden)) failures.push(`SettingsPage 不应包含: ${forbidden}`);
   }
