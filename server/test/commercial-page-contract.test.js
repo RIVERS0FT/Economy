@@ -12,6 +12,7 @@ test('province page keeps market-commerce-industry order and commercial detail n
   const stack = read('src/navigation/playerPageStack.ts');
   const commerce = read('src/pages/CommercePage.tsx');
   const regionalTitle = read('src/components/ui/RegionalEntityPageTitle.tsx');
+  const provinceMapBrowser = read('tests/browser/province-map.spec.ts');
 
   const marketIndex = province.indexOf("{ id: 'market', label: '市场' }");
   const commerceIndex = province.indexOf("{ id: 'commerce', label: '商业' }");
@@ -23,6 +24,9 @@ test('province page keeps market-commerce-industry order and commercial detail n
   assert.match(province, /EmbeddedCommercePage/);
   assert.match(province, /section: 'commerce'/);
   assert.match(regionalTitle, /currentLocation\?\.type === 'regional-commercial'/);
+  assert.match(provinceMapBrowser, /getByRole\('tab', \{ name: '商业', exact: true \}\)\.toBeVisible/);
+  assert.match(provinceMapBrowser, /getByRole\('tab', \{ name: '工业', exact: true \}\)\.toBeVisible/);
+  assert.match(provinceMapBrowser, /getByRole\('tab', \{ name: '工业', exact: true \}\)\.click/);
 
   for (const token of [
     'regional-buildings-management',
