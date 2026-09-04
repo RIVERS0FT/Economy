@@ -137,6 +137,7 @@ test('transport route cards stay rounded without row dividers and the add action
     const panelStyle = getComputedStyle(legacyPanel);
     const firstSectionStyle = getComputedStyle(firstSection);
     const secondSectionStyle = getComputedStyle(secondSection);
+    const footerStyle = getComputedStyle(footerElement);
     const result = {
       routeBorderRadius: firstStyle.borderRadius,
       routeBorderTopWidth: firstStyle.borderTopWidth,
@@ -149,8 +150,10 @@ test('transport route cards stay rounded without row dividers and the add action
       firstSectionBorderTopWidth: firstSectionStyle.borderTopWidth,
       secondSectionBorderTopWidth: secondSectionStyle.borderTopWidth,
       secondSectionBorderTopStyle: secondSectionStyle.borderTopStyle,
-      footerAlignSelf: getComputedStyle(footerElement).alignSelf,
-      footerMarginTop: getComputedStyle(footerElement).marginTop,
+      footerPosition: footerStyle.position,
+      footerBottom: footerStyle.bottom,
+      footerAlignSelf: footerStyle.alignSelf,
+      footerPaddingTop: footerStyle.paddingTop,
     };
 
     legacyPanel.remove();
@@ -169,8 +172,10 @@ test('transport route cards stay rounded without row dividers and the add action
   expect(visual.firstSectionBorderTopWidth).toBe('0px');
   expect(visual.secondSectionBorderTopWidth).toBe('1px');
   expect(visual.secondSectionBorderTopStyle).toBe('solid');
+  expect(visual.footerPosition).toBe('sticky');
+  expect(visual.footerBottom).toBe('0px');
   expect(visual.footerAlignSelf).toBe('end');
-  expect(visual.footerMarginTop).not.toBe('0px');
+  expect(visual.footerPaddingTop).not.toBe('0px');
 
   const scroll = page.locator('.page-card-scroll');
   const [scrollBox, footerBefore] = await Promise.all([scroll.boundingBox(), footer.boundingBox()]);
