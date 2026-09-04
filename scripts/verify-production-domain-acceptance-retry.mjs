@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -44,6 +45,14 @@ for (const text of [
   '非预期 HTTP 状态必须立即失败',
   '`ECONOMY_DEPLOY_VERIFY_START` 后 45 秒真实健康检查门槛',
 ]) requireText(design, text, 'CI 执行设计');
+
+const behavior = spawnSync('bash', ['scripts/test-production-domain-acceptance-retry.sh'], {
+  cwd: root,
+  encoding: 'utf8',
+});
+if (behavior.status !== 0) {
+  failures.push(`正式域名重试行为测试失败:\n${behavior.stdout || ''}${behavior.stderr || ''}`.trim());
+}
 
 if (failures.length) {
   console.error(`正式域名公网验收防回退失败:\n- ${failures.join('\n- ')}`);
