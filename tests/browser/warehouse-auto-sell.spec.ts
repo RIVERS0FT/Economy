@@ -19,7 +19,7 @@ test.describe('warehouse and factory automatic operation responsibilities', () =
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test('factory detail owns the editable automatic-operation policy', async ({ page }) => {
-    await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
+    await page.goto('runtime-test.html?view=production&scenario=production-methods');
     await page.locator('.facility-cluster-selector-card').first().click();
 
     const controls = page.locator('.facility-auto-operation');
