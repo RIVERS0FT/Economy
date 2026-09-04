@@ -502,7 +502,7 @@ test('complement gating prioritizes the bottleneck input for electronics', () =>
     .filter((item) => item.outputProductId === 'electronics');
   assert.ok(relations.find((item) => item.inputProductId === 'copper').complementGate
     > relations.find((item) => item.inputProductId === 'plastic').complementGate);
-}
+});
 
 test('downstream price signals move upstream only after relation lag cycles', () => {
   const world = createWorld(now);
