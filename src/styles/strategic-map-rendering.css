@@ -10,14 +10,36 @@
   backface-visibility: visible;
 }
 
+.province-map-camera-raster {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  image-rendering: auto;
+  will-change: auto;
+}
+
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface {
   transform-origin: 0 0 !important;
   will-change: transform !important;
   backface-visibility: hidden;
 }
 
-/* The outer strategic viewport owns the active clip. Removing the inner SVG viewport clip avoids re-clipping the large
-   transiently transformed vector world on every compositor frame; settled mode restores the SVG clip with the final viewBox. */
+.province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-camera-raster {
+  opacity: 1;
+}
+
+.province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-world-svg {
+  opacity: 0;
+}
+
+/* The outer strategic viewport owns the active clip. The authoritative SVG remains mounted while the preloaded raster
+   snapshot is visible; settled mode restores the SVG clip and final viewBox immediately after camera input stops. */
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
   overflow: visible;
 }
@@ -41,8 +63,8 @@
   filter: none !important;
 }
 
-/* During active camera input, the same lightweight 110m world path temporarily carries the low-contrast land fill.
-   The idle 10m land path stays mounted and returns at settle; only paint participation changes at the active/idle boundary. */
+/* The raster snapshot is generated from the same SVG world with the lightweight 110m world fill already applied.
+   This live-SVG fallback preserves the same LOD if a snapshot is not ready when input starts. */
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-fill {
   display: none;
 }
