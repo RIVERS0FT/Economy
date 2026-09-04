@@ -249,8 +249,9 @@ test('market and building entity lists share surface geometry with registered de
   facilitySamples.push(await inspect('.global-facility-region-surface'));
 
   const samples = [...marketSamples, ...facilitySamples];
-  const densityKeys = new Set<keyof typeof samples[number]>(['paddingLeft', 'paddingRight', 'paddingTop', 'paddingBottom']);
+  const densityKeys = new Set<keyof typeof samples[number]>(['rowsGap', 'paddingLeft', 'paddingRight', 'paddingTop', 'paddingBottom']);
   for (const sample of facilitySamples) {
+    expect(sample.rowsGap).toBe('0px');
     expect(sample.paddingTop).toBe(sample.paddingBottom);
     expect(sample.paddingLeft).toBe('0px');
     expect(sample.paddingRight).toBe('0px');
