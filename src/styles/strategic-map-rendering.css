@@ -21,10 +21,23 @@
 /* viewBox zoom re-rasterizes the visible vectors. Keep the map world filter-free so each frame does not rerun large SVG filters. */
 .province-map-world-shadow {
   fill: none !important;
+  fill-opacity: 0;
   stroke: color-mix(in srgb, var(--color-map-region-border) 28%, transparent) !important;
   stroke-width: 4;
-  opacity: .22;
+  stroke-opacity: .22;
+  opacity: 1;
   filter: none !important;
+}
+
+/* During active camera input, the same lightweight 110m world path temporarily carries the low-contrast land fill.
+   The idle 10m land path stays mounted and returns at settle; only paint participation changes at the active/idle boundary. */
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-fill {
+  display: none;
+}
+
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-shadow {
+  fill: var(--province-map-world-fill) !important;
+  fill-opacity: .78;
 }
 
 .province-map-region[data-selected='true'],
