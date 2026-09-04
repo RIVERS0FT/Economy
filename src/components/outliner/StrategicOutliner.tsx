@@ -405,7 +405,6 @@ export function StrategicOutliner({
       <header className="strategic-outliner__header">
         <div className="strategic-outliner__identity">
           <strong>追踪器</strong>
-          <small>经营与事件</small>
         </div>
         <button
           type="button"

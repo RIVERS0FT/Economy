@@ -19,7 +19,7 @@ test('status identity uses the player avatar and opens settings', async ({ page 
 
   await expect(page.getByRole('heading', { level: 1, name: '设置' })).toBeVisible();
   await expect(page.getByLabel('玩家头像')).toHaveAttribute('type', 'file');
-  await expect(page.getByText(/64×64 WebP/)).toBeVisible();
+  await expect(page.getByText(/64×64 WebP/)).toHaveCount(0);
 });
 
 test('shared player avatars stay square across responsive status layouts', async ({ page }) => {

@@ -14,6 +14,7 @@
 - 宽度大于 `720px` 时使用 `var(--space-4)`，即 `16px`；不大于 `720px` 时使用 `var(--space-3)`，即 `12px`；四边必须相同。
 - 正文 `.ui-entity-card` 与合同兼容入口 `.contract-card` 复用 `--primary-surface-inset`；拍卖兼容入口 `.asset-auction-card` 同样复用该令牌，三者都不得创建对象专属 padding 变量。
 - `--player-page-content-inset` 固定使用当前 `.game-shell` 的 `var(--layout-gutter)`，用于 `PageLayout` 可滚动正文四边安全留白；标题栏下方第一块正文不得恢复顶部 `0` 或负 margin 抵消。
+- 同页一级业务卡片之间的网格或堆叠间隔同样固定使用 `var(--layout-gutter)`；该外部间隔与 `--primary-surface-inset` 的卡片四边内边距保持分离，业务 CSS 不得用额外的卡片 `margin-bottom` 或 `--space-*` 替代。
 - `primary-surfaces.css` 必须在 `design-system.css` 之后、`form-controls.css` 之前加载；正文表面语义由 `content-surfaces.css` 与 `scrolling-page-sections.css` 收束。
 
 ## 3. React 与页面结构规则

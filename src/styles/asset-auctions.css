@@ -1,19 +1,17 @@
 .asset-auction-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-  gap: 1rem;
+  gap: var(--layout-gutter);
 }
 
 .asset-auction-card {
   min-width: 0;
   overflow: hidden;
-  padding: 0;
 }
 
 .asset-auction-body {
   display: grid;
   gap: .75rem;
-  padding: 1rem;
 }
 
 .asset-auction-metrics {
@@ -67,7 +65,6 @@
   gap: var(--space-3);
 }
 
-.asset-auction-create { margin-bottom: var(--space-4); }
 .asset-auction-create > .widget-heading,
 .asset-auction-history > .widget-heading { margin-bottom: 0; }
 .asset-auction-create > .ui-helper-text,
@@ -267,7 +264,6 @@
 @media (max-width: 720px) {
   .widget.asset-auction-create,
   .widget.asset-auction-history,
-  .asset-auction-body,
   .asset-auction-add,
   .asset-auction-package { padding: var(--space-3); }
 }
@@ -379,7 +375,7 @@
   display: grid;
   grid-template-columns: minmax(340px, .82fr) minmax(0, 1.48fr);
   align-items: start;
-  gap: var(--space-4);
+  gap: var(--layout-gutter);
 }
 
 .asset-auction-create-column,

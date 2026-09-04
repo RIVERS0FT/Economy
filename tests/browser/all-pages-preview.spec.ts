@@ -192,7 +192,7 @@ test('market and building entity lists share surface geometry with registered de
     await page.locator('.global-facility-catalog').evaluate((surface) => {
       surface.innerHTML = `
         <div class="entity-list-header global-facility-catalog-header">
-          <span>工厂</span><span>平均利润／分钟</span><span>拥有</span><span></span>
+          <span>建筑</span><span>利润</span><span>拥有</span><span></span>
         </div>
         <ul class="entity-list-rows global-facility-catalog-list">
           <li>
@@ -249,11 +249,20 @@ test('market and building entity lists share surface geometry with registered de
   facilitySamples.push(await inspect('.global-facility-region-surface'));
 
   const samples = [...marketSamples, ...facilitySamples];
-  const densityKeys = new Set<keyof typeof samples[number]>(['paddingTop', 'paddingBottom']);
+  const densityKeys = new Set<keyof typeof samples[number]>([
+    'rowsGap',
+    'paddingLeft',
+    'paddingRight',
+    'paddingTop',
+    'paddingBottom',
+    'borderRadius',
+  ]);
   for (const sample of facilitySamples) {
+    expect(sample.rowsGap).toBe('0px');
     expect(sample.paddingTop).toBe(sample.paddingBottom);
-    expect(sample.paddingLeft).toBe(sample.paddingRight);
-    expect(parseFloat(sample.paddingTop)).toBeLessThan(parseFloat(sample.paddingRight));
+    expect(sample.paddingLeft).toBe('0px');
+    expect(sample.paddingRight).toBe('0px');
+    expect(parseFloat(sample.paddingTop)).toBeGreaterThan(0);
   }
   for (const key of Object.keys(samples[0]) as Array<keyof typeof samples[number]>) {
     if (key === 'minHeight') {
@@ -266,12 +275,6 @@ test('market and building entity lists share surface geometry with registered de
       expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, 'fontSize should match inside commodity lists').toBe(1);
       expect(new Set(facilitySamples.map((sample) => String(sample[key]))).size, 'fontSize should match inside facility two-line lists').toBe(1);
       expect(parseFloat(String(facilitySamples[0][key])), 'facility primary identity should be visually stronger than commodity rows').toBeGreaterThan(parseFloat(String(marketSamples[0][key])));
-      continue;
-    }
-    if (key === 'borderRadius') {
-      expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, 'borderRadius should match inside commodity lists').toBe(1);
-      expect(new Set(facilitySamples.map((sample) => String(sample[key]))).size, 'borderRadius should match inside facility object cards').toBe(1);
-      expect(String(marketSamples[0][key]), 'facility object-card radius should remain distinct from commodity rows').not.toBe(String(facilitySamples[0][key]));
       continue;
     }
     if (densityKeys.has(key)) {

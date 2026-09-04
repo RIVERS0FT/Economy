@@ -635,8 +635,8 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
               <EntityListHeader
                 className="global-facility-catalog-header"
                 columns={[
-                  { label: '工厂', sortKey: 'name', defaultDirection: 'asc' },
-                  { label: '平均利润／分钟', sortKey: 'profit', defaultDirection: 'desc' },
+                  { label: '建筑', sortKey: 'name', defaultDirection: 'asc' },
+                  { label: '利润', sortKey: 'profit', defaultDirection: 'desc' },
                   { label: '拥有', sortKey: 'count', defaultDirection: 'desc' },
                   { key: 'chevron', label: '' },
                 ]}

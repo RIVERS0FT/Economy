@@ -126,6 +126,6 @@ export function installLocalGamePreviewFetch() {
       });
     }
 
-    return jsonResponse({ message: '该接口在免登录游戏模式中不可用。' }, 503);
+    return new Response(null, { status: 503 });
   };
 }

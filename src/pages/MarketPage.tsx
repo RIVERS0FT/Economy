@@ -11,7 +11,6 @@ import {
 } from '../components/market/MarketCommodityRow';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { FactoryIcon } from '../components/icons/GameIcons';
-import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
@@ -72,7 +71,6 @@ function MarketImmediateTradeEntry({
   assetId,
   assetName,
   officialPrice,
-  nextPriceAt,
   orderSide,
   selectOrderSide,
   orderQuantity,
@@ -84,7 +82,6 @@ function MarketImmediateTradeEntry({
   assetId: string;
   assetName: string;
   officialPrice: number;
-  nextPriceAt?: number;
   orderSide: OrderSide;
   selectOrderSide: (side: OrderSide) => void;
   orderQuantity: number;
@@ -131,8 +128,7 @@ function MarketImmediateTradeEntry({
   }
 
   return (
-    <section className="order-entry market-trade-entry market-immediate-trade" aria-labelledby="market-immediate-trade-title">
-      <h3 id="market-immediate-trade-title" className="market-trade-section-title">即时交易</h3>
+    <section className="order-entry market-trade-entry market-immediate-trade" aria-label="商品交易">
       <div className="ui-segmented market-side-switch" role="group" aria-label="交易方向">
         <Button
           variant="text"
@@ -146,16 +142,6 @@ function MarketImmediateTradeEntry({
           aria-pressed={orderSide === 'sell'}
           onClick={() => selectOrderSide('sell')}
         >卖出</Button>
-      </div>
-      <div className="market-order-summary-grid market-daily-price-summary">
-        <span>
-          <small>今日成交价</small>
-          <strong><CurrencyAmount>{formatCurrency(officialPrice)}</CurrencyAmount></strong>
-        </span>
-        <span>
-          <small>下次调价</small>
-          <strong>{typeof nextPriceAt === 'number' ? formatTime(nextPriceAt) : '次日 00:00'}</strong>
-        </span>
       </div>
       <div className="market-stepper-block">
         <div className="market-stepper market-quantity-stepper" role="group" aria-label="调整交易数量">
@@ -201,6 +187,7 @@ function MarketImmediateTradeEntry({
         {orderSide === 'sell'
           ? <span><small>预计到账</small><strong><CurrencyAmount>{formatCurrency(estimatedNet)}</CurrencyAmount></strong></span>
           : <span><small>可用资金</small><strong><CurrencyAmount>{formatCurrency(credits)}</CurrencyAmount></strong></span>}
+        <span><small>手续费</small><strong><CurrencyAmount>{formatCurrency(estimatedFee)}</CurrencyAmount></strong></span>
       </div>
       <Button
         block
@@ -279,6 +266,7 @@ export function MarketPage({
     && marketDetail.assetId === assetId
     ? marketDetail
     : null;
+  const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail);
   const marketDetailRefreshToken = [
     selectedMarket?.lastTradeAt ?? '',
     selectedMarket?.lastTradePrice ?? '',
@@ -335,21 +323,10 @@ export function MarketPage({
   const bucketMarketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
   const summaryMarketTrend = detailedMarket?.priceChange24h ?? selectedMarket?.priceChange24h;
   const marketTrend = typeof summaryMarketTrend === 'number' ? summaryMarketTrend : bucketMarketTrend;
-  const marketVolume24h = useMemo(() => {
-    const summaryVolume = detailedMarket?.tradeVolume24h ?? selectedMarket?.tradeVolume24h;
-    if (typeof summaryVolume === 'number') return Math.max(0, summaryVolume);
-    const windowStart = now - (24 * 60 * 60 * 1_000);
-    return marketHistory
-      .filter((point) => point.createdAt >= windowStart && point.createdAt <= now)
-      .reduce((sum, point) => sum + Math.max(0, Number(point.quantity || 0)), 0);
-  }, [detailedMarket?.tradeVolume24h, marketHistory, now, selectedMarket?.tradeVolume24h]);
   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
   const detailedProductMarket = selectedProduct ? detailedMarket as ProductMarketState | undefined : undefined;
   const officialPrice = selectedProduct
     ? detailedProductMarket?.officialPrice ?? selectedProductMarket?.officialPrice ?? selectedProduct.basePrice
-    : undefined;
-  const nextPriceAt = selectedProduct
-    ? detailedProductMarket?.nextPriceAt ?? selectedProductMarket?.nextPriceAt
     : undefined;
   const todayVolume = selectedProduct
     ? Math.max(0, Number(selectedProductMarket?.todayBuyQuantity || 0)) + Math.max(0, Number(selectedProductMarket?.todaySellQuantity || 0))
@@ -467,57 +444,50 @@ export function MarketPage({
 
   const detailContent = (
     <div className="market-page-surface market-detail-surface">
-      <Panel className={`widget market-detail-hero${selectedProduct ? ' market-detail-hero--commodity' : ''}`}>
+      {!selectedProduct ? <Panel className="widget market-detail-hero">
         <span className="market-detail-hero__artwork" aria-hidden="true">
-          {selectedProduct
-            ? <ProductArtwork productId={selectedProduct.id} />
-            : selectedFacility ? <FacilityIcon facilityTypeId={selectedFacility.id} /> : <FactoryIcon />}
+          {selectedFacility ? <FacilityIcon facilityTypeId={selectedFacility.id} /> : <FactoryIcon />}
         </span>
         <div className="market-detail-hero__metrics">
-          {selectedProduct ? (
-            <>
-              <span><small>今日价格</small><strong><CurrencyAmount>{formatCurrency(officialPrice ?? selectedProduct.basePrice)}</CurrencyAmount></strong></span>
-              <span><small>24h 变化</small><StatusTag tone={trendTone}><CurrencyAmount sign={marketTrend > 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount></StatusTag></span>
-              <span><small>可用库存</small><strong><CompactNumber value={selectedInventory.available} /></strong></span>
-            </>
-          ) : (
-            <>
-              <span><small>最近成交</small><strong>{typeof selectedMarket?.lastTradePrice === 'number' ? formatCurrency(selectedMarket.lastTradePrice) : '—'}</strong></span>
-              <span><small>24h 变化</small><StatusTag tone={trendTone}><CurrencyAmount sign={marketTrend > 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount></StatusTag></span>
-              <span><small>交易方式</small><strong>拍卖</strong></span>
-            </>
-          )}
+          <>
+            <span><small>最近成交</small><strong>{typeof selectedMarket?.lastTradePrice === 'number' ? formatCurrency(selectedMarket.lastTradePrice) : '—'}</strong></span>
+            <span><small>24h 变化</small><StatusTag tone={trendTone}><CurrencyAmount sign={marketTrend > 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount></StatusTag></span>
+            <span><small>交易方式</small><strong>拍卖</strong></span>
+          </>
         </div>
-      </Panel>
+      </Panel> : null}
+
+      {selectedProduct ? (
+        <div className="market-detail-product-summary">
+          <div className="market-detail-product-icon-card ui-entity-card" aria-hidden="true">
+            <ProductArtwork productId={selectedProduct.id} className="market-detail-product-artwork" />
+          </div>
+          <div className="market-trade-summary market-detail-trade-summary ui-entity-card" aria-label="交易摘要">
+            <span><small>今日价格</small><strong><CurrencyAmount>{formatCurrency(officialPrice ?? selectedProduct.basePrice)}</CurrencyAmount></strong></span>
+            <span><small>今日成交量</small><strong><CompactNumber value={todayVolume} /></strong></span>
+            <span><small>可用库存</small><strong><CompactNumber value={selectedInventory.available} /></strong></span>
+            <span><small>冻结库存</small><strong><CompactNumber value={selectedInventory.frozen} /></strong></span>
+          </div>
+        </div>
+      ) : null}
 
       <div className="market-grid unified-market-grid">
-        <Panel className="widget market-chart-card">
-          <WidgetHeading
-            title={selectedProduct
-              ? <ProductIconLabel productId={selectedProduct.id}>{`${assetName}近 24h 成交趋势`}</ProductIconLabel>
-              : <span className="product-icon-label facility-icon-label"><FactoryIcon />{`${assetName}近 24h 成交趋势`}</span>}
-            action={<StatusTag tone={trendTone}><CurrencyAmount sign={marketTrend > 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount></StatusTag>}
-          />
-          {marketDetailLoading && !selectedMarketDetail ? <small className="muted" role="status">正在加载当前市场行情…</small> : null}
-          {marketDetailError && !selectedMarketDetail ? <small className="ui-form-field__error" role="alert">{marketDetailError}</small> : null}
-          <PriceSparkline buckets={marketBuckets} variant="full" />
+        <Panel
+          className={`widget market-chart-card ui-entity-card${marketDetailUnavailable ? ' is-unavailable' : ''}`}
+        >
+          <div className="market-chart-card__content" aria-disabled={marketDetailUnavailable || undefined}>
+            {marketDetailLoading && !selectedMarketDetail ? <small className="muted" role="status">正在加载当前市场行情…</small> : null}
+            {marketDetailUnavailable ? <div className="market-chart-card__unavailable" role="status">成交趋势图不可用</div> : <PriceSparkline buckets={marketBuckets} variant="full" />}
+          </div>
         </Panel>
 
         {selectedProduct ? (
           <section className="market-trade-card market-immediate-trade-card">
-            <WidgetHeading title={<ProductIconLabel productId={selectedProduct.id}>{`${assetName}即时交易`}</ProductIconLabel>} />
-            <div className="market-trade-summary" aria-label={`${assetName}即时交易摘要`}>
-              <span><small>今日价格</small><strong><CurrencyAmount>{formatCurrency(officialPrice ?? selectedProduct.basePrice)}</CurrencyAmount></strong></span>
-              <span><small>今日成交量</small><strong><CompactNumber value={todayVolume} /></strong></span>
-              <span><small>24h 成交量</small><strong><CompactNumber value={marketVolume24h} /></strong></span>
-              <span><small>下次调价</small><strong>{typeof nextPriceAt === 'number' ? formatTime(nextPriceAt) : '次日 00:00'}</strong></span>
-            </div>
             <MarketImmediateTradeEntry
                 key={`${assetId}:${orderSide}`}
                 assetId={assetId}
                 assetName={assetName}
                 officialPrice={officialPrice ?? selectedProduct.basePrice}
-                nextPriceAt={nextPriceAt}
                 orderSide={orderSide}
                 selectOrderSide={selectOrderSide}
                 orderQuantity={orderQuantity}
@@ -537,8 +507,8 @@ export function MarketPage({
         <Panel className="widget span-3 market-account-panel">
           <section className="local-trades-section">
           <div className="local-trades-heading">
-            <WidgetHeading title={`${assetName}最近成交`} />
-            <Button variant="compact" onClick={clearLocalTrades} disabled={localTrades.length === 0}>清除全部本地成交</Button>
+            <WidgetHeading title="成交记录" />
+            <Button variant="compact" onClick={clearLocalTrades} disabled={localTrades.length === 0}>清除记录</Button>
           </div>
           {selectedLocalTrades.length === 0 ? <p className="muted">当前浏览器暂无该资产成交记录。</p> : (
             <VirtualRecordTable
@@ -551,7 +521,7 @@ export function MarketPage({
               gap={5}
               className="local-trades-scroll-area"
               tableClassName="local-trades-virtual-table"
-              ariaLabel={`${assetName}最近成交`}
+              ariaLabel={`${assetName}成交记录`}
               header={(
                 <>
                   <span role="columnheader" className="trade-side-cell">方向</span>

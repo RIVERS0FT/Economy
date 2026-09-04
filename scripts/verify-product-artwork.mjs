@@ -228,13 +228,14 @@ if (failures.length === 0) {
     }
   }
 
-  const marketPage = read('src/pages/MarketPage.tsx');
   const marketCommodityRow = read(marketCommodityRowPath);
+  const marketPage = read('src/pages/MarketPage.tsx');
   for (const required of [
-    '<ProductArtwork productId={selectedProduct.id} />',
-    'className="market-detail-hero__artwork"',
+    "from '../components/products/ProductArtwork'",
+    'className="market-detail-product-icon-card ui-entity-card"',
+    '<ProductArtwork productId={selectedProduct.id} className="market-detail-product-artwork" />',
   ]) {
-    if (!marketPage.includes(required)) failures.push(`src/pages/MarketPage.tsx 缺少商品详情主视觉: ${required}`);
+    if (!marketPage.includes(required)) failures.push(`src/pages/MarketPage.tsx 缺少商品详情图标: ${required}`);
   }
   for (const required of [
     "from '../products/ProductArtwork'",
@@ -268,5 +269,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `商品图片视觉验证通过：${productIds.length} 种正式商品的 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，共享市场商品行与详情、生产结算及富内容下拉框使用 ProductArtwork PNG，其余紧凑语义位置继续使用 SVG 或通用回退。`,
+  `商品图片视觉验证通过：${productIds.length} 种正式商品的 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，共享市场商品行、生产结算及富内容下拉框使用 ProductArtwork PNG，其余紧凑语义位置继续使用 SVG 或通用回退。`,
 );

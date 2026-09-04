@@ -152,7 +152,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
               error={avatarError || undefined}
               description={avatarUploading
                 ? '正在本地裁剪并压缩头像…'
-                : '原图只在浏览器本地处理；服务器只接收并加载 64×64 WebP 缩略图。'}
+                : undefined}
               onChange={(event) => void changePlayerAvatar(event)}
             />
           </div>
@@ -194,7 +194,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
           >
             <div className="tutorial-settings-copy">
               <h3 id="tutorial-settings-heading">教程</h3>
-              <p>{tutorial.statusLabel}</p>
+              {tutorial.statusLabel ? <p>{tutorial.statusLabel}</p> : null}
             </div>
             <div className="tutorial-settings-actions">
               <Button onClick={restartTutorial}>重新开始教程</Button>
@@ -219,10 +219,6 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
               <h3 id="save-deletion-heading">存档管理</h3>
               <StatusTag tone="danger">不可撤销</StatusTag>
             </div>
-            <p>
-              恢复为新玩家初始经济状态。普通货币、库存、工厂、研发、银行资产和经营统计将被清空；
-              账号、注册时间、宝石、邀请码及领取和审计记录保留。
-            </p>
             {saveDeletionPreflight?.blockers.length ? (
               <ul className="save-deletion-blockers" aria-label="删除存档阻止事项">
                 {saveDeletionPreflight.blockers.map((entry) => (
@@ -240,8 +236,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
             </Button>
           </section>
 
-          <section className="account-action-group" aria-labelledby="current-session-heading">
-            <h3 id="current-session-heading">当前会话</h3>
+          <section className="account-action-group" aria-label="退出登录">
             <Button block variant="secondary" onClick={() => void signOut()}>退出登录</Button>
           </section>
         </Panel>

@@ -91,6 +91,6 @@ assert.match(design, /不得创建 `open`／`partial` 商品订单/);
 
 const marketPage = read('../src/pages/MarketPage.tsx');
 assert.doesNotMatch(marketPage, /orderBook\.bids|orderBook\.asks|buildOrderBookLevels|实时五档|点击填价/);
-assert.match(marketPage, /今日成交价/);
+assert.doesNotMatch(marketPage, /今日成交价|下次调价/);
 
 console.log('Internal decimal order-level compatibility verification passed; player commodity UI remains immediate-price only.');

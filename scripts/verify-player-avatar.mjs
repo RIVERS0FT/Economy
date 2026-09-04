@@ -49,12 +49,14 @@ requireText('src/styles/player-avatar.css', [
 forbidText('src/styles/player-avatar.css', [
   'min-width: var(--player-avatar-size);',
 ]);
+forbidText('src/pages/SettingsPage.tsx', [
+  '原图只在浏览器本地处理；服务器只接收并加载 64×64 WebP 缩略图。',
+]);
 requireText('src/pages/SettingsPage.tsx', [
   '<PlayerAvatar',
   '<FileInput',
   'preparePlayerAvatar(file)',
   'updatePlayerAvatar(avatarData)',
-  '64×64 WebP',
 ]);
 requireText('src/components/shell/StatusBar.tsx', [
   '<PlayerAvatar',

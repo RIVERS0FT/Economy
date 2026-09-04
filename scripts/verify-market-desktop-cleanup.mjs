@@ -15,8 +15,8 @@ for (const token of [
   'function MarketImmediateTradeEntry({',
   '<small>今日价格</small>',
   '<small>今日成交量</small>',
-  '<small>24h 成交量</small>',
-  '<small>下次调价</small>',
+  '<small>可用库存</small>',
+  '<small>冻结库存</small>',
   'id="market-trade-quantity"',
   'market-quantity-stepper',
   '立即买入',
@@ -24,6 +24,7 @@ for (const token of [
   '<Panel className="widget span-3 market-account-panel">',
   'className="local-trades-section"',
 ]) requireText(marketPage, token, `即时市场页面缺少: ${token}`);
+for (const token of ['<small>今日成交价</small>', '<small>下次调价</small>']) forbidText(marketPage, token, `即时交易控件不得恢复重复行情字段: ${token}`);
 
 for (const token of [
   'market-trade-book',

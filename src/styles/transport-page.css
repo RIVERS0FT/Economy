@@ -28,6 +28,8 @@
   position: sticky;
   z-index: 1;
   bottom: 0;
+  align-self: end;
+  margin-top: auto;
   min-width: 0;
   display: flex;
   justify-content: flex-end;

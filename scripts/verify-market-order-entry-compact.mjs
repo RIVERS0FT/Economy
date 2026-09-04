@@ -41,14 +41,14 @@ for (const text of [
   '25%',
   '50%',
   '最大',
-  '今日成交价',
-  '下次调价',
   '交易总额',
   '预计到账',
+  '手续费',
   'className="market-submit-order"',
   '立即买入',
   '立即卖出',
 ]) requireText(pagePath, text);
+for (const text of ['今日成交价', '下次调价']) forbidText(pagePath, text);
 for (const text of [
   'MoneyInput',
   'market-order-price',
@@ -64,6 +64,7 @@ for (const text of [
 for (const text of [
   '.market-page-surface .market-stepper__button {',
   '.market-page-surface .market-stepper__button:disabled {',
+  'grid-template-columns: repeat(3, minmax(0, 1fr));',
   '.market-submit-order',
 ]) requireText(stylePath, text);
 
@@ -71,7 +72,7 @@ for (const text of [
   '玩家商品交易不得创建 `open`／`partial` 商品订单',
   '客户端只决定地区、商品、方向和数量',
   '玩家商品页面永久移除：价格输入框',
-  '地区商品详情只展示当前商品身份、今日价格',
+  '地区商品详情的模块归属、顶部摘要字段及响应式呈现唯一由 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 定义',
 ]) requireText(orderDesignPath, text);
 
 for (const text of [

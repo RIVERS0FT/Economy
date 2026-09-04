@@ -64,7 +64,7 @@ const marketPage = read('src/pages/MarketPage.tsx');
 assert.doesNotMatch(marketPage, /MoneyInput/);
 assert.match(marketPage, /officialPrice/);
 assert.match(marketPage, /IntegerInput/);
-assert.match(marketPage, /今日成交价/);
+assert.doesNotMatch(marketPage, /今日成交价|下次调价/);
 assert.match(read('src/pages/ContractPage.tsx'), /ContractWorkspacePage/);
 
 assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 39/);
