@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
 
+async function waitForRasterReady(canvas: import('@playwright/test').Locator) {
+  await expect(canvas).toHaveAttribute('data-map-camera-raster-mode', 'settled-svg-active-raster-snapshot');
+  await expect(canvas).toHaveAttribute('data-map-raster-mode', 'preloaded-full-world-svg-snapshot');
+  await expect.poll(async () => canvas.getAttribute('data-map-raster-ready'), { timeout: 15_000 }).toBe('true');
+  await expect.poll(async () => Number(await canvas.getAttribute('data-map-raster-revision') || 0), { timeout: 15_000 })
+    .toBeGreaterThan(0);
+}
+
 test('active zoom uses one transient camera transform while static geometry stays immutable and settle commits one viewBox', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -9,6 +17,7 @@ test('active zoom uses one transient camera transform while static geometry stay
   const canvas = map.locator('.province-map-static-viewport');
   const camera = map.locator('.province-map-camera-surface');
   const svg = map.locator('.province-map-world-svg');
+  const raster = map.locator('.province-map-camera-raster');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
   await expect(canvas).toHaveAttribute('data-map-camera-mode', 'svg-viewbox');
@@ -21,6 +30,12 @@ test('active zoom uses one transient camera transform while static geometry stay
   await expect(canvas).toHaveAttribute('data-map-camera-boundary-mode', 'fixed-world-bounds');
   await expect(canvas).toHaveAttribute('data-map-world-path-count', '48');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
+  await waitForRasterReady(canvas);
+  await expect(raster).toHaveCount(1);
+  await expect(raster).toHaveCSS('opacity', '0');
+  await expect(svg).toHaveCSS('opacity', '1');
+  expect(await raster.evaluate((element: HTMLCanvasElement) => element.width)).toBeGreaterThan(0);
+  expect(await raster.evaluate((element: HTMLCanvasElement) => element.height)).toBeGreaterThan(0);
   await expect(camera).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
   await expect(camera).toHaveCSS('contain', 'none');
@@ -32,12 +47,14 @@ test('active zoom uses one transient camera transform while static geometry stay
     glyphTransforms: [...container.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
       .map((glyph) => glyph.getAttribute('transform')),
     viewBox: container.querySelector<SVGSVGElement>('.province-map-world-svg')?.getAttribute('viewBox') ?? '',
+    rasterRevision: container.dataset.mapRasterRevision,
   }));
 
   const activeBoundary = await canvas.evaluate(async (container) => {
     const cameraSurface = container.querySelector<HTMLElement>('.province-map-camera-surface');
     const worldSvg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
-    if (!cameraSurface || !worldSvg) throw new Error('map transient camera fixture is incomplete');
+    const rasterCanvas = container.querySelector<HTMLCanvasElement>('.province-map-camera-raster');
+    if (!cameraSurface || !worldSvg || !rasterCanvas) throw new Error('map transient camera fixture is incomplete');
     const bounds = container.getBoundingClientRect();
     for (let index = 0; index < 8; index += 1) {
       container.dispatchEvent(new WheelEvent('wheel', {
@@ -52,18 +69,26 @@ test('active zoom uses one transient camera transform while static geometry stay
     const style = getComputedStyle(cameraSurface);
     return {
       active: container.dataset.mapZoomActive,
+      rasterActive: container.dataset.mapRasterActive,
+      rasterRevision: container.dataset.mapRasterRevision,
       transform: style.transform,
       willChange: style.willChange,
       viewBox: worldSvg.getAttribute('viewBox') ?? '',
       svgOverflow: getComputedStyle(worldSvg).overflow,
+      svgOpacity: getComputedStyle(worldSvg).opacity,
+      rasterOpacity: getComputedStyle(rasterCanvas).opacity,
     };
   });
 
   expect(activeBoundary.active).toBe('true');
+  expect(activeBoundary.rasterActive).toBe('true');
+  expect(activeBoundary.rasterRevision).toBe(baseline.rasterRevision);
   expect(activeBoundary.transform).not.toBe('none');
   expect(activeBoundary.willChange).toBe('transform');
   expect(activeBoundary.viewBox).not.toBe(baseline.viewBox);
   expect(activeBoundary.svgOverflow).toBe('visible');
+  expect(activeBoundary.svgOpacity).toBe('0');
+  expect(activeBoundary.rasterOpacity).toBe('1');
 
   const during = await canvas.evaluate((container) => ({
     pathRevision: container.dataset.mapPathRevision,
@@ -86,6 +111,8 @@ test('active zoom uses one transient camera transform while static geometry stay
   }));
   expect(settled.pathData).toEqual(baseline.pathData);
   expect(settled.glyphTransforms).toEqual(baseline.glyphTransforms);
+  await expect(svg).toHaveCSS('opacity', '1');
+  await expect(raster).toHaveCSS('opacity', '0');
   await expect(camera).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
 });
@@ -96,6 +123,7 @@ test('active wheel bursts mutate only the transient camera transform once per an
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
   const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
+  await waitForRasterReady(canvas);
 
   const result = await canvas.evaluate(async (container) => {
     const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
@@ -115,6 +143,7 @@ test('active wheel bursts mutate only the transient camera transform once per an
     dispatchWheel(-40);
     await nextFrame();
     const preloadViewBox = svg.getAttribute('viewBox') ?? '';
+    const rasterActive = container.dataset.mapRasterActive;
 
     let viewBoxMutations = 0;
     let cameraStyleMutations = 0;
@@ -145,6 +174,7 @@ test('active wheel bursts mutate only the transient camera transform once per an
       preloadViewBox,
       activeViewBox,
       transientTransform,
+      rasterActive,
       viewBoxMutations,
       cameraStyleMutations,
       diagnosticMutations,
@@ -154,6 +184,7 @@ test('active wheel bursts mutate only the transient camera transform once per an
   expect(result.preloadViewBox).not.toBe(result.baselineViewBox);
   expect(result.activeViewBox).toBe(result.preloadViewBox);
   expect(result.transientTransform).not.toBe('none');
+  expect(result.rasterActive).toBe('true');
   expect(result.viewBoxMutations).toBe(0);
   expect(result.cameraStyleMutations).toBe(1);
   expect(result.diagnosticMutations).toBe(0);
@@ -166,7 +197,7 @@ test('active wheel bursts mutate only the transient camera transform once per an
   await expect(camera).toHaveCSS('will-change', 'auto');
 });
 
-test('transient camera frames stay close to the same-browser empty-frame budget', async ({ page }) => {
+test('transient raster camera frames stay close to the same-browser empty-frame budget', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -174,13 +205,15 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
   await expect(canvas).toHaveAttribute('data-map-world-stroke-resolution', '110m');
   await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
   await expect(canvas).toHaveAttribute('data-map-camera-preload-mode', 'fixed-world-viewbox');
+  await waitForRasterReady(canvas);
 
   const result = await canvas.evaluate(async (container) => {
     const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
     const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
+    const raster = container.querySelector<HTMLCanvasElement>('.province-map-camera-raster');
     const detailedFill = container.querySelector<SVGPathElement>('.province-map-world-fill');
     const lodFill = container.querySelector<SVGPathElement>('.province-map-world-shadow');
-    if (!svg || !camera || !detailedFill || !lodFill) throw new Error('map camera performance fixture is incomplete');
+    if (!svg || !camera || !raster || !detailedFill || !lodFill) throw new Error('map camera performance fixture is incomplete');
     const baselineViewBox = svg.getAttribute('viewBox') ?? '';
     const bounds = container.getBoundingClientRect();
     const dispatchWheel = (deltaY: number) => container.dispatchEvent(new WheelEvent('wheel', {
@@ -215,6 +248,12 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
       cameraTransform: getComputedStyle(camera).transform,
       preloadViewBox: svg.getAttribute('viewBox') ?? '',
       svgOverflow: getComputedStyle(svg).overflow,
+      svgOpacity: getComputedStyle(svg).opacity,
+      rasterOpacity: getComputedStyle(raster).opacity,
+      rasterActive: container.dataset.mapRasterActive,
+      rasterReady: container.dataset.mapRasterReady,
+      rasterRevision: container.dataset.mapRasterRevision,
+      rasterPixelSize: container.dataset.mapRasterPixelSize,
       cameraContain: getComputedStyle(camera).contain,
     };
 
@@ -249,15 +288,24 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
   expect(result.activeBoundary.cameraTransform).not.toBe('none');
   expect(result.activeBoundary.preloadViewBox).not.toBe(result.baselineViewBox);
   expect(result.activeBoundary.svgOverflow).toBe('visible');
+  expect(result.activeBoundary.svgOpacity).toBe('0');
+  expect(result.activeBoundary.rasterOpacity).toBe('1');
+  expect(result.activeBoundary.rasterActive).toBe('true');
+  expect(result.activeBoundary.rasterReady).toBe('true');
+  expect(Number(result.activeBoundary.rasterRevision || 0)).toBeGreaterThan(0);
+  expect(result.activeBoundary.rasterPixelSize).toMatch(/^\d+x\d+$/u);
   expect(result.activeBoundary.cameraContain).toBe('none');
   const frameBudgetMs = result.emptyFrameMedianMs * 2 + 8;
-  console.log(`[map-camera-perf] empty=${result.emptyFrameMedianMs.toFixed(2)}ms total=${result.cameraFrameMedianMs.toFixed(2)}ms dispatch=${result.cameraDispatchMedianMs.toFixed(2)}ms raf-wait=${result.cameraRafWaitMedianMs.toFixed(2)}ms budget=${frameBudgetMs.toFixed(2)}ms transform=${result.activeBoundary.cameraTransform}`);
+  console.log(`[map-camera-perf] empty=${result.emptyFrameMedianMs.toFixed(2)}ms total=${result.cameraFrameMedianMs.toFixed(2)}ms dispatch=${result.cameraDispatchMedianMs.toFixed(2)}ms raf-wait=${result.cameraRafWaitMedianMs.toFixed(2)}ms budget=${frameBudgetMs.toFixed(2)}ms raster=${result.activeBoundary.rasterReady}/${result.activeBoundary.rasterRevision}/${result.activeBoundary.rasterPixelSize} transform=${result.activeBoundary.cameraTransform}`);
   expect(result.cameraFrameMedianMs, `map camera perf ${JSON.stringify(result)}`).toBeLessThanOrEqual(frameBudgetMs);
 
   const svg = canvas.locator('.province-map-world-svg');
+  const raster = canvas.locator('.province-map-camera-raster');
   const camera = canvas.locator('.province-map-camera-surface');
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
   await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(result.activeBoundary.preloadViewBox);
+  await expect(svg).toHaveCSS('opacity', '1');
+  await expect(raster).toHaveCSS('opacity', '0');
   await expect(camera).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
 });
