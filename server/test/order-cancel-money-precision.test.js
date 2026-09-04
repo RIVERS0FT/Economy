@@ -22,7 +22,7 @@ function applyOrderAction(store, action, payload, requestKey, now, path = '/api/
   }, now);
 }
 
-test('decimal daily-price commodity buy settles exactly without frozen funds or a cancellable remainder', () => {
+test('valid decimal daily-price commodity buy settles exactly without frozen funds or a cancellable remainder', () => {
   const now = 1_700_545_000_000;
   const store = new EconomyStore(':memory:');
   try {
@@ -32,7 +32,7 @@ test('decimal daily-price commodity buy settles exactly without frozen funds or 
     player.credits = 100;
     const market = loaded.world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')];
     const pricePeriod = dailyCheckInPeriodFor(now + 2);
-    market.officialPrice = 0.41;
+    market.officialPrice = 0.61;
     market.priceDateKey = pricePeriod.todayKey;
     market.nextPriceAt = pricePeriod.nextResetAt;
     market.todayBuyQuantity = 0;
@@ -52,14 +52,14 @@ test('decimal daily-price commodity buy settles exactly without frozen funds or 
 
     const afterPlace = store.getState(user, now + 3);
     assert.equal(afterPlace.frozenCredits, 0);
-    assert.equal(afterPlace.credits, 98.77);
+    assert.equal(afterPlace.credits, 98.17);
     assert.equal(afterPlace.inventories.wheat.available, 3);
-    assert.equal(afterPlace.provinceMarkets[DEFAULT_PROVINCE_ID].wheat.officialPrice, 0.41);
+    assert.equal(afterPlace.provinceMarkets[DEFAULT_PROVINCE_ID].wheat.officialPrice, 0.61);
     const order = afterPlace.orders.find((candidate) => candidate.isOwn && candidate.assetKind === 'commodity' && candidate.assetId === 'wheat');
     assert.ok(order);
     assert.equal(order.status, 'filled');
     assert.equal(order.remaining, 0);
-    assert.equal(order.price, 0.41);
+    assert.equal(order.price, 0.61);
 
     const cancelled = applyOrderAction(
       store,
@@ -72,7 +72,7 @@ test('decimal daily-price commodity buy settles exactly without frozen funds or 
     assert.equal(cancelled.result.ok, false);
     const afterCancel = store.getState(user, now + 5);
     assert.equal(afterCancel.frozenCredits, 0);
-    assert.equal(afterCancel.credits, 98.77);
+    assert.equal(afterCancel.credits, 98.17);
     assert.equal(afterCancel.inventories.wheat.available, 3);
   } finally {
     store.close();
