@@ -258,7 +258,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 - 全部玩家页面的正文视口：`PageLayout` 中的 `.page-card-scroll`；工作区外层 `.page-scroll` 不再滚动玩家正文。卡片正文只在没有更近的可滚动后代时消费。
 - 建筑页桌面“建设新工厂”卡：`BuildingsPage.tsx` / `industry-system.css` 的 `.production-build-card`；不得再使用会吞掉纵向边界的双轴 `overscroll-behavior: contain`。
 - 排行页宽布局四张并排榜单卡与窄布局当前按钮选中的单张榜单卡：`LeaderboardPage.tsx` / `leaderboards.css` 的 `.leaderboard-list`。
-- 市场页“我的订单与成交 → 本地成交记录”：`MarketPage.tsx` 的 `.local-trades-scroll-area` 单一双轴 `.virtual-record-table`。
+- 市场页“最近成交”：`MarketPage.tsx` 的 `.local-trades-scroll-area` 单一双轴 `.virtual-record-table`。
 - 管理员后台整页滚动区：`AdminApp.tsx` / `unified-market-admin.css` 的 `.admin-page-scroll`，以及其中的礼品码记录和兑换记录两类 `VirtualList`。
 - 桌面侧栏导航：`SidebarFrame.tsx` 的 `.sidebar-nav`；其外层没有可滚动页面时，到边界仍不得人为阻止事件继续传播。
 
