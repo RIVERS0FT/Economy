@@ -508,6 +508,7 @@ export interface AssetSummary {
   cashValue: number;
   commodityValue: number;
   facilityValue: number;
+  commercialValue?: number;
   bankDepositValue: number;
   contractReceivableValue?: number;
   contractLiabilityValue?: number;
