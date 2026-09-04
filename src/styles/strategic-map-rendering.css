@@ -21,10 +21,12 @@
   pointer-events: none;
   user-select: none;
   image-rendering: auto;
+  transform-origin: 0 0;
   will-change: auto;
+  backface-visibility: visible;
 }
 
-.province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface {
+.province-map-static-viewport[data-map-zoom-active='true']:not([data-map-raster-ready='true']) .province-map-camera-surface {
   transform-origin: 0 0 !important;
   will-change: transform !important;
   backface-visibility: hidden;
@@ -32,16 +34,17 @@
 
 .province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-camera-raster {
   opacity: 1;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-world-svg {
-  display: none;
   opacity: 0;
 }
 
-/* The outer strategic viewport owns the active clip. When the preloaded raster snapshot is ready, the authoritative SVG
-   stays mounted in the DOM but temporarily leaves the render tree so the transformed Camera surface contains only one
-   composited Canvas texture. Settled mode restores the SVG immediately with its final viewBox. */
+/* The outer strategic viewport owns the active clip. With a ready snapshot, the authoritative SVG keeps its settled
+   geometry while only the Canvas texture receives the transient Camera transform; if the snapshot is unavailable the
+   existing live-SVG fallback still uses the Camera surface and temporary full-world viewBox. */
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
   overflow: visible;
 }
