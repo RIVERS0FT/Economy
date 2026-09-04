@@ -1,0 +1,89 @@
+name: Sync main into daily market
+
+on:
+  push:
+    branches:
+      - codex/daily-system-market
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge latest main and resolve known conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-commit --no-ff origin/main || true
+
+          unresolved="$(git diff --name-only --diff-filter=U)"
+          expected=$'docs/README.md\nscripts/verify-provincial-economy.mjs\ntests/browser/all-pages-preview.spec.ts'
+          if [ "$unresolved" != "$expected" ]; then
+            echo "Unexpected conflicts:"
+            printf '%s\n' "$unresolved"
+            exit 1
+          fi
+
+          git checkout --ours docs/README.md
+          git checkout --theirs scripts/verify-provincial-economy.mjs tests/browser/all-pages-preview.spec.ts
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          function replace(path, before, after) {
+            let source = fs.readFileSync(path, 'utf8');
+            if (!source.includes(before)) throw new Error(`${path}: missing expected text: ${before}`);
+            source = source.replace(before, after);
+            fs.writeFileSync(path, source);
+          }
+
+          replace('docs/README.md',
+            '实现文件清单、专项防回退字符串副本',
+            '实现路径清单、专项防回退字符串副本');
+          replace('docs/README.md',
+            '| `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` | 运输地图公路／铁路首府物理中心线的数据源、离线派生、压缩与运行时加载边界 | 运输经济结算、路线通用视觉、服务器协议与存储 |',
+            '| `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` | 运输地图公路／铁路首府物理中心线的数据源、离线派生、压缩及航空虚拟航路的数据边界 | 运输经济结算、战略地图 Camera／路线渲染、服务器协议与存储 |\n| `STRATEGIC_MAP_RENDERING_DESIGN.md` | 战略地图 SVG Camera、固定视场边界、州名清晰度、路线显示／运动／高亮与地图专属表面材质 | 运输经济结算、原始 GIS 数据、全应用通用视觉与根 Chrome |');
+          replace('docs/README.md',
+            '| `UI_DESIGN_SYSTEM.md` | 通用设计令牌、共享组件、州级中文短名、商品与工厂场景插画主视觉、视觉语义、响应式与可访问性 | 单页业务内容、玩法资格、服务器逻辑 |',
+            '| `UI_DESIGN_SYSTEM.md` | 通用设计令牌、共享组件、州级中文短名、商品与工厂场景插画主视觉、视觉语义、响应式与可访问性 | 战略地图 Camera／路线渲染、单页业务内容、玩法资格、服务器逻辑 |');
+          replace('docs/README.md',
+            '| `LIQUID_GLASS_CHROME_DESIGN.md` | 根外壳、毛玻璃材质与 Chrome、战略地图与工作区层级结构 | 页面业务内容、通用表单/颜色令牌、经济规则 |',
+            '| `LIQUID_GLASS_CHROME_DESIGN.md` | 根外壳、通用毛玻璃材质与 Chrome、工作区及浮层层级结构 | 战略地图 Camera／路线渲染／地图专属表面材质、页面业务内容、通用表单/颜色令牌、经济规则 |');
+          replace('docs/README.md',
+            '| 运输地图公路／铁路首府几何的数据源、离线生成与运行时加载 | `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` |',
+            '| 运输地图公路／铁路首府几何的数据源、离线生成及航空虚拟航路数据 | `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` |\n| 战略地图 Camera、固定视场边界、地图路线显示／运动／高亮和地图专属表面 | `STRATEGIC_MAP_RENDERING_DESIGN.md` |');
+          replace('docs/README.md',
+            '| 根外壳、毛玻璃材质、地图和工作区层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |',
+            '| 根外壳、通用毛玻璃材质、Chrome、工作区与浮层层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |');
+
+          replace('scripts/verify-provincial-economy.mjs',
+            '<EmbeddedMarketPage model={model} embedded readOnly={false} />',
+            '<EmbeddedMarketPage model={model} embedded />');
+          replace('scripts/verify-provincial-economy.mjs',
+            "'cannot match across states'",
+            "'same commodity immediate trades use independent state daily prices and inventories'");
+
+          replace('tests/browser/all-pages-preview.spec.ts',
+            "for (const label of ['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();",
+            "for (const label of ['地区', '今日价格', '24h成交量', '24h价格变化']) await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();");
+          replace('tests/browser/all-pages-preview.spec.ts',
+            "for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);",
+            "for (const label of ['卖单量', '买单量', '今日价格', '24h成交量', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);");
+          NODE
+
+          rm .github/workflows/codex-sync-main-daily-market.yml
+          git add -A
+          if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+          git commit -m "同步最新 main 并保留每日即时市场规则"
+          git push origin HEAD:codex/daily-system-market
