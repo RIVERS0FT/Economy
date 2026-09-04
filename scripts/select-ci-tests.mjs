@@ -227,7 +227,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
 
   const selectedServerTests = new Set(changedFiles.filter(isServerTest));
   for (const candidate of serverTestCandidates) {
-    if (isDomainCandidate(candidate) || isReferenceCandidate(candidate)) selectedServerTests.add(candidate);
+    if ((serverChanges.length > 0 && isDomainCandidate(candidate)) || isReferenceCandidate(candidate)) selectedServerTests.add(candidate);
   }
   plan.it.tests = [...selectedServerTests].sort();
   if (plan.it.tests.length > 0) plan.needsDependencies = true;
