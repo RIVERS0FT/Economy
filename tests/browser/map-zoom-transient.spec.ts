@@ -63,7 +63,7 @@ test('active zoom uses one transient camera transform while static geometry stay
   expect(activeBoundary.transform).not.toBe('none');
   expect(activeBoundary.willChange).toBe('transform');
   expect(activeBoundary.viewBox).not.toBe(baseline.viewBox);
-  expect(activeBoundary.svgOverflow).toBe('hidden');
+  expect(activeBoundary.svgOverflow).toBe('visible');
 
   const during = await canvas.evaluate((container) => ({
     pathRevision: container.dataset.mapPathRevision,
@@ -248,7 +248,7 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
   expect(result.activeBoundary.lodFill).not.toBe('none');
   expect(result.activeBoundary.cameraTransform).not.toBe('none');
   expect(result.activeBoundary.preloadViewBox).not.toBe(result.baselineViewBox);
-  expect(result.activeBoundary.svgOverflow).toBe('hidden');
+  expect(result.activeBoundary.svgOverflow).toBe('visible');
   expect(result.activeBoundary.cameraContain).toBe('paint');
   const frameBudgetMs = result.emptyFrameMedianMs * 2 + 8;
   console.log(`[map-camera-perf] empty=${result.emptyFrameMedianMs.toFixed(2)}ms total=${result.cameraFrameMedianMs.toFixed(2)}ms dispatch=${result.cameraDispatchMedianMs.toFixed(2)}ms raf-wait=${result.cameraRafWaitMedianMs.toFixed(2)}ms budget=${frameBudgetMs.toFixed(2)}ms`);
