@@ -1,0 +1,105 @@
+name: Commercial asset display patch
+
+on:
+  push:
+    branches:
+      - feat/commercial-buildings
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/commercial-buildings
+          fetch-depth: 0
+      - name: Apply commercial asset display patches
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing expected text in {path}: {old[:180]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace(
+              'src/components/assets/AssetOverviewPanel.tsx',
+              "  const { game, derived } = model;\n  const { cashShare, commodityShare, facilityShare } = buildAssetAllocation(\n    derived.cashValue,\n    derived.commodityValue,\n    derived.facilityValue,\n  );",
+              "  const { game, derived } = model;\n  const commercialValue = game.assetSummary.commercialValue ?? 0;\n  const commercialBuildingCount = ((game as typeof game & { commercialBuildingGroups?: Array<{ count: number }> }).commercialBuildingGroups ?? [])\n    .reduce((sum, group) => sum + Math.max(0, Number(group.count || 0)), 0);\n  const { cashShare, commodityShare, facilityShare } = buildAssetAllocation(\n    derived.cashValue,\n    derived.commodityValue,\n    derived.facilityValue + commercialValue,\n  );",
+          )
+          replace(
+              'src/components/assets/AssetOverviewPanel.tsx',
+              'action={<span className="muted">商品按当日官方价、工厂按最近产权成交价估值</span>}',
+              'action={<span className="muted">商品按当日官方价、工厂按最近产权成交价、商业建筑按目录系统价值估值</span>}',
+          )
+          replace(
+              'src/components/assets/AssetOverviewPanel.tsx',
+              '            facilities={derived.facilityValue}\n',
+              '            facilities={derived.facilityValue + commercialValue}\n',
+          )
+          replace(
+              'src/components/assets/AssetOverviewPanel.tsx',
+              '<span><i className="facility-dot" />工厂 <strong>{facilityShare}%</strong></span>',
+              '<span><i className="facility-dot" />建筑 <strong>{facilityShare}%</strong></span>',
+          )
+          replace(
+              'src/components/assets/AssetOverviewPanel.tsx',
+              '''              <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(frozenFacilityValue + mortgagedFacilityValue)}</CurrencyAmount></span>
+            </div>
+          </div>
+        </section>''',
+              '''              <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(frozenFacilityValue + mortgagedFacilityValue)}</CurrencyAmount></span>
+            </div>
+            <div
+              className="asset-composition-row commercial"
+              role="row"
+              aria-label={`商业建筑，总计 ${formatCurrency(commercialValue)}，可用 ${formatCurrency(commercialValue)}，冻结 ${formatCurrency(0)}，共 ${formatNumber(commercialBuildingCount)} 座`}
+            >
+              <span className="asset-composition-name" role="cell">
+                <i className="facility-dot" />
+                <span>商业建筑<small>共 {<CompactNumber value={commercialBuildingCount} />} 座</small></span>
+              </span>
+              <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(commercialValue)}</CurrencyAmount></strong>
+              <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(commercialValue)}</CurrencyAmount></span>
+              <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(0)}</CurrencyAmount></span>
+            </div>
+          </div>
+        </section>''',
+          )
+
+          replace(
+              'src/components/charts/AssetAllocationChart.tsx',
+              "    { name: '工厂', value: Math.max(0, facilities), color: chartColor.info },",
+              "    { name: '建筑', value: Math.max(0, facilities), color: chartColor.info },",
+          )
+          replace(
+              'src/components/charts/AssetAllocationChart.tsx',
+              "aria: { enabled: true, description: '按资产毛值计算的现金、商品与工厂配置比例。' },",
+              "aria: { enabled: true, description: '按资产毛值计算的现金、商品与建筑配置比例；建筑包含工业工厂和商业建筑。' },",
+          )
+
+          replace(
+              'src/pages/OverviewPage.tsx',
+              '                <DataRow label="工厂估值" value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>} />\n',
+              '                <DataRow label="工厂估值" value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>} />\n                <DataRow label="商业建筑估值" value={<CurrencyAmount>{formatCurrency(game.assetSummary.commercialValue ?? 0)}</CurrencyAmount>} />\n',
+          )
+
+          Path('.github/workflows/commercial-asset-display-patch.yml').unlink()
+          PY
+      - name: Commit asset display patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: 展示商业建筑资产构成"
+          git push origin HEAD:feat/commercial-buildings
