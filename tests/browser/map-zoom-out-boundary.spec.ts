@@ -34,6 +34,7 @@ async function wheelBurst(page: Page, deltaY: number, count: number) {
     active: string | undefined;
     viewBox: string;
     cameraTransform: string;
+    svgOverflow: string;
   }>((resolve) => {
     const bounds = container.getBoundingClientRect();
     for (let index = 0; index < input.count; index += 1) {
@@ -47,10 +48,12 @@ async function wheelBurst(page: Page, deltaY: number, count: number) {
     }
     requestAnimationFrame(() => {
       const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
+      const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
       resolve({
         active: container.dataset.mapZoomActive,
-        viewBox: container.querySelector<SVGSVGElement>('.province-map-world-svg')?.getAttribute('viewBox') ?? '',
+        viewBox: svg?.getAttribute('viewBox') ?? '',
         cameraTransform: camera ? getComputedStyle(camera).transform : 'none',
+        svgOverflow: svg ? getComputedStyle(svg).overflow : '',
       });
     });
   }), { deltaY, count });
@@ -68,6 +71,7 @@ test('states outside the committed viewBox re-enter during transient zoom-out be
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
   await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
+  await expect(canvas).toHaveAttribute('data-map-camera-preload-mode', 'fixed-world-viewbox');
   await expect(canvas).toHaveAttribute('data-map-world-path-count', '48');
   await expect(map.locator('.province-map-region')).toHaveCount(48);
 
@@ -81,8 +85,10 @@ test('states outside the committed viewBox re-enter during transient zoom-out be
   ));
   const zoomedInFrame = await wheelBurst(page, -180, 8);
   expect(zoomedInFrame.active).toBe('true');
-  expect(zoomedInFrame.viewBox).toBe(initialViewBox);
+  expect(zoomedInFrame.viewBox).not.toBe(initialViewBox);
   expect(zoomedInFrame.cameraTransform).not.toBe('none');
+  expect(zoomedInFrame.svgOverflow).toBe('hidden');
+  const preloadViewBox = zoomedInFrame.viewBox;
   const zoomedInHits = await readEdgeProvinceHits(page);
   const offscreenBeforeZoomOut = zoomedInHits.filter((entry) => !entry.insideCanvas).length;
   expect(offscreenBeforeZoomOut).toBeGreaterThanOrEqual(2);
@@ -91,13 +97,16 @@ test('states outside the committed viewBox re-enter during transient zoom-out be
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
   const zoomedSettledViewBox = await svg.getAttribute('viewBox');
   expect(zoomedSettledViewBox).not.toBe(initialViewBox);
+  expect(zoomedSettledViewBox).not.toBe(preloadViewBox);
   await expect(camera).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
 
   const zoomOutActiveFrame = await wheelBurst(page, 180, 16);
   expect(zoomOutActiveFrame.active).toBe('true');
-  expect(zoomOutActiveFrame.viewBox).toBe(zoomedSettledViewBox);
+  expect(zoomOutActiveFrame.viewBox).toBe(preloadViewBox);
+  expect(zoomOutActiveFrame.viewBox).not.toBe(zoomedSettledViewBox);
   expect(zoomOutActiveFrame.cameraTransform).not.toBe('none');
+  expect(zoomOutActiveFrame.svgOverflow).toBe('hidden');
   const restoredDuringActiveZoom = await readEdgeProvinceHits(page);
   expect(restoredDuringActiveZoom.every((entry) => entry.insideCanvas)).toBe(true);
   expect(restoredDuringActiveZoom.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
