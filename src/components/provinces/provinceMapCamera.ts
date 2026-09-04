@@ -442,12 +442,12 @@ export function createProvinceMapCamera(
     clearTransientTransforms();
     if (transientUsesRaster) {
       svg.style.opacity = '0';
-      raster.style.transform = transform;
+      writeTransientTransform(transform);
       writeCount += 1;
       return;
     }
     svg.setAttribute('viewBox', serializeViewBox(transientBasisView));
-    surface.style.transform = transform;
+    writeTransientTransform(transform);
     writeCount += 2;
   };
 
@@ -456,7 +456,8 @@ export function createProvinceMapCamera(
     if (destroyed) return;
     current = normalizedState(target, metrics);
     target = { ...current };
-    writeTransientTransform(transientTransformFor(current, metrics));
+    if (transientUsesRaster) raster.style.transform = transientTransformFor(current, metrics);
+    else surface.style.transform = transientTransformFor(current, metrics);
     frameCount += 1;
     writeCount += 1;
   };
@@ -464,7 +465,8 @@ export function createProvinceMapCamera(
   const commitCamera = () => {
     const view = viewBoxFor(current, metrics);
     svg.setAttribute('viewBox', serializeViewBox(view));
-    clearTransientTransforms();
+    surface.style.removeProperty('transform');
+    raster.style.removeProperty('transform');
     svg.style.removeProperty('opacity');
     transientBasisView = null;
     transientUsesRaster = false;
