@@ -416,7 +416,7 @@ export function createProvinceMapCamera(
     const translateX = ((basisView.x - nextView.x) / Math.max(Number.EPSILON, nextView.width)) * viewportWidth;
     const translateY = ((basisView.y - nextView.y) / Math.max(Number.EPSILON, nextView.height)) * viewportHeight;
     const transformScale = formatCameraValue(scale);
-    return `translate3d(${formatCameraValue(translateX)}px, ${formatCameraValue(translateY)}px, 0) scale3d(${transformScale}, ${transformScale}, 1)`;
+    return `translate3d(${formatCameraValue(translateX)}px, ${formatCameraValue(translateY)}px, 0.001px) scale3d(${transformScale}, ${transformScale}, 1)`;
   };
 
   const prepareTransientSurface = () => {
