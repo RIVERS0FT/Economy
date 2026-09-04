@@ -10,6 +10,9 @@ const registry = read('server/src/player-action-registry.js');
 const deadlinePlanner = read('server/src/world-deadline-planner.js');
 const statePartitions = read('server/src/state-partitions.js');
 const assetRuntime = read('server/src/facility-groups.js');
+const assetPanel = read('src/components/assets/AssetOverviewPanel.tsx');
+const assetChart = read('src/components/charts/AssetAllocationChart.tsx');
+const overview = read('src/pages/OverviewPage.tsx');
 const province = read('src/pages/ProvincePage.tsx');
 const provinceCss = read('src/styles/province-page.css');
 const commerce = read('src/pages/CommercePage.tsx');
@@ -52,6 +55,14 @@ assert.equal(
 for (const token of ['commercialValue', '+ commercialValue', 'COMMERCIAL_BUILDING_TYPE_CATALOG']) {
   assert.ok(assetRuntime.includes(token), `净资产口径缺少商业建筑价值: ${token}`);
 }
+for (const token of [
+  'commercialValue = game.assetSummary.commercialValue ?? 0',
+  '商业建筑按目录系统价值估值',
+  '商业建筑<small>共',
+  'derived.facilityValue + commercialValue',
+]) assert.ok(assetPanel.includes(token), `银行资产明细缺少商业建筑口径: ${token}`);
+assert.ok(assetChart.includes("{ name: '建筑'"), '资产配置图必须把工业与商业归入建筑占比');
+assert.ok(overview.includes('label="商业建筑估值"'), '概览资产摘要必须显示商业建筑估值');
 
 const marketIndex = province.indexOf("{ id: 'market', label: '市场' }");
 const commerceIndex = province.indexOf("{ id: 'commerce', label: '商业' }");
