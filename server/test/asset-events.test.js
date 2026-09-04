@@ -63,11 +63,11 @@ test('runtime COW local action remains valid after V2 persistence strips present
   }
 });
 
-test('actions update authoritative state without writing player logs to SQLite', () => {
+test('immediate market actions update authoritative state without writing player logs to SQLite', () => {
   const store = new EconomyStore(':memory:');
   const now = 1_700_000_000_000;
   try {
-    store.getState(alice, now);
+    const initial = store.getState(alice, now);
     const placed = store.apply(alice, request(
       'placeOrder',
       { productId: 'wheat', side: 'buy', quantity: 5, price: 1 },
@@ -76,21 +76,11 @@ test('actions update authoritative state without writing player logs to SQLite',
     ), now + 1);
     assert.equal(placed.result.ok, true);
     const placedState = store.getState(alice, now + 2);
-    assert.equal(placedState.frozenCredits, 5);
+    assert.equal(placedState.frozenCredits, 0);
+    assert.equal(placedState.inventories.wheat.available, initial.inventories.wheat.available + 5);
+    assert.equal(placedState.orders.some((item) => item.isOwn && ['open', 'partial'].includes(item.status)), false);
     assert.equal(Object.hasOwn(placedState, 'trades'), false);
     assert.equal(Object.hasOwn(placedState, 'assetEvents'), false);
-    assertPlayerLogsAbsent(persistedWorld(store).players['1']);
-
-    const order = placedState.orders.find((item) => item.isOwn && item.status === 'open');
-    assert.ok(order);
-    const cancelled = store.apply(alice, request(
-      'cancelOrder',
-      { orderId: order.id },
-      'cancel-order-12345678',
-      `/api/game/orders/${order.id}/cancel`,
-    ), now + 3);
-    assert.equal(cancelled.result.ok, true);
-    assert.equal(store.getState(alice, now + 4).frozenCredits, 0);
     assertPlayerLogsAbsent(persistedWorld(store).players['1']);
   } finally {
     store.close();
@@ -118,7 +108,7 @@ test('legacy server logs and factory instance array are removed during the next 
   }
 });
 
-test('idempotency preserves authoritative response without creating server logs', () => {
+test('idempotency preserves an immediate authoritative response without creating server logs', () => {
   const store = new EconomyStore(':memory:');
   const now = 1_700_000_000_000;
   try {
@@ -132,6 +122,9 @@ test('idempotency preserves authoritative response without creating server logs'
     const first = store.apply(alice, action, now + 1);
     const second = store.apply(alice, action, now + 2);
     assert.deepEqual(second, first);
+    const state = store.getState(alice, now + 3);
+    assert.equal(state.inventories.wheat.available, 2);
+    assert.equal(state.frozenCredits, 0);
     assertPlayerLogsAbsent(persistedWorld(store).players['1']);
   } finally {
     store.close();
