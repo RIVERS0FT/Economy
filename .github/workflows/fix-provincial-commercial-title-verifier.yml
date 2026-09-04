@@ -1,0 +1,42 @@
+name: Fix provincial commercial title verifier
+
+on:
+  push:
+    branches:
+      - feat/commercial-buildings
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/commercial-buildings
+          fetch-depth: 0
+      - name: Align provincial UI title verifier
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-provincial-economy.mjs')
+          text = path.read_text()
+          old = "['地区商品／工厂详情共享两行标题', '州级地区全称', '中文州全名']"
+          new = "['地区商品／商业建筑／工厂详情共享两行标题', '州级地区全称', '中文州全名']"
+          if old not in text:
+              raise SystemExit('missing stale provincial UI title verifier token')
+          path.write_text(text.replace(old, new, 1))
+          Path('.github/workflows/fix-provincial-commercial-title-verifier.yml').unlink()
+          PY
+      - name: Commit verifier alignment
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "test: 对齐省级商业标题验证"
+          git push origin HEAD:feat/commercial-buildings
