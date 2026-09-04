@@ -26,11 +26,6 @@
   backface-visibility: visible;
 }
 
-.province-map-static-viewport[data-map-raster-ready='true'] .province-map-camera-raster {
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface {
   transform-origin: 0 0 !important;
 }
@@ -42,6 +37,8 @@
 
 .province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-camera-raster {
   opacity: 1;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-world-svg {

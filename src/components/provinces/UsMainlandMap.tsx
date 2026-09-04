@@ -396,7 +396,7 @@ export function UsMainlandMap({
     rasterGenerationRef.current = generation;
     container.dataset.mapRasterReady = 'false';
     container.dataset.mapRasterError = '';
-    const rasterScale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const rasterScale = Math.min(1.5, Math.max(0.75, (window.devicePixelRatio || 1) * 0.75));
     const pixelWidth = Math.max(1, Math.round(viewportWidth * rasterScale));
     const pixelHeight = Math.max(1, Math.round(viewportHeight * rasterScale));
     container.dataset.mapRasterScale = rasterScale.toFixed(2);
