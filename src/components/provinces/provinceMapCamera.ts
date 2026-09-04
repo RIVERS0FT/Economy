@@ -13,7 +13,6 @@ const MAINLAND_MIN_AREA_RATIO = 2 / 3;
 const MAINLAND_CONTEXT_EXPAND_X = 0.35;
 const MAINLAND_CONTEXT_EXPAND_Y = 0.25;
 const MIN_ZOOM_EPSILON = 1e-5;
-const TRANSIENT_CAMERA_TRANSFORM_PROPERTY = '--province-map-camera-transform';
 
 interface CameraState {
   centerX: number;
@@ -396,7 +395,7 @@ export function createProvinceMapCamera(
     if (destroyed) return;
     current = normalizedState(target, metrics);
     target = { ...current };
-    surface.style.setProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY, transientTransformFor(current, metrics));
+    surface.style.transform = transientTransformFor(current, metrics);
     frameCount += 1;
     writeCount += 1;
   };
@@ -404,7 +403,7 @@ export function createProvinceMapCamera(
   const commitCamera = () => {
     const view = viewBoxFor(current, metrics);
     svg.setAttribute('viewBox', `${formatCameraValue(view.x)} ${formatCameraValue(view.y)} ${formatCameraValue(view.width)} ${formatCameraValue(view.height)}`);
-    surface.style.removeProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY);
+    surface.style.removeProperty('transform');
     committed = { ...current };
     writeCount += 1;
   };
@@ -477,7 +476,7 @@ export function createProvinceMapCamera(
     active = false;
     const view = viewBoxFor(current, currentMetrics);
     svg.setAttribute('viewBox', `${formatCameraValue(view.x)} ${formatCameraValue(view.y)} ${formatCameraValue(view.width)} ${formatCameraValue(view.height)}`);
-    surface.style.removeProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY);
+    surface.style.removeProperty('transform');
     writeCount += 1;
     publishState();
   };
@@ -743,7 +742,7 @@ export function createProvinceMapCamera(
       if (frame !== null) cancelAnimationFrame(frame);
       if (settleTimer !== null) clearTimeout(settleTimer);
       if (multiTouchIdleTimer !== null) clearTimeout(multiTouchIdleTimer);
-      surface.style.removeProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY);
+      surface.style.removeProperty('transform');
       container.removeEventListener('wheel', handleWheel);
       container.removeEventListener('pointerdown', handlePointerDown);
       container.removeEventListener('pointermove', handlePointerMove);
