@@ -401,7 +401,8 @@ requireText('server/test/order-history.test.js', [
   'order history provides opaque cursor pagination with only the current player anonymous fills',
 ]);
 requireText('server/test/market-state-delivery.test.js', [
-  'repeated market detail must reuse the committed-world order-book runtime',
+  'repeated commodity market detail reuses committed-world projection without building public order-book runtime',
+  'commodity market detail must not build a public order-book runtime',
 ]);
 requireText('server/test/state-projection-cache.test.js', [
   'runtime state projection cache reuses final state and partition snapshots for one revision',
