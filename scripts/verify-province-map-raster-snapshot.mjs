@@ -18,9 +18,13 @@ for (const text of [
   'getComputedStyle(source)',
   "new Blob([markup], { type: 'image/svg+xml;charset=utf-8' })",
   "typeof createImageBitmap === 'function'",
+  'async function decodeSvgImageElement',
+  'URL.createObjectURL(blob)',
+  'new Image()',
+  'return decodeSvgImageElement(blob);',
   "cloneDetailedFill.style.display = 'none'",
   "cloneLodFill.style.fillOpacity = '.78'",
-]) assert.ok(rasterSource.includes(text), `地图栅格快照必须从唯一 SVG 派生并内联最终样式: ${text}`);
+]) assert.ok(rasterSource.includes(text), `地图栅格快照必须从唯一 SVG 派生并具备浏览器解码回退: ${text}`);
 for (const forbidden of [
   "from './provinceMapCamera'",
   "from './provinceMapProjection'",
