@@ -8,16 +8,36 @@ type TraceEvent = {
   dur?: number;
   pid?: number;
   tid?: number;
-  args?: { name?: string };
+  args?: Record<string, unknown>;
 };
 
 const INTERESTING_RENDER_EVENT = /(layout|style|paint|raster|composite|drawframe|beginframe|commit|activate|layer|gpu|viz)/iu;
+
+function traceEventDetails(event: TraceEvent) {
+  if (!event.args) return null;
+  const args = event.args as Record<string, unknown>;
+  const data = args.data && typeof args.data === 'object' ? args.data as Record<string, unknown> : null;
+  const tileData = args.tileData && typeof args.tileData === 'object' ? args.tileData as Record<string, unknown> : null;
+  const details: Record<string, unknown> = {};
+  if (tileData) details.tileData = tileData;
+  if (data) {
+    const selectedData: Record<string, unknown> = {};
+    for (const key of ['layerId', 'layer_id', 'nodeId', 'backendNodeId', 'frame', 'frameId']) {
+      if (key in data) selectedData[key] = data[key];
+    }
+    if (Object.keys(selectedData).length > 0) details.data = selectedData;
+  }
+  for (const key of ['layerId', 'layer_id', 'source_frame_number', 'sourceFrameNumber']) {
+    if (key in args) details[key] = args[key];
+  }
+  return Object.keys(details).length > 0 ? details : null;
+}
 
 function summarizeTrace(events: TraceEvent[], frameCount: number) {
   const threadNames = new Map<string, string>();
   for (const event of events) {
     if (event.ph !== 'M' || event.name !== 'thread_name') continue;
-    const name = event.args?.name;
+    const name = typeof event.args?.name === 'string' ? event.args.name : null;
     if (!name || event.pid == null || event.tid == null) continue;
     threadNames.set(`${event.pid}:${event.tid}`, name);
   }
@@ -37,9 +57,10 @@ function summarizeTrace(events: TraceEvent[], frameCount: number) {
       category: event.cat ?? '',
       thread: event.pid == null || event.tid == null ? '' : threadNames.get(`${event.pid}:${event.tid}`) ?? `${event.pid}:${event.tid}`,
       durationMs: Number(((event.dur ?? 0) / 1000).toFixed(3)),
+      details: traceEventDetails(event),
     }))
     .sort((left, right) => right.durationMs - left.durationMs)
-    .slice(0, 16);
+    .slice(0, 20);
 
   const frames = Array.from({ length: frameCount }, (_, index) => {
     const start = markerTimestamp(`map-camera-diagnostic-frame-${index}-start`);
@@ -53,18 +74,22 @@ function summarizeTrace(events: TraceEvent[], frameCount: number) {
     };
   });
 
-  const allCompleteEvents = events
-    .filter((event) => event.ph === 'X' && typeof event.dur === 'number' && INTERESTING_RENDER_EVENT.test(event.name ?? ''))
+  const rasterEvents = events
+    .filter((event) => (
+      event.ph === 'X'
+      && typeof event.dur === 'number'
+      && /(raster|paint)/iu.test(event.name ?? '')
+    ))
     .map((event) => ({
       name: event.name ?? '',
-      category: event.cat ?? '',
       thread: event.pid == null || event.tid == null ? '' : threadNames.get(`${event.pid}:${event.tid}`) ?? `${event.pid}:${event.tid}`,
       durationMs: Number(((event.dur ?? 0) / 1000).toFixed(3)),
+      details: traceEventDetails(event),
     }))
     .sort((left, right) => right.durationMs - left.durationMs)
-    .slice(0, 24);
+    .slice(0, 32);
 
-  return { frames, topEvents: allCompleteEvents };
+  return { frames, rasterEvents };
 }
 
 test('diagnose transient map frame rendering with Chrome timeline events', async ({ page }) => {
