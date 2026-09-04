@@ -35,31 +35,41 @@ function deferDemand(world, at = now + cycleMs) {
   for (const state of Object.values(world.demandGroups)) state.nextDemandAt = at;
 }
 
-test('different products never match in the same order book', () => {
+test('different products settle independently at their daily official prices without a shared player order book', () => {
   const world = createWorld(now);
   deferDemand(world);
   const seller = ensurePlayer(world, bob, now);
   const buyer = ensurePlayer(world, alice, now);
   buyer.inventories.ore.available = 0;
+  buyer.inventories.wheat.available = 0;
   seller.inventories.ore.available = 10;
+  seller.credits = 0;
   buyer.credits = 1_000;
 
-  assert.equal(applyAction(world, bob, 'placeOrder', {
+  const orePrice = world.markets.ore.officialPrice;
+  const wheatPrice = world.markets.wheat.officialPrice;
+  const oreSell = applyAction(world, bob, 'placeOrder', {
     productId: 'ore', side: 'sell', quantity: 5, price: 6,
-  }, now + 1).ok, true);
-  assert.equal(applyAction(world, alice, 'placeOrder', {
+  }, now + 1);
+  const wheatBuy = applyAction(world, alice, 'placeOrder', {
     productId: 'wheat', side: 'buy', quantity: 5, price: 9,
-  }, now + 2).ok, true);
-  assert.equal(buyer.inventories.ore.available, 0);
-  assert.equal(seller.inventories.ore.frozen, 5);
-
-  assert.equal(applyAction(world, alice, 'placeOrder', {
+  }, now + 2);
+  const oreBuy = applyAction(world, alice, 'placeOrder', {
     productId: 'ore', side: 'buy', quantity: 3, price: 9,
-  }, now + 3).ok, true);
-  assert.equal(buyer.inventories.ore.available, 3);
-  assert.equal(seller.inventories.ore.frozen, 2);
-});
+  }, now + 3);
 
+  assert.equal(oreSell.ok, true);
+  assert.equal(wheatBuy.ok, true);
+  assert.equal(oreBuy.ok, true);
+  assert.equal(oreSell.executedPrice, orePrice);
+  assert.equal(wheatBuy.executedPrice, wheatPrice);
+  assert.equal(oreBuy.executedPrice, orePrice);
+  assert.equal(seller.inventories.ore.available, 5);
+  assert.equal(seller.inventories.ore.frozen, 0);
+  assert.equal(buyer.inventories.wheat.available, 5);
+  assert.equal(buyer.inventories.ore.available, 3);
+  assert.equal(world.orders.some((order) => order.ownerType === 'player' && ['open', 'partial'].includes(order.status)), false);
+}
 
 test('version 1 state migrates inventory and commodity orders without losing assets', () => {
   const world = {
@@ -93,9 +103,10 @@ test('version 1 state migrates inventory and commodity orders without losing ass
   };
 
   migrateWorld(world, now);
-  assert.equal(world.players['1'].inventories.wheat.available, 7);
-  assert.equal(world.players['1'].inventories.wheat.frozen, 2);
+  assert.equal(world.players['1'].inventories.wheat.available, 8);
+  assert.equal(world.players['1'].inventories.wheat.frozen, 1);
   assert.equal(world.orders[0].productId, 'wheat');
+  assert.equal(world.orders[0].status, 'cancelled');
   assert.equal('facilitySlots' in world.players['1'], false);
   assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
 });
@@ -117,9 +128,10 @@ test('world version 7 grain assets migrate entirely to wheat', () => {
 
   migrateWorld(world, now);
 
-  assert.deepEqual(player.inventories.wheat, { available: 7, frozen: 3, inTransit: 0 });
+  assert.deepEqual(player.inventories.wheat, { available: 10, frozen: 0, inTransit: 0 });
   assert.equal(Object.hasOwn(player.inventories, 'grain'), false);
   assert.equal(world.orders[0].assetId, 'wheat');
+  assert.equal(world.orders[0].status, 'cancelled');
   assert.equal(world.orders[0].productId, 'wheat');
   assert.equal(world.markets.wheat.productId, 'wheat');
   assert.equal(Object.hasOwn(world.markets, 'grain'), false);
@@ -330,35 +342,41 @@ test('market demand retains 70% of zero-fill orders and publishes a bounded dema
   assert.ok(world.demandGroups.food.lastOpenOrderValue <= world.demandGroups.food.lastBudget * 2.5);
 });
 
-test('market demand retains partially filled carried orders and publishes a cent-priced next curve', () => {
+test('market demand retains a partially filled internal carried order and publishes a cent-priced next curve', () => {
   const world = createWorld(now);
-  const seller = ensurePlayer(world, bob, now);
-  seller.inventories.wheat.available = 1;
+  ensurePlayer(world, alice, now);
   deferDemand(world, now + 10 * cycleMs);
-  assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'wheat', side: 'sell', quantity: 1, price: 1,
-  }, now).ok, true);
-
   prepareDemand(world, 'food', now + 1);
   processWorld(world, now + 1);
-  const filledOrder = world.orders.find((order) => (
+
+  const firstCycleId = world.demandGroups.food.lastCycleId;
+  const carried = world.orders.find((order) => (
     order.ownerType === 'population'
     && order.demandGroupId === 'food'
     && order.productId === 'wheat'
-    && order.lastFilledAt === now + 1
+    && order.demandCycleId === firstCycleId
+    && order.status === 'open'
+    && order.quantity > 1
   ));
-  assert.ok(filledOrder);
+  assert.ok(carried);
+  carried.status = 'partial';
+  carried.remaining = carried.quantity - 1;
+  carried.fills = [{
+    id: 'internal-partial-fill',
+    quantity: 1,
+    price: carried.price,
+    total: carried.price,
+    createdAt: now + 2,
+    takerSide: 'sell',
+  }];
+  carried.lastFilledAt = now + 2;
 
-  const firstCycleId = world.demandGroups.food.lastCycleId;
   prepareDemand(world, 'food', now + cycleMs + 1);
   processWorld(world, now + cycleMs + 1);
   const nextCycleId = world.demandGroups.food.lastCycleId;
   assert.ok(nextCycleId > firstCycleId);
   assert.equal(world.orders.some((order) => (
-    order.ownerType === 'population'
-    && order.demandGroupId === 'food'
-    && order.productId === 'wheat'
-    && Number(order.demandCycleId) < nextCycleId
+    order.id === carried.id
     && (order.status === 'open' || order.status === 'partial')
   )), true);
   const nextOrder = world.orders.find((order) => (
@@ -370,7 +388,7 @@ test('market demand retains partially filled carried orders and publishes a cent
   ));
   assert.ok(nextOrder);
   assert.equal(nextOrder.price, Number(nextOrder.price.toFixed(2)));
-});
+}
 
 test('population-funded market demand does not scale with active player count', () => {
   const foodBudgetFor = (playerCount) => {
@@ -429,23 +447,16 @@ test('player inventory never increases market demand budget or product allocatio
 
 test('consumer substitutes shift demand toward the cheaper grain without changing total budget', () => {
   const world = createWorld(now);
-  const seller = ensurePlayer(world, bob, now);
-  seller.inventories.wheat.available = 100;
-  seller.inventories.rice.available = 100;
-  deferDemand(world);
-  assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'wheat', side: 'sell', quantity: 100, price: 6,
-  }, now + 1).ok, true);
-  assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'rice', side: 'sell', quantity: 100, price: 2,
-  }, now + 2).ok, true);
+  ensurePlayer(world, bob, now);
+  world.priceTransmission.products.wheat.referencePrice = 6;
+  world.priceTransmission.products.rice.referencePrice = 2;
 
   prepareDemand(world, 'food', now + 3);
   processWorld(world, now + 3);
   const shares = world.demandGroups.food.lastClassAllocation.basic.staples.shares;
   assert.ok(shares.rice > shares.wheat);
   assert.ok(world.demandGroups.food.lastBudget > 0);
-});
+}
 
 test('beverage production paths shift toward cheaper fruit inputs', () => {
   const routeShares = ({ fruitPrice, milkPrice }) => {
@@ -480,12 +491,8 @@ test('fruit participates in fresh direct demand without expanding the food budge
 
 test('complement gating prioritizes the bottleneck input for electronics', () => {
   const world = createWorld(now);
-  const seller = ensurePlayer(world, bob, now);
-  seller.inventories.plastic.available = 1_000;
-  deferDemand(world);
-  assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'plastic', side: 'sell', quantity: 1_000, price: 24,
-  }, now + 1).ok, true);
+  ensurePlayer(world, bob, now);
+  world.priceTransmission.products.plastic.referencePrice = 24;
 
   prepareDemand(world, 'household', now + 2);
   processWorld(world, now + 2);
@@ -495,7 +502,7 @@ test('complement gating prioritizes the bottleneck input for electronics', () =>
     .filter((item) => item.outputProductId === 'electronics');
   assert.ok(relations.find((item) => item.inputProductId === 'copper').complementGate
     > relations.find((item) => item.inputProductId === 'plastic').complementGate);
-});
+}
 
 test('downstream price signals move upstream only after relation lag cycles', () => {
   const world = createWorld(now);
@@ -583,6 +590,7 @@ test('legacy demand migration immediately rebuilds market demand without losing 
   assert.equal(world.version, 32);
   assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-wheat-sell']);
+  assert.equal(world.orders[0].status, 'cancelled');
   assert.equal(player.inventories.wheat.available, 2);
   assert.equal(world.demandGroups.food.nextDemandAt, now);
   processWorld(world, now + 1);
@@ -605,6 +613,7 @@ test('market demand model version 2 migrates to version 3 without resetting play
 
   assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-order-v2']);
+  assert.equal(world.orders[0].status, 'cancelled');
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.wheat.available, 9);
   assert.deepEqual(player.inventories.fruit, { available: 0, frozen: 0, inTransit: 0 });
@@ -632,6 +641,7 @@ test('migration removes obsolete system orders while preserving player orders', 
 
   assert.equal(world.version, 32);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-order']);
+  assert.equal(world.orders[0].status, 'cancelled');
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.wheat.available, 9);
 });
@@ -662,7 +672,7 @@ test('world version 8 migration restarts electronics and upgrades market demand 
   assert.ok(world.priceTransmission.products.electronics);
 });
 
-test('commodity order fills preserve every exact player resting price without system liquidity', () => {
+test('commodity compatibility fills always record the daily official price instead of player supplied prices', () => {
   const world = createWorld(now);
   world.orders = [];
   deferDemand(world);
@@ -670,19 +680,26 @@ test('commodity order fills preserve every exact player resting price without sy
   const sellerA = ensurePlayer(world, bob, now);
   const sellerB = ensurePlayer(world, carol, now);
   buyer.credits = 100;
+  sellerA.credits = 0;
+  sellerB.credits = 0;
   sellerA.inventories.wheat.available = 1;
   sellerB.inventories.wheat.available = 1;
+  const officialPrice = world.markets.wheat.officialPrice;
 
   assert.equal(applyAction(world, bob, 'placeOrder', { productId: 'wheat', side: 'sell', quantity: 1, price: 5 }, now + 1).ok, true);
   assert.equal(applyAction(world, carol, 'placeOrder', { productId: 'wheat', side: 'sell', quantity: 1, price: 6 }, now + 2).ok, true);
   assert.equal(applyAction(world, alice, 'placeOrder', { productId: 'wheat', side: 'buy', quantity: 2, price: 20 }, now + 3).ok, true);
 
-  const buyOrder = world.orders.find((order) => order.ownerId === alice.id && order.side === 'buy');
-  assert.deepEqual(buyOrder.fills.map((fill) => ({ price: fill.price, quantity: fill.quantity })), [
-    { price: 5, quantity: 1 }, { price: 6, quantity: 1 },
-  ]);
-  assert.equal(buyer.credits, 89);
+  const playerOrders = world.orders.filter((order) => order.ownerType === 'player');
+  assert.equal(playerOrders.length, 3);
+  assert.ok(playerOrders.every((order) => order.status === 'filled' && order.remaining === 0));
+  assert.ok(playerOrders.every((order) => order.price === officialPrice));
+  assert.ok(playerOrders.every((order) => order.fills.length === 1 && order.fills[0].price === officialPrice));
+  assert.equal(buyer.credits, Number((100 - officialPrice * 2).toFixed(6)));
   assert.equal(buyer.frozenCredits, 0);
   assert.equal(buyer.inventories.wheat.available, 2);
-  assert.equal(world.orders.some((order) => order.ownerType === 'market'), false);
+  assert.equal(sellerA.inventories.wheat.available, 0);
+  assert.equal(sellerB.inventories.wheat.available, 0);
+  assert.equal(world.orders.some((order) => order.ownerType === 'player' && ['open', 'partial'].includes(order.status)), false);
 });
+
