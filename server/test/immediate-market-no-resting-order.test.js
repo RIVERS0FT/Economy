@@ -20,6 +20,7 @@ test('manual commodity buys and sells never leave player resting orders or froze
   const buyer = ensurePlayer(world, BUYER, NOW);
   const seller = ensurePlayer(world, SELLER, NOW);
   buyer.credits = 1_000;
+  seller.credits = 0;
   seller.inventories.wheat.available = 5;
   const market = world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')];
   market.officialPrice = 0.8;
