@@ -109,7 +109,7 @@ const docsIndex = read('docs/README.md');
 assert.ok(docsIndex.includes('`UI_DESIGN_SYSTEM.md`') && docsIndex.includes('州级中文短名'), '设计索引必须将州级中文短名路由到 UI DESIGN owner');
 assert.ok(docsIndex.includes('`STRATEGIC_MAP_RENDERING_DESIGN.md`'), '设计索引必须登记战略地图渲染唯一 owner');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
-for (const text of ['地区商品／工厂详情共享两行标题', '州级地区全称', '中文州全名']) {
+for (const text of ['地区商品／商业建筑／工厂详情共享两行标题', '州级地区全称', '中文州全名']) {
   assert.ok(uiDesign.includes(text), `UI DESIGN 缺少州级名称视觉语义: ${text}`);
 }
 
