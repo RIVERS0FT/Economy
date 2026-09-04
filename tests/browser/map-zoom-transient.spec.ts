@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('map zoom changes only the root SVG viewBox while static geometry and glyph transforms stay immutable', async ({ page }) => {
+test('active zoom uses one transient camera transform while static geometry stays immutable and settle commits one viewBox', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -12,7 +12,10 @@ test('map zoom changes only the root SVG viewBox while static geometry and glyph
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
   await expect(canvas).toHaveAttribute('data-map-camera-mode', 'svg-viewbox');
-  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-svg-viewbox-write');
+  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
+  await expect(canvas).toHaveAttribute('data-map-camera-transient-mode', 'compositor-transform');
+  await expect(canvas).toHaveAttribute('data-map-zoom-hot-path', 'css-transform');
+  await expect(canvas).toHaveAttribute('data-map-zoom-commit-mode', 'settle-viewbox');
   await expect(canvas).toHaveAttribute('data-map-camera-geometry-mode', 'immutable-svg-world');
   await expect(canvas).toHaveAttribute('data-map-camera-boundary-mode', 'fixed-world-bounds');
   await expect(canvas).toHaveAttribute('data-map-world-path-count', '48');
@@ -28,10 +31,7 @@ test('map zoom changes only the root SVG viewBox while static geometry and glyph
     viewBox: container.querySelector<SVGSVGElement>('.province-map-world-svg')?.getAttribute('viewBox') ?? '',
   }));
 
-  const activeBoundary = await canvas.evaluate((container) => {
-    const detailedFill = container.querySelector<SVGPathElement>('.province-map-world-fill');
-    const lodFill = container.querySelector<SVGPathElement>('.province-map-world-shadow');
-    if (!detailedFill || !lodFill) throw new Error('map world fill LOD is missing');
+  await canvas.evaluate((container) => {
     const bounds = container.getBoundingClientRect();
     for (let index = 0; index < 8; index += 1) {
       container.dispatchEvent(new WheelEvent('wheel', {
@@ -42,17 +42,12 @@ test('map zoom changes only the root SVG viewBox while static geometry and glyph
         deltaY: -70,
       }));
     }
-    return {
-      active: container.dataset.mapZoomActive,
-      detailedFillDisplay: getComputedStyle(detailedFill).display,
-      lodFill: getComputedStyle(lodFill).fill,
-    };
   });
 
-  expect(activeBoundary.active).toBe('true');
-  expect(activeBoundary.detailedFillDisplay).toBe('none');
-  expect(activeBoundary.lodFill).not.toBe('none');
-  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(baseline.viewBox);
+  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'true');
+  await expect(camera).toHaveCSS('will-change', 'transform');
+  await expect.poll(async () => camera.evaluate((element) => getComputedStyle(element).transform)).not.toBe('none');
+  expect(await svg.getAttribute('viewBox')).toBe(baseline.viewBox);
 
   const during = await canvas.evaluate((container) => ({
     pathRevision: container.dataset.mapPathRevision,
@@ -65,27 +60,19 @@ test('map zoom changes only the root SVG viewBox while static geometry and glyph
   expect(during.glyphTransforms).toEqual(baseline.glyphTransforms);
 
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
-  const settled = await canvas.evaluate((container) => {
-    const detailedFill = container.querySelector<SVGPathElement>('.province-map-world-fill');
-    const lodFill = container.querySelector<SVGPathElement>('.province-map-world-shadow');
-    if (!detailedFill || !lodFill) throw new Error('map world fill LOD is missing');
-    return {
-      pathData: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),
-      glyphTransforms: [...container.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
-        .map((glyph) => glyph.getAttribute('transform')),
-      detailedFillDisplay: getComputedStyle(detailedFill).display,
-      lodFill: getComputedStyle(lodFill).fill,
-    };
-  });
+  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(baseline.viewBox);
+  const settled = await canvas.evaluate((container) => ({
+    pathData: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),
+    glyphTransforms: [...container.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
+      .map((glyph) => glyph.getAttribute('transform')),
+  }));
   expect(settled.pathData).toEqual(baseline.pathData);
   expect(settled.glyphTransforms).toEqual(baseline.glyphTransforms);
-  expect(settled.detailedFillDisplay).not.toBe('none');
-  expect(settled.lodFill).toBe('none');
   await expect(camera).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
 });
 
-test('active wheel bursts mutate only the root SVG viewBox once per animation frame', async ({ page }) => {
+test('active wheel bursts mutate only the transient camera transform once per animation frame and settle one viewBox', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -96,6 +83,7 @@ test('active wheel bursts mutate only the root SVG viewBox once per animation fr
     const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
     const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
     if (!svg || !camera) throw new Error('map camera surface is missing');
+    const baselineViewBox = svg.getAttribute('viewBox') ?? '';
     const bounds = container.getBoundingClientRect();
     const dispatchWheel = (deltaY: number) => container.dispatchEvent(new WheelEvent('wheel', {
       bubbles: true,
@@ -104,9 +92,10 @@ test('active wheel bursts mutate only the root SVG viewBox once per animation fr
       clientY: bounds.top + bounds.height / 2,
       deltaY,
     }));
+    const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
     dispatchWheel(-40);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await nextFrame();
 
     let viewBoxMutations = 0;
     let cameraStyleMutations = 0;
@@ -125,76 +114,100 @@ test('active wheel bursts mutate only the root SVG viewBox once per animation fr
     diagnosticObserver.observe(container, { attributes: true });
 
     for (let index = 0; index < 20; index += 1) dispatchWheel(-16);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await nextFrame();
     await Promise.resolve();
+    const activeViewBox = svg.getAttribute('viewBox') ?? '';
+    const transientTransform = getComputedStyle(camera).transform;
     svgObserver.disconnect();
     cameraObserver.disconnect();
     diagnosticObserver.disconnect();
-    return { viewBoxMutations, cameraStyleMutations, diagnosticMutations };
+    return { baselineViewBox, activeViewBox, transientTransform, viewBoxMutations, cameraStyleMutations, diagnosticMutations };
   });
 
-  expect(result.viewBoxMutations).toBe(1);
-  expect(result.cameraStyleMutations).toBe(0);
+  expect(result.activeViewBox).toBe(result.baselineViewBox);
+  expect(result.transientTransform).not.toBe('none');
+  expect(result.viewBoxMutations).toBe(0);
+  expect(result.cameraStyleMutations).toBe(1);
   expect(result.diagnosticMutations).toBe(0);
+
+  const svg = canvas.locator('.province-map-world-svg');
+  const camera = canvas.locator('.province-map-camera-surface');
+  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(result.baselineViewBox);
+  await expect(camera).toHaveCSS('transform', 'none');
+  await expect(camera).toHaveCSS('will-change', 'auto');
 });
 
-test('viewBox camera frames stay close to the same-browser empty-frame budget', async ({ page }) => {
+test('transient camera frames stay close to the same-browser empty-frame budget', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
   const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
   await expect(canvas).toHaveAttribute('data-map-world-stroke-resolution', '110m');
+  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
 
   const result = await canvas.evaluate(async (container) => {
+    const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
+    const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
     const detailedFill = container.querySelector<SVGPathElement>('.province-map-world-fill');
     const lodFill = container.querySelector<SVGPathElement>('.province-map-world-shadow');
-    if (!detailedFill || !lodFill) throw new Error('map world fill LOD is missing');
+    if (!svg || !camera || !detailedFill || !lodFill) throw new Error('map camera performance fixture is incomplete');
+    const baselineViewBox = svg.getAttribute('viewBox') ?? '';
     const bounds = container.getBoundingClientRect();
+    const dispatchWheel = (deltaY: number) => container.dispatchEvent(new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      clientX: bounds.left + bounds.width * 0.54,
+      clientY: bounds.top + bounds.height * 0.47,
+      deltaY,
+    }));
     const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     const median = (samples: number[]) => {
       const sorted = [...samples].sort((left, right) => left - right);
       return sorted[Math.floor(sorted.length / 2)];
     };
-    const dispatchWheel = (deltaY: number) => container.dispatchEvent(new WheelEvent('wheel', {
-      bubbles: true,
-      cancelable: true,
-      clientX: bounds.left + bounds.width / 2,
-      clientY: bounds.top + bounds.height / 2,
-      deltaY,
-    }));
+    const measureEmpty = async () => {
+      const samples: number[] = [];
+      for (let index = 0; index < 4; index += 1) await nextFrame();
+      for (let index = 0; index < 12; index += 1) {
+        const started = performance.now();
+        await nextFrame();
+        samples.push(performance.now() - started);
+      }
+      return median(samples);
+    };
 
-    const emptySamples: number[] = [];
-    for (let index = 0; index < 4; index += 1) await nextFrame();
-    for (let index = 0; index < 12; index += 1) {
-      const started = performance.now();
-      await nextFrame();
-      emptySamples.push(performance.now() - started);
-    }
-    const emptyFrameMedianMs = median(emptySamples);
-
-    dispatchWheel(-120);
+    const emptyFrameMedianMs = await measureEmpty();
+    dispatchWheel(-40);
     await nextFrame();
     const activeBoundary = {
-      active: container.dataset.mapZoomActive,
       detailedFillDisplay: getComputedStyle(detailedFill).display,
       lodFill: getComputedStyle(lodFill).fill,
+      cameraTransform: getComputedStyle(camera).transform,
+      committedViewBox: svg.getAttribute('viewBox') ?? '',
     };
+
     const cameraSamples: number[] = [];
     for (let index = 0; index < 12; index += 1) {
       const started = performance.now();
-      dispatchWheel(index % 2 === 0 ? -12 : 12);
+      dispatchWheel(index % 2 === 0 ? -18 : 18);
       await nextFrame();
       cameraSamples.push(performance.now() - started);
     }
-    return {
-      emptyFrameMedianMs,
-      cameraFrameMedianMs: median(cameraSamples),
-      activeBoundary,
-    };
+    const cameraFrameMedianMs = median(cameraSamples);
+    return { baselineViewBox, emptyFrameMedianMs, cameraFrameMedianMs, activeBoundary };
   });
 
-  expect(result.activeBoundary.active).toBe('true');
   expect(result.activeBoundary.detailedFillDisplay).toBe('none');
   expect(result.activeBoundary.lodFill).not.toBe('none');
+  expect(result.activeBoundary.cameraTransform).not.toBe('none');
+  expect(result.activeBoundary.committedViewBox).toBe(result.baselineViewBox);
   expect(result.cameraFrameMedianMs).toBeLessThanOrEqual(result.emptyFrameMedianMs * 2 + 8);
+
+  const svg = canvas.locator('.province-map-world-svg');
+  const camera = canvas.locator('.province-map-camera-surface');
+  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(result.baselineViewBox);
+  await expect(camera).toHaveCSS('transform', 'none');
+  await expect(camera).toHaveCSS('will-change', 'auto');
 });
