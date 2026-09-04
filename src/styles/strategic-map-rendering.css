@@ -24,6 +24,13 @@
   text-rendering: optimizeLegibility;
 }
 
+/* The transient camera scales a cached screen texture. non-scaling-stroke would force Chrome to keep recomputing
+   vector stroke semantics under the ancestor CSS scale, so it is suspended only for the active texture window.
+   The SVG attributes remain untouched and resume at settle when the final viewBox is committed. */
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg [vector-effect='non-scaling-stroke'] {
+  vector-effect: none !important;
+}
+
 /* viewBox settle re-rasterizes the visible vectors. Keep the map world filter-free so the final vector commit does not rerun large SVG filters. */
 .province-map-world-shadow {
   fill: none !important;
