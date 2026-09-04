@@ -65,6 +65,12 @@ for (const text of [
   'procurementGroups',
 ]) forbidText('src/pages/BuildingsPage.tsx', text);
 
+requireText('src/api/game.ts', 'export type FacilityBuildProcurementActionResponse = GameActionResponse;', '建厂采购兼容入口必须只返回普通即时动作回执');
+for (const text of [
+  'facilityBuildProcurementGroups',
+  'procurementGroup?:',
+]) forbidText('src/api/game.ts', text);
+
 for (const [path, tokens] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '“一键购齐并建造”只补足当前库存缺少的正式 `buildInputs`',
