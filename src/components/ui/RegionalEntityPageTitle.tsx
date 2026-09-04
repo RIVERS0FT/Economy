@@ -14,6 +14,7 @@ export function RegionalEntityPageTitle({
   const pageNavigation = usePlayerPageNavigation();
   const currentLocation = pageNavigation?.currentLocation;
   const regionalLocation = currentLocation?.type === 'regional-product'
+    || currentLocation?.type === 'regional-commercial'
     || currentLocation?.type === 'regional-facility'
     ? currentLocation
     : null;
