@@ -41,7 +41,7 @@ test('persistent strategy map uses one static SVG world for 48 states and Chines
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
   await expect(canvas).toHaveAttribute('data-map-camera-mode', 'svg-viewbox');
-  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-svg-viewbox-write');
+  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
   await expect(canvas).toHaveAttribute('data-map-camera-geometry-mode', 'immutable-svg-world');
   await expect(canvas).toHaveAttribute('data-map-camera-boundary-mode', 'fixed-world-bounds');
   await expect(canvas).toHaveAttribute('data-map-fit-mode', 'mainland-area-target');
@@ -136,11 +136,12 @@ test('state selection opens local context without resetting the static camera', 
   const tabs = page.getByRole('tablist', { name: '科罗拉多页面分区' });
   await expect(tabs.getByRole('tab', { name: '概览', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(tabs.getByRole('tab', { name: '市场', exact: true })).toBeVisible();
-  await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toBeVisible();
+  await expect(tabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();
+  await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();
   await expect(tabs.getByRole('tab', { name: '仓库', exact: true })).toBeVisible();
 
-  await tabs.getByRole('tab', { name: '建筑', exact: true }).click();
-  await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await tabs.getByRole('tab', { name: '工业', exact: true }).click();
+  await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.production-build-card')).toBeVisible();
   await expect(page.locator('.facility-cluster-selector-list')).toBeVisible();
   await expect(page.locator('.buildings-summary-panel')).toHaveCount(0);
