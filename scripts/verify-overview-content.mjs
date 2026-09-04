@@ -74,7 +74,6 @@ requireAll(paths.overview, [
   'weeklyBonusEligible',
   '签到领取 1 宝石',
   '本周全勤奖励已领取',
-  'overview-open-orders-list--scrollable',
   'title="生产摘要"',
   'title="资产与银行"',
   "title=\"资产与银行\" action={<Button variant=\"text\" onClick={() => setTab('bank')}>查看详情</Button>}",
@@ -83,7 +82,6 @@ requireAll(paths.overview, [
   'label="可支配资产"',
   'label="冻结资产"',
   'label="贷款负债"',
-  'title="当前挂单"',
   'theoreticalDailyOutput',
   'home-grid',
 ]);
@@ -116,6 +114,9 @@ forbidAll(paths.overview, [
   '连续签到 7 天可额外获得 5 宝石',
   '签到日期由服务器按北京时间判定，不支持补签。',
   '/ 7 天',
+  'title="当前挂单"',
+  'overview-open-orders-list',
+  '管理订单',
 ]);
 requireAll(paths.strategicWorkspace, [
   'export function StrategicWorkspaceChrome',
@@ -216,8 +217,6 @@ requireAll(paths.eventLogStyle, [
 
 requireAll(paths.polishStyle, [
   '--overview-summary-card-height: 330px;',
-  '.overview-open-orders-list--scrollable {',
-  'overflow-y: auto;',
   '.overview-check-in-day small {',
 ]);
 forbidAll(paths.polishStyle, ['clamp(168px, 20vw, 210px)', '.overview-asset-events {\n  overflow-y: auto;']);

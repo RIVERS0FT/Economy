@@ -217,7 +217,6 @@ function MarketImmediateTradeEntry({
 export function MarketPage({
   model,
   embedded = false,
-  readOnly = false,
   facilityAssetId,
   onBackFromFacilityAsset,
 }: {
@@ -514,28 +513,20 @@ export function MarketPage({
               <span><small>24h 成交量</small><strong><CompactNumber value={marketVolume24h} /></strong></span>
               <span><small>下次调价</small><strong>{typeof nextPriceAt === 'number' ? formatTime(nextPriceAt) : '次日 00:00'}</strong></span>
             </div>
-            {readOnly ? (
-              <section className="order-entry market-trade-entry market-trade-readonly" aria-labelledby="market-immediate-trade-title">
-                <h3 id="market-immediate-trade-title" className="market-trade-section-title">即时交易</h3>
-                <StatusTag tone="warning">只读</StatusTag>
-                <p className="muted">该地区尚未解锁，市场仅供查看。</p>
-              </section>
-            ) : (
-              <MarketImmediateTradeEntry
-                key={`${assetId}:${orderSide}`}
-                assetId={assetId}
-                assetName={assetName}
-                officialPrice={officialPrice ?? selectedProduct.basePrice}
-                nextPriceAt={nextPriceAt}
-                orderSide={orderSide}
-                selectOrderSide={selectOrderSide}
-                orderQuantity={orderQuantity}
-                credits={game.credits}
-                availableQuantity={selectedInventory.available}
-                placeAssetOrder={placeAssetOrder}
-                showResult={showResult}
-              />
-            )}
+            <MarketImmediateTradeEntry
+              key={`${assetId}:${orderSide}`}
+              assetId={assetId}
+              assetName={assetName}
+              officialPrice={officialPrice ?? selectedProduct.basePrice}
+              nextPriceAt={nextPriceAt}
+              orderSide={orderSide}
+              selectOrderSide={selectOrderSide}
+              orderQuantity={orderQuantity}
+              credits={game.credits}
+              availableQuantity={selectedInventory.available}
+              placeAssetOrder={placeAssetOrder}
+              showResult={showResult}
+            />
           </section>
         ) : (
           <Panel className="widget market-trade-card">

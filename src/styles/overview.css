@@ -272,7 +272,7 @@
 
 .overview-summary-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--layout-gutter);
 }
 
@@ -338,68 +338,6 @@
   font-size: var(--font-size-xs);
 }
 
-.overview-order-summary {
-  flex: 0 0 auto;
-  margin-bottom: var(--space-2);
-}
-
-.overview-open-orders-list {
-  min-height: 0;
-  flex: 1;
-  overflow-y: auto;
-  padding-right: var(--space-1);
-}
-
-.overview-open-order {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  border-bottom: 1px solid var(--color-divider);
-  padding: var(--space-2) 0;
-}
-
-.overview-open-order:first-child {
-  padding-top: 0;
-}
-
-.overview-open-order-identity,
-.overview-open-order-values {
-  min-width: 0;
-  display: grid;
-  gap: 0.12rem;
-}
-
-.overview-open-order-identity small,
-.overview-open-order-values small {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.overview-open-order-values {
-  flex: 0 0 auto;
-  justify-items: end;
-  text-align: right;
-}
-
-.overview-facility-label {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.overview-facility-label .game-icon {
-  width: 1rem;
-  height: 1rem;
-  flex: 0 0 auto;
-}
-
-.overview-facility-label strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* Viewport fallbacks preserve the documented tablet and mobile layout even
  * where container queries are unavailable. Desktop transitions below are
@@ -418,88 +356,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .overview-open-orders-card {
-    grid-column: 1 / -1;
-    min-height: 280px;
-  }
 
-  .overview-open-orders-list,
-  .overview-asset-events {
-    max-height: 20rem;
-  }
-}
-
-@media (max-width: 760px) {
-  .overview-summary-row {
-    grid-template-columns: 1fr;
-  }
-
-  .overview-open-orders-card {
-    grid-column: auto;
-  }
-
-  .overview-market-empty {
-    grid-template-columns: 1fr;
-  }
-
-  .overview-market-empty > .ui-button {
-    width: 100%;
-  }
-
-  .overview-market-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .overview-metric:nth-child(2) {
-    border-right: 0;
-  }
-
-  .overview-metric:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--color-divider);
-  }
-
-  .overview-market-footer,
-  .overview-subsection-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .overview-market-select {
-    width: 100%;
-  }
-
-  .overview-market-select select {
-    width: 100%;
-    min-width: 0;
-    flex: 1;
-  }
-
-}
-
-/* The desktop shell can remove more than 250px from the viewport. These
- * container rules therefore use the real page width rather than assuming that
- * a nominal desktop viewport always has enough room for five readable cards. */
-@container overview (max-width: 1050px) {
-  .overview-check-in-panel,
-  .overview-summary-card {
-    height: auto;
-  }
-
-  .overview-summary-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .overview-open-orders-card {
-    grid-column: 1 / -1;
-    min-height: 280px;
-  }
-
-  .overview-open-orders-list,
-  .overview-asset-events {
-    max-height: none;
-    overflow-y: visible;
-    padding-right: 0;
-  }
 }
 
 @container overview (max-width: 580px) {
@@ -507,9 +364,6 @@
     grid-template-columns: 1fr;
   }
 
-  .overview-open-orders-card {
-    grid-column: auto;
-  }
 
   .overview-market-empty {
     grid-template-columns: 1fr;

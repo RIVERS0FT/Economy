@@ -60,7 +60,7 @@ for (const text of [
   '图标式快捷生产设置',
   '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
   '概览始终显示官方常住人口',
-  '市场按正常市场规则提供目录、行情、订单簿和写操作',
+  '市场提供商品目录、今日官方价格、真实成交行情和即时写操作',
   '建筑与仓库直接显示本地经营内容',
   '一级市场商品的地区行情列表与一级建筑工厂的地区列表覆盖连续 48 州',
   '邀请卡与礼品码兑换唯一归属商店',
@@ -169,14 +169,13 @@ for (const text of [
   'province-unlock-button',
 ]) forbidText('src/pages/ProvincePage.tsx', text);
 for (const text of [
-  'readOnly = false',
-  'readOnly?: boolean;',
-  '该地区尚未解锁，市场仅供查看。',
-  'market-trade-readonly',
-  'readOnly ? (',
-  'disabled={readOnly}',
-  "readOnly ? '实时五档 · 只读' : '实时五档 · 点击填价'",
+  '即时交易',
+  '今日成交价',
+  '下次调价',
+  'id="market-trade-quantity"',
+  'market-submit-order',
 ]) requireText('src/pages/MarketPage.tsx', text);
+for (const text of ['该地区尚未解锁，市场仅供查看。', 'market-trade-readonly', '实时五档', 'orderBook.bids', 'orderBook.asks', 'market-order-price']) forbidText('src/pages/MarketPage.tsx', text);
 for (const path of ['src/pages/GlobalMarketPage.tsx', 'src/pages/GlobalBuildingsPage.tsx']) {
   requireText(path, 'return model.game.provinces;');
   requireText(path, 'const provinces = operationalProvinces(model);');
@@ -293,11 +292,11 @@ for (const text of [
 ]) forbidText('src/pages/GlobalMarketPage.tsx', text);
 for (const text of [
   'market-commodity-row-header',
-  '卖单量',
-  '买单量',
-  '市场价',
-  '24h',
+  '今日价格',
+  '24h成交量',
+  '24h价格变化',
 ]) requireText('src/components/market/MarketCommodityRow.tsx', text);
+for (const text of ['卖单量', '买单量', '挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
 for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
 for (const text of [
   '.entity-list-surface {',

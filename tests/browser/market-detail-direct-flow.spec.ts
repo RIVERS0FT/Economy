@@ -58,7 +58,7 @@ test('regional commodity detail keeps only compact market facts in direct page f
   const visibleHeroMetrics = await page.locator(
     '.market-detail-hero__metric:visible small',
   ).allTextContents();
-  expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存']);
+  expect(visibleHeroMetrics).toEqual(['今日价格', '24h 变化', '可用库存']);
 
   for (const deletedLabel of [
     '市场价',
@@ -85,7 +85,7 @@ test('regional commodity detail keeps only compact market facts in direct page f
   const visibleTradeSummary = await page.locator(
     '.market-trade-summary > span:visible small',
   ).allTextContents();
-  expect(visibleTradeSummary).toEqual(['最近成交', '24h 成交量']);
+  expect(visibleTradeSummary).toEqual(['今日价格', '今日成交量', '24h 成交量', '下次调价']);
 
   for (const selector of [
     '.market-detail-hero',
@@ -131,7 +131,7 @@ test('regional commodity direct detail flow stays readable on mobile', async ({ 
   const visibleHeroMetrics = await page.locator(
     '.market-detail-hero__metric:visible small',
   ).allTextContents();
-  expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存']);
+  expect(visibleHeroMetrics).toEqual(['今日价格', '24h 变化', '可用库存']);
   await expect(page.locator('.market-fundamentals-grid')).toHaveCount(0);
   await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
   await expect(page.locator('.market-trade-summary > span:visible')).toHaveCount(2);

@@ -44,13 +44,13 @@ for (const token of [
   'ownOrderCount',
 ]) forbidText(marketPage, token, `地区商品目录不得恢复玩家挂单筛选或指标: ${token}`);
 
-for (const token of ['24h成交量', '市场价', '24h价格变化']) requireText(commodityRow, token, `共享商品表头必须显示 ${token}。`);
+for (const token of ['24h成交量', '今日价格', '24h价格变化']) requireText(commodityRow, token, `共享商品表头必须显示 ${token}。`);
 for (const token of ['卖单量', '买单量', 'sellVolume', 'buyVolume']) forbidText(commodityRow, token, `共享商品列表不得恢复盘口指标: ${token}`);
 requireText(commodityRow, "entityLabel = '商品'", '共享商品表头默认首列必须为商品。');
 requireText(commodityRow, '<EntityListHeader', '共享商品表头必须复用统一实体列表表头。');
 requireText(entityListHeader, 'role="columnheader"', '共享实体列表表头必须使用列标题语义。');
 requireText(entityListHeader, 'aria-sort={ariaSort}', '共享实体列表表头必须播报排序方向。');
-requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.45fr) repeat(3, minmax(4.4rem, .78fr)) var(--entity-list-chevron-column, .8rem);', '商品行必须只保留身份、三项指标和箭头。');
+requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.55fr) repeat(3, minmax(4.5rem, .72fr)) var(--entity-list-chevron-column, .8rem);', '商品行必须只保留身份、三项指标和箭头。');
 requireText(commodityRowStyles, '@container (max-width: 620px)', '共享商品数据行必须提供移动紧凑断点。');
 requireText(commodityRowStyles, '@container (max-width: 360px)', '共享商品数据行必须覆盖极窄屏。');
 
@@ -90,8 +90,8 @@ for (const token of [
   '<small>今日成交量</small>',
   '<small>24h 成交量</small>',
 ]) requireText(marketPage, token, `地区商品详情缺少市场事实: ${token}`);
-requireText(marketPage, 'market-trade-readonly', '未开放交易的地区视图必须保留只读态。');
-requireText(marketPage, '该地区尚未解锁，市场仅供查看。', '只读态必须解释无法交易。');
+forbidText(marketPage, 'market-trade-readonly', '连续 48 州市场不得恢复地区只读锁。');
+forbidText(marketPage, '该地区尚未解锁，市场仅供查看。', '连续 48 州市场不得恢复解锁提示。');
 requireText(detailStyles, '.market-detail-surface .market-trade-card {', '详情样式必须继续拥有直接交易区。');
 requireText(detailStyles, 'background: transparent;', '直接交易区不得恢复一级卡片背景。');
 

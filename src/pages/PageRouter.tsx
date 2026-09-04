@@ -51,7 +51,6 @@ const PAGE_AUTHORITY_DEPENDENCIES: Record<TabId, readonly StateAuthorityDependen
     'player.assets',
     'player.production',
     'player.progression',
-    'market.orders',
     'market.quotes',
     'market.calendar',
   ],

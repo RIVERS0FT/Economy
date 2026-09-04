@@ -376,23 +376,6 @@ test('overview shows authoritative asset status and opens the bank page', async 
   expect(pageErrors).toEqual([]);
 });
 
-test('overview only scrolls the order list after the visible capacity is exceeded', async ({ page }) => {
-  const pageErrors = await capturePageErrors(page);
-  await page.setViewportSize({ width: 1684, height: 931 });
-  await page.goto('runtime-test.html?view=overview&scenario=activity');
-
-  const shortList = page.locator('.overview-open-orders-list');
-  await expect(shortList).not.toHaveClass(/overview-open-orders-list--scrollable/);
-  expect(await shortList.evaluate((element) => getComputedStyle(element).overflowY)).toBe('visible');
-  expect(await shortList.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
-
-  await page.goto('runtime-test.html?view=overview&scenario=many-orders');
-  const longList = page.locator('.overview-open-orders-list');
-  await expect(longList).toHaveClass(/overview-open-orders-list--scrollable/);
-  expect(await longList.evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto');
-  expect(await longList.evaluate((element) => element.scrollHeight > element.clientHeight + 1)).toBe(true);
-  expect(pageErrors).toEqual([]);
-});
 
 test('overview keeps the decision rows visible and adapts to a narrower desktop', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
@@ -414,9 +397,7 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   await page.setViewportSize({ width: 900, height: 1000 });
   expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(1);
 
-  const nestedOverflowModes = await page.locator('.overview-open-orders-list')
-    .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowY));
-  expect(nestedOverflowModes).toEqual(['visible']);
+  await expect(page.getByRole('heading', { name: '当前挂单', exact: true })).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 

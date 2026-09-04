@@ -1,23 +1,17 @@
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { useMemo } from 'react';
-import { orderStatusNames } from '../app/gameViewModel';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
-import { FactoryIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
-import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { formatCurrency } from '../utils/formatters';
 import {
   Button,
   DataList,
   DataRow,
-  EmptyState,
   PageLayout,
   Panel,
-  StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
-import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
-import { orderAssetId, orderKind } from '../utils/orderIdentity';
 
 type OverviewPageProps = { model: TutorialAwareGameViewModel };
 
@@ -31,10 +25,6 @@ export function OverviewPage({ model }: OverviewPageProps) {
     setTab,
   } = model;
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
-  const ownOpenOrders = [...derived.ownOpenOrders].sort((left, right) => right.createdAt - left.createdAt);
-  const buyOrderCount = ownOpenOrders.filter((order) => order.side === 'buy').length;
-  const sellOrderCount = ownOpenOrders.length - buyOrderCount;
-
   const theoreticalDailyOutput = useMemo(() => game.facilityGroups.reduce((sum, group) => {
     if (group.status !== 'running' || group.participatingCount <= 0) return sum;
     const facilityType = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
@@ -48,10 +38,6 @@ export function OverviewPage({ model }: OverviewPageProps) {
   const claimCompletesWeek = game.checkIn.weeklyBonusEligible
     && !game.checkIn.weeklyBonusEarned
     && game.checkIn.weeklyClaimCount === 6;
-  const openOrdersListClassName = ownOpenOrders.length > 3
-    ? 'overview-open-orders-list overview-open-orders-list--scrollable'
-    : 'overview-open-orders-list';
-
   return (
     <PageLayout
       title="概览"
@@ -154,41 +140,6 @@ export function OverviewPage({ model }: OverviewPageProps) {
             </DataList>
           </Panel>
 
-          <Panel className="widget overview-summary-card overview-open-orders-card">
-            <WidgetHeading title="当前挂单" action={<Button variant="text" onClick={() => setTab('market')}>管理订单</Button>} />
-            <DataList className="compact overview-order-summary">
-              <DataRow label="买单" value={`${formatNumber(buyOrderCount)} 笔`} tone={buyOrderCount ? 'success' : 'neutral'} />
-              <DataRow label="卖单" value={`${formatNumber(sellOrderCount)} 笔`} tone={sellOrderCount ? 'danger' : 'neutral'} />
-              <DataRow label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} tone={game.frozenCredits ? 'warning' : 'neutral'} />
-            </DataList>
-            <div className={openOrdersListClassName}>
-              {ownOpenOrders.map((order) => {
-                const assetId = orderAssetId(order);
-                const facilityOrder = orderKind(order) === 'facility';
-                const assetName = facilityOrder
-                  ? game.facilityTypes.find((facility) => facility.id === assetId)?.name ?? assetId
-                  : game.products.find((product) => product.id === assetId)?.name ?? assetId;
-                return (
-                  <div className="overview-open-order" key={order.id}>
-                    <div className="overview-open-order-identity">
-                      {facilityOrder ? (
-                        <span className="overview-facility-label"><FactoryIcon /><strong>{assetName}</strong></span>
-                      ) : (
-                        <ProductIconLabel productId={assetId}>{assetName}</ProductIconLabel>
-                      )}
-                      <small>{facilityOrder ? '工厂' : '商品'} · {formatTime(order.createdAt)}</small>
-                    </div>
-                    <div className="overview-open-order-values">
-                      <StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag>
-                      <strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong>
-                      <small>{<CompactNumber value={order.remaining} />}/{<CompactNumber value={order.quantity} />} · {orderStatusNames[order.status]}</small>
-                    </div>
-                  </div>
-                );
-              })}
-              {ownOpenOrders.length === 0 ? <EmptyState className="overview-compact-empty">当前没有未完成订单。</EmptyState> : null}
-            </div>
-          </Panel>
         </div>
       </div>
       </div>
