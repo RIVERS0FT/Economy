@@ -21,7 +21,7 @@ import {
   PageLayout,
   Panel,
 } from '../components/ui/layout';
-import type { AssetOrder, EconomyState, ProductCategory } from '../types';
+import type { ProductCategory } from '../types';
 import '../styles/global-operation-pages.css';
 import '../styles/entity-list-header.css';
 
@@ -30,8 +30,8 @@ const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
 })));
 
 type GlobalMarketStatus = 'all' | 'traded' | 'unmet-demand' | 'no-trade';
-type GlobalMarketSortKey = 'name' | 'sell-volume' | 'buy-volume' | 'volume24h' | 'market-price' | 'price-change24h';
-type RegionalProductStatus = 'all' | 'traded' | 'buy' | 'sell' | 'own-order';
+type GlobalMarketSortKey = 'name' | 'volume24h' | 'market-price' | 'price-change24h';
+type RegionalProductStatus = 'all' | 'traded' | 'no-trade';
 
 const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
   raw: '原材料',
@@ -58,13 +58,17 @@ const MARKET_STATUS_FILTERS: Array<{ value: GlobalMarketStatus; label: string }>
 const REGIONAL_STATUS_FILTERS: Array<{ value: RegionalProductStatus; label: string }> = [
   { value: 'all', label: '全部地区' },
   { value: 'traded', label: '有真实成交' },
-  { value: 'buy', label: '有买盘' },
-  { value: 'sell', label: '有卖盘' },
-  { value: 'own-order', label: '有我的订单' },
+  { value: 'no-trade', label: '暂无成交' },
 ];
 
 function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
-  return model.game.provinces;
+  const game = model.game;
+  const hasUnlockState = Array.isArray(game.unlockedProvinces)
+    || typeof game.startingProvinceId === 'string';
+  if (!hasUnlockState) return game.provinces;
+  const unlocked = new Set(game.unlockedProvinces ?? []);
+  if (game.startingProvinceId) unlocked.add(game.startingProvinceId);
+  return game.provinces.filter((province) => unlocked.has(province.id));
 }
 
 function average(values: number[]) {
@@ -85,15 +89,6 @@ function trendForHistory(
     : undefined;
 }
 
-function openOrder(order: AssetOrder) {
-  return (order.status === 'open' || order.status === 'partial')
-    && Number(order.remaining || 0) > 0;
-}
-
-function commodityOrderProductId(order: AssetOrder) {
-  return order.assetKind === 'commodity' ? order.assetId : order.productId;
-}
-
 export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const [selectedGlobalProductId, setSelectedGlobalProductId] = useState<string | null>(null);
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
@@ -110,7 +105,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   const stackedLocation = pageNavigation?.currentLocation;
   const game = model.game;
   const provinces = operationalProvinces(model);
-  const allProvinceOrders = ((game as EconomyState & { allProvinceOrders?: AssetOrder[] }).allProvinceOrders ?? game.orders);
 
   useEffect(() => {
     if (!stackedLocation) return;
@@ -134,8 +128,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     const officialPrices: number[] = [];
     const priceChanges24h: number[] = [];
     let tradedProvinceCount = 0;
-    let sellVolume = 0;
-    let buyVolume = 0;
     let tradeVolume24h = 0;
     let directDemandProvinces = 0;
     let unmetDemandProvinces = 0;
@@ -144,8 +136,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
       if (typeof market?.lastTradePrice === 'number') tradedProvinceCount += 1;
       if (typeof market?.officialPrice === 'number') officialPrices.push(market.officialPrice);
       if (typeof market?.priceChange24h === 'number') priceChanges24h.push(market.priceChange24h);
-      sellVolume += Math.max(0, Number(market?.sellVolume || 0));
-      buyVolume += Math.max(0, Number(market?.buyVolume || 0));
       tradeVolume24h += Math.max(0, Number(market?.tradeVolume24h || 0));
       if ((market?.demand?.lastQuantity ?? 0) > 0) {
         directDemandProvinces += 1;
@@ -161,8 +151,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
       tradedProvinceCount,
       directDemandProvinces,
       unmetDemandProvinces,
-      sellVolume,
-      buyVolume,
       tradeVolume24h,
       marketPrice: average(officialPrices),
       priceChange24h: average(priceChanges24h),
@@ -183,14 +171,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
         comparison = catalogSort.direction === 'asc'
           ? left.name.localeCompare(right.name, 'zh-CN')
           : right.name.localeCompare(left.name, 'zh-CN');
-      } else if (catalogSort.key === 'sell-volume') {
-        comparison = catalogSort.direction === 'asc'
-          ? left.sellVolume - right.sellVolume
-          : right.sellVolume - left.sellVolume;
-      } else if (catalogSort.key === 'buy-volume') {
-        comparison = catalogSort.direction === 'asc'
-          ? left.buyVolume - right.buyVolume
-          : right.buyVolume - left.buyVolume;
       } else if (catalogSort.key === 'volume24h') {
         comparison = catalogSort.direction === 'asc'
           ? left.tradeVolume24h - right.tradeVolume24h
@@ -204,18 +184,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     });
   }, [catalogSort, categoryFilter, productRows, statusFilter]);
 
-  const orderVolumes = useMemo(() => {
-    const byProvinceAndProduct = new Map<string, number>();
-    for (const order of allProvinceOrders) {
-      if (!openOrder(order)) continue;
-      const productId = commodityOrderProductId(order);
-      if (!productId || !order.provinceId) continue;
-      const key = `${order.provinceId}:${productId}`;
-      if (order.isOwn) byProvinceAndProduct.set(key, (byProvinceAndProduct.get(key) ?? 0) + 1);
-    }
-    return byProvinceAndProduct;
-  }, [allProvinceOrders]);
-
   const selectedGlobalProduct = selectedGlobalProductId
     ? game.products.find((product) => product.id === selectedGlobalProductId)
     : undefined;
@@ -224,7 +192,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     if (!selectedGlobalProduct) return [];
     const rows = provinces.map((province, catalogIndex) => {
       const market = game.provinceMarkets?.[province.id]?.[selectedGlobalProduct.id];
-      const ownOrderCount = orderVolumes.get(`${province.id}:${selectedGlobalProduct.id}`) ?? 0;
       const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;
       const trend = typeof market?.priceChange24h === 'number'
         ? market.priceChange24h
@@ -232,9 +199,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
       return {
         province,
         catalogIndex,
-        buyVolume: Math.max(0, Number(market?.buyVolume || 0)),
-        sellVolume: Math.max(0, Number(market?.sellVolume || 0)),
-        ownOrderCount,
         tradeVolume24h: Math.max(0, Number(market?.tradeVolume24h || 0)),
         marketPrice,
         trend,
@@ -243,9 +207,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     });
     const filtered = rows.filter((row) => {
       if (regionalStatusFilter === 'traded' && !row.traded) return false;
-      if (regionalStatusFilter === 'buy' && row.buyVolume <= 0) return false;
-      if (regionalStatusFilter === 'sell' && row.sellVolume <= 0) return false;
-      if (regionalStatusFilter === 'own-order' && row.ownOrderCount <= 0) return false;
+      if (regionalStatusFilter === 'no-trade' && row.traded) return false;
       return true;
     });
     return filtered.sort((left, right) => {
@@ -254,15 +216,12 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
         : right.province.name.localeCompare(left.province.name, 'zh-CN');
       if (regionalSort === 'price') return compareMarketOptionalValue(left.marketPrice, right.marketPrice, regionalSortDirection);
       if (regionalSort === 'trend') return compareMarketOptionalValue(left.trend, right.trend, regionalSortDirection);
-      if (regionalSort === 'buy-volume') return compareMarketOptionalValue(left.buyVolume, right.buyVolume, regionalSortDirection);
-      if (regionalSort === 'sell-volume') return compareMarketOptionalValue(left.sellVolume, right.sellVolume, regionalSortDirection);
       if (regionalSort === 'volume24h') return compareMarketOptionalValue(left.tradeVolume24h, right.tradeVolume24h, regionalSortDirection);
       return left.catalogIndex - right.catalogIndex;
     });
   }, [
     game.lastProcessedAt,
     game.provinceMarkets,
-    orderVolumes,
     provinces,
     regionalSortDirection,
     regionalSort,
@@ -380,17 +339,17 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
           <section className="entity-list-surface global-market-product-region-surface">
             <MarketCommodityHeader
               entityLabel="地区"
-            entitySortKey="name"
-            sortKey={regionalSort}
-            sortDirection={regionalSortDirection}
-            onSortChange={({ key, direction }) => {
-              setRegionalSort(key);
-              setRegionalSortDirection(direction);
-            }}
-          />
+              entitySortKey="name"
+              sortKey={regionalSort}
+              sortDirection={regionalSortDirection}
+              onSortChange={({ key, direction }) => {
+                setRegionalSort(key);
+                setRegionalSortDirection(direction);
+              }}
+            />
             <ul className="entity-list-rows global-market-product-region-list" aria-label={`${selectedGlobalProduct.name}各地区行情`}>
-            {regionalRows.map((row) => (
-              <li key={row.province.id}>
+              {regionalRows.map((row) => (
+                <li key={row.province.id}>
                   <MarketCommodityRow
                     productId={selectedGlobalProduct.id}
                     productName={selectedGlobalProduct.name}
@@ -398,20 +357,18 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
                     regionName={row.province.name}
                     regionPrimary
                     currentRegion={row.province.id === model.selectedProvinceId}
-                  provinceId={row.province.id}
-                  sellVolume={row.sellVolume}
-                  buyVolume={row.buyVolume}
-                  tradeVolume24h={row.tradeVolume24h}
-                  marketPrice={row.marketPrice}
-                  trend={row.trend}
-                  ariaLabel={`打开${row.province.name}${selectedGlobalProduct.name}详情`}
-                  onClick={() => openRegionalProduct(row.province.id)}
-                />
-              </li>
-            ))}
-            {regionalRows.length === 0
-              ? <li className="global-market-empty">没有符合当前筛选条件的地区。</li>
-              : null}
+                    provinceId={row.province.id}
+                    tradeVolume24h={row.tradeVolume24h}
+                    marketPrice={row.marketPrice}
+                    trend={row.trend}
+                    ariaLabel={`打开${row.province.name}${selectedGlobalProduct.name}详情`}
+                    onClick={() => openRegionalProduct(row.province.id)}
+                  />
+                </li>
+              ))}
+              {regionalRows.length === 0
+                ? <li className="global-market-empty">没有符合当前筛选条件的地区。</li>
+                : null}
             </ul>
           </section>
         </div>
@@ -456,48 +413,44 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
         <section className="entity-list-surface global-market-goods-surface">
           <EntityListHeader
             className="global-market-goods-header"
-          columns={[
-            { label: '商品', sortKey: 'name', defaultDirection: 'asc' },
-            { label: '卖单量', sortKey: 'sell-volume', defaultDirection: 'desc' },
-            { label: '买单量', sortKey: 'buy-volume', defaultDirection: 'desc' },
-            { label: '24h成交量', sortKey: 'volume24h', defaultDirection: 'desc' },
-            { label: '市场价', sortKey: 'market-price', defaultDirection: 'desc' },
-            { label: '24h价格变化', sortKey: 'price-change24h', defaultDirection: 'desc' },
-            { key: 'chevron', label: '' },
-          ]}
-          sortState={catalogSort}
-          onSortChange={setCatalogSort}
-        />
+            columns={[
+              { label: '商品', sortKey: 'name', defaultDirection: 'asc' },
+              { label: '24h成交量', sortKey: 'volume24h', defaultDirection: 'desc' },
+              { label: '今日价格', sortKey: 'market-price', defaultDirection: 'desc' },
+              { label: '24h价格变化', sortKey: 'price-change24h', defaultDirection: 'desc' },
+              { key: 'chevron', label: '' },
+            ]}
+            sortState={catalogSort}
+            onSortChange={setCatalogSort}
+          />
           <ul className="entity-list-rows global-market-goods-list" aria-label="全局商品目录">
-          {filteredProductRows.map((row) => (
-            <li key={row.id}>
-              <button
-                type="button"
-                className="entity-list-row global-market-goods-row"
-                data-ui-interactive="surface"
-                aria-label={`打开${row.name}全局详情`}
-                onClick={() => openGlobalProduct(row.id)}
-              >
-                <span className="global-market-goods-row__identity">
-                  <span className="global-market-goods-row__artwork" aria-hidden="true"><ProductArtwork productId={row.id} /></span>
-                  <span className="global-market-goods-row__name"><strong>{row.name}</strong><small>{row.categoryLabel}</small></span>
-                </span>
-                <span className="global-market-goods-row__metric"><strong><CompactNumber value={row.sellVolume} /></strong></span>
-                <span className="global-market-goods-row__metric"><strong><CompactNumber value={row.buyVolume} /></strong></span>
-                <span className="global-market-goods-row__metric"><strong><CompactNumber value={row.tradeVolume24h} /></strong></span>
-                <span className="global-market-goods-row__metric"><strong>{typeof row.marketPrice === 'number'
-                  ? <CurrencyAmount>{row.marketPrice}</CurrencyAmount>
-                  : '—'}</strong></span>
-                <span className={`global-market-goods-row__metric entity-list-value ${typeof row.priceChange24h !== 'number' ? 'is-unavailable' : row.priceChange24h > 0 ? 'is-positive' : row.priceChange24h < 0 ? 'is-negative' : 'is-neutral'}`}><strong>{typeof row.priceChange24h === 'number'
-                  ? <CurrencyAmount sign={row.priceChange24h > 0 ? '+' : undefined}>{row.priceChange24h}</CurrencyAmount>
-                  : '—'}</strong></span>
-                <span className="global-market-goods-row__chevron" aria-hidden="true">
-                  <ChevronIcon direction="right" />
-                </span>
-              </button>
-            </li>
-          ))}
-          {filteredProductRows.length === 0 ? <li className="global-market-empty">没有符合当前筛选条件的商品。</li> : null}
+            {filteredProductRows.map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  className="entity-list-row global-market-goods-row"
+                  data-ui-interactive="surface"
+                  aria-label={`打开${row.name}全局详情`}
+                  onClick={() => openGlobalProduct(row.id)}
+                >
+                  <span className="global-market-goods-row__identity">
+                    <span className="global-market-goods-row__artwork" aria-hidden="true"><ProductArtwork productId={row.id} /></span>
+                    <span className="global-market-goods-row__name"><strong>{row.name}</strong><small>{row.categoryLabel}</small></span>
+                  </span>
+                  <span className="global-market-goods-row__metric"><strong><CompactNumber value={row.tradeVolume24h} /></strong></span>
+                  <span className="global-market-goods-row__metric"><strong>{typeof row.marketPrice === 'number'
+                    ? <CurrencyAmount>{row.marketPrice}</CurrencyAmount>
+                    : '—'}</strong></span>
+                  <span className={`global-market-goods-row__metric entity-list-value ${typeof row.priceChange24h !== 'number' ? 'is-unavailable' : row.priceChange24h > 0 ? 'is-positive' : row.priceChange24h < 0 ? 'is-negative' : 'is-neutral'}`}><strong>{typeof row.priceChange24h === 'number'
+                    ? <CurrencyAmount sign={row.priceChange24h > 0 ? '+' : undefined}>{row.priceChange24h}</CurrencyAmount>
+                    : '—'}</strong></span>
+                  <span className="global-market-goods-row__chevron" aria-hidden="true">
+                    <ChevronIcon direction="right" />
+                  </span>
+                </button>
+              </li>
+            ))}
+            {filteredProductRows.length === 0 ? <li className="global-market-empty">没有符合当前筛选条件的商品。</li> : null}
           </ul>
         </section>
       </div>
