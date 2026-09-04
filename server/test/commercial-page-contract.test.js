@@ -24,9 +24,9 @@ test('province page keeps market-commerce-industry order and commercial detail n
   assert.match(province, /EmbeddedCommercePage/);
   assert.match(province, /section: 'commerce'/);
   assert.match(regionalTitle, /currentLocation\?\.type === 'regional-commercial'/);
-  assert.match(provinceMapBrowser, /getByRole\('tab', \{ name: '商业', exact: true \}\)\.toBeVisible/);
-  assert.match(provinceMapBrowser, /getByRole\('tab', \{ name: '工业', exact: true \}\)\.toBeVisible/);
-  assert.match(provinceMapBrowser, /getByRole\('tab', \{ name: '工业', exact: true \}\)\.click/);
+  assert.ok(provinceMapBrowser.includes("await expect(tabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();"));
+  assert.ok(provinceMapBrowser.includes("await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();"));
+  assert.ok(provinceMapBrowser.includes("await tabs.getByRole('tab', { name: '工业', exact: true }).click();"));
 
   for (const token of [
     'regional-buildings-management',
