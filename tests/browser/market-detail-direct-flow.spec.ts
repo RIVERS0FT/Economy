@@ -38,7 +38,7 @@ async function readDetailGeometry(page: Page) {
     const hero = surface.querySelector('.market-detail-hero');
     const chart = surface.querySelector('.market-chart-card');
     const trade = surface.querySelector('.market-trade-card');
-    const heroMetrics = Array.from(surface.querySelectorAll('.market-detail-hero__metric'))
+    const heroMetrics = Array.from(surface.querySelectorAll('.market-detail-hero__metrics > span'))
       .filter((element) => element.getClientRects().length > 0)
       .map(rect);
     return {
@@ -51,12 +51,12 @@ async function readDetailGeometry(page: Page) {
   });
 }
 
-test('regional commodity detail keeps only compact market facts in direct page flow', async ({ page }) => {
+test('regional commodity instant-market detail keeps daily facts in direct page flow', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openRegionalWheatDetail(page);
 
   const visibleHeroMetrics = await page.locator(
-    '.market-detail-hero__metric:visible small',
+    '.market-detail-hero__metrics > span:visible small',
   ).allTextContents();
   expect(visibleHeroMetrics).toEqual(['今日价格', '24h 变化', '可用库存']);
 
@@ -75,12 +75,16 @@ test('regional commodity detail keeps only compact market facts in direct page f
     '发运在途',
     '预计生产速度',
     '预计等效产能',
+    '实时五档',
+    '已有订单',
   ]) {
     await expect(page.getByText(deletedLabel, { exact: true })).toHaveCount(0);
   }
   await expect(page.locator('.market-fundamentals-grid')).toHaveCount(0);
   await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
   await expect(page.locator('.market-detail-auto-trade')).toHaveCount(0);
+  await expect(page.locator('.order-book')).toHaveCount(0);
+  await expect(page.locator('#market-trade-quantity')).toBeVisible();
 
   const visibleTradeSummary = await page.locator(
     '.market-trade-summary > span:visible small',
@@ -100,7 +104,7 @@ test('regional commodity detail keeps only compact market facts in direct page f
   const geometry = await readDetailGeometry(page);
   expect(geometry.surface.width).toBeLessThanOrEqual(720);
   expect(geometry.hero).not.toBeNull();
-  expect(geometry.heroMetrics).toHaveLength(2);
+  expect(geometry.heroMetrics).toHaveLength(3);
   expect(geometry.chart).not.toBeNull();
   expect(geometry.trade).not.toBeNull();
 
@@ -115,7 +119,7 @@ test('regional commodity detail keeps only compact market facts in direct page f
   expect(geometry.trade!.top).toBeGreaterThan(geometry.chart!.top);
 });
 
-test('regional commodity direct detail flow stays readable on mobile', async ({ page }) => {
+test('regional commodity instant-market detail stays readable on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openRegionalWheatDetail(page);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -129,19 +133,20 @@ test('regional commodity direct detail flow stays readable on mobile', async ({ 
   expect(widthGeometry.scrollWidth).toBeLessThanOrEqual(widthGeometry.clientWidth + 1);
 
   const visibleHeroMetrics = await page.locator(
-    '.market-detail-hero__metric:visible small',
+    '.market-detail-hero__metrics > span:visible small',
   ).allTextContents();
   expect(visibleHeroMetrics).toEqual(['今日价格', '24h 变化', '可用库存']);
   await expect(page.locator('.market-fundamentals-grid')).toHaveCount(0);
   await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
-  await expect(page.locator('.market-trade-summary > span:visible')).toHaveCount(2);
+  await expect(page.locator('.market-trade-summary > span:visible')).toHaveCount(4);
   await expect(page.locator('.market-chart-card')).toBeVisible();
   await expect(page.locator('.market-trade-card')).toBeVisible();
   await expect(page.locator('.market-trade-card')).not.toHaveClass(/ui-primary-surface/);
+  await expect(page.locator('.order-book')).toHaveCount(0);
 
   const geometry = await readDetailGeometry(page);
   expect(geometry.hero).not.toBeNull();
-  expect(geometry.heroMetrics).toHaveLength(2);
+  expect(geometry.heroMetrics).toHaveLength(3);
   const hero = geometry.hero!;
   for (const metric of geometry.heroMetrics) {
     expect(metric.left).toBeGreaterThanOrEqual(hero.left - 1);
