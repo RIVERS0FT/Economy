@@ -17,38 +17,33 @@ jobs:
         with:
           ref: feat/commercial-buildings
           fetch-depth: 0
-      - name: Extend regional title authority to commercial detail
+      - name: Extend shared title authority to commercial building detail
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          replacements = {
-              'docs/UI_DESIGN_SYSTEM.md': [
-                  (
-                      '`RegionalEntityPageTitle` 固定负责地区商品／工厂详情共享两行标题',
-                      '`RegionalEntityPageTitle` 固定负责地区商品／商业／工厂详情共享两行标题',
-                  ),
-              ],
-              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md': [
-                  (
-                      '地区商品／工厂详情标题第二行的州级地区名是直接地区导航入口',
-                      '地区商品／商业／工厂详情标题第二行的州级地区名是直接地区导航入口',
-                  ),
-                  (
-                      '返回时必须恢复原商品／工厂详情',
-                      '返回时必须恢复原商品／商业／工厂详情',
-                  ),
-              ],
-          }
-          for filename, pairs in replacements.items():
-              path = Path(filename)
-              text = path.read_text()
-              for old, new in pairs:
-                  if old not in text:
-                      raise SystemExit(f'missing design token in {filename}: {old}')
-                  text = text.replace(old, new, 1)
-              path.write_text(text)
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text()
+          replacements = [
+              (
+                  '`RegionalEntityPageTitle` 固定负责地区商品／工厂详情共享两行标题',
+                  '`RegionalEntityPageTitle` 固定负责地区商品／商业建筑／工厂详情共享两行标题',
+              ),
+              (
+                  '当前 `PlayerPageNavigationContext` 位置为 `regional-product` 或 `regional-facility` 时',
+                  '当前 `PlayerPageNavigationContext` 位置为 `regional-product`、`regional-commercial` 或 `regional-facility` 时',
+              ),
+              (
+                  '把原商品／工厂详情保留在历史中以便返回',
+                  '把原商品／商业建筑／工厂详情保留在历史中以便返回',
+              ),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'missing UI design token: {old}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
           Path('.github/workflows/fix-commercial-regional-title-design.yml').unlink()
           PY
       - name: Commit design alignment
@@ -58,5 +53,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --check
-          git commit -m "docs: 扩展商业地区标题导航规则"
+          git commit -m "docs: 扩展商业建筑地区标题导航规则"
           git push origin HEAD:feat/commercial-buildings
