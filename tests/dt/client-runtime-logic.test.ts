@@ -79,6 +79,7 @@ test('immediate facility intent lifecycle handles acknowledgement, reconciliatio
   const provinceId = 'dt-province';
   const facilityTypeId = 'dt-facility';
   let notifications = 0;
+  let secondaryNotifications = 0;
 
   const noListenerSequence = setFacilityEnabledIntent(provinceId, `${facilityTypeId}-no-listener`, true);
   rejectFacilityEnabledIntent(provinceId, `${facilityTypeId}-no-listener`, noListenerSequence);
@@ -86,10 +87,17 @@ test('immediate facility intent lifecycle handles acknowledgement, reconciliatio
   const unsubscribe = subscribeFacilityEnabledIntent(provinceId, facilityTypeId, () => {
     notifications += 1;
   });
+  const unsubscribeSecondary = subscribeFacilityEnabledIntent(provinceId, facilityTypeId, () => {
+    secondaryNotifications += 1;
+  });
 
   const first = setFacilityEnabledIntent(provinceId, facilityTypeId, true);
   assert.equal(getFacilityEnabledIntent(provinceId, facilityTypeId), true);
   assert.equal(notifications, 1);
+  assert.equal(secondaryNotifications, 1);
+
+  reconcileFacilityEnabledIntent(provinceId, facilityTypeId, true);
+  assert.equal(getFacilityEnabledIntent(provinceId, facilityTypeId), true);
 
   acknowledgeFacilityEnabledIntent(provinceId, facilityTypeId, first + 1, false);
   assert.equal(notifications, 1);
@@ -115,8 +123,16 @@ test('immediate facility intent lifecycle handles acknowledgement, reconciliatio
   acknowledgeFacilityEnabledIntent(provinceId, facilityTypeId, fourth, true);
   reconcileFacilityEnabledIntent(provinceId, facilityTypeId, true);
 
+  unsubscribeSecondary();
+  const beforePrimaryOnly = notifications;
+  const primaryOnly = setFacilityEnabledIntent(provinceId, facilityTypeId, true);
+  assert.equal(notifications, beforePrimaryOnly + 1);
+  assert.equal(secondaryNotifications, 7);
+  rejectFacilityEnabledIntent(provinceId, facilityTypeId, primaryOnly);
+
   unsubscribe();
   unsubscribe();
+  unsubscribeSecondary();
   const beforeDetachedMutation = notifications;
   const detached = setFacilityEnabledIntent(provinceId, facilityTypeId, true);
   rejectFacilityEnabledIntent(provinceId, facilityTypeId, detached);
