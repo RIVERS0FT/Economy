@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { selectCiPlan } from './select-ci-tests.mjs';
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -44,7 +45,23 @@ for (const text of [
   '单次连接超时 2 秒、总耗时 3 秒',
   '非预期 HTTP 状态必须立即失败',
   '`ECONOMY_DEPLOY_VERIFY_START` 后 45 秒真实健康检查门槛',
+  '部署验收基础设施文件即使文件名包含 `production`',
+  '不得因此归入 gameplay `facility` 域',
 ]) requireText(design, text, 'CI 执行设计');
+
+const deploymentAcceptancePlan = selectCiPlan([
+  'docs/CI_EXECUTION_DESIGN.md',
+  'scripts/test-production-domain-acceptance-retry.sh',
+  'scripts/verify-production-deployment.sh',
+  'scripts/verify-production-domain-acceptance-retry.mjs',
+], { root });
+if (deploymentAcceptancePlan.mode !== 'targeted') failures.push('仅修改部署验收基础设施时必须保持 targeted CI');
+if (!deploymentAcceptancePlan.reasons.includes('path-specific')) failures.push('部署验收基础设施不得被误分类到 gameplay domain');
+if (deploymentAcceptancePlan.it.tests.length !== 0) failures.push(`部署验收基础设施不得误选 gameplay IT: ${deploymentAcceptancePlan.it.tests.join(', ')}`);
+if (deploymentAcceptancePlan.browser.mode !== 'none') failures.push(`部署验收基础设施不得误选 gameplay ST-browser: ${deploymentAcceptancePlan.browser.mode}`);
+if (!deploymentAcceptancePlan.dt.commands.some((item) => (
+  item.command === 'node' && item.args.length === 1 && item.args[0] === 'scripts/verify-production-domain-acceptance-retry.mjs'
+))) failures.push('部署验收变更必须执行正式域名专项 verifier');
 
 const behavior = spawnSync('bash', ['scripts/test-production-domain-acceptance-retry.sh'], {
   cwd: root,
@@ -59,4 +76,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('正式域名公网验收防回退通过：DNS/传输瞬时失败有界重试，真实域名与 45 秒门槛保持不变。');
+console.log('正式域名公网验收防回退通过：DNS/传输瞬时失败有界重试，部署验收 CI 领域边界与 45 秒门槛保持不变。');
