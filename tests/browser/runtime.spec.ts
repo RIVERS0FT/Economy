@@ -406,9 +406,7 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   await page.setViewportSize({ width: 900, height: 1000 });
   expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(1);
 
-  const nestedOverflowModes = await page.locator('.overview-open-orders-list')
-    .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowY));
-  expect(nestedOverflowModes).toEqual(['visible']);
+  await expect(page.locator('.overview-open-orders-list')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
