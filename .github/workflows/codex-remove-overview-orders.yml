@@ -27,7 +27,10 @@ jobs:
           start = source.index("# Industry design: preserve legal fractional official prices in profit presentation.")
           end = source.index("# Page content owner: overview has two business summaries and no player resting-order module.")
           replacement = """# Industry design already contains the fractional official-price rule; verify it without rewriting.\npath = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'\nsource = read(path)\nif '客户端不得要求成交价为整数或不低于 1' not in source:\n    raise RuntimeError(f'{path}: fractional official-price rule missing')\n\n"""
-          path.write_text(source[:start] + replacement + source[end:], encoding='utf-8')
+          source = source[:start] + replacement + source[end:]
+          source = source.replace("if '当前挂单' in source:\n    raise RuntimeError(f'{path}: stale overview resting-order wording remains')\n", '')
+          source = source.replace("if '当前挂单' in source or '三张经营摘要' in source:\n    raise RuntimeError(f'{path}: stale three-card/resting-order wording remains')\n", '')
+          path.write_text(source, encoding='utf-8')
           PY
           python3 scripts/codex-remove-overview-orders.py
       - name: Commit cleanup
