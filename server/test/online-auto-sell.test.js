@@ -1,16 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applySettledCommodityOrder, createWorld, ensurePlayer } from '../src/domain.js';
+import { createWorld, ensurePlayer } from '../src/domain.js';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../src/industry-catalog.js';
 import { migrateFacilityGroupWorld, productionReservedQuantitiesForPlayer } from '../src/facility-groups.js';
+import { factoryAutoTradeExecutionPolicyFor } from '../src/factory-auto-operation.js';
 import { applyOnlineAutoSell, contractAvailableHoldForAutoSell } from '../src/online-auto-sell.js';
-import { isOpenOrder } from '../src/order-identity.js';
-import { countOpenOrdersForOwner } from '../src/order-book-runtime.js';
 import { DEFAULT_PROVINCE_ID, provinceScopedKey } from '../src/provinces.js';
 
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
-const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
 
 function findLinkedFacilities() {
   for (const producer of FACILITY_TYPE_CATALOG) {
@@ -31,10 +29,6 @@ function findLinkedFacilities() {
 const linked = findLinkedFacilities();
 const fixtureProduct = PRODUCT_CATALOG.find((product) => product.id === linked.productId);
 if (!fixtureProduct) throw new Error('linked product missing');
-
-function roundedPrice(value) {
-  return Math.max(0.01, Math.round(value * 100) / 100);
-}
 
 function createGroup(type, recipe, count, enabled = true) {
   return {
@@ -78,90 +72,51 @@ function configureProducer(world, seller, {
     };
   }
   migrateFacilityGroupWorld(world, now);
-  return {
-    productId: linked.productId,
-    price: roundedPrice(fixtureProduct.basePrice * (mode === 'profit' ? 1.1 : mode === 'supply' ? 0.95 : 1)),
-  };
+  const policy = factoryAutoTradeExecutionPolicyFor(seller, linked.productId, DEFAULT_PROVINCE_ID)?.sell;
+  if (!policy) throw new Error('auto-sell policy missing');
+  return { productId: linked.productId, policy };
 }
 
-function addBuyOrder(world, buyer, productId, quantity, price, id = `buy-${productId}`) {
-  const total = quantity * price;
-  buyer.credits -= total;
-  buyer.frozenCredits += total;
-  world.orders.push({
-    id,
-    provinceId: DEFAULT_PROVINCE_ID,
-    assetKind: 'commodity',
-    assetId: productId,
-    productId,
-    side: 'buy',
-    ownerType: 'player',
-    ownerId: buyer.userId,
-    ownerName: buyer.playerName,
-    price,
-    quantity,
-    remaining: quantity,
-    status: 'open',
-    fills: [],
-    createdAt: now + 1,
-  });
+function marketFor(world, productId) {
+  return world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, productId)];
 }
 
-function ownSellOrders(world, productId) {
-  return world.orders.filter((order) => (
-    Number(order.ownerId) === alice.id && order.productId === productId && order.side === 'sell'
-  ));
+function openPlayerOrders(world) {
+  return world.orders.filter((order) => order.ownerType === 'player' && ['open', 'partial'].includes(order.status));
 }
 
-test('factory automatic selling leaves real standing supply outside the manual quota', () => {
+test('factory automatic selling immediately sells eligible inventory without freezing goods', () => {
   const world = createWorld(now);
   world.orders = [];
   const seller = ensurePlayer(world, alice, now);
+  seller.credits = 0;
   const fixture = configureProducer(world, seller, { mode: 'profit' });
-  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
   seller.inventories[fixture.productId].available = 10;
+  marketFor(world, fixture.productId).officialPrice = fixture.policy.price;
 
   const result = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 1);
 
   assert.equal(result.ok, true, result.message);
-  const order = ownSellOrders(world, fixture.productId).at(-1);
-  assert.ok(order && isOpenOrder(order));
-  assert.equal(order.remaining, 10);
-  assert.equal(order.price, fixture.price);
+  assert.match(result.message, /已按今日系统价/);
   assert.equal(seller.inventories[fixture.productId].available, 0);
-  assert.equal(seller.inventories[fixture.productId].frozen, 10);
-  assert.equal(countOpenOrdersForOwner(world, alice.id), 0);
+  assert.equal(seller.inventories[fixture.productId].frozen, 0);
+  assert.equal(seller.credits, Math.round(fixture.policy.price * 10 * 0.99 * 1_000_000) / 1_000_000);
+  assert.equal(openPlayerOrders(world).length, 0);
+  const completed = world.orders.filter((order) => order.ownerType === 'player' && order.productId === fixture.productId);
+  assert.equal(completed.length, 1);
+  assert.equal(completed[0].status, 'filled');
+  assert.equal(completed[0].remaining, 0);
+  assert.equal(completed[0].price, fixture.policy.price);
 });
 
-test('factory automatic selling fills qualifying demand through the unified order book', () => {
+test('factory automatic selling protects production, contract and extra-cycle inventory', () => {
   const world = createWorld(now);
   world.orders = [];
   const seller = ensurePlayer(world, alice, now);
-  const buyer = ensurePlayer(world, bob, now);
-  const fixture = configureProducer(world, seller, { mode: 'profit' });
-  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
-  seller.inventories[fixture.productId].available = 8;
-  buyer.credits = 100_000;
-  addBuyOrder(world, buyer, fixture.productId, 3, fixture.price + 1);
-
-  const result = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 2);
-
-  assert.equal(result.ok, true, result.message);
-  const order = ownSellOrders(world, fixture.productId).at(-1);
-  assert.ok(order);
-  assert.equal(order.status, 'partial');
-  assert.equal(order.remaining, 5);
-  assert.equal(seller.inventories[fixture.productId].frozen, 5);
-});
-
-test('factory automatic selling protects downstream production cycles and contract holds', () => {
-  const world = createWorld(now);
-  world.orders = [];
-  const seller = ensurePlayer(world, alice, now);
+  seller.credits = 0;
   const fixture = configureProducer(world, seller, { consumerCount: 2, consumerCoverage: 3 });
-  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
   seller.inventories[fixture.productId].available = 50;
-  seller.inventories[fixture.productId].frozen = 1;
+  seller.inventories[fixture.productId].frozen = 0;
   world.productionContracts = [{
     id: 'linked-output-contract',
     kind: 'supply',
@@ -175,123 +130,74 @@ test('factory automatic selling protects downstream production cycles and contra
     completedDeliveries: 0,
     totalDeliveries: null,
   }];
+  marketFor(world, fixture.productId).officialPrice = fixture.policy.price;
 
   const production = productionReservedQuantitiesForPlayer(world, alice.id, DEFAULT_PROVINCE_ID)[fixture.productId];
   const contract = contractAvailableHoldForAutoSell(world, alice.id, fixture.productId, DEFAULT_PROVINCE_ID);
+  const extraCoverage = linked.consumerInput.quantity * 2 * 2;
+  const expectedSold = 50 - production - contract - extraCoverage;
   assert.equal(production, linked.consumerInput.quantity * 2);
   assert.equal(contract, 3);
 
   const result = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 2);
   assert.equal(result.ok, true, result.message);
-  const order = ownSellOrders(world, fixture.productId).at(-1);
-  assert.ok(order && isOpenOrder(order));
-  const extraCoverage = linked.consumerInput.quantity * 2 * 2;
-  assert.equal(order.remaining, 50 - production - contract - extraCoverage);
+  assert.equal(seller.inventories[fixture.productId].available, 50 - expectedSold);
+  assert.equal(seller.inventories[fixture.productId].frozen, 0);
+  assert.equal(openPlayerOrders(world).length, 0);
 });
 
-test('a keep producer disables automatic selling for the shared product', () => {
+test('a keep producer disables automatic selling and creates no managed order', () => {
   const world = createWorld(now);
   world.orders = [];
   const seller = ensurePlayer(world, alice, now);
   const fixture = configureProducer(world, seller, { outputMode: 'keep' });
-  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
   seller.inventories[fixture.productId].available = 10;
 
   const result = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 1);
 
   assert.equal(result.ok, false);
   assert.match(result.message, /工厂策略无需自动出售/);
-  assert.equal(ownSellOrders(world, fixture.productId).length, 0);
-  assert.equal(seller.inventories[fixture.productId].available, 10);
-});
-
-test('switching a producer to keep cancels a stale managed sell so the runtime transaction can commit cleanup', () => {
-  const world = createWorld(now);
-  world.orders = [];
-  const seller = ensurePlayer(world, alice, now);
-  const fixture = configureProducer(world, seller, { mode: 'profit' });
-  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
-  seller.inventories[fixture.productId].available = 10;
-  const first = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 1);
-  assert.equal(first.ok, true, first.message);
-  const managed = ownSellOrders(world, fixture.productId).at(-1);
-  assert.ok(managed && isOpenOrder(managed));
-  assert.equal(seller.inventories[fixture.productId].frozen, 10);
-
-  seller.factoryAutoOperationPolicies[provinceScopedKey(DEFAULT_PROVINCE_ID, linked.producer.id)].outputMode = 'keep';
-  const cleanup = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 2);
-
-  assert.equal(cleanup.ok, true, cleanup.message);
-  assert.match(cleanup.message, /撤销旧托管卖单/);
-  assert.equal(managed.status, 'cancelled');
   assert.equal(seller.inventories[fixture.productId].available, 10);
   assert.equal(seller.inventories[fixture.productId].frozen, 0);
+  assert.equal(openPlayerOrders(world).length, 0);
 });
 
-test('own crossing buy blocks factory automatic selling', () => {
+test('automatic selling waits when the daily official price is below the factory threshold', () => {
   const world = createWorld(now);
   world.orders = [];
   const seller = ensurePlayer(world, alice, now);
-  const fixture = configureProducer(world, seller);
-  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
-  seller.inventories[fixture.productId].available = 10;
-  seller.credits = 100_000;
-  addBuyOrder(world, seller, fixture.productId, 1, fixture.price, 'own-buy');
+  seller.credits = 0;
+  const fixture = configureProducer(world, seller, { mode: 'profit' });
+  seller.inventories[fixture.productId].available = 8;
+  marketFor(world, fixture.productId).officialPrice = Math.max(0.01, Math.floor((fixture.policy.price - 0.01) * 100) / 100);
 
   const result = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 2);
 
-  assert.equal(result.ok, false);
-  assert.match(result.message, /自己的买单/);
-  assert.equal(seller.inventories[fixture.productId].available, 10);
-  assert.equal(ownSellOrders(world, fixture.productId).length, 0);
+  assert.equal(result.ok, true, result.message);
+  assert.match(result.message, /低于自动出售最低价/);
+  assert.equal(seller.inventories[fixture.productId].available, 8);
+  assert.equal(seller.inventories[fixture.productId].frozen, 0);
+  assert.equal(world.orders.filter((order) => order.ownerType === 'player').length, 0);
 });
 
-test('server ignores client product thresholds and uses the factory selling mode', () => {
+test('server ignores client thresholds and executes only the derived factory sell policy', () => {
   const world = createWorld(now);
   world.orders = [];
   const seller = ensurePlayer(world, alice, now);
+  seller.credits = 0;
   const fixture = configureProducer(world, seller, { mode: 'profit' });
-  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
   seller.inventories[fixture.productId].available = 8;
+  marketFor(world, fixture.productId).officialPrice = fixture.policy.price;
 
   const result = applyOnlineAutoSell(world, alice, {
     productId: fixture.productId,
-    price: 0.01,
+    price: 999_999,
     minimumFreeInventory: 7,
   }, now + 2);
 
   assert.equal(result.ok, true, result.message);
-  const order = ownSellOrders(world, fixture.productId).at(-1);
-  assert.ok(order && isOpenOrder(order));
-  assert.equal(order.price, fixture.price);
-  assert.equal(order.remaining, 8);
-});
-
-test('manual market orders still match against a standing factory auto sell order', () => {
-  const world = createWorld(now);
-  world.orders = [];
-  const seller = ensurePlayer(world, alice, now);
-  const buyer = ensurePlayer(world, bob, now);
-  const fixture = configureProducer(world, seller, { mode: 'profit' });
-  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
-  seller.inventories[fixture.productId].available = 6;
-  buyer.credits = 100_000;
-  const standing = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 1);
-  assert.equal(standing.ok, true, standing.message);
-  const order = ownSellOrders(world, fixture.productId).at(-1);
-  assert.ok(order && isOpenOrder(order));
-
-  const buy = applySettledCommodityOrder(world, bob, {
-    provinceId: DEFAULT_PROVINCE_ID,
-    assetKind: 'commodity',
-    assetId: fixture.productId,
-    side: 'buy',
-    quantity: 2,
-    price: roundedPrice(fixture.price + 1),
-  }, now + 2);
-
-  assert.equal(buy.ok, true, buy.message);
-  assert.equal(order.status, 'partial');
-  assert.equal(order.remaining, 4);
-  assert.equal(seller.inventories[fixture.productId].frozen, 4);
+  assert.equal(seller.inventories[fixture.productId].available, 0);
+  const completed = world.orders.find((order) => order.ownerType === 'player' && order.productId === fixture.productId);
+  assert.equal(completed?.price, fixture.policy.price);
+  assert.equal(openPlayerOrders(world).length, 0);
 });
