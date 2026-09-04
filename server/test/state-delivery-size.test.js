@@ -62,6 +62,9 @@ test('48-province initial state remains below two MiB without embedded market hi
     assert.equal(Object.hasOwn(wheatSummary, 'sellOrderCount'), false);
     assert.equal(Object.hasOwn(wheatSummary, 'bestBid'), false);
     assert.equal(Object.hasOwn(wheatSummary, 'bestAsk'), false);
+    if (wheatSummary.demand) {
+      assert.deepEqual(Object.keys(wheatSummary.demand).sort(), ['lastQuantity', 'satisfaction']);
+    }
     assert.equal(typeof wheatSummary.officialPrice, 'number');
     assert.equal(Buffer.byteLength(serialized) <= TWO_MIB, true, `initial state was ${Buffer.byteLength(serialized)} bytes`);
   } finally {
