@@ -46,6 +46,9 @@ for (const [value, expected] of [[999, '999'], [1_000, '1K'], [12_500, '12.5K'],
 try {
   assert.equal(formatFullNumber(12_500), '12,500');
   assert.equal(formatCompactCurrency(1_280), '1.3K');
+  assert.equal(formatCompactCurrency(12.345678), '12.35');
+  assert.equal(formatCompactCurrency(-12.345678), '-12.35');
+  assert.equal(formatCompactCurrency(0.000001), '<0.01');
 } catch {
   failures.push('完整数字或紧凑货币格式异常');
 }
@@ -70,7 +73,16 @@ function forbidText(path, fragments) {
   }
 }
 
-requireText('src/components/shell/GameShell.tsx', ['<CompactRank', 'ariaLabel={rankLabel}']);
+requireText('src/components/shell/GameShell.tsx', [
+  '<CompactRank',
+  'ariaLabel={rankLabel}',
+  'compactValue: <CompactCurrency value={game.credits} />',
+  'compactValue: <CompactCurrency value={derived.totalAssets} />',
+]);
+forbidText('src/components/shell/GameShell.tsx', [
+  'compactValue: formatCompactNumber(game.credits)',
+  'compactValue: formatCompactNumber(derived.totalAssets)',
+]);
 requireText('src/components/ui/CompactNumber.tsx', ['SafeTooltip', 'formatFullNumber(value)', 'formatCompactCurrency(value)']);
 requireText('src/components/ui/CurrencyAmount.tsx', ['SafeTooltip', 'formatCompactCurrency(primitive.value)']);
 forbidText('src/pages/OverviewPage.tsx', ['固定 3s 冷却', '<OverviewWorkButton']);
@@ -100,6 +112,8 @@ requireText('docs/UI_DESIGN_SYSTEM.md', [
   '恢复中文“秒／分钟／小时”的玩家时长展示',
   '恢复“第 N 名”或裸数字排名展示',
   '不得重复状态栏已经显示的净资产和排名',
+  '普通玩家界面的余额、价格、总额、资产、银行和合同金额统一四舍五入显示两位',
+  '所有紧凑只读数值必须复用 `CompactNumber`／`CompactCurrency`／`CompactRank` 或 `CurrencyAmount`',
 ]);
 
 forbidText('src/pages/LeaderboardPage.tsx', [
@@ -132,8 +146,8 @@ requireText('docs/UI_DESIGN_SYSTEM.md', [
 ]);
 
 if (failures.length) {
-  console.error(`时间与排名格式验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`显示格式验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('显示格式验证通过：只读数量、货币与排名统一紧凑显示并提供完整数字 Tooltip，输入继续使用精确值。');
+console.log('显示格式验证通过：只读数量、货币与排名统一紧凑显示并提供完整数字 Tooltip，普通货币保持两位精度，输入继续使用精确值。');
