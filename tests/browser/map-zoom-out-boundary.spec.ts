@@ -2,6 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 
 const EDGE_PROVINCE_IDS = ['110000', '230000', '420000', 'US-WA'];
 
+async function waitForRasterReady(page: Page) {
+  const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
+  await expect.poll(async () => canvas.getAttribute('data-map-raster-ready'), { timeout: 15_000 }).toBe('true');
+}
+
 async function readEdgeProvinceHits(page: Page) {
   return page.evaluate((provinceIds) => {
     const canvas = document.querySelector<HTMLElement>('[data-testid="us-mainland-map"] .province-map-static-viewport');
@@ -32,9 +37,13 @@ async function wheelBurst(page: Page, deltaY: number, count: number) {
   const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
   return canvas.evaluate((container, input) => new Promise<{
     active: string | undefined;
+    rasterActive: string | undefined;
     viewBox: string;
     cameraTransform: string;
+    rasterTransform: string;
     svgOverflow: string;
+    svgOpacity: string;
+    rasterOpacity: string;
   }>((resolve) => {
     const bounds = container.getBoundingClientRect();
     for (let index = 0; index < input.count; index += 1) {
@@ -48,18 +57,23 @@ async function wheelBurst(page: Page, deltaY: number, count: number) {
     }
     requestAnimationFrame(() => {
       const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
+      const raster = container.querySelector<HTMLCanvasElement>('.province-map-camera-raster');
       const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
       resolve({
         active: container.dataset.mapZoomActive,
+        rasterActive: container.dataset.mapRasterActive,
         viewBox: svg?.getAttribute('viewBox') ?? '',
         cameraTransform: camera ? getComputedStyle(camera).transform : 'none',
+        rasterTransform: raster ? getComputedStyle(raster).transform : 'none',
         svgOverflow: svg ? getComputedStyle(svg).overflow : '',
+        svgOpacity: svg ? getComputedStyle(svg).opacity : '',
+        rasterOpacity: raster ? getComputedStyle(raster).opacity : '',
       });
     });
   }), { deltaY, count });
 }
 
-test('states outside the committed viewBox re-enter during transient zoom-out because all 48 paths remain mounted', async ({ page }) => {
+test('all 48 SVG paths remain mounted while active zoom-out is rendered by the raster and settle restores SVG geometry', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -67,6 +81,7 @@ test('states outside the committed viewBox re-enter during transient zoom-out be
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.province-map-static-viewport');
   const camera = map.locator('.province-map-camera-surface');
+  const raster = map.locator('.province-map-camera-raster');
   const svg = map.locator('.province-map-world-svg');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
@@ -74,6 +89,7 @@ test('states outside the committed viewBox re-enter during transient zoom-out be
   await expect(canvas).toHaveAttribute('data-map-camera-preload-mode', 'fixed-world-viewbox');
   await expect(canvas).toHaveAttribute('data-map-world-path-count', '48');
   await expect(map.locator('.province-map-region')).toHaveCount(48);
+  await waitForRasterReady(page);
 
   const initialHits = await readEdgeProvinceHits(page);
   expect(initialHits.every((entry) => entry.insideCanvas)).toBe(true);
@@ -85,43 +101,53 @@ test('states outside the committed viewBox re-enter during transient zoom-out be
   ));
   const zoomedInFrame = await wheelBurst(page, -180, 8);
   expect(zoomedInFrame.active).toBe('true');
-  expect(zoomedInFrame.viewBox).not.toBe(initialViewBox);
-  expect(zoomedInFrame.cameraTransform).not.toBe('none');
+  expect(zoomedInFrame.rasterActive).toBe('true');
+  expect(zoomedInFrame.viewBox).toBe(initialViewBox);
+  expect(zoomedInFrame.cameraTransform).toBe('none');
+  expect(zoomedInFrame.rasterTransform).not.toBe('none');
   expect(zoomedInFrame.svgOverflow).toBe('visible');
-  const preloadViewBox = zoomedInFrame.viewBox;
-  const zoomedInHits = await readEdgeProvinceHits(page);
-  const offscreenBeforeZoomOut = zoomedInHits.filter((entry) => !entry.insideCanvas).length;
-  expect(offscreenBeforeZoomOut).toBeGreaterThanOrEqual(2);
+  expect(zoomedInFrame.svgOpacity).toBe('0');
+  expect(zoomedInFrame.rasterOpacity).toBe('1');
   await expect(map.locator('.province-map-region')).toHaveCount(48);
 
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
   const zoomedSettledViewBox = await svg.getAttribute('viewBox');
   expect(zoomedSettledViewBox).not.toBe(initialViewBox);
-  expect(zoomedSettledViewBox).not.toBe(preloadViewBox);
   await expect(camera).toHaveCSS('transform', 'none');
+  await expect(raster).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
+
+  const zoomedInHits = await readEdgeProvinceHits(page);
+  const offscreenBeforeZoomOut = zoomedInHits.filter((entry) => !entry.insideCanvas).length;
+  expect(offscreenBeforeZoomOut).toBeGreaterThanOrEqual(2);
 
   const zoomOutActiveFrame = await wheelBurst(page, 180, 16);
   expect(zoomOutActiveFrame.active).toBe('true');
-  expect(zoomOutActiveFrame.viewBox).toBe(preloadViewBox);
-  expect(zoomOutActiveFrame.viewBox).not.toBe(zoomedSettledViewBox);
-  expect(zoomOutActiveFrame.cameraTransform).not.toBe('none');
-  expect(zoomOutActiveFrame.svgOverflow).toBe('visible');
-  const restoredDuringActiveZoom = await readEdgeProvinceHits(page);
-  expect(restoredDuringActiveZoom.every((entry) => entry.insideCanvas)).toBe(true);
-  expect(restoredDuringActiveZoom.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
+  expect(zoomOutActiveFrame.rasterActive).toBe('true');
+  expect(zoomOutActiveFrame.viewBox).toBe(zoomedSettledViewBox);
+  expect(zoomOutActiveFrame.cameraTransform).toBe('none');
+  expect(zoomOutActiveFrame.rasterTransform).not.toBe('none');
+  expect(zoomOutActiveFrame.svgOpacity).toBe('0');
+  expect(zoomOutActiveFrame.rasterOpacity).toBe('1');
+  await expect(map.locator('.province-map-region')).toHaveCount(48);
 
   const pathsAfter = await map.locator('.province-map-region').evaluateAll((paths) => (
     paths.map((path) => path.getAttribute('d'))
   ));
   expect(pathsAfter).toEqual(pathsBefore);
+
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
   expect(await svg.getAttribute('viewBox')).toBe(initialViewBox);
   await expect(camera).toHaveCSS('transform', 'none');
+  await expect(raster).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
 
-  const california = restoredDuringActiveZoom.find((entry) => entry.provinceId === '110000');
+  const restored = await readEdgeProvinceHits(page);
+  expect(restored.every((entry) => entry.insideCanvas)).toBe(true);
+  expect(restored.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
+
+  const california = restored.find((entry) => entry.provinceId === '110000');
   if (!california) throw new Error('California probe missing');
   await page.mouse.click(california.x, california.y);
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '110000');
