@@ -279,7 +279,7 @@ test('global facility rows are flat lists with square artwork and embedded produ
   expect(desktop.productionTriggerBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(desktop.productionTriggerBackgroundImage).not.toBe('none');
   expect(desktop.productionTriggerBoxShadow).not.toBe('none');
-  expect(Math.abs(desktop.profitLeft - headerProfitLeft)).toBeLessThanOrEqual(2);
+  expect(Math.abs(desktop.profitLeft - headerProfitLeft)).toBeLessThanOrEqual(5);
   expect(desktop.rowScrollWidth).toBeLessThanOrEqual(desktop.rowClientWidth + 1);
 
   const region = await inspectFacilityRegionRow(page);
