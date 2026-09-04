@@ -26,6 +26,8 @@ IT 负责证明服务器模块在真实事务、SQLite、状态投影、幂等�
 
 Targeted 模式必须由选择器挑出与改动相关的 IT 文件，并通过统一覆盖率执行器运行；full 模式执行完整 `server/test/*.test.js`。服务端源码若无法归入任何领域且没有任何 verifier、IT 或 ST 引用，必须回退 full，而不是静默跳过验证。
 
+Targeted IT 的领域扩散只允许从本次变更中的 `server/src/**/*.js` 或直接修改的 `server/test/*.test.js` 推导；纯前端源码、设计文档、浏览器 spec、静态 verifier 或其他非服务端路径不得仅凭 `province`、`market` 等同名领域把服务器 IT 加入计划。服务器测试对改动文件存在直接引用时仍可按引用关系选择；`shared/`、`server/shared/` 与既有 high-risk 核心边界继续回退 full。这样 targeted IT 的 loaded-code 覆盖率只衡量与真实服务端影响相关的测试加载图，不得用无服务端改动的 UI 领域扩散制造无关分母。
+
 ### 2.3 ST（System Test）
 
 ST 负责从完整系统或真实用户输入角度验证运行行为：
@@ -138,6 +140,7 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 让主分支 required `build` 在所需 ST-browser 失败、取消或未完成时成功；
 - 删除 DT／IT 覆盖率阈值、降低阈值或把关键源码从范围中移除以绕过失败；
 - 在 IT 覆盖率中恢复 `--test-coverage-include`，把 targeted 模式没有加载的服务器源码按零覆盖计入分母；
+- 让纯前端、设计文档、浏览器 spec 或静态 verifier 仅凭同名 gameplay 领域扩散到服务器 IT；Targeted IT 的领域来源必须保持在服务端源码／直接变更 server test，直接引用关系除外。
 - 把部署验收基础设施文件仅因名称含 `production` 重新归入 gameplay `facility` 域，进而无依据扩大到工厂 IT／ST-browser；选择器边界本身发生变化时不得取消 full fallback。
 - 把 selected/full 浏览器测试重新串行放回 DT 或 IT Job；
 - PR/分支需要浏览器验证时只使用单个 Job 执行全部选中测试，或用延长 20 分钟上限替代四分片；
