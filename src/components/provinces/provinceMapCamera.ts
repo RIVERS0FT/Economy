@@ -13,6 +13,7 @@ const MAINLAND_MIN_AREA_RATIO = 2 / 3;
 const MAINLAND_CONTEXT_EXPAND_X = 0.35;
 const MAINLAND_CONTEXT_EXPAND_Y = 0.25;
 const MIN_ZOOM_EPSILON = 1e-5;
+const TRANSIENT_CAMERA_TRANSFORM_PROPERTY = '--province-map-camera-transform';
 
 interface CameraState {
   centerX: number;
@@ -154,7 +155,7 @@ function clampCameraCenter(
   };
 }
 
-function formatViewBoxValue(value: number) {
+function formatCameraValue(value: number) {
   const rounded = Number(value.toFixed(4));
   return Object.is(rounded, -0) ? 0 : rounded;
 }
@@ -180,6 +181,7 @@ export function createProvinceMapCamera(
     zoom: PROVINCE_MAP_ZOOM_MIN,
   };
   let target: CameraState = { ...current };
+  let committed: CameraState = { ...current };
   let metrics: CameraMetrics | null = null;
   let frame: number | null = null;
   let settleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -206,12 +208,13 @@ export function createProvinceMapCamera(
 
   container.dataset.mapRenderer = 'static-svg';
   container.dataset.mapCameraMode = 'svg-viewbox';
-  container.dataset.mapCameraHotPath = 'single-svg-viewbox-write';
+  container.dataset.mapCameraHotPath = 'single-css-transform-write';
+  container.dataset.mapCameraTransientMode = 'compositor-transform';
   container.dataset.mapCameraGeometryMode = 'immutable-svg-world';
   container.dataset.mapZoomMode = 'svg-viewbox';
   container.dataset.mapZoomCameraMode = 'fixed-world-viewbox';
-  container.dataset.mapZoomHotPath = 'viewbox';
-  container.dataset.mapZoomCommitMode = 'none';
+  container.dataset.mapZoomHotPath = 'css-transform';
+  container.dataset.mapZoomCommitMode = 'settle-viewbox';
   container.dataset.mapZoomScaleMode = 'logical-fixed-world';
   container.dataset.mapTapSuppressMs = String(MULTITOUCH_TAP_SUPPRESS_MS);
   container.dataset.mapCameraBoundaryMode = options.focusBounds ? 'fixed-world-bounds' : 'source-viewbox';
@@ -375,14 +378,34 @@ export function createProvinceMapCamera(
     publishMultiTouchState();
   };
 
+  const transientTransformFor = (state: CameraState, currentMetrics = readMetrics()) => {
+    const committedView = viewBoxFor(committed, currentMetrics);
+    const nextView = viewBoxFor(state, currentMetrics);
+    const viewportWidth = Math.max(1, currentMetrics?.viewportWidth ?? container.clientWidth);
+    const viewportHeight = Math.max(1, currentMetrics?.viewportHeight ?? container.clientHeight);
+    const scaleX = committedView.width / Math.max(Number.EPSILON, nextView.width);
+    const scaleY = committedView.height / Math.max(Number.EPSILON, nextView.height);
+    const scale = (scaleX + scaleY) / 2;
+    const translateX = ((committedView.x - nextView.x) / Math.max(Number.EPSILON, nextView.width)) * viewportWidth;
+    const translateY = ((committedView.y - nextView.y) / Math.max(Number.EPSILON, nextView.height)) * viewportHeight;
+    return `translate3d(${formatCameraValue(translateX)}px, ${formatCameraValue(translateY)}px, 0) scale(${formatCameraValue(scale)})`;
+  };
+
   const writeCamera = () => {
     frame = null;
     if (destroyed) return;
     current = normalizedState(target, metrics);
     target = { ...current };
-    const view = viewBoxFor(current, metrics);
-    svg.setAttribute('viewBox', `${formatViewBoxValue(view.x)} ${formatViewBoxValue(view.y)} ${formatViewBoxValue(view.width)} ${formatViewBoxValue(view.height)}`);
+    surface.style.setProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY, transientTransformFor(current, metrics));
     frameCount += 1;
+    writeCount += 1;
+  };
+
+  const commitCamera = () => {
+    const view = viewBoxFor(current, metrics);
+    svg.setAttribute('viewBox', `${formatCameraValue(view.x)} ${formatCameraValue(view.y)} ${formatCameraValue(view.width)} ${formatCameraValue(view.height)}`);
+    surface.style.removeProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY);
+    committed = { ...current };
     writeCount += 1;
   };
 
@@ -400,6 +423,7 @@ export function createProvinceMapCamera(
       settleTimer = setTimeout(finishSettle, Math.max(1, remaining > 0 ? remaining : 16));
       return;
     }
+    commitCamera();
     inputMode = 'idle';
     setActive(false);
     interactionBounds = null;
@@ -448,10 +472,12 @@ export function createProvinceMapCamera(
     };
     clampTarget();
     current = { ...target };
+    committed = { ...current };
     inputMode = 'reset';
     active = false;
     const view = viewBoxFor(current, currentMetrics);
-    svg.setAttribute('viewBox', `${formatViewBoxValue(view.x)} ${formatViewBoxValue(view.y)} ${formatViewBoxValue(view.width)} ${formatViewBoxValue(view.height)}`);
+    svg.setAttribute('viewBox', `${formatCameraValue(view.x)} ${formatCameraValue(view.y)} ${formatCameraValue(view.width)} ${formatCameraValue(view.height)}`);
+    surface.style.removeProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY);
     writeCount += 1;
     publishState();
   };
@@ -717,6 +743,7 @@ export function createProvinceMapCamera(
       if (frame !== null) cancelAnimationFrame(frame);
       if (settleTimer !== null) clearTimeout(settleTimer);
       if (multiTouchIdleTimer !== null) clearTimeout(multiTouchIdleTimer);
+      surface.style.removeProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY);
       container.removeEventListener('wheel', handleWheel);
       container.removeEventListener('pointerdown', handlePointerDown);
       container.removeEventListener('pointermove', handlePointerMove);
