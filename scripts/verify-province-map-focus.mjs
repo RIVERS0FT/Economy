@@ -131,8 +131,8 @@ requireText(
 );
 requireText(
   designSource,
-  '直接写浏览器内建的 `style.transform`',
-  'authoritative strategic map design must prohibit transient custom-property indirection',
+  '二选一直接写一次浏览器内建 `style.transform`',
+  'authoritative strategic map design must prohibit transient custom-property indirection while preserving one built-in transform write per frame',
 );
 requireText(
   designSource,
