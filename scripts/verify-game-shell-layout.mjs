@@ -180,7 +180,7 @@ check('src/components/shell/DesktopSidebar.tsx', [
   'showIdentity={false}',
   "excludedTabs={['settings']}",
   'className="sidebar-settings sidebar-footer-action"',
-  "onClick={() => onSelect('settings')",
+  "onClick={() => onSelect('settings')}",
 ]);
 forbid('src/components/shell/DesktopSidebar.tsx', ['LogoutIcon', 'onSignOut', 'playerName']);
 check('src/components/shell/StatusBar.tsx', [
