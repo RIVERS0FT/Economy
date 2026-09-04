@@ -91,7 +91,7 @@ async function findUncoveredProvincePoint(page: Page, excludedProvinceId: string
   }, excludedProvinceId);
 }
 
-test('province hover and selection preserve lens fill and neutral focus hierarchy', async ({ page }) => {
+test('province hover and selection preserve lens fill and neutral focus hierarchy without changing the SVG viewBox', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -99,8 +99,9 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.economy-chart__canvas');
   const cameraSurface = map.locator('.province-map-camera-surface');
+  const svg = map.locator('.province-map-world-svg');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
-  await expect(canvas).toHaveAttribute('data-map-camera-mode', 'html-compositor-transform');
+  await expect(canvas).toHaveAttribute('data-map-camera-mode', 'svg-viewbox');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
 
   const hoverBorder = await resolveCssColor(page, '--color-text-secondary');
@@ -110,7 +111,7 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
   await page.mouse.move(blankPoint.x, blankPoint.y);
 
   const baseStyle = await provincePathStyle(page, '150000');
-  const cameraTransform = await cameraSurface.evaluate((element) => getComputedStyle(element).transform);
+  const cameraViewBox = await svg.getAttribute('viewBox');
   const zoomCurrent = await canvas.getAttribute('data-map-zoom-current');
   const zoomTarget = await canvas.getAttribute('data-map-zoom-target');
   const labelLayoutRevision = await canvas.getAttribute('data-map-label-layout-revision');
@@ -128,7 +129,6 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
   expect(selectedHoverStyle.fill).toBe(baseStyle.fill);
   expect(selectedHoverStyle.stroke).toBe(selectedBorder);
   expect(selectedHoverStyle.strokeWidth).toBeGreaterThan(hoverStyle.strokeWidth);
-  expect(selectedHoverStyle.filter).not.toBe('none');
   await coloradoPath.evaluate((path) => path.setAttribute('data-selected', 'false'));
 
   await page.mouse.click(coloradoPoint.x, coloradoPoint.y);
@@ -155,7 +155,8 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
   expect(stillSelected.stroke).toBe(selectedBorder);
   expect(stillSelected.strokeWidth).toBeGreaterThanOrEqual(2.4);
 
-  await expect(cameraSurface).toHaveCSS('transform', cameraTransform);
+  await expect(cameraSurface).toHaveCSS('transform', 'none');
+  expect(await svg.getAttribute('viewBox')).toBe(cameraViewBox);
   await expect(canvas).toHaveAttribute('data-map-zoom-current', zoomCurrent || '');
   await expect(canvas).toHaveAttribute('data-map-zoom-target', zoomTarget || '');
   await expect(canvas).toHaveAttribute('data-map-label-layout-revision', labelLayoutRevision || '');

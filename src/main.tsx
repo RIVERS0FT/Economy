@@ -68,6 +68,7 @@ import './styles/scrolling-page-sections.css';
 import './styles/mobile-status-layout.css';
 import './styles/market-detail-direct-flow.css';
 import './styles/global-facility-narrow.css';
+import './styles/strategic-map-rendering.css';
 
 installIdempotentGameWriteFetch();
 configureRuntimePerformance();

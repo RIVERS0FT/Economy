@@ -48,7 +48,7 @@ async function nextAnimationFrame(page: Page) {
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 }
 
-test('blank double click resets the single compositor camera for paths and labels in the first frame', async ({ page }) => {
+test('blank double click resets the single SVG viewBox camera for paths and labels in the first frame', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -56,12 +56,14 @@ test('blank double click resets the single compositor camera for paths and label
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.province-map-static-viewport');
   const camera = map.locator('.province-map-camera-surface');
+  const svg = map.locator('.province-map-world-svg');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   await nextAnimationFrame(page);
 
   const baselineOutline = await readOutlineGeometry(page);
   const baselineLabelCenter = await provinceLabelVisualCenter(page, '150000');
+  const baselineViewBox = await svg.getAttribute('viewBox');
   const layoutRevision = await canvas.getAttribute('data-map-label-layout-revision');
   const baselinePathRevision = await canvas.getAttribute('data-map-path-revision');
 
@@ -78,6 +80,7 @@ test('blank double click resets the single compositor camera for paths and label
   expect(zoomedOutline.right - zoomedOutline.left).toBeGreaterThan(
     (baselineOutline.right - baselineOutline.left) * 1.05,
   );
+  expect(await svg.getAttribute('viewBox')).not.toBe(baselineViewBox);
 
   const blankPoint = await findMapBlankPoint(page);
   await page.mouse.dblclick(blankPoint.x, blankPoint.y);
@@ -95,13 +98,13 @@ test('blank double click resets the single compositor camera for paths and label
     firstFrameLabelCenter.x - baselineLabelCenter.x,
     firstFrameLabelCenter.y - baselineLabelCenter.y,
   )).toBeLessThan(1.5);
+  expect(await svg.getAttribute('viewBox')).toBe(baselineViewBox);
 
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
   await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');
   await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');
-  const baseScale = await canvas.getAttribute('data-map-zoom-base-scale');
-  expect(Number(baseScale)).toBeGreaterThan(0);
-  expect(await camera.getAttribute('style')).toContain(`scale(${baseScale})`);
+  await expect(camera).toHaveCSS('transform', 'none');
+  await expect(camera).toHaveCSS('will-change', 'auto');
   await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevision || '');
   await expect(canvas).toHaveAttribute('data-map-path-revision', baselinePathRevision || '');
 });

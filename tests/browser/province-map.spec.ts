@@ -34,20 +34,25 @@ test('persistent strategy map uses one static SVG world for 48 states and Chines
 
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.province-map-static-viewport');
+  const svg = map.locator('.province-map-world-svg');
+  const cameraSurface = map.locator('.province-map-camera-surface');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-province-count', '48');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
-  await expect(canvas).toHaveAttribute('data-map-camera-mode', 'html-compositor-transform');
-  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform');
+  await expect(canvas).toHaveAttribute('data-map-camera-mode', 'svg-viewbox');
+  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-svg-viewbox-write');
   await expect(canvas).toHaveAttribute('data-map-camera-geometry-mode', 'immutable-svg-world');
+  await expect(canvas).toHaveAttribute('data-map-camera-boundary-mode', 'fixed-world-bounds');
   await expect(canvas).toHaveAttribute('data-map-fit-mode', 'mainland-area-target');
   await expect(canvas).toHaveAttribute('data-map-contain-viewport', '1440x900');
   await expect(canvas).toHaveAttribute('data-map-world-path-count', '48');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   await expect(canvas).toHaveAttribute('data-map-label-camera-mode', 'shared-static-world');
-  await expect(map.locator('.province-map-world-svg')).toHaveCount(1);
-  await expect(map.locator('.province-map-camera-surface')).toHaveCount(1);
+  await expect(svg).toHaveCount(1);
+  await expect(cameraSurface).toHaveCount(1);
+  await expect(cameraSurface).toHaveCSS('transform', 'none');
+  await expect(cameraSurface).toHaveCSS('will-change', 'auto');
   await expect(map.locator('.province-map-region')).toHaveCount(48);
   await expect(map.locator('.province-map-label')).toHaveCount(48);
   await expect(page.locator('.application-map-layer')).toBeVisible();
@@ -93,12 +98,14 @@ test('persistent strategy map uses one static SVG world for 48 states and Chines
 
   const pathRevision = await canvas.getAttribute('data-map-path-revision');
   const labelRevision = await canvas.getAttribute('data-map-label-layout-revision');
-  const cameraBeforeLens = await map.locator('.province-map-camera-surface').evaluate((node) => node.style.transform);
-  await page.getByRole('navigation', { name: '地图镜头' }).getByRole('button', { name: '市场', exact: true }).click();
+  const viewBoxBeforeLens = await svg.getAttribute('viewBox');
+  const lensBar = page.getByRole('navigation', { name: '地图镜头' });
+  await expect(lensBar).toHaveCSS('backdrop-filter', 'none');
+  await lensBar.getByRole('button', { name: '市场', exact: true }).click();
   await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'market');
   await expect(canvas).toHaveAttribute('data-map-path-revision', pathRevision || '');
   await expect(canvas).toHaveAttribute('data-map-label-layout-revision', labelRevision || '');
-  expect(await map.locator('.province-map-camera-surface').evaluate((node) => node.style.transform)).toBe(cameraBeforeLens);
+  expect(await svg.getAttribute('viewBox')).toBe(viewBoxBeforeLens);
 });
 
 test('state selection opens local context without resetting the static camera', async ({ page }) => {
@@ -107,7 +114,7 @@ test('state selection opens local context without resetting the static camera', 
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.province-map-static-viewport');
-  const camera = map.locator('.province-map-camera-surface');
+  const svg = map.locator('.province-map-world-svg');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
 
   const bounds = await canvas.boundingBox();
@@ -115,14 +122,14 @@ test('state selection opens local context without resetting the static camera', 
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await page.mouse.wheel(0, -320);
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.05);
-  const transformBeforeSelection = await camera.evaluate((node) => node.style.transform);
+  const viewBoxBeforeSelection = await svg.getAttribute('viewBox');
   const labelBefore = await labelCenter(page, '150000');
 
   await map.locator('.province-map-region[data-province-id="150000"]').click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
   await expect(page.getByRole('heading', { name: '科罗拉多', exact: true })).toBeVisible();
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
-  expect(await camera.evaluate((node) => node.style.transform)).toBe(transformBeforeSelection);
+  expect(await svg.getAttribute('viewBox')).toBe(viewBoxBeforeSelection);
   const labelAfter = await labelCenter(page, '150000');
   expect(Math.hypot(labelAfter.x - labelBefore.x, labelAfter.y - labelBefore.y)).toBeLessThan(1.5);
 
@@ -144,7 +151,7 @@ test('state selection opens local context without resetting the static camera', 
 
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
-  expect(await camera.evaluate((node) => node.style.transform)).toBe(transformBeforeSelection);
+  expect(await svg.getAttribute('viewBox')).toBe(viewBoxBeforeSelection);
 });
 
 test('mobile static map keeps labels, touch gestures and hidden tooltip behavior', async ({ page }) => {
