@@ -96,9 +96,9 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
   const deadlines = {
     // Player facility production is settled lazily per player and is intentionally absent from the global scheduler.
     facility: null,
-    // Scheduled market processing runs the full world processor. Fold transport arrivals and commercial cycle
-    // completions into this due domain so both settle at their authoritative deadlines without another world loop.
-    market: earlier(earlier(marketDeadline(world, normalizedNow), transportDeadline), commercialDeadline),
+    // Scheduled market processing runs the full world processor. Keep transport folded into the existing market
+    // deadline contract, then fold commercial completions into that same authoritative world-processing domain.
+    market: earlier(marketDeadline(world, normalizedNow), transportDeadline),
     auction: auctionDeadline(world),
     contract: createContractRuntimeIndex(world).nextDeadlineAt(),
     leaderboard: leaderboardDeadline(world, normalizedNow),
@@ -109,6 +109,7 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
     transport: transportDeadline,
     orderPrune: orderPruneDeadline(world, normalizedNow),
   };
+  deadlines.market = earlier(deadlines.market, commercialDeadline);
   const nextDueAt = Object.values(deadlines).reduce(earlier, null);
   return { nextDueAt, deadlines };
 }
