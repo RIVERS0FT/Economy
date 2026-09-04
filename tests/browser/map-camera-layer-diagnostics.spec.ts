@@ -10,6 +10,11 @@ type LayerSnapshot = {
   height?: number;
 };
 
+type PaintedLayer = {
+  layerId: string;
+  clip?: unknown;
+};
+
 test('diagnose transient map compositing layers and paint counts', async ({ page }) => {
   test.setTimeout(30_000);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -24,9 +29,13 @@ test('diagnose transient map compositing layers and paint counts', async ({ page
 
   let latestLayers: LayerSnapshot[] = [];
   let layerTreeRevision = 0;
+  const paintedLayers: PaintedLayer[] = [];
   cdp.on('LayerTree.layerTreeDidChange', (payload) => {
     latestLayers = payload.layers as LayerSnapshot[];
     layerTreeRevision += 1;
+  });
+  cdp.on('LayerTree.layerPainted', (payload) => {
+    paintedLayers.push(payload as PaintedLayer);
   });
 
   const { root } = await cdp.send('DOM.getDocument', { depth: 1, pierce: true });
@@ -44,31 +53,25 @@ test('diagnose transient map compositing layers and paint counts', async ({ page
     raster: await backendNodeIdFor('.province-map-camera-raster'),
   };
 
-  const relevantLayers = () => latestLayers.filter((layer) => (
-    layer.backendNodeId != null
-    && Object.values(backendNodeIds).includes(layer.backendNodeId)
-  ));
-
-  const describeLayers = async () => Promise.all(relevantLayers().map(async (layer) => {
-    let reasons: string[] = [];
+  const describeBackendNode = async (backendNodeId?: number) => {
+    if (backendNodeId == null) return null;
     try {
-      const response = await cdp.send('LayerTree.compositingReasons', { layerId: layer.layerId });
-      reasons = response.compositingReasons ?? [];
+      const { node } = await cdp.send('DOM.describeNode', { backendNodeId, depth: 0, pierce: true });
+      const attributes = Object.fromEntries(Array.from({ length: Math.floor((node.attributes?.length ?? 0) / 2) }, (_, index) => [
+        node.attributes?.[index * 2] ?? '',
+        node.attributes?.[index * 2 + 1] ?? '',
+      ]));
+      return {
+        nodeName: node.nodeName,
+        localName: node.localName,
+        id: attributes.id ?? null,
+        class: attributes.class ?? null,
+        dataTestId: attributes['data-testid'] ?? null,
+      };
     } catch {
-      reasons = ['compositing-reasons-unavailable'];
+      return { nodeName: 'unavailable', localName: '', id: null, class: null, dataTestId: null };
     }
-    const owner = Object.entries(backendNodeIds).find(([, backendNodeId]) => backendNodeId === layer.backendNodeId)?.[0] ?? 'unknown';
-    return {
-      owner,
-      layerId: layer.layerId,
-      parentLayerId: layer.parentLayerId ?? null,
-      drawsContent: layer.drawsContent ?? null,
-      paintCount: layer.paintCount ?? null,
-      width: layer.width ?? null,
-      height: layer.height ?? null,
-      reasons,
-    };
-  }));
+  };
 
   const frames = await viewport.evaluate(async (container) => {
     const bounds = container.getBoundingClientRect();
@@ -89,17 +92,64 @@ test('diagnose transient map compositing layers and paint counts', async ({ page
     return samples;
   });
 
-  // LayerTree does not guarantee an initial event immediately after enable. The real
-  // wheel/RAF burst above creates the compositor change we need to observe instead.
   await expect.poll(() => layerTreeRevision, { timeout: 3_000 }).toBeGreaterThan(0);
+  const activeLayers = [...latestLayers];
   const activeRevision = layerTreeRevision;
-  const active = await describeLayers();
+  const paintedCounts = new Map<string, number>();
+  for (const painted of paintedLayers) paintedCounts.set(painted.layerId, (paintedCounts.get(painted.layerId) ?? 0) + 1);
+
+  const layerById = new Map(activeLayers.map((layer) => [layer.layerId, layer]));
+  const targetLayerIds = new Set(activeLayers
+    .filter((layer) => layer.backendNodeId != null && Object.values(backendNodeIds).includes(layer.backendNodeId))
+    .map((layer) => layer.layerId));
+  const includeLayerIds = new Set<string>([
+    ...targetLayerIds,
+    ...paintedCounts.keys(),
+    ...activeLayers.filter((layer) => (layer.paintCount ?? 0) > 0).map((layer) => layer.layerId),
+  ]);
+  for (const layerId of [...targetLayerIds]) {
+    let current = layerById.get(layerId);
+    while (current?.parentLayerId) {
+      includeLayerIds.add(current.parentLayerId);
+      current = layerById.get(current.parentLayerId);
+    }
+  }
+
+  const describeLayer = async (layer: LayerSnapshot) => {
+    let reasons: string[] = [];
+    try {
+      const response = await cdp.send('LayerTree.compositingReasons', { layerId: layer.layerId });
+      reasons = response.compositingReasons ?? [];
+    } catch {
+      reasons = ['compositing-reasons-unavailable'];
+    }
+    const targetOwner = Object.entries(backendNodeIds).find(([, backendNodeId]) => backendNodeId === layer.backendNodeId)?.[0] ?? null;
+    return {
+      targetOwner,
+      node: await describeBackendNode(layer.backendNodeId),
+      layerId: layer.layerId,
+      parentLayerId: layer.parentLayerId ?? null,
+      backendNodeId: layer.backendNodeId ?? null,
+      drawsContent: layer.drawsContent ?? null,
+      paintCount: layer.paintCount ?? null,
+      paintedEvents: paintedCounts.get(layer.layerId) ?? 0,
+      width: layer.width ?? null,
+      height: layer.height ?? null,
+      reasons,
+    };
+  };
+
+  const active = await Promise.all(activeLayers
+    .filter((layer) => includeLayerIds.has(layer.layerId))
+    .map(describeLayer));
 
   await expect.poll(async () => viewport.getAttribute('data-map-zoom-active'), { timeout: 3_000 }).toBe('false');
   await page.waitForTimeout(50);
-  const settled = await describeLayers();
+  const settled = await Promise.all(latestLayers
+    .filter((layer) => includeLayerIds.has(layer.layerId) || (layer.paintCount ?? 0) > 0)
+    .map(describeLayer));
 
-  console.log(`[map-camera-layer-tree] backend=${JSON.stringify(backendNodeIds)} revisions=${JSON.stringify({ active: activeRevision, settled: layerTreeRevision })} active=${JSON.stringify(active)} settled=${JSON.stringify(settled)} frames=${JSON.stringify(frames)}`);
+  console.log(`[map-camera-layer-tree] backend=${JSON.stringify(backendNodeIds)} revisions=${JSON.stringify({ active: activeRevision, settled: layerTreeRevision })} painted=${JSON.stringify([...paintedCounts.entries()])} active=${JSON.stringify(active)} settled=${JSON.stringify(settled)} frames=${JSON.stringify(frames)}`);
 
   await cdp.detach();
   expect(backendNodeIds.raster).not.toBeNull();
