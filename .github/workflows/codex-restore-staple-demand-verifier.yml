@@ -1,0 +1,43 @@
+name: Restore staple demand verifier
+
+on:
+  push:
+    branches:
+      - codex/daily-system-market
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore verifier and update only retired reserve assertions
+        run: |
+          git show db56b0075477b2bd2f2ac88c86bcb015ee3266d3:scripts/verify-staple-crops-demand.mjs > scripts/verify-staple-crops-demand.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-staple-crops-demand.mjs')
+          text = path.read_text()
+          replacements = {
+              'selling to a reserve transfers reserve funds and does not count as consumption issuance': 'player immediate selling does not consume an internal reserve bid',
+              'buying from a reserve transfers real inventory and returns credits to the reserve': 'player immediate buying does not consume an internal reserve ask',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'missing verifier text: {old}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          Path('.github/workflows/codex-restore-staple-demand-verifier.yml').unlink()
+          PY
+      - name: Commit precise restore
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "精确恢复市场需求 verifier"
+          git push origin HEAD:codex/daily-system-market
