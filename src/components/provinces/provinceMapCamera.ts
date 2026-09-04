@@ -169,7 +169,9 @@ export function createProvinceMapCamera(
   options: ProvinceMapCameraOptions = {},
 ): ProvinceMapCameraController {
   const svg = surface.querySelector<SVGSVGElement>('.province-map-world-svg');
+  const raster = surface.querySelector<HTMLCanvasElement>('.province-map-camera-raster');
   if (!svg) throw new Error('PROVINCE_MAP_WORLD_SVG_REQUIRED');
+  if (!raster) throw new Error('PROVINCE_MAP_RASTER_REQUIRED');
 
   const sourceBase = svg.viewBox.baseVal;
   const sourceViewBox: SourceViewBox = {
@@ -186,6 +188,7 @@ export function createProvinceMapCamera(
   let target: CameraState = { ...current };
   let committed: CameraState = { ...current };
   let transientBasisView: SourceViewBox | null = null;
+  let transientUsesRaster = false;
   let metrics: CameraMetrics | null = null;
   let frame: number | null = null;
   let settleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -401,7 +404,7 @@ export function createProvinceMapCamera(
     container.dataset.mapCameraPreloadViewBox = serializeViewBox(preloadViewFor(currentMetrics));
     container.dataset.mapPanClampCount = String(panClampCount);
     container.dataset.mapZoomActive = active ? 'true' : 'false';
-    container.dataset.mapRasterActive = active && container.dataset.mapRasterReady === 'true' ? 'true' : 'false';
+    container.dataset.mapRasterActive = active && transientUsesRaster ? 'true' : 'false';
     container.dataset.mapZoomFrameCount = String(frameCount);
     container.dataset.mapCameraWriteCount = String(writeCount);
     container.dataset.mapZoomInputMode = inputMode;
@@ -421,13 +424,30 @@ export function createProvinceMapCamera(
     return `translate3d(${formatCameraValue(translateX)}px, ${formatCameraValue(translateY)}px, 0) scale(${formatCameraValue(scale)})`;
   };
 
+  const clearTransientTransforms = () => {
+    surface.style.removeProperty('transform');
+    raster.style.removeProperty('transform');
+  };
+
+  const writeTransientTransform = (transform: string) => {
+    if (transientUsesRaster) raster.style.transform = transform;
+    else surface.style.transform = transform;
+  };
+
   const prepareTransientSurface = () => {
     const currentMetrics = readMetrics();
-    const rasterReady = container.dataset.mapRasterReady === 'true';
+    transientUsesRaster = container.dataset.mapRasterReady === 'true';
     transientBasisView = preloadViewFor(currentMetrics);
-    if (rasterReady) svg.style.opacity = '0';
+    const transform = transientTransformFor(current, currentMetrics);
+    clearTransientTransforms();
+    if (transientUsesRaster) {
+      svg.style.opacity = '0';
+      raster.style.transform = transform;
+      writeCount += 1;
+      return;
+    }
     svg.setAttribute('viewBox', serializeViewBox(transientBasisView));
-    surface.style.transform = transientTransformFor(current, currentMetrics);
+    surface.style.transform = transform;
     writeCount += 2;
   };
 
@@ -436,7 +456,7 @@ export function createProvinceMapCamera(
     if (destroyed) return;
     current = normalizedState(target, metrics);
     target = { ...current };
-    surface.style.transform = transientTransformFor(current, metrics);
+    writeTransientTransform(transientTransformFor(current, metrics));
     frameCount += 1;
     writeCount += 1;
   };
@@ -444,9 +464,10 @@ export function createProvinceMapCamera(
   const commitCamera = () => {
     const view = viewBoxFor(current, metrics);
     svg.setAttribute('viewBox', serializeViewBox(view));
-    surface.style.removeProperty('transform');
+    clearTransientTransforms();
     svg.style.removeProperty('opacity');
     transientBasisView = null;
+    transientUsesRaster = false;
     committed = { ...current };
     writeCount += 1;
   };
@@ -510,6 +531,7 @@ export function createProvinceMapCamera(
     interactionBounds = null;
     metrics = null;
     transientBasisView = null;
+    transientUsesRaster = false;
     const currentMetrics = readMetrics();
     target = {
       centerX: currentMetrics?.baseCenterX ?? sourceViewBox.x + sourceViewBox.width / 2,
@@ -523,7 +545,7 @@ export function createProvinceMapCamera(
     active = false;
     const view = viewBoxFor(current, currentMetrics);
     svg.setAttribute('viewBox', serializeViewBox(view));
-    surface.style.removeProperty('transform');
+    clearTransientTransforms();
     svg.style.removeProperty('opacity');
     writeCount += 1;
     publishState();
@@ -791,7 +813,8 @@ export function createProvinceMapCamera(
       if (settleTimer !== null) clearTimeout(settleTimer);
       if (multiTouchIdleTimer !== null) clearTimeout(multiTouchIdleTimer);
       transientBasisView = null;
-      surface.style.removeProperty('transform');
+      transientUsesRaster = false;
+      clearTransientTransforms();
       svg.style.removeProperty('opacity');
       container.removeEventListener('wheel', handleWheel);
       container.removeEventListener('pointerdown', handlePointerDown);
