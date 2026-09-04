@@ -131,8 +131,18 @@ if (!hasDtCommand(marketPlan, 'node', ['scripts/run-code-coverage.mjs', 'dt'])) 
 if (!hasDtCommand(marketPlan, 'npm', ['run', 'typecheck'])) failures.push('前端 targeted DT 必须执行 TypeScript 检查');
 if (!hasDtCommand(marketPlan, './node_modules/.bin/vite', ['build'])) failures.push('前端 targeted DT 必须执行 Vite 生产构建');
 if (marketPlan.browser.mode !== 'selected' || marketPlan.browser.tests.length === 0) failures.push('市场页面改动必须选择相关 Playwright ST');
+if (marketPlan.it.tests.length !== 0) failures.push('纯前端市场改动不得仅因领域关键词拉起 server IT');
 if (hasDtCommand(marketPlan, 'node', ['scripts/verify-market-page-layout-regional.mjs'])) failures.push('targeted DT 不得绕过市场正式组合 verifier 执行内部地区检查');
 if (!hasDtCommand(marketPlan, 'node', ['scripts/verify-market-page-layout.mjs'])) failures.push('市场页面改动必须通过正式 market-page-layout 入口验证');
+
+const shellPlan = selectCiPlan(['src/components/shell/GameShell.tsx']);
+if (shellPlan.mode !== 'targeted') failures.push('纯前端 shell 改动必须使用 targeted CI');
+if (shellPlan.it.tests.length !== 0) failures.push('纯前端 shell 改动不得仅因 tutorial/shell 领域关键词拉起 server IT');
+if (shellPlan.browser.mode !== 'selected' || shellPlan.browser.tests.length === 0) failures.push('纯前端 shell 改动仍必须选择相关 Playwright ST');
+
+const tutorialServerPlan = selectCiPlan(['server/src/tutorial-store.js']);
+if (tutorialServerPlan.mode !== 'targeted') failures.push('教程服务端改动必须使用 targeted CI');
+if (!tutorialServerPlan.it.tests.some((path) => /tutorial/i.test(path))) failures.push('教程服务端改动仍必须通过领域匹配选择相关 IT');
 
 const facilityPlan = selectCiPlan(['src/pages/GlobalBuildingsPage.tsx']);
 if (facilityPlan.mode !== 'targeted') failures.push('建筑页面改动必须使用 targeted CI');
@@ -240,6 +250,7 @@ requireCiDesignText('IT（Integration Test）', 'CI 执行设计必须定义 IT'
 requireCiDesignText('ST（System Test）', 'CI 执行设计必须定义 ST');
 requireCiDesignText('DT 最低覆盖率固定为', 'CI 执行设计必须锁定 DT coverage');
 requireCiDesignText('IT 最低覆盖率固定为', 'CI 执行设计必须锁定 IT coverage');
+requireCiDesignText('领域匹配扩展 `server/test` 候选只允许在本次 changed files 含 `server/src` 源码时启用', 'CI 执行设计必须锁定 targeted IT 的服务端源码边界');
 requireCiDesignText('最终 `build` 聚合 Job 只做门禁汇总', 'CI 执行设计必须锁定稳定 required build 聚合门禁');
 requireCiDesignText('targeted 模式必须把选择器已经确定的同一组 Playwright spec 交给四个 shard', 'CI 执行设计必须保持 targeted ST 选择器唯一权威');
 requireCiDesignText('不得通过提高 Job 超时', 'CI 执行设计必须禁止通过延长超时掩盖浏览器失败');
