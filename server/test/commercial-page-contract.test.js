@@ -8,6 +8,7 @@ function read(relativePath) {
 
 test('province page keeps market-commerce-industry order and commercial detail navigation', () => {
   const province = read('src/pages/ProvincePage.tsx');
+  const provinceStyles = read('src/styles/province-page.css');
   const stack = read('src/navigation/playerPageStack.ts');
   const commerce = read('src/pages/CommercePage.tsx');
 
@@ -15,6 +16,7 @@ test('province page keeps market-commerce-industry order and commercial detail n
   const commerceIndex = province.indexOf("{ id: 'commerce', label: '商业' }");
   const industryIndex = province.indexOf("{ id: 'buildings', label: '工业' }");
   assert.ok(marketIndex >= 0 && commerceIndex > marketIndex && industryIndex > commerceIndex);
+  assert.match(provinceStyles, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
   assert.match(stack, /ProvinceSection = 'overview' \| 'market' \| 'commerce' \| 'buildings' \| 'warehouse'/);
   assert.match(stack, /type: 'regional-commercial'/);
   assert.match(province, /EmbeddedCommercePage/);
@@ -36,9 +38,12 @@ test('province page keeps market-commerce-industry order and commercial detail n
 test('commercial rules remain independently documented from industrial production', () => {
   const index = read('docs/README.md');
   const design = read('docs/COMMERCIAL_BUILDINGS_DESIGN.md');
+  const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
   assert.match(index, /`COMMERCIAL_BUILDINGS_DESIGN\.md` \| 商业建筑资产、地区商品消费、营业周期与固定商业利润/);
   assert.match(design, /商业建筑不是工厂的另一种配方/);
   assert.match(design, /固定商业利润是服务器目录声明的\*\*绝对金额\*\*/);
   assert.match(design, /不得跨州寻找库存/);
   assert.match(design, /不是市场成交/);
+  assert.match(pageDesign, /概览｜市场｜商业｜工业｜仓库/);
+  assert.match(pageDesign, /技术 section ID 不迁移/);
 });
