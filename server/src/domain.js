@@ -3,6 +3,12 @@ import { randomUUID } from 'node:crypto';
 import * as core from './domain-core.js';
 import { createBalancedMarketRuntime } from './balanced-market.js';
 import {
+  COMMERCIAL_BUILDING_TYPE_CATALOG,
+  ensureCommercialPlayer,
+  migrateCommercialWorld,
+  processCommercialWorld,
+} from './commercial-buildings.js';
+import {
   createMarketDemandRuntime,
   MARKET_DEMAND_GROUP_CATALOG,
   MARKET_DEMAND_MODEL_VERSION,
@@ -34,6 +40,7 @@ export {
   MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION,
   MARKET_DEMAND_PRODUCT_IDS,
 } from './market-demand.js';
+export { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-buildings.js';
 
 const clone = (value) => structuredClone(value);
 const ORDER_BOOK_INTEGRITY_VERSION = 1;
@@ -278,6 +285,7 @@ export function migrateWorld(world, now = Date.now()) {
     forceRebuild: !hadCompatibleDemandSystem,
   });
   ensurePopulationEconomy(migrated, now);
+  migrateCommercialWorld(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   migrated.playerCommodityInstantTradeVersion = PLAYER_COMMODITY_INSTANT_TRADE_VERSION;
   migrated.auctionFeeEscrowCredits = Math.max(0, Number(migrated.auctionFeeEscrowCredits || 0));
@@ -288,6 +296,7 @@ export function migrateWorld(world, now = Date.now()) {
 
 export function ensurePlayer(world, user, now = Date.now(), { migrate = true } = {}) {
   const player = core.ensurePlayer(world, user, now, { migrate });
+  ensureCommercialPlayer(player, now);
   if (migrate) {
     ensurePopulationEconomy(world, now);
     marketDemand.normalizeWorld(world, now);
@@ -304,6 +313,7 @@ export function processWorld(world, now = Date.now(), { migrate = true } = {}) {
   core.processWorld(world, now, { migrate: false });
   marketDemand.process(world, now);
   balancedMarket.processPriceCycles(world, now);
+  processCommercialWorld(world, now);
   processTransportWorld(world, now);
   processedWorldAt.set(world, now);
   return world;
@@ -438,6 +448,8 @@ export function applyAction(
 export function createClientState(world, userId, now = Date.now(), { migrate = true } = {}) {
   if (migrate) migrateWorld(world, now);
   const state = core.createClientState(world, userId, now, { migrate });
+  const player = world.players?.[String(userId)];
+  if (player) ensureCommercialPlayer(player, now);
   return {
     ...state,
     startingProvinceId: state.startingProvinceId,
@@ -447,6 +459,8 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
     transportShipments: transportShipmentClientState(world, userId),
     products: clone(PRODUCT_CATALOG),
     facilityTypes: clone(FACILITY_TYPE_CATALOG),
+    commercialBuildingTypes: clone(COMMERCIAL_BUILDING_TYPE_CATALOG),
+    commercialBuildingGroups: clone(player?.commercialBuildingGroups || []),
   };
 }
 
