@@ -114,7 +114,7 @@ for (const text of [
   'detailFacilityTypeId={facilityDetailTypeId ?? undefined}',
   'onDetailFacilityChange={handleFacilityDetailChange}',
 ]) assert.equal(provincePage.includes(text), true, `地区工厂二级详情缺少: ${text}`);
-assert.equal(provincePage.includes('actions={sectionSwitch}'), false, '地区四分区切换不得恢复到固定标题操作区');
+assert.equal(provincePage.includes('actions={sectionSwitch}'), false, '地区五分区切换不得恢复到固定标题操作区');
 
 const selectorCardSource = detail.slice(
   detail.indexOf('export function FacilityClusterSelectorCard'),
@@ -279,7 +279,7 @@ for (const text of [
   '正式呈现恢复为原 4:5 插画卡片',
   '列表正式使用三列',
   '点击工厂卡片后进入当前地区建筑分区内部的二级详情视图',
-  '地区“概览 / 市场 / 建筑 / 仓库”是正文级子导航',
+  '地区子导航的名称与顺序以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为唯一权威',
   '移动端工厂卡点击行为与桌面一致',
 ]) assert.equal(buildingLayoutDesign.includes(text), true, `地区建筑权威设计缺少: ${text}`);
 

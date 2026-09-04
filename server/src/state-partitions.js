@@ -18,6 +18,7 @@ const CATALOG_KEYS = new Set([
   'version',
   'products',
   'facilityTypes',
+  'commercialBuildingTypes',
   'researchLevels',
   'researchTechnologies',
   'provinces',

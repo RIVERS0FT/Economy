@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
+import { applyCommercialBuildingAction } from './commercial-buildings.js';
 import { applyProductionContractAction, processProductionContracts } from './contracts.js';
 import { applySettledCommodityOrder, cancelSettledCommodityOrder, ensurePlayer } from './domain.js';
 import { assertEconomicStateInvariants, assertEconomicStateInvariantsScoped, beginEconomicSavepoint } from './economic-mutation.js';
@@ -75,6 +76,7 @@ const CONTRACT_ACTIONS = new Set([
 ]);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe', 'setFacilityRecipes',
+  'commercialBuilding',
   'collectFacility', 'placeOrder', 'cancelOrder', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
@@ -138,6 +140,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
         gameResult = researchAccess;
       } else if (action === 'startResearch' || action === 'accelerateResearch') {
         gameResult = applyResearchAction(world, user, action, payload, now);
+      } else if (action === 'commercialBuilding') {
+        gameResult = applyCommercialBuildingAction(world, user, payload, now);
       } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement') {
         gameResult = createFacilityBuildProcurementOrders(world, user, payload, now);
       } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement-cancel') {

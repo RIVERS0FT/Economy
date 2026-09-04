@@ -6,6 +6,7 @@ import {
   PRODUCT_CATALOG,
   processWorld,
 } from './domain.js';
+import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-buildings.js';
 import { ensureWarehouse } from './warehouse.js';
 import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
@@ -1438,6 +1439,10 @@ function assetSummaryFor(world, player) {
     summary.frozen += frozenCount * price;
     return summary;
   }, { transferable: 0, mortgaged: 0, contractLocked: 0, frozen: 0 });
+  const commercialValue = (player.commercialBuildingGroups || []).reduce((sum, group) => {
+    const type = COMMERCIAL_BUILDING_TYPE_CATALOG.find((candidate) => candidate.id === group.commercialTypeId);
+    return sum + Math.max(0, Number(group.count || 0)) * Math.max(0, Number(type?.systemValue || 0));
+  }, 0);
   const bankDepositValue = Number(player?.bankAccount?.depositCredits || 0);
   const availableCashValue = Number(player.credits || 0);
   const frozenCashValue = Number(player.frozenCredits || 0);
@@ -1454,15 +1459,16 @@ function assetSummaryFor(world, player) {
   const inTransitCommodityValue = commodity.inTransit;
   const commodityValue = availableCommodityValue + frozenCommodityValue + inTransitCommodityValue;
   const facilityValue = availableFacilityValue + mortgagedFacilityValue + frozenFacilityValue;
-  const grossAssetValue = cashValue + commodityValue + facilityValue;
+  const grossAssetValue = cashValue + commodityValue + facilityValue + commercialValue;
   const liabilityValue = activeLoanLiability(player) + weeklySettlementLiability(player) + contractLiabilityValue;
   const netAssetValue = grossAssetValue - liabilityValue;
-  const availableAssetValue = availableCashValue + bankDepositValue + availableCommodityValue + availableFacilityValue - liabilityValue;
+  const availableAssetValue = availableCashValue + bankDepositValue + availableCommodityValue + availableFacilityValue + commercialValue - liabilityValue;
   const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue + mortgagedFacilityValue + contractReceivableValue;
   return {
     cashValue,
     commodityValue,
     facilityValue,
+    commercialValue,
     bankDepositValue,
     contractReceivableValue,
     contractLiabilityValue,

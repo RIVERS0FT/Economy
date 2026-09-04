@@ -2,6 +2,7 @@ import { createContractRuntimeIndex } from './contract-runtime-index.js';
 import { nextDailyCheckInResetAt } from './daily-check-in.js';
 import { nextBankDeadlineAt } from './banking.js';
 import { nextWeeklyCashSettlementDeadlineAt } from './weekly-cash-settlement.js';
+import { nextCommercialBuildingDeadline } from './commercial-building-deadline.js';
 import { isOpenOrder } from './order-identity.js';
 import { POPULATION_POLICY_CYCLE_MS } from './population-policy.js';
 import { nextEconomicEventDeadline } from './economic-events.js';
@@ -91,11 +92,12 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
     return { nextDueAt: normalizedNow, deadlines: { initialization: normalizedNow } };
   }
   const transportDeadline = nextTransportDeadline(world);
+  const commercialDeadline = nextCommercialBuildingDeadline(world);
   const deadlines = {
     // Player facility production is settled lazily per player and is intentionally absent from the global scheduler.
     facility: null,
-    // Scheduled market processing runs the full world processor. Fold transport arrivals into this due domain so
-    // staged deliveries settle at their authoritative stop deadline instead of waiting for the next market cycle.
+    // Scheduled market processing runs the full world processor. Keep transport folded into the existing market
+    // deadline contract, then fold commercial completions into that same authoritative world-processing domain.
     market: earlier(marketDeadline(world, normalizedNow), transportDeadline),
     auction: auctionDeadline(world),
     contract: createContractRuntimeIndex(world).nextDeadlineAt(),
@@ -107,6 +109,7 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
     transport: transportDeadline,
     orderPrune: orderPruneDeadline(world, normalizedNow),
   };
+  deadlines.market = earlier(deadlines.market, commercialDeadline);
   const nextDueAt = Object.values(deadlines).reduce(earlier, null);
   return { nextDueAt, deadlines };
 }

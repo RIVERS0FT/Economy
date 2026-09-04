@@ -144,7 +144,7 @@ for (const text of [
   'detailFacilityTypeId={facilityDetailTypeId ?? undefined}',
   'onDetailFacilityChange={handleFacilityDetailChange}',
 ]) assert.equal(provincePage.includes(text), true, `地区工厂二级详情缺少: ${text}`);
-assert.equal(provincePage.includes('actions={sectionSwitch}'), false, '地区四分区按钮不得回到固定标题操作区');
+assert.equal(provincePage.includes('actions={sectionSwitch}'), false, '地区五分区按钮不得回到固定标题操作区');
 
 for (const text of [
   '删除“建筑概况”卡片',
@@ -153,7 +153,7 @@ for (const text of [
   '正式呈现恢复为原 4:5 插画卡片',
   '列表正式使用三列',
   '点击工厂卡片后进入当前地区建筑分区内部的二级详情视图',
-  '地区“概览 / 市场 / 建筑 / 仓库”是正文级子导航',
+  '地区子导航的名称与顺序以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为唯一权威',
   '第一行是工厂实体名称',
   '第二行是州级地区全称并使用灰色次级文字',
   '`--player-page-title-track-height: 40px`',
