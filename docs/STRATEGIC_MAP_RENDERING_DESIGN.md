@@ -16,16 +16,18 @@
 - 战略地图只保留一个权威 `.province-map-world-svg`。世界大陆、美国连续 48 州、中文州名、运输路线和在途标记都位于这一个 SVG 世界坐标系中；不得创建第二个 SVG 世界或第二套投影。
 - 世界背景的土地填充使用 `world-atlas@2.0.2` 的 Natural Earth 1:10m countries 数据，经确定性生成器 dissolve 北美上下文国家、裁剪未引用 arc 后形成运行时 TopoJSON；低对比海岸主线和外侧层次描边使用同一版本、同一国家集合按相同步骤派生的 1:110m TopoJSON。美国本土经营层和覆盖世界背景的最终美国外轮廓继续使用 `us-atlas@3.0.1` 的 1:10m 州界，不降低交互区域的边界精度。
 - `non-obvious reason`：根 SVG 的 `viewBox` 变化会让浏览器重新 tessellate 和栅格化可见世界。实测 Chrome 中，即使背景描边已经降为 1:110m，只要在每个交互 RAF 继续改根 `viewBox`，48 个 1:10m 州面、美国轮廓和 SVG 文字仍会让中位帧成本显著超过同浏览器空帧预算。因此根 `viewBox` 只作为 **settled Camera 的矢量权威状态**，不得继续作为高频交互写入面。
-- 进一步实测确认：即使 active Camera 已直接写浏览器内建 `style.transform`、临时启用 `will-change: transform`、关闭 SVG 内裁剪、移除 `contain:paint`、降低世界背景复杂度，并强制得到 `matrix3d(...)`，Chrome 仍会对变换中的复杂 SVG 重复栅格化，Camera 中位帧约 `70.9–114.2ms`，明显高于约 `41ms` 的 `empty×2+8ms` 门槛。因此 active 热路径不得继续依赖浏览器实时缩放复杂 SVG paint。
+- 进一步实测确认：即使 active Camera 已直接写浏览器内建 `style.transform`、临时启用 `will-change: transform`、关闭 SVG 内裁剪、移除 `contain:paint`、降低世界背景复杂度，并强制得到 `matrix3d(...)`，Chrome 仍会对变换中的复杂 SVG 重复栅格化，Camera 中位帧约 `70.9–114.2ms`，明显高于约 `41ms` 的 `empty×2+8ms` 门槛。因此正式 active 热路径不得继续依赖浏览器实时缩放复杂 SVG paint。
 - 两条世界背景描边各自必须保持低于 `2,000` 个 `M/L` 顶点和 `30,000` 个 path 字符；完整 atlas、预展开浮点 GeoJSON 和超出预算的描边不得进入玩家运行时。
-- `.province-map-camera-raster` 是唯一允许存在的 active 临时栅格层。它必须是同一个 `.province-map-camera-surface` 内、与权威 SVG 同尺寸的非交互 Canvas，只缓存**由当前权威 SVG 派生的完整世界快照**；不得拥有 center、zoom、world bounds、投影、路线几何或独立时间状态，不得响应点击／拖动／滚轮，也不得成为第二套 Camera。
+- `.province-map-camera-raster` 是唯一允许存在的 active 临时栅格层。它必须位于同一个 `.province-map-camera-surface` 内、与权威 SVG 同尺寸，是不接收输入的 Canvas，只缓存**由当前权威 SVG 派生的完整世界快照**；不得拥有 center、zoom、world bounds、投影、路线几何或独立时间状态，不得响应点击／拖动／滚轮，也不得成为第二套 Camera。
 - 栅格快照只能在 idle／settled 阶段、标签布局完成后或真实内容／容器变化后异步生成；生成过程不得位于 Camera RAF、pointermove、wheel burst 或运输 `500ms` 叶子时钟热路径内。快照使用固定 preload world viewBox，像素倍率限制在 `1–2× devicePixelRatio` 范围，不根据逻辑 zoom 扩大纹理尺寸。
 - 栅格快照必须继承当前 SVG 的计算后填充、描边、字体和标签布局；其中非交互世界土地允许直接采用现有 1:110m active LOD 填充。48 州经营面、州名、路线和最终美国轮廓仍来源于同一权威 SVG，不得为快照建立第二份业务几何模型。
+- SVG Blob 解码优先使用 `createImageBitmap`，但浏览器拒绝 SVG Blob 解码时必须自动回退到 `Image` + `decode()`；不得因为存在 `createImageBitmap` 就让其失败直接终止整次快照生成。Blob URL 必须保留到图片完成解码、绘制并释放后才 revoke，避免提前销毁导致 `snapshot-failed`。
 - `us-atlas` 州 path、世界大陆 path、中文州名基础布局、公路／铁路投影折线在模块初始化或真实容器尺寸变化之外不得重新生成。手势期间所有州 path `d`、世界 path `d`、州名基础中心和 glyph `transform` 必须保持不变。
-- `.province-map-camera-surface` 是唯一世界宿主，也是 active 阶段唯一允许发生瞬时合成变换的节点；它同时承载权威 SVG 与非交互 Canvas 快照。**idle／settled 最终样式必须恢复 `transform:none`、`will-change:auto`**，Canvas 必须 `opacity:0`，不得把完整世界长期显示为可缩放纹理。
-- 根 SVG 继续承担 settled 状态的物理视口裁剪；屏幕外州始终完整挂载，不得按 Camera 可见性卸载或重建州面。active 快照可见时，权威 SVG 继续挂载并保留交互 DOM，但临时 `opacity:0`，使浏览器不再为其 active transform 重复 paint；外层战略地图视口始终是最终裁剪边界。
+- `.province-map-camera-surface` 是唯一世界宿主，但在 **raster-ready 正式 active 路径中必须保持 `transform:none / will-change:auto`**；只有 `.province-map-camera-raster` 接收瞬时合成 transform。Canvas idle／settled 必须恢复 `transform:none / will-change:auto / opacity:0`，不得把完整世界长期显示为可缩放纹理。
+- raster-ready active 时，权威 SVG 必须继续挂载并保持最后一次 settled `viewBox`，仅临时 `opacity:0`；不得改为 `display:none`、不得切换到 preload viewBox。这样几何、可访问 DOM 和测试探针仍由同一个权威 SVG 提供，同时浏览器不再把复杂 SVG 放进 active transform 合成链。
+- 根 SVG 继续承担 settled 状态的物理视口裁剪；屏幕外州始终完整挂载，不得按 Camera 可见性卸载或重建州面。active 时外层战略地图视口始终是最终裁剪边界。
 - `.province-map-camera-surface` 自身固定 `contain:none`，不得使用 `contain:paint`、clip-path 或其他重复 paint 裁剪建立第二层瞬时裁剪边界。外层战略地图视口已经负责最终屏幕裁剪。
-- 如果栅格快照尚未准备完成，允许回退到同一权威 SVG 的 active transform 以保证功能正确，但浏览器性能门禁必须等待 `data-map-raster-ready='true'` 后再测量正式 Camera 帧预算；不得通过放宽预算掩盖快照失败。
+- 如果栅格快照尚未准备完成，允许功能性回退：把同一权威 SVG 一次切换到 preload world viewBox，并只对 `.province-map-camera-surface` 写 transient transform；该 fallback 不得创建第二 Camera。正式浏览器性能门禁必须等待 `data-map-raster-ready='true'` 后再测量，不得通过放宽预算掩盖快照失败。
 
 ## 3. Transient Camera + settled viewBox
 
@@ -36,13 +38,14 @@
 - 鼠标滚轮和双指缩放围绕真实屏幕焦点执行：先按当前 target viewBox 把屏幕点反求为世界坐标，再计算新倍率与新视场，并调整 center 使同一世界锚点仍位于该屏幕位置，最后按固定 world bounds clamp。
 - 鼠标／单指拖动把屏幕位移按 target viewBox 尺寸换算为世界坐标中心位移，再使用同一固定边界 clamp。不得先越界再回弹。
 - Camera 初始化／reset 必须发布唯一固定 preload world viewBox。idle 期间的栅格快照只用这个 viewBox 生成，并且不改变 current／target／committed。
-- 输入从 idle 进入 active 时，如果快照已准备完成，必须在 active 边界先把权威 SVG 临时设为不可见、保持 Canvas 可见，再把权威 SVG 的 `viewBox` 一次性切换到同一个 preload world viewBox，随后只让 `.province-map-camera-surface` 承担瞬时 Camera transform。Canvas 与 SVG 同在一个宿主中，因此无需同步第二套 transform。
-- 输入从 idle 进入 active 时，只允许在 active 边界一次性发布诊断状态并由 CSS 临时启用 `.province-map-camera-surface` 的 compositor promotion；不得把 `will-change: transform` 设为永久样式。
-- active 阶段的 `requestAnimationFrame` 热路径只允许：把内存 target 规范化为 current，并对 `.province-map-camera-surface` **直接写浏览器内建的 `style.transform` 一次**。这个 transform 必须完全由“固定 preload viewBox → current 目标 viewBox”的同一 Camera 数学推导，不得读取 DOM 几何、不得写根 SVG `viewBox`、不得发布 `data-*`、不得重绘 Canvas、不得创建定时器、不得提交 React state、不得重算 path／标签、不得调用 ECharts／ZRender。
-- Camera RAF 不得再通过 CSS custom property、`var(...)` 或 `@property` 间接驱动 transform。栅格快照解决的是复杂 SVG transform 下的重复栅格化，不改变“每个 RAF 只直接写一次内建 transform”的规则。
+- 输入从 idle 进入 active 时必须先判断 `data-map-raster-ready`。若快照已准备完成，权威 SVG 保持最后 settled `viewBox` 并临时 `opacity:0`，Canvas 变为可见；transient basis 仍使用快照自身的固定 preload world viewBox，只用于推导 Canvas 的“preload → current” transform，不修改 SVG。
+- raster-ready active 边界只允许一次性发布诊断状态并由 CSS 临时提升 `.province-map-camera-raster`；`.province-map-camera-surface` 必须继续 `transform:none / will-change:auto`。只有 snapshot 未就绪 fallback 才临时提升 Surface，并在进入 active 时一次把 SVG 切到 preload world viewBox。
+- active 阶段的 `requestAnimationFrame` 热路径只允许：把内存 target 规范化为 current，然后**二选一直接写一次浏览器内建 `style.transform`**——raster-ready 时写 `.province-map-camera-raster`，fallback 时写 `.province-map-camera-surface`。不得同帧写两个 transform。
+- 每帧 transform 必须完全由同一 Camera 数学推导；RAF 不得读取 DOM 几何、不得写根 SVG `viewBox`、不得发布 `data-*`、不得重绘 Canvas、不得创建定时器、不得提交 React state、不得重算 path／标签、不得调用 ECharts／ZRender。
+- Camera RAF 不得通过 CSS custom property、`var(...)` 或 `@property` 间接驱动 transform。栅格快照解决的是复杂 SVG transform 下的重复栅格化，不改变“每个 RAF 只直接写一次内建 transform”的规则。
 - 同一任务中的多次 wheel／pointermove 必须合并为下一帧的一次 transient transform 写入。active 热路径不得同时写 transform 与 `viewBox`，不得每帧改 Canvas 尺寸、重新截图或更新 raster revision。
-- 输入 settle 使用单一 deadline 与单一定时器。只要仍有待提交 RAF，本轮不得先进入 idle；deadline 到达且 RAF 已清空后，必须 **一次性** 把 current Camera 提交为根 `.province-map-world-svg` 的最终 `viewBox`；**settle 后必须清除** Camera transform 与 SVG 临时透明度，再切回 idle，使最终样式恢复 `transform:none / will-change:auto`，Canvas 同时恢复 `opacity:0`。
-- reset 和真实容器 resize 可以直接提交新的 settled `viewBox`，并必须同时清除 transient transform 与 SVG 临时透明度。空白双击／双触回到动态 `1×` 美国居中视场。移动双指的 click 抑制窗口继续只负责输入仲裁，不复制 Camera。
+- 输入 settle 使用单一 deadline 与单一定时器。只要仍有待提交 RAF，本轮不得先进入 idle；deadline 到达且 RAF 已清空后，必须 **一次性** 把 current Camera 提交为根 `.province-map-world-svg` 的最终 `viewBox`，同时清除 Surface 与 Canvas 两个可能的 transient transform、SVG 临时透明度和 active 状态。settle 后 Surface 与 Canvas 均恢复 `transform:none / will-change:auto`，Canvas 恢复 `opacity:0`，SVG 恢复 `opacity:1`。
+- reset 和真实容器 resize 可以直接提交新的 settled `viewBox`，并必须同时清除两个 transient transform 与 SVG 临时透明度。空白双击／双触回到动态 `1×` 美国居中视场。移动双指的 click 抑制窗口继续只负责输入仲裁，不复制 Camera。
 - `data-map-raster-ready`、`data-map-raster-revision`、像素尺寸与 preload viewBox 只在初始化、idle 快照完成、真实内容／容器变化和 active/idle 边界同步；不得为了展示每一帧的 current 值而重新生成快照或写诊断属性。
 
 ## 4. 字体与矢量清晰度
@@ -94,12 +97,16 @@
 
 - 每个 wheel／pointermove RAF 都改根 SVG `viewBox`；
 - active RAF 同时改 transient transform 与根 SVG `viewBox`；
+- raster-ready active 时变换 `.province-map-camera-surface`、同时变换 Surface 与 Canvas，或给 Surface 开启 `will-change: transform`；
+- raster-ready active 时把权威 SVG 切换到 preload viewBox、设为 `display:none`，或从 DOM／渲染树移除；
 - 把 `.province-map-camera-surface` transform 重新作为长期或独立权威 Camera，或在 settle 后保留非 `none` transform；
 - 使用 `--province-map-camera-transform`、`@property` 或任何 CSS custom property 间接驱动 active Camera transform；
 - 永久 `will-change: transform` 全世界合成层；
 - 另建第二套 center／zoom、第二投影、第二 SVG 或第二 HTML Camera 与 transient Camera 同步；
 - 让 `.province-map-camera-raster` 拥有 center／zoom／world bounds／投影／输入事件，或把它扩展成第二套地图；
 - 在 Camera RAF、wheel/pointermove 热路径或运输 `500ms` tick 中序列化 SVG、生成 Blob／ImageBitmap、调整 Canvas 像素尺寸、重画 Canvas 或增加 raster revision；
+- 因 `createImageBitmap` 解码 SVG Blob 失败就直接放弃 snapshot，而不尝试 `Image.decode()` 回退；
+- 在图片解码／Canvas draw 完成前 revoke SVG Blob URL；
 - 在 idle／settled 继续显示 `.province-map-camera-raster`，或让快照替代最终 SVG `viewBox` 矢量画面；
 - 州名位图化为独立逐州 Canvas/图片层、独立 HTML 字层，或让 active 整幅快照继续存活到 idle／settled；
 - 逻辑倍率越大、合法 world bounds 越大的动态上下文；
@@ -116,15 +123,15 @@
 
 ## 10. 实现与验证映射
 
-- `src/components/provinces/provinceMapCamera.ts`：唯一 Camera 数学状态、固定 world bounds、焦点反求、固定 preload viewBox、active 直接内建 `style.transform`、SVG/Canvas active 可见性边界、settle 单次 viewBox 提交和输入仲裁。
-- `src/components/provinces/provinceMapRasterSnapshot.ts`：只负责在 idle 从唯一权威 SVG 克隆计算后样式、应用 active 世界 LOD 并异步生成固定 preload viewBox 的 CanvasImageSource；不得包含 Camera 状态或输入逻辑。
+- `src/components/provinces/provinceMapCamera.ts`：唯一 Camera 数学状态、固定 world bounds、焦点反求、固定 preload viewBox、raster-ready active Canvas-only transform、snapshot 缺失时 live-SVG Surface fallback、settle 单次 viewBox 提交和输入仲裁。
+- `src/components/provinces/provinceMapRasterSnapshot.ts`：只负责在 idle 从唯一权威 SVG 克隆计算后样式、应用 active 世界 LOD 并异步生成固定 preload viewBox 的 CanvasImageSource；必须支持 `createImageBitmap → Image.decode()` 解码回退和正确 Blob URL 生命周期，不得包含 Camera 状态或输入逻辑。
 - `src/components/provinces/provinceMapRouteLayout.ts`：公路／铁路中心线复用、航空抛物线、反向 segment 和同源运动采样。
 - `src/components/provinces/UsMainlandMap.tsx`：唯一静态 SVG 世界、路线和 marker 挂载；拥有唯一非交互 `.province-map-camera-raster` 缓存，并只在 idle／内容／尺寸变化时刷新。
 - `src/pages/TransportPage.tsx` 与 `TransportRouteDraftContext`：路线 hover／focus／详情高亮身份。
-- `src/styles/province-map.css` 与 `src/styles/strategic-map-rendering.css`：idle 矢量层级、active compositor promotion、SVG/Canvas 可见性切换、active/idle 世界背景 LOD、无滤镜热路径、三种方式线型和地图专属实体表面；CSS 不再拥有逐帧 Camera transform 值。
+- `src/styles/province-map.css` 与 `src/styles/strategic-map-rendering.css`：idle 矢量层级、raster-ready 时只提升 Canvas、fallback 时才提升 Surface、SVG/Canvas 可见性切换、active/idle 世界背景 LOD、无滤镜热路径、三种方式线型和地图专属实体表面；CSS 不拥有逐帧 Camera transform 值。
 - `scripts/verify-provincial-economy.mjs`、`scripts/verify-province-map-raster-snapshot.mjs`、`scripts/verify-transport-route-lanes.mjs` 与 `scripts/verify-province-map-focus.mjs`：结构防回退。
-- `tests/browser/map-zoom-transient.spec.ts`：正式性能测量前必须等待 `data-map-raster-ready='true'`；同帧 wheel burst 在 active 阶段必须是 `0` 次根 SVG `viewBox` 变化、`1` 次 Camera Surface style 变化、`0` 次诊断属性变化；同时锁定 path/glyph 静态、active Canvas `opacity:1`、live SVG `opacity:0`、settle 后 Canvas `opacity:0` 与 SVG `opacity:1`、Camera `contain:none`、idle `transform:none / will-change:auto`，并继续以同浏览器空帧中位数验证 `empty×2+8ms` 的真实 Camera 帧预算。
+- `tests/browser/map-zoom-transient.spec.ts`：正式性能测量前必须等待 `data-map-raster-ready='true'`；同帧 wheel burst 在 raster-ready active 阶段必须是 `0` 次根 SVG `viewBox` 变化、`0` 次 Camera Surface style 变化、`1` 次 raster Canvas style 变化、`0` 次诊断属性变化；同时锁定 path/glyph 静态、active Canvas `opacity:1`、live SVG `opacity:0`、Surface `transform:none / will-change:auto`、settle 后 Canvas `opacity:0` 与 SVG `opacity:1`，并继续以同浏览器空帧中位数验证 `empty×2+8ms` 的真实 Camera 帧预算。
 - `tests/browser/province-map-world-boundary.spec.ts`：锁定闲置态 10m 土地填充、同源 110m 背景描边、10m 美国本土最终轮廓及背景描边复杂度预算；所有边界重复拖拽比较必须先等待 Camera settle，再以最终 viewBox 验证固定 world bounds，不得把 transient 帧误当 settled 边界。
-- `tests/browser/map-zoom-out-boundary.spec.ts`：锁定缩小 active 阶段已提交／预载 viewBox 与单一 transient transform、48 个 path 始终挂载，settle 后再回写 1× viewBox；active 视觉来源可以是同宿主 Canvas 快照，但不得拥有第二 Camera。
+- `tests/browser/map-zoom-out-boundary.spec.ts`：锁定 raster-ready 缩放 active 阶段 SVG 保持当前 settled viewBox、Camera Surface transform 为 `none`、Canvas 承担唯一 transient transform、48 个 path 始终挂载，settle 后再提交最终 SVG viewBox并恢复实时几何。
 - `tests/browser/map-reset-sync.spec.ts`、`map-mobile-pinch.spec.ts`、`map-zoom-render-sync.spec.ts`、`province-map-focus.spec.ts`：重置、移动双指、settled SVG 同步和州交互不破坏同一 Camera。
 - 运输浏览器回归必须验证重复路线共线、运行时无车道字段、往返无第二 path、公路／铁路／航空路径不同、航空包含 `Q` 曲线、运输标记沿对应几何、高亮不改变路线 `d`，以及地图镜头栏／选路面板最终 `backdrop-filter:none`。
