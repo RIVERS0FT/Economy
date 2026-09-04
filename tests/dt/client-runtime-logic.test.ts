@@ -19,6 +19,7 @@ import {
 import { canAcceptRevision } from '../../src/app/revisionGate.js';
 import { buildAssetAllocation } from '../../src/utils/assetAllocation.ts';
 import { findVisibleRange } from '../../src/utils/virtualListRange.ts';
+import { selectCiPlan } from '../../scripts/select-ci-tests.mjs';
 
 test('asset allocation normalizes invalid values and preserves a 100 percent integer total', () => {
   assert.deepEqual(buildAssetAllocation(50.5, 49.5, 0), {
@@ -73,6 +74,24 @@ test('adaptive polling normalizes configured values and prioritizes background a
   assert.equal(effectivePollingRate({ configuredRate: '3', idle: true }), IDLE_POLLING_RATE);
   assert.equal(effectivePollingRate({ configuredRate: '3', idle: true, hidden: true }), BACKGROUND_POLLING_RATE);
   assert.equal(effectivePollingRate(), DEFAULT_CONFIGURED_POLLING_RATE);
+});
+
+test('deployment acceptance infrastructure stays out of the gameplay facility CI domain', () => {
+  const plan = selectCiPlan([
+    'docs/CI_EXECUTION_DESIGN.md',
+    'scripts/test-production-domain-acceptance-retry.sh',
+    'scripts/verify-production-deployment.sh',
+    'scripts/verify-production-domain-acceptance-retry.mjs',
+  ]);
+  assert.equal(plan.mode, 'targeted');
+  assert.deepEqual(plan.reasons, ['path-specific']);
+  assert.deepEqual(plan.it.tests, []);
+  assert.deepEqual(plan.browser, { mode: 'none', tests: [] });
+  assert.equal(plan.dt.commands.some((item) => (
+    item.command === 'node'
+    && item.args.length === 1
+    && item.args[0] === 'scripts/verify-production-domain-acceptance-retry.mjs'
+  )), true);
 });
 
 test('immediate facility intent lifecycle handles acknowledgement, reconciliation, rejection and subscriptions', () => {

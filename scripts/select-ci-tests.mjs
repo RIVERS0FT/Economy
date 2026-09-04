@@ -55,6 +55,12 @@ const COMPOSED_VERIFY_ENTRYPOINTS = new Map([
   ['scripts/verify-market-page-layout-regional.mjs', 'scripts/verify-market-page-layout.mjs'],
 ]);
 
+const DEPLOYMENT_ACCEPTANCE_PATH_PATTERNS = [
+  /^scripts\/verify-production-deployment\.sh$/,
+  /^scripts\/verify-production-domain-acceptance-retry\.mjs$/,
+  /^scripts\/test-production-domain-acceptance-retry\.sh$/,
+];
+
 const normalizePath = (path) => path.replaceAll('\\', '/').replace(/^\.\//, '');
 const uniquePaths = (paths) => [...new Set(paths.map(normalizePath).filter(Boolean))].sort();
 
@@ -103,7 +109,12 @@ const candidateReferencesAnyChangedFile = (root, candidate, changedFiles) => {
   return changedFiles.some((changedFile) => getReferenceTokens(changedFile).some((token) => content.includes(token)));
 };
 
-const inferDomains = (changedFiles) => DOMAIN_RULES.filter((rule) => changedFiles.some((path) => rule.source.test(path)));
+const isDeploymentAcceptancePath = (path) => DEPLOYMENT_ACCEPTANCE_PATH_PATTERNS.some((pattern) => pattern.test(path));
+const domainRuleMatchesPath = (rule, path) => (
+  !(rule.name === 'facility' && isDeploymentAcceptancePath(path))
+  && rule.source.test(path)
+);
+const inferDomains = (changedFiles) => DOMAIN_RULES.filter((rule) => changedFiles.some((path) => domainRuleMatchesPath(rule, path)));
 const isDocumentationOnly = (path) => /^(?:docs\/.*\.md|README\.md|AGENTS\.md)$/.test(path);
 const isFrontendSource = (path) => /^(?:src\/|index\.html$|all-pages-preview\.html$|.*-runtime-test\.html$)/.test(path);
 const isServerSource = (path) => /^server\/src\/.*\.js$/.test(path);
@@ -248,7 +259,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
 
   const sourceChanges = changedFiles.filter((path) => isFrontendSource(path) || isServerSource(path));
   const unclassifiedSource = sourceChanges.filter((path) => (
-    !domains.some((rule) => rule.source.test(path))
+    !domains.some((rule) => domainRuleMatchesPath(rule, path))
     && !isReferenceCandidateForSource(root, path, verifyCandidates, dtTestCandidates, serverTestCandidates, browserCandidates)
   ));
   if (unclassifiedSource.length > 0) {
