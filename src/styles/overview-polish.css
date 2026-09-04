@@ -2,19 +2,11 @@
   --overview-summary-card-height: 330px;
 }
 
-.overview-asset-events,
-.overview-open-orders-list {
+.overview-asset-events {
   overflow-y: visible;
   padding-right: 0;
 }
 
-.overview-open-orders-list--scrollable {
-  min-height: 0;
-  max-height: 12rem;
-  flex: 0 1 auto;
-  overflow-y: auto;
-  padding-right: var(--space-1);
-}
 
 .overview-assets-card .overview-core-data .ui-data-row {
   padding-block: var(--space-2);
@@ -28,16 +20,13 @@
   flex: 0 0 auto;
 }
 
-.overview-asset-events > div:not(.empty-state),
-.overview-open-order {
+.overview-asset-events > div:not(.empty-state) {
   padding-block: var(--space-1);
 }
 
 .overview-subsection-heading span,
 .overview-production-footnote,
 .overview-asset-events small,
-.overview-open-order-identity small,
-.overview-open-order-values small,
 .overview-check-in-day span,
 .overview-check-in-day small {
   font-size: max(var(--font-size-xs), 0.75rem);

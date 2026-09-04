@@ -140,6 +140,7 @@ function metricsForPlayer(player) {
 function valuationPrice(world, kind, assetId, provinceId = DEFAULT_PROVINCE_ID) {
   const marketKey = provinceScopedKey(provinceId, assetId);
   const market = kind === 'facility' ? world?.facilityMarkets?.[marketKey] : world?.markets?.[marketKey];
+  if (kind === 'commodity') return safeNonNegativeMoney(market?.officialPrice);
   return safeNonNegativeMoney(market?.lastTradePrice);
 }
 
@@ -195,7 +196,8 @@ function wealthBreakdown(world, player, frozenFacilityQuantities) {
     const price = valuationPrice(world, 'commodity', assetId, provinceId);
     const availableQuantity = safeNonNegativeInteger(inventory?.available);
     const frozenQuantity = safeNonNegativeInteger(inventory?.frozen);
-    commodities += (availableQuantity + frozenQuantity) * price;
+    const inTransitQuantity = safeNonNegativeInteger(inventory?.inTransit);
+    commodities += (availableQuantity + frozenQuantity + inTransitQuantity) * price;
     frozenCommodities += frozenQuantity * price;
   }
 
@@ -558,7 +560,7 @@ function currentParticipation(world, players, active7dUsers) {
     ['running-facility', '工厂正在生产', counts.runningFacility],
     ['open-order', '存在未完成订单', counts.openOrder],
     ['current-production', '本周有生产产出', counts.currentProduction],
-    ['current-trade', '本周有订单簿成交', counts.currentTrade],
+    ['current-trade', '本周有市场成交', counts.currentTrade],
     ['active-contract', '参与进行中合同', counts.activeContract],
     ['open-auction', '参与进行中拍卖', counts.openAuction],
     ['warehouse-full', '仓库已满', counts.warehouseFull],
@@ -682,7 +684,7 @@ function attentionSummary({
     { id: 'warehouse-blocked', label: '仓库已满且仍有生产或采购', count: warehouseBlocked, tone: 'danger' },
     { id: 'high-frozen', label: '冻结资产占比不低于 50%', count: highFrozen, tone: 'warning' },
     { id: 'dormant-30d', label: '30 日沉睡玩家', count: dormant30d, tone: 'neutral' },
-    { id: 'active-no-trade', label: '7 日活跃但本周无订单簿成交', count: activeNoTrade, tone: 'neutral' },
+    { id: 'active-no-trade', label: '7 日活跃但本周无市场成交', count: activeNoTrade, tone: 'neutral' },
     { id: 'newly-banned', label: '统计区间内新增封禁', count: newlyBanned, tone: 'danger' },
   ];
 }

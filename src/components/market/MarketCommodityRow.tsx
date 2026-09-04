@@ -6,12 +6,11 @@ import {
   EntityListHeader,
   nextEntityListSort,
   type EntityListSortDirection,
-  type EntityListSortState,
 } from '../ui/EntityListHeader';
-import { formatCurrency, formatNumber } from '../../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
 import '../../styles/market-commodity-row.css';
 
-export type MarketCommoditySortKey = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume' | 'volume24h';
+export type MarketCommoditySortKey = 'catalog' | 'name' | 'price' | 'trend' | 'volume24h';
 export type MarketSortDirection = EntityListSortDirection;
 
 const MARKET_SORT_DEFAULT_DIRECTION: Record<MarketCommoditySortKey, MarketSortDirection> = {
@@ -19,12 +18,13 @@ const MARKET_SORT_DEFAULT_DIRECTION: Record<MarketCommoditySortKey, MarketSortDi
   name: 'asc',
   price: 'desc',
   trend: 'desc',
-  'buy-volume': 'desc',
-  'sell-volume': 'desc',
   volume24h: 'desc',
 };
 
-export type MarketCommoditySortState = EntityListSortState<Exclude<MarketCommoditySortKey, 'catalog'>>;
+export interface MarketCommoditySortState {
+  key: MarketCommoditySortKey;
+  direction: MarketSortDirection;
+}
 
 export function nextMarketCommoditySort(
   clickedKey: Exclude<MarketCommoditySortKey, 'catalog'>,
@@ -61,10 +61,8 @@ export function MarketCommodityHeader({
 }: MarketCommodityHeaderProps) {
   const columns: Array<{ label: string; sortKey?: Exclude<MarketCommoditySortKey, 'catalog'> }> = [
     { label: entityLabel, sortKey: entitySortKey },
-    { label: '卖单量', sortKey: 'sell-volume' },
-    { label: '买单量', sortKey: 'buy-volume' },
+    { label: '今日价格', sortKey: 'price' },
     { label: '24h成交量', sortKey: 'volume24h' },
-    { label: '市场价', sortKey: 'price' },
     { label: '24h价格变化', sortKey: 'trend' },
     { label: '' },
   ];
@@ -87,8 +85,6 @@ export interface MarketCommodityRowProps {
   categoryLabel: string;
   regionName?: string;
   regionPrimary?: boolean;
-  sellVolume: number;
-  buyVolume: number;
   tradeVolume24h: number;
   marketPrice?: number;
   trend?: number;
@@ -104,8 +100,6 @@ export function MarketCommodityRow({
   categoryLabel,
   regionName,
   regionPrimary = false,
-  sellVolume,
-  buyVolume,
   tradeVolume24h,
   marketPrice,
   trend,
@@ -127,47 +121,41 @@ export function MarketCommodityRow({
 
   return (
     <button
-        type="button"
-        className="entity-list-row market-commodity-row"
-        data-ui-interactive="surface"
-        data-province-id={provinceId}
-        data-current-region={currentRegion || undefined}
-        aria-label={ariaLabel}
-        onClick={onClick}
-      >
-        <span className={`market-commodity-row__identity${regionPrimary ? ' market-commodity-row__identity--region' : ''}`}>
-          {regionPrimary ? null : (
-            <span className="market-commodity-row__artwork" aria-hidden="true">
-              <ProductArtwork productId={productId} />
-            </span>
-          )}
-          <span className="market-commodity-row__name">
-            <strong>{regionPrimary && regionName ? regionName : productName}</strong>
-            {regionPrimary ? null : <small title={secondary}>{secondary}</small>}
+      type="button"
+      className="entity-list-row market-commodity-row"
+      data-ui-interactive="surface"
+      data-province-id={provinceId}
+      data-current-region={currentRegion || undefined}
+      aria-label={ariaLabel}
+      onClick={onClick}
+    >
+      <span className={`market-commodity-row__identity${regionPrimary ? ' market-commodity-row__identity--region' : ''}`}>
+        {regionPrimary ? null : (
+          <span className="market-commodity-row__artwork" aria-hidden="true">
+            <ProductArtwork productId={productId} />
           </span>
+        )}
+        <span className="market-commodity-row__name">
+          <strong>{regionPrimary && regionName ? regionName : productName}</strong>
+          {regionPrimary ? null : <small title={secondary}>{secondary}</small>}
         </span>
-        <span className="market-commodity-row__metric">
-          <strong>{<CompactNumber value={sellVolume} />}</strong>
-        </span>
-        <span className="market-commodity-row__metric">
-          <strong>{<CompactNumber value={buyVolume} />}</strong>
-        </span>
-        <span className="market-commodity-row__metric">
-          <strong>{<CompactNumber value={tradeVolume24h} />}</strong>
-        </span>
-        <span className="market-commodity-row__metric">
-          <strong>{typeof marketPrice === 'number'
-            ? <CurrencyAmount>{formatCurrency(marketPrice)}</CurrencyAmount>
-            : '—'}</strong>
-        </span>
-        <span className={`entity-list-value market-commodity-row__metric market-commodity-row__trend${trendClassName}${trend === undefined ? ' is-unavailable' : trend === 0 ? ' is-neutral' : ''}`}>
-          <strong>{typeof trend === 'number'
-            ? <CurrencyAmount sign={trend > 0 ? '+' : undefined}>{formatCurrency(trend)}</CurrencyAmount>
-            : '—'}</strong>
-        </span>
-        <span className="market-commodity-row__chevron" aria-hidden="true">
-          <ChevronIcon direction="right" />
-        </span>
+      </span>
+      <span className="market-commodity-row__metric">
+        <strong>{typeof marketPrice === 'number'
+          ? <CurrencyAmount>{formatCurrency(marketPrice)}</CurrencyAmount>
+          : '—'}</strong>
+      </span>
+      <span className="market-commodity-row__metric">
+        <strong><CompactNumber value={tradeVolume24h} /></strong>
+      </span>
+      <span className={`entity-list-value market-commodity-row__metric market-commodity-row__trend${trendClassName}${trend === undefined ? ' is-unavailable' : trend === 0 ? ' is-neutral' : ''}`}>
+        <strong>{typeof trend === 'number'
+          ? <CurrencyAmount sign={trend > 0 ? '+' : undefined}>{formatCurrency(trend)}</CurrencyAmount>
+          : '—'}</strong>
+      </span>
+      <span className="market-commodity-row__chevron" aria-hidden="true">
+        <ChevronIcon direction="right" />
+      </span>
     </button>
   );
 }

@@ -206,7 +206,7 @@ test('overview prioritizes business decisions and shows the weekly check-in cale
   await expect(page.locator('.page-content .strategic-outliner')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '生产摘要', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '资产与银行', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '当前挂单', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '当前挂单', exact: true })).toHaveCount(0);
   await expect(page.getByRole('list', { name: '本周签到日历' })).toBeVisible();
   await expect(page.getByRole('listitem')).toHaveCount(7);
   const checkInHeading = page.locator('.overview-check-in-panel .widget-heading');
@@ -286,11 +286,10 @@ test('overview uses a building-style panel beside the strategic outliner', async
   expect(outliner.width).toBeLessThanOrEqual(321);
   expect(summary.y).toBeGreaterThanOrEqual(checkIn.y + checkIn.height);
 
-  await expect(summaryCards).toHaveCount(3);
-  const summaryBoxes = await Promise.all([0, 1, 2].map((index) => requireBox(summaryCards.nth(index))));
+  await expect(summaryCards).toHaveCount(2);
+  const summaryBoxes = await Promise.all([0, 1].map((index) => requireBox(summaryCards.nth(index))));
   expect(Math.max(...summaryBoxes.map((box) => box.width)) - Math.min(...summaryBoxes.map((box) => box.width))).toBeLessThan(2);
   expect(summaryBoxes[1].y).toBeGreaterThan(summaryBoxes[0].y);
-  expect(summaryBoxes[2].y).toBeGreaterThan(summaryBoxes[1].y);
   expect(Math.min(...summaryBoxes.map((box) => box.width))).toBeGreaterThan(280);
 
   const overflowingElements = await page.locator([
@@ -376,21 +375,14 @@ test('overview shows authoritative asset status and opens the bank page', async 
   expect(pageErrors).toEqual([]);
 });
 
-test('overview only scrolls the order list after the visible capacity is exceeded', async ({ page }) => {
+test('overview does not expose retired player resting-order summaries', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
-  await page.goto('runtime-test.html?view=overview&scenario=activity');
-
-  const shortList = page.locator('.overview-open-orders-list');
-  await expect(shortList).not.toHaveClass(/overview-open-orders-list--scrollable/);
-  expect(await shortList.evaluate((element) => getComputedStyle(element).overflowY)).toBe('visible');
-  expect(await shortList.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
-
   await page.goto('runtime-test.html?view=overview&scenario=many-orders');
-  const longList = page.locator('.overview-open-orders-list');
-  await expect(longList).toHaveClass(/overview-open-orders-list--scrollable/);
-  expect(await longList.evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto');
-  expect(await longList.evaluate((element) => element.scrollHeight > element.clientHeight + 1)).toBe(true);
+
+  await expect(page.getByRole('heading', { name: '当前挂单', exact: true })).toHaveCount(0);
+  await expect(page.getByText('管理订单', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.overview-open-orders-card, .overview-open-orders-list, .overview-open-order')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
@@ -414,9 +406,7 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   await page.setViewportSize({ width: 900, height: 1000 });
   expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(1);
 
-  const nestedOverflowModes = await page.locator('.overview-open-orders-list')
-    .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowY));
-  expect(nestedOverflowModes).toEqual(['visible']);
+  await expect(page.locator('.overview-open-orders-list')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 

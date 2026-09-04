@@ -65,9 +65,10 @@ check(leaderboardTypes.includes('game.leaderboards ??'), 'client must read the i
 check(server.includes("REWARDED_BOARD_IDS = Object.freeze(['growth', 'production', 'trading'])"), 'wealth board must not grant gems');
 check(server.includes("order?.ownerType !== 'player' || order?.side !== 'sell'"), 'trading board must count seller fills only');
 check(server.includes('function tradeGrossFor(fill)'), 'trading board must calculate gross volume from fills');
-check(server.includes('return quantity * price;'), 'trading board must use the full actual fill value');
+check(server.includes('return explicitTotal;'), 'trading board must prefer the authoritative fill total');
+check(server.includes('const price = safeNonNegativeNumber(fill?.price);'), 'trading board fallback must preserve decimal prices');
 check(!server.includes('PLAYER_PAIR_DAILY_SCORE_LIMIT'), 'trading board must not cap actual sell volume by counterparty');
-check(server.includes("description: '本周订单簿实际卖出成交额'"), 'trading board copy must describe actual sell volume');
+check(server.includes("description: '本周即时市场实际卖出成交额'"), 'trading board copy must describe immediate-market sell volume');
 check(server.includes("unit: 'currency'"), 'trading board must display a currency amount');
 check(server.includes('tradingRuleVersion: TRADING_RULE_VERSION'), 'trading rule migration must be versioned');
 check(server.includes('delete state.pairDayScores'), 'legacy pair caps must be removed during migration');
@@ -115,9 +116,10 @@ check(productDesign.includes('50 / 30 / 20'), 'product design must record gem re
 check(productDesign.includes('本周生产数量 += 实际产出数量'), 'product design must record quantity-only production ranking');
 check(productDesign.includes('最后一次有效经济活动时间降序'), 'product design must record the shared tie-break rule');
 check(productDesign.includes('榜单次级统计不得参与排名'), 'product design must exclude secondary metrics from ranking');
-check(productDesign.includes('撤单的未成交剩余数量不计入'), 'product design must exclude cancelled remainder');
+check(productDesign.includes('即时交易没有未成交挂单或撤单剩余量'), 'product design must record that player commodity trading has no unfilled remainder');
 check(productDesign.includes('Asia/Shanghai'), 'product design must record Beijing leaderboard time');
 check(productDesign.includes('实际卖出成交额'), 'product design must record gross sell volume');
+check(productDesign.includes('即时卖出数量 × 当日官方系统价'), 'product design must bind commodity trading score to the daily official price');
 check(navigationDesign.includes('内容容器宽度不小于 `72rem` 时隐藏切换按钮'), 'navigation design must record the responsive four-board mode');
 check(navigationDesign.includes('按钮必须强制保持同一行'), 'navigation design must keep the narrow switch on one row');
 check(navigationDesign.includes('不显示“首个不完整周不发奖”胶囊'), 'navigation design must record the removed partial-week copy');
@@ -133,7 +135,12 @@ check(previewSpec.includes("leaderboard-column-labels span')).toHaveText(['排�
 check(docsIndex.includes('`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`'), 'design index must route leaderboard page structure to the page DESIGN owner');
 check(docsIndex.includes('`PRODUCT_AND_GAMEPLAY_DESIGN.md`'), 'design index must route leaderboard scoring semantics to the product DESIGN owner');
 
-if (failures.length > 0) {
+check(page.includes('商品按当日官方价、工厂按最近产权成交价计算资产毛值并扣除贷款负债后的实时净资产'), 'wealth fallback copy must match authoritative commodity and facility valuation');
+check(!page.includes('按最近一次订单簿真实成交价计算资产毛值'), 'wealth fallback copy must not restore commodity order-book valuation');
+check(productDesign.includes('商品估值 = Σ((可用数量 + 冻结数量) × 所在州当日官方系统价)'), 'product design must value commodities at the current regional official price');
+check(productDesign.includes('工厂估值 = Σ(总持有数量 × 所在州最近一次真实产权成交价)'), 'product design must keep facility valuation separate from commodity official prices');
+
+if (failures.length) {
   console.error('Leaderboard verification failed:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);

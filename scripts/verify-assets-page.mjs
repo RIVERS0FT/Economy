@@ -118,6 +118,10 @@ for (const text of [
   'scrollWidth <= element.clientWidth + 1',
 ]) requireText(runtimeSpecPath, text);
 
+requireText('src/components/assets/AssetOverviewPanel.tsx', '商品按当日官方价、工厂按最近产权成交价估值');
+forbidText('src/components/assets/AssetOverviewPanel.tsx', '商品和工厂按最近一次订单簿真实成交价估值');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品按各州当日官方系统价估值；工厂按最近一次真实产权成交价估值');
+
 if (failures.length) {
   console.error(`银行资产总览与本地资产变动删除验证失败：\n- ${failures.join('\n- ')}`);
   process.exit(1);

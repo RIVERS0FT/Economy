@@ -119,8 +119,8 @@ test('global market drills from commodity to regional quotes and existing trade 
   await expect(regionalRow).toBeVisible();
   const regionalHeader = page.locator('.market-commodity-row-header');
   await expect(regionalHeader).toHaveCount(1);
-  for (const label of ['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();
-  for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
+  for (const label of ['地区', '今日价格', '24h成交量', '24h价格变化']) await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ['卖单量', '买单量', '今日价格', '24h成交量', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
   const geometry = await regionalRow.evaluate((row) => ({ clientWidth: row.clientWidth, scrollWidth: row.scrollWidth }));
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
 

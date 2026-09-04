@@ -1,6 +1,5 @@
 import type { AssetKind, EconomyState, MarketDetail, OrderSide, TransportModeId, TransportTripType } from '../types';
 import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
-import type { FacilityBuildProcurementGroup } from '../utils/facilityBuildProcurementGroups';
 import type { FacilityBuildProcurementQuote } from '../utils/facilityBuildProcurement';
 import {
   createStateDeliveryCache,
@@ -134,13 +133,8 @@ export interface GameActionResponse {
   result: GameActionResult;
   revision: number;
 }
-export interface FacilityBuildProcurementActionResult extends GameActionResult {
-  procurementGroup?: FacilityBuildProcurementGroup;
-}
-export interface FacilityBuildProcurementActionResponse {
-  result: FacilityBuildProcurementActionResult;
-  revision: number;
-}
+export type FacilityBuildProcurementActionResult = GameActionResult;
+export type FacilityBuildProcurementActionResponse = GameActionResponse;
 export interface OnlineAutoSellPolicyInput {
   enabled: boolean;
   price: number;

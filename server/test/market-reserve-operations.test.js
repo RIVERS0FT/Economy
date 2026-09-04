@@ -22,7 +22,7 @@ function reserveGroup(world, groupId = 'food') {
   return world.marketDemand.liquidity.groups[groupId];
 }
 
-test('empty player sell book receives a small expensive emergency reserve ask backed by real inventory', () => {
+test('emergency reserve ask remains internal while player buying uses the daily system price', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, bidderUser, now);
   player.credits = 100_000;
@@ -44,16 +44,22 @@ test('empty player sell book receives a small expensive emergency reserve ask ba
   assert.ok(emergency);
   assert.ok(emergency.price > Number(world.marketDemand.priceTransmission.products.wheat.referencePrice || 0));
   assert.ok(emergency.quantity <= Math.max(1, Math.ceil(reserve.targetInventory * 0.05)));
-  assert.equal(reserve.inventory + reserve.frozenInventory >= 1, true);
+  const remainingBefore = emergency.remaining;
+  const inventoryBefore = reserve.inventory;
+  const frozenBefore = reserve.frozenInventory;
 
   const result = applyAction(world, bidderUser, 'placeOrder', {
     productId: 'wheat', side: 'buy', quantity: 1, price: emergency.price,
   }, now + 2);
   assert.equal(result.ok, true);
   assert.equal(player.inventories.wheat.available, 1);
+  assert.equal(emergency.remaining, remainingBefore);
+  assert.ok(['open', 'partial'].includes(emergency.status));
+  assert.equal(reserve.inventory, inventoryBefore);
+  assert.equal(reserve.frozenInventory, frozenBefore);
   const latest = world.markets.wheat.priceHistory.at(-1);
-  assert.equal(latest.marketRole, 'liquidity');
-  assert.equal(latest.signalWeight, 0.25);
+  assert.equal(latest.marketRole, 'player');
+  assert.equal(latest.signalWeight, 1);
 });
 
 test('two shortage cycles publish a fixed-term market reserve procurement contract and settle into reserve inventory', () => {

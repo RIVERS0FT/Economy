@@ -168,6 +168,13 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
 ]);
 requireText('package.json', ['verify:admin-player-statistics']);
 
+requireText('server/src/player-admin-statistics.js', [
+  "if (kind === 'commodity') return safeNonNegativeMoney(market?.officialPrice);",
+  'const inTransitQuantity = safeNonNegativeInteger(inventory?.inTransit);',
+]);
+requireText('src/components/AdminPlayerStatistics.tsx', ['商品按当日官方价、工厂按最近产权成交价估值']);
+forbidText('src/components/AdminPlayerStatistics.tsx', ['商品与工厂只按最近一次订单簿真实成交价估值']);
+
 if (failures.length) {
   console.error(`管理员玩家运营统计验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);

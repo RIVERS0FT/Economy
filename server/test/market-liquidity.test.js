@@ -138,7 +138,7 @@ test('system liquidity asks reprice above retained consumption bids instead of c
   }
 });
 
-test('selling to a reserve transfers reserve funds and does not count as consumption issuance', () => {
+test('player immediate selling does not consume an internal reserve bid', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.inventories.wheat.available = 10;
@@ -150,29 +150,24 @@ test('selling to a reserve transfers reserve funds and does not count as consump
   const buyOrder = liquidityOrders(world, 'food', 'wheat')
     .find((order) => order.demandTier === 'liquidity-buy' && order.remaining > 0);
   assert.ok(buyOrder);
+  const group = world.marketDemand.liquidity.groups.food;
+  const reserve = group.reserves.wheat;
   const creditsBefore = player.credits;
-  const inventoryBefore = world.marketDemand.liquidity.groups.food.reserves.wheat.inventory;
-  const totalFundsBefore = world.marketDemand.liquidity.groups.food.credits
-    + world.marketDemand.liquidity.groups.food.frozenCredits;
-  const issuedBefore = player.stats.populationIssued;
+  const reserveInventoryBefore = reserve.inventory;
+  const reserveFundsBefore = group.credits + group.frozenCredits;
+  const reserveRemainingBefore = buyOrder.remaining;
 
   const result = applyAction(world, alice, 'placeOrder', {
     productId: 'wheat', side: 'sell', quantity: 1, price: buyOrder.price,
   }, now + 2);
   assert.equal(result.ok, true);
-  const group = world.marketDemand.liquidity.groups.food;
-  const reserve = group.reserves.wheat;
-  assert.equal(reserve.inventory, inventoryBefore + 1);
-  assert.equal(group.credits + group.frozenCredits, totalFundsBefore - buyOrder.price);
-  assert.equal(reserve.totalBought, 1);
-  assert.equal(reserve.totalBuyValue, buyOrder.price);
-  assert.equal(world.players[String(alice.id)].stats.populationIssued, issuedBefore);
-  const playerSellOrder = world.orders.find((order) => order.ownerType === 'player' && order.side === 'sell' && order.productId === 'wheat');
-  assert.ok(playerSellOrder?.fills?.length);
-  assert.equal(world.players[String(alice.id)].credits, Number((creditsBefore + playerSellOrder.fills.at(-1).netTotal).toFixed(6)));
+  assert.equal(player.credits, Number((creditsBefore + result.netTotal).toFixed(6)));
+  assert.equal(reserve.inventory, reserveInventoryBefore);
+  assert.equal(group.credits + group.frozenCredits, reserveFundsBefore);
+  assert.equal(buyOrder.remaining, reserveRemainingBefore);
 });
 
-test('buying from a reserve transfers real inventory and returns credits to the reserve', () => {
+test('player immediate buying does not consume an internal reserve ask', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 10_000;
@@ -182,21 +177,20 @@ test('buying from a reserve transfers real inventory and returns credits to the 
   const sellOrder = liquidityOrders(world, 'food', 'wheat')
     .find((order) => order.demandTier === 'liquidity-sell' && order.remaining > 0);
   assert.ok(sellOrder);
-  const frozenBefore = world.marketDemand.liquidity.groups.food.reserves.wheat.frozenInventory;
-  const fundsBefore = world.marketDemand.liquidity.groups.food.credits
-    + world.marketDemand.liquidity.groups.food.frozenCredits;
+  const group = world.marketDemand.liquidity.groups.food;
+  const reserve = group.reserves.wheat;
+  const frozenBefore = reserve.frozenInventory;
+  const fundsBefore = group.credits + group.frozenCredits;
+  const remainingBefore = sellOrder.remaining;
 
   const result = applyAction(world, alice, 'placeOrder', {
     productId: 'wheat', side: 'buy', quantity: 1, price: sellOrder.price,
   }, now + 2);
   assert.equal(result.ok, true);
-  const group = world.marketDemand.liquidity.groups.food;
-  const reserve = group.reserves.wheat;
-  assert.equal(world.players[String(alice.id)].inventories.wheat.available, 1);
-  assert.equal(reserve.frozenInventory, frozenBefore - 1);
-  assert.equal(group.credits + group.frozenCredits, fundsBefore + sellOrder.price);
-  assert.equal(reserve.totalSold, 1);
-  assert.equal(reserve.totalSellValue, sellOrder.price);
+  assert.equal(player.inventories.wheat.available, 1);
+  assert.equal(reserve.frozenInventory, frozenBefore);
+  assert.equal(group.credits + group.frozenCredits, fundsBefore);
+  assert.equal(sellOrder.remaining, remainingBefore);
 });
 
 test('liquidity orders are cancelled and re-reserved on the next cycle', () => {

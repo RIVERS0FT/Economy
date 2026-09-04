@@ -28,6 +28,11 @@ function safeNonNegativeInteger(value) {
   return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : 0;
 }
 
+function safeNonNegativeNumber(value) {
+  const normalized = Number(value);
+  return Number.isFinite(normalized) && normalized >= 0 ? normalized : 0;
+}
+
 function safeTimestamp(value) {
   const normalized = Number(value);
   return Number.isFinite(normalized) && normalized > 0 ? normalized : 0;
@@ -40,7 +45,7 @@ function leaderboardActivityAt(player) {
 function playerStats(player) {
   player.stats ||= {};
   player.stats.productionScore = safeNonNegativeInteger(player.stats.productionScore);
-  player.stats.marketSellScore = safeNonNegativeInteger(player.stats.marketSellScore);
+  player.stats.marketSellScore = safeNonNegativeNumber(player.stats.marketSellScore);
   player.stats.marketTradeCount = safeNonNegativeInteger(player.stats.marketTradeCount);
   player.stats.gemExchangeCredits = safeNonNegativeInteger(player.stats.gemExchangeCredits);
   player.stats.leaderboardGemsIssued = safeNonNegativeInteger(player.stats.leaderboardGemsIssued);
@@ -262,9 +267,11 @@ function fillIdentifier(order, fill) {
 }
 
 function tradeGrossFor(fill) {
+  const explicitTotal = Number(fill?.total);
+  if (Number.isFinite(explicitTotal) && explicitTotal >= 0) return explicitTotal;
   const quantity = safeNonNegativeInteger(fill?.quantity);
-  const price = safeNonNegativeInteger(fill?.price);
-  if (quantity < 1 || price < 1) return 0;
+  const price = safeNonNegativeNumber(fill?.price);
+  if (quantity < 1 || price <= 0) return 0;
   return quantity * price;
 }
 
@@ -336,7 +343,7 @@ function migrateTradingRule(world, state) {
     const player = world.players?.[userId];
     if (!player) continue;
     const stats = playerStats(player);
-    stats.marketSellScore = Math.max(0, stats.marketSellScore - safeNonNegativeInteger(trading?.score));
+    stats.marketSellScore = Math.max(0, stats.marketSellScore - safeNonNegativeNumber(trading?.score));
     stats.marketTradeCount = Math.max(0, stats.marketTradeCount - safeNonNegativeInteger(trading?.tradeCount));
   }
 
@@ -384,7 +391,7 @@ function internalRowsFor(world, state, boardId) {
       return { ...common, score: quantity, secondary: 0, tertiary: 0 };
     }
     const trading = state.trading[userId] || { score: 0, tradeCount: 0, buyers: {} };
-    return { ...common, score: safeNonNegativeInteger(trading.score), secondary: safeNonNegativeInteger(trading.tradeCount), tertiary: Object.keys(trading.buyers || {}).length };
+    return { ...common, score: safeNonNegativeNumber(trading.score), secondary: safeNonNegativeInteger(trading.tradeCount), tertiary: Object.keys(trading.buyers || {}).length };
   }).sort(compareLeaderboardRows).map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
@@ -404,7 +411,7 @@ function boardDefinition(boardId) {
   if (boardId === 'wealth') return { title: '财富榜', description: '按最近订单簿成交价计算的实时总资产', unit: 'currency', rewarded: false };
   if (boardId === 'growth') return { title: '增长榜', description: '本周经营资产净增长', unit: 'currency', rewarded: true };
   if (boardId === 'production') return { title: '生产榜', description: '本周服务器确认完成的商品产出总数量', unit: 'quantity', rewarded: true };
-  return { title: '交易榜', description: '本周订单簿实际卖出成交额', unit: 'currency', rewarded: true };
+  return { title: '交易榜', description: '本周即时市场实际卖出成交额', unit: 'currency', rewarded: true };
 }
 
 function readPlayerStats(player) {
@@ -491,7 +498,7 @@ function snapshotRowsFor(world, state, boardId) {
     const trading = state?.trading?.[userId] || { score: 0, tradeCount: 0, buyers: {} };
     return {
       ...common,
-      score: safeNonNegativeInteger(trading.score),
+      score: safeNonNegativeNumber(trading.score),
       secondary: safeNonNegativeInteger(trading.tradeCount),
       tertiary: Object.keys(trading.buyers || {}).length,
     };

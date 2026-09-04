@@ -55,7 +55,7 @@
 | `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` | 宝石加速与动态兑换的业务语义和审计边界 | 通用货币体系、银行、页面通用视觉、服务器部署 |
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 商品、工厂、配方、生产、产业科技及生产侧资产约束 | 页面信息架构、通用 UI、HTTP/SQLite/部署实现 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 工厂目录与已拥有工厂的展示顺序 | 工厂经济规则、卡片通用视觉、服务器目录生成 |
-| `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 市场订单、冻结、撮合、成交与市场资产交易语义 | 市场页面布局、行情图几何、服务器容量与存储实现 |
+| `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品即时交易、每日官方系统价、服务器内部消费／储备订单边界与历史玩家挂单迁移 | 市场页面布局、人口需求预算细节、服务器容量与部署实现 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 仓库、地区库存、运输和工厂自动经营业务语义 | 市场撮合、生产配方、通用页面 Chrome、服务器部署 |
 | `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` | 运输地图公路／铁路首府物理中心线的数据源、离线派生、压缩及航空虚拟航路的数据边界 | 运输经济结算、战略地图 Camera／路线渲染、服务器协议与存储 |
 | `STRATEGIC_MAP_RENDERING_DESIGN.md` | 战略地图 SVG Camera、固定视场边界、州名清晰度、路线显示／运动／高亮与地图专属表面材质 | 运输经济结算、原始 GIS 数据、全应用通用视觉与根 Chrome |
@@ -81,7 +81,7 @@
 |---|---|
 | 产品定位、总体玩法循环、玩家资产与总体经济语义 | `PRODUCT_AND_GAMEPLAY_DESIGN.md` |
 | 商品、工厂、生产、配方、产业科技 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` |
-| 市场订单、冻结、撮合、成交 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` |
+| 商品即时交易、每日官方系统价、内部人口／储备订单边界、历史挂单迁移 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` |
 | 仓库、地区库存、运输、工厂自动经营 | `WAREHOUSE_EXPANSION_DESIGN.md` |
 | 运输地图公路／铁路首府几何的数据源、离线生成及航空虚拟航路数据 | `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` |
 | 战略地图 Camera、固定视场边界、地图路线显示／运动／高亮和地图专属表面 | `STRATEGIC_MAP_RENDERING_DESIGN.md` |

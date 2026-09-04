@@ -287,7 +287,13 @@ requireText('server/src/market-demand/signals.js', [
   'planningCache = {',
   'tradeStats: new Map()',
   'quotes: new Map()',
+  'playerSellQuantity',
+  'market?.officialPrice',
+  'available / targetDepth',
 ]);
+const demandSignalSource = read('server/src/market-demand/signals.js');
+assert.equal(demandSignalSource.includes('iterateOrderBookSide'), false, '玩家挂单退役后人口需求信号不得扫描订单簿');
+assert.equal(demandSignalSource.includes('recordOrderBookVisit'), false, '人口需求即时市场信号不得增加订单簿访问计数');
 requireText('server/src/market-demand.js', [
   'signals.beginPlanningCache(world, now);',
   'signals.endPlanningCache(world);',
@@ -401,7 +407,8 @@ requireText('server/test/order-history.test.js', [
   'order history provides opaque cursor pagination with only the current player anonymous fills',
 ]);
 requireText('server/test/market-state-delivery.test.js', [
-  'repeated market detail must reuse the committed-world order-book runtime',
+  'repeated commodity market detail reuses committed-world projection without building public order-book runtime',
+  'commodity market detail must not build a public order-book runtime',
 ]);
 requireText('server/test/state-projection-cache.test.js', [
   'runtime state projection cache reuses final state and partition snapshots for one revision',
@@ -474,13 +481,14 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '默认 `5s`，可选 `3s`／`5s`／`10s`',
 ]);
 requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', [
-  '统一混合盘口',
-  '先单次遍历未完成订单完成分组',
-  '不得因历史保存上限删除任何未完成订单',
+  '内部人口／储备订单继续复用共享撮合内核',
+  '不得为了公开行情再次对完整 `world.orders` 做逐请求过滤排序',
+  '关闭订单历史裁剪只允许删除超过保留上限的已关闭历史记录',
+  '处于 `open`／`partial` 的内部订单不得因历史保存上限被删除',
 ]);
 requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', [
   '仓库容量永久无限',
-  '商品买单、商品拍卖和采购合同不预占仓库空间',
+  '商品即时买入、商品拍卖和采购合同不预占仓库空间',
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '正式客户端默认每 5 秒轮询一次修订号，可选 3／5／10 秒',
@@ -564,4 +572,4 @@ assert.equal(identityMarketDemandStateSource.includes('player.trades'), false,
 assert.match(identityDesignSource, /已结算排行榜历史/,
   'server architecture should distinguish immutable historical name snapshots from mutable identity mirrors');
 
-console.log('运行时效率验证通过：自适应轮询、按到期领域调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');
+console.log('运行时效率验证通过：自适应轮询、按到期领域调度、无变化动作不写世界、合同审计事务与缓存顺序、内部订单运行时索引与合同线性索引、状态投影复用和有界请求指标均已锁定。');

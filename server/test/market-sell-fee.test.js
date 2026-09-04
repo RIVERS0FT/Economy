@@ -9,6 +9,7 @@ import {
   applyMarketSellFee,
   calculateCumulativeMarketSellFee,
 } from '../src/market-sell-fee.js';
+import { DEFAULT_PROVINCE_ID, provinceScopedKey } from '../src/provinces.js';
 
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
@@ -56,35 +57,36 @@ test('既有卖单只从新成交开始累计且不追收旧 fill', () => {
   assert.equal(order.marketSellFeeCharged, 0.01);
 });
 
-test('商品卖单部分成交按同一卖单累计补收手续费', () => {
+test('商品即时卖出每笔按当日成交额收取 1% 且不会留下部分卖单', () => {
   const world = createWorld(now);
   deferMarketDemand(world);
   const seller = ensurePlayer(world, bob, now);
-  const buyer = ensurePlayer(world, alice, now);
   seller.credits = 0;
-  seller.inventories.ore.available = 101;
-  buyer.credits = 1_000;
-
-  assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'ore', side: 'sell', quantity: 101, price: 1,
-  }, now + 1).ok, true);
+  seller.inventories.wheat.available = 101;
+  world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')].officialPrice = 1;
 
   for (const [index, quantity] of [30, 30, 40, 1].entries()) {
-    assert.equal(applyAction(world, alice, 'placeOrder', {
-      productId: 'ore', side: 'buy', quantity, price: 1,
-    }, now + 2 + index).ok, true);
+    const response = applyAction(world, bob, 'placeOrder', {
+      provinceId: DEFAULT_PROVINCE_ID,
+      productId: 'wheat',
+      side: 'sell',
+      quantity,
+      price: 999,
+    }, now + 1 + index);
+    assert.equal(response.ok, true);
+    assert.equal(response.executedPrice, 1);
   }
 
-  const order = world.orders.find((item) => item.ownerId === bob.id && item.productId === 'ore');
-  assert.deepEqual(order.fills.map((fill) => fill.fee), [0.3, 0.3, 0.4, 0.01]);
-  assert.deepEqual(order.fills.map((fill) => fill.netTotal), [29.7, 29.7, 39.6, 0.99]);
-  assert.equal(order.marketSellFeeGross, 101);
-  assert.equal(order.marketSellFeeCharged, 1.01);
+  const orders = world.orders.filter((item) => item.ownerId === bob.id && item.productId === 'wheat');
+  assert.deepEqual(orders.map((order) => order.fills[0].fee), [0.3, 0.3, 0.4, 0.01]);
+  assert.deepEqual(orders.map((order) => order.fills[0].netTotal), [29.7, 29.7, 39.6, 0.99]);
+  assert.ok(orders.every((order) => order.status === 'filled' && order.remaining === 0));
   assert.equal(seller.credits, 99.99);
+  assert.equal(seller.inventories.wheat.available, 0);
+  assert.equal(seller.inventories.wheat.frozen, 0);
   assert.equal(seller.stats.systemSinks, 0);
   assert.equal(seller.stats.marketServiceFees, 1.01);
   assert.equal(seller.stats.employmentPayments, 1.01);
-  assert.equal(buyer.credits, 899);
 });
 
 test('工厂直售被拒绝且不会产生市场手续费', () => {

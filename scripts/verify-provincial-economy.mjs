@@ -227,7 +227,7 @@ for (const text of [
   'export function ProvincePage', 'title={isMarketDetail && marketDetailProduct ? (', 'role="tablist"', 'role="tab"', 'role="tabpanel"',
   "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }",
   "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
-  '<EmbeddedMarketPage model={model} embedded readOnly={false} />', '<EmbeddedBuildingsPage',
+  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedBuildingsPage',
   '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
   "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);',
   'pageNavigation.replacePage(provinceLocation);',
@@ -455,7 +455,7 @@ assert.equal(navigation.includes("{ id: 'map', label: '地图' }"), false, '桌�
 assert.ok(navigation.includes("export type TabId = NavigationTabId | 'map' | 'province';"), '纯地图与隐藏州级上下文视图必须保留 TabId');
 const tests = read('server/test/provinces.test.js');
 for (const text of [
-  'cannot match across states', 'world 30 geography replacement keeps legacy scoped assets on their existing region IDs',
+  'same commodity immediate trades use independent state daily prices and inventories', 'world 30 geography replacement keeps legacy scoped assets on their existing region IDs',
   'construction and production consume and output only the selected province inventory', 'factory market orders are rejected and legacy open orders are retired',
   'without serialized aliases',
 ]) assert.ok(tests.includes(text), `州级经济专项测试缺少: ${text}`);

@@ -314,7 +314,7 @@ if (failures.length === 0) {
     ]],
     [paths.designIndex, designIndex, ['工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`']],
     [paths.uiDesign, uiDesign, ['`FacilityIcon` 只按 `facilityTypeId` 选择视觉资源']],
-    [paths.pageDesign, pageDesign, ['建筑详情只承担工厂经营与生产配置，不提供工厂买卖入口、订单簿草稿或从属交易页']],
+    [paths.pageDesign, pageDesign, ['建筑详情只承担工厂经营与生产配置，不提供工厂买卖入口、即时交易草稿或从属交易页']],
     [paths.marketArtworkBrowser, marketArtworkBrowser, [
       'facility detail artwork fills banner slots on desktop and mobile without market trade entry',
       "expect(desktopMetrics.backgroundSize).toBe('cover')",

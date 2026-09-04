@@ -37,7 +37,7 @@ function openOrder(id, ownerId, side, price, remaining, createdAt) {
   };
 }
 
-test('initial player state keeps market summaries and only the current player orders', () => {
+test('initial player state keeps market summaries and only the current player legacy orders', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   ensurePlayer(world, bob, now);
@@ -75,7 +75,7 @@ test('initial player state keeps market summaries and only the current player or
   );
 });
 
-test('market detail returns bounded public real-trade history, aggregated five-level depth, and a conditional revision', () => {
+test('commodity market detail returns bounded public real-trade history, empty public depth, and a conditional revision', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   ensurePlayer(world, bob, now);
@@ -99,10 +99,14 @@ test('market detail returns bounded public real-trade history, aggregated five-l
     assetId: 'wheat',
     now,
   });
-  assert.equal(detail.orderBook.bids.length, 5);
-  assert.equal(detail.orderBook.asks.length, 5);
-  assert.deepEqual(detail.orderBook.bids[0], { side: 'buy', price: 50, remaining: 1, orderCount: 1 });
-  assert.deepEqual(detail.orderBook.asks[0], { side: 'sell', price: 60, remaining: 5, orderCount: 2 });
+  assert.deepEqual(detail.orderBook.bids, []);
+  assert.deepEqual(detail.orderBook.asks, []);
+  assert.equal(detail.market.buyVolume, 0);
+  assert.equal(detail.market.sellVolume, 0);
+  assert.equal(detail.market.buyOrderCount, 0);
+  assert.equal(detail.market.sellOrderCount, 0);
+  assert.equal(detail.market.bestBid, null);
+  assert.equal(detail.market.bestAsk, null);
   assert.equal(detail.market.priceHistory.length, 2);
   assert.deepEqual(detail.market.priceHistory[0], {
     price: 3.25,
@@ -118,7 +122,10 @@ test('market detail returns bounded public real-trade history, aggregated five-l
   });
   assert.match(detail.revision, /^[A-Za-z0-9_-]{16}$/);
   const serialized = JSON.stringify(detail);
-  for (const privateValue of ['Alice', 'Bob', 'ask-same-level', 'marketRole', 'signalWeight', 'expired', 'synthetic']) {
+  for (const privateValue of [
+    'Alice', 'Bob', 'ask-same-level', 'bid-0', 'ask-0',
+    'marketRole', 'signalWeight', 'expired', 'synthetic',
+  ]) {
     assert.equal(serialized.includes(privateValue), false, `${privateValue} must not be public`);
   }
 
@@ -136,7 +143,7 @@ test('market detail returns bounded public real-trade history, aggregated five-l
   );
 });
 
-test('market detail store response omits an unchanged conditional payload', () => {
+test('market detail store response omits an unchanged conditional payload; repeated commodity market detail reuses committed-world projection without building public order-book runtime', () => {
   const store = new EconomyStore(':memory:');
   try {
     store.getState(alice, now);
@@ -149,7 +156,7 @@ test('market detail store response omits an unchanged conditional payload', () =
     }, now + 1);
     assert.equal(first.unchanged, false);
     assert.equal(first.marketDetailRevision, first.marketDetail.revision);
-    assert.equal(getOrderBookRuntimeDiagnostics(committedWorld).builds, 1);
+    assert.equal(getOrderBookRuntimeDiagnostics(committedWorld).builds, 0);
     const repeated = store.getMarketDetail(alice, {
       provinceId: DEFAULT_PROVINCE_ID,
       assetKind: 'commodity',
@@ -162,8 +169,8 @@ test('market detail store response omits an unchanged conditional payload', () =
     assert.equal(repeated.serverNow, now + 2);
     assert.equal(
       getOrderBookRuntimeDiagnostics(committedWorld).builds,
-      1,
-      'repeated market detail must reuse the committed-world order-book runtime',
+      0,
+      'commodity market detail must not build a public order-book runtime',
     );
   } finally {
     store.close();

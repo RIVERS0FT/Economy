@@ -1,11 +1,17 @@
 /* Shared regional/global quote row. Container width, not viewport width, decides the compact slot sizes. */
 .market-commodity-row-header {
-  --entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) var(--entity-list-chevron-column, .8rem);
+  --entity-list-columns: minmax(8rem, 1.55fr) repeat(3, minmax(4.5rem, .72fr)) var(--entity-list-chevron-column, .8rem);
   margin-bottom: .18rem;
 }
 
 .market-commodity-row {
-  --entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) var(--entity-list-chevron-column, .8rem);
+  --entity-list-columns: minmax(8rem, 1.55fr) repeat(3, minmax(4.5rem, .72fr)) var(--entity-list-chevron-column, .8rem);
+}
+
+/* Global commodity rows now use the same three daily-market metrics as regional rows. */
+.global-market-page .global-market-goods-header,
+.global-market-page .global-market-goods-row {
+  --entity-list-columns: minmax(8.5rem, 1.45fr) repeat(3, minmax(4.8rem, .72fr)) var(--entity-list-chevron-column, .8rem);
 }
 
 .entity-list-row:is(.market-commodity-row, .global-market-goods-row) {
@@ -73,7 +79,6 @@
 .market-commodity-row__metric strong {
   font-variant-numeric: tabular-nums;
 }
-
 
 .market-commodity-row__chevron {
   display: grid;
@@ -145,9 +150,14 @@
 @container (max-width: 620px) {
   .market-commodity-row-header,
   .market-commodity-row {
-    --entity-list-columns: minmax(5rem, 1.25fr) repeat(5, minmax(2.35rem, .58fr)) var(--entity-list-chevron-column, .65rem);
+    --entity-list-columns: minmax(5rem, 1.3fr) repeat(3, minmax(2.8rem, .62fr)) var(--entity-list-chevron-column, .65rem);
     --entity-list-gap: .25rem;
     --entity-list-inline-padding: .4rem;
+  }
+
+  .global-market-page .global-market-goods-header,
+  .global-market-page .global-market-goods-row {
+    --entity-list-columns: minmax(5rem, 1.25fr) repeat(3, minmax(2.9rem, .62fr)) var(--entity-list-chevron-column, .65rem);
   }
 
   .market-commodity-row-header {
@@ -199,9 +209,14 @@
 
   .market-commodity-row-header,
   .market-commodity-row {
-    --entity-list-columns: minmax(4.55rem, 1.2fr) repeat(5, minmax(2.05rem, .56fr)) var(--entity-list-chevron-column, .55rem);
+    --entity-list-columns: minmax(4.55rem, 1.25fr) repeat(3, minmax(2.4rem, .58fr)) var(--entity-list-chevron-column, .55rem);
     --entity-list-gap: .18rem;
     --entity-list-inline-padding: .3rem;
+  }
+
+  .global-market-page .global-market-goods-header,
+  .global-market-page .global-market-goods-row {
+    --entity-list-columns: minmax(4.35rem, 1.18fr) repeat(3, minmax(2.3rem, .56fr)) var(--entity-list-chevron-column, .55rem);
   }
 
   .market-commodity-row__identity:not(.market-commodity-row__identity--region) {

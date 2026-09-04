@@ -678,11 +678,13 @@ function ProductionHarness() {
         ...markets.machinery,
         productId: 'steel',
         lastPrice: 29,
+        officialPrice: 28.75,
         lastTradePrice: 28.75,
         priceHistory: [],
       };
       markets.machinery = {
         ...markets.machinery,
+        officialPrice: 76.25,
         lastTradePrice: 76.25,
       };
     }
@@ -692,11 +694,13 @@ function ProductionHarness() {
         ...markets.machinery,
         productId: 'steel',
         lastPrice: 29,
+        officialPrice: 28.75,
         lastTradePrice: 28.75,
         priceHistory: [],
       };
       markets.machinery = {
         ...markets.machinery,
+        officialPrice: 76.25,
         lastTradePrice: 76.25,
       };
       const baseType = next.game.facilityTypes[0];

@@ -142,6 +142,7 @@ for (const text of [
   "resting.ownerType === 'population' && incoming.ownerType === 'population'",
   'settleLiquidityBuy',
   'settleLiquiditySell',
+  'matchIncomingOrder({',
   'SYSTEM_ORDER_RETENTION_RATE',
   'DEMAND_CURVE',
   'DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.0025',
@@ -171,6 +172,12 @@ for (const text of [
 for (const forbidden of ['DEMAND_INVENTORY_BOOST_RATE', 'stockSnapshot.totalValue', 'inventoryFactor', 'playerScaleBudget * tradeActivityFactor', 'totalPopulationBaseBudget']) {
   assert.equal(runtime.includes(forbidden), false, '人口需求不得恢复库存或活跃玩家增发预算: ' + forbidden);
 }
+const marketSignalSource = read('server/src/market-demand/signals.js');
+for (const text of ['playerSellQuantity', 'market?.officialPrice', 'available / targetDepth']) {
+  assert.ok(marketSignalSource.includes(text), '人口需求即时市场信号缺少: ' + text);
+}
+assert.equal(marketSignalSource.includes('iterateOrderBookSide'), false, '人口需求即时市场信号不得扫描玩家开放卖单');
+assert.equal(marketSignalSource.includes('recordOrderBookVisit'), false, '人口需求即时市场信号不得伪装成盘口访问');
 
 const domain = read('server/src/domain.js');
 for (const text of [
@@ -180,11 +187,13 @@ for (const text of [
   'marketDemand.initializeWorld',
   'marketDemand.normalizeWorld',
   'marketDemand.process',
-  'balancedMarket.matchOrder(world, incoming, now)',
-  'reconcileCommodityOrderBook',
   'ensurePopulationEconomy',
   'world.version = 32',
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
+for (const forbidden of [
+  'balancedMarket.matchOrder(world, incoming, now)',
+  'reconcileCommodityOrderBook',
+]) assert.equal(domain.includes(forbidden), false, `玩家 domain 不得恢复旧统一商品挂单路径: ${forbidden}`);
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
 const standardRecipes = (facility) => facility.recipes.filter((recipe) => (
@@ -204,6 +213,11 @@ for (const text of [
   'population demand uses PCE weights to create state-local orders without duplicating wallet budget',
 ]) assert.ok(stateBaselineTests.includes(text), '州级人口经济测试缺少: ' + text);
 
+const domainDemandTests = read('server/test/domain.test.js');
+for (const text of [
+  'consumer substitutes shift demand toward the cheaper grain without changing total budget',
+  'complement gating prioritizes the bottleneck input for electronics',
+]) assert.ok(domainDemandTests.includes(text), '人口需求即时市场回归缺少: ' + text);
 const marketDemandTests = read('server/test/market-demand-v6.test.js');
 for (const text of [
   'direct demand quote anchor accumulates fractional no-fill increases and recovers after service',
@@ -242,13 +256,21 @@ const liquidityTests = read('server/test/market-liquidity.test.js');
 for (const text of [
   'market model 19 creates inventory-backed buy and sell orders without system self-trades',
   'system liquidity asks reprice above retained consumption bids instead of crossing',
-  'selling to a reserve transfers reserve funds and does not count as consumption issuance',
-  'buying from a reserve transfers real inventory and returns credits to the reserve',
+  'player immediate selling does not consume an internal reserve bid',
+  'player immediate buying does not consume an internal reserve ask',
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['最近 30 分钟真实玩家向官方系统完成的卖出数量', '同州当日 `officialPrice`']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['内部可执行供给信号', '最近 30 分钟真实玩家向官方系统完成的卖出数量', '同州当日 `officialPrice`']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['内部需求规划不得再扫描玩家开放卖单', '最近 30 分钟真实玩家向官方系统完成的卖出数量', '同州当前 `officialPrice`']],
+]) {
+  const source = read(path);
+  for (const text of texts) assert.ok(source.includes(text), `${path} 缺少即时市场人口需求规则: ${text}`);
+}
+for (const [path, texts] of [
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：20', '38 种正式商品', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.25%', '参考价缺口的 2%', '最多为参考价的 0.75%', '只恢复 1% 缺口', '当前报价锚点上追涨 0.25%']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：20', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['服务器内部人口与储备订单', '`populationModelId`', '`fundingPool`', '内部订单字段只服务服务器模拟和审计', '玩家即时商品交易不得经过该共享撮合内核']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', 'population-demographics.js', '人口经济内部版本固定为 7', '五档状态只重新分配食品／家庭与类别份额', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'PopulationDemographicsAdminSummary', 'currentPopulation', 'targetPopulation', 'structuralCapacityByComplexity', 'laborForce', 'employed', 'unemployed', 'vacancies', 'perCapitaIncomeEma', 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/components/AdminPopulationHealth.tsx', ['实际／目标人口', '结构人口承载', '活跃承载 EMA', '就业／失业／岗位缺口', '人均收入 EMA', '产业人口承载', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
@@ -259,7 +281,15 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 20 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并按州级 PCE 权重生成本地需求，同时保持双向报价、派生流动性和市场储备约束。');
+for (const [path, texts] of [
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['订单簿深度加权报价', '输入卖单覆盖率', '有效卖单覆盖率', '玩家主动买卖失衡与公开卖单覆盖']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['只有有效卖单深度可以影响可购性', '各输入公开卖单覆盖率', '订单簿挂单', '工厂买单', '订单簿卖单撤销', '运行中提交工厂卖单']],
+]) {
+  const source = read(path);
+  for (const text of texts) assert.equal(source.includes(text), false, `${path} 不得保留退役玩家盘口／工厂订单设计: ${text}`);
+}
+
+console.log('市场需求验证通过：模型 20 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并按州级 PCE 权重生成本地需求；共享撮合只服务服务器内部人口／储备模拟，玩家商品交易保持每日系统价即时成交。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');

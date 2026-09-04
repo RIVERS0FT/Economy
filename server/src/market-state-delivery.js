@@ -14,6 +14,14 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const DETAIL_DEPTH_LIMIT = 5;
+const EMPTY_PUBLIC_ORDER_BOOK = Object.freeze({
+  buyVolume: 0,
+  sellVolume: 0,
+  buyOrderCount: 0,
+  sellOrderCount: 0,
+  bestBid: null,
+  bestAsk: null,
+});
 
 function publicPricePoint(point) {
   return {
@@ -91,15 +99,37 @@ export function createMarketSummary(market, world, {
   assetId,
   now = Date.now(),
   economicEventWindows,
+  includeOrderBook = true,
 } = {}) {
-  const {
-    priceHistory: _priceHistory,
-    ...stableMarket
-  } = market || {};
   const trades = realTradePoints(market, now);
   const firstTrade = trades[0];
   const lastTrade = trades[trades.length - 1];
   const previousTrade = trades[trades.length - 2];
+  let stableMarket;
+  if (assetKind === 'commodity') {
+    const officialPrice = Number(market?.officialPrice);
+    const nextPriceAt = Number(market?.nextPriceAt);
+    const todayBuyQuantity = Math.max(0, Number(market?.todayBuyQuantity || 0));
+    const todaySellQuantity = Math.max(0, Number(market?.todaySellQuantity || 0));
+    const lastPriceChangeBps = Math.trunc(Number(market?.lastPriceChangeBps || 0));
+    const demandLastQuantity = Math.max(0, Number(market?.demand?.lastQuantity || 0));
+    const demandSatisfaction = Math.max(0, Math.min(1, Number(market?.demand?.satisfaction || 0)));
+    stableMarket = {
+      lastPrice: Number(market?.lastPrice || 0),
+      lastTradePrice: Number.isFinite(Number(market?.lastTradePrice)) ? Number(market.lastTradePrice) : null,
+      ...(Number.isFinite(officialPrice) && officialPrice > 0 ? { officialPrice } : {}),
+      ...(Number.isFinite(nextPriceAt) && nextPriceAt > 0 ? { nextPriceAt } : {}),
+      ...(todayBuyQuantity > 0 ? { todayBuyQuantity } : {}),
+      ...(todaySellQuantity > 0 ? { todaySellQuantity } : {}),
+      ...(lastPriceChangeBps !== 0 ? { lastPriceChangeBps } : {}),
+      ...(demandLastQuantity > 0 ? {
+        demand: { lastQuantity: demandLastQuantity, satisfaction: demandSatisfaction },
+      } : {}),
+    };
+  } else {
+    const { priceHistory: _priceHistory, ...facilityMarket } = market || {};
+    stableMarket = facilityMarket;
+  }
   return {
     ...stableMarket,
     provinceId: normalizeProvinceId(provinceId),
@@ -114,7 +144,11 @@ export function createMarketSummary(market, world, {
     ...(assetKind === 'commodity' && economicEventWindows?.length > 0
       ? { eventTradeWindows: summarizeEventWindows(market, economicEventWindows) }
       : {}),
-    ...orderBookSummary(world, provinceId, assetKind, assetId),
+    ...(includeOrderBook
+      ? (assetKind === 'commodity'
+        ? EMPTY_PUBLIC_ORDER_BOOK
+        : orderBookSummary(world, provinceId, assetKind, assetId))
+      : {}),
   };
 }
 
@@ -130,6 +164,7 @@ export function createMarketSummaryStatesByProvince(markets, world, assetKind, n
       assetId,
       now,
       economicEventWindows: eventWindows.get(assetId),
+      includeOrderBook: assetKind !== 'commodity',
     });
   }
   return states;
@@ -194,14 +229,14 @@ export function createMarketDetail(world, {
       : undefined,
   });
   const priceHistory = realTradePoints(market, now).map(publicPricePoint);
-  const bids = publicDepth(getOrderBookDepth(world, {
+  const bids = assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth(world, {
     provinceId: normalizedProvinceId,
     assetKind,
     assetId,
     side: 'buy',
     limit: DETAIL_DEPTH_LIMIT,
   }), 'buy');
-  const asks = publicDepth(getOrderBookDepth(world, {
+  const asks = assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth(world, {
     provinceId: normalizedProvinceId,
     assetKind,
     assetId,

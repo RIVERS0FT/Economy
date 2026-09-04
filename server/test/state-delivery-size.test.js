@@ -10,7 +10,7 @@ import {
 
 const TWO_MIB = 2 * 1024 * 1024;
 
-test('48-province initial state remains below two MiB without embedded market histories', () => {
+test('48-province initial state remains below two MiB without embedded market histories or retired cycle aliases', () => {
   const now = Date.UTC(2026, 7, 28, 12, 0, 0);
   const user = { id: 321, email: 'state-size@example.com', name: 'State Size', role: 'user' };
   const store = new EconomyStore(':memory:');
@@ -45,9 +45,31 @@ test('48-province initial state remains below two MiB without embedded market hi
     const snapshot = store.getStateSnapshot(user, undefined, now + 2);
     const delivery = createPartitionedStateDelivery(snapshot, {}, now + 2);
     const serialized = JSON.stringify(delivery);
+    const wheatSummary = snapshot.state.provinceMarkets[DEFAULT_PROVINCE_ID].wheat;
     assert.equal(Object.keys(snapshot.state.provinceMarkets).length, 48);
     assert.equal(serialized.includes('must-not-ship'), false);
     assert.equal(serialized.includes('priceHistory'), false);
+    assert.equal(serialized.includes('cycleBuyQuantity'), false);
+    assert.equal(serialized.includes('cycleSellQuantity'), false);
+    assert.equal(serialized.includes('systemPriceVersion'), false);
+    assert.equal(serialized.includes('lastImbalance'), false);
+    assert.equal(serialized.includes('baselineQuantity'), false);
+    assert.equal(serialized.includes('spendingPower'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'cycleBuyQuantity'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'cycleSellQuantity'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'systemPriceVersion'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'lastImbalance'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'orderBook'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'buyVolume'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'sellVolume'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'buyOrderCount'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'sellOrderCount'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'bestBid'), false);
+    assert.equal(Object.hasOwn(wheatSummary, 'bestAsk'), false);
+    if (wheatSummary.demand) {
+      assert.deepEqual(Object.keys(wheatSummary.demand).sort(), ['lastQuantity', 'satisfaction']);
+    }
+    assert.equal(typeof wheatSummary.officialPrice, 'number');
     assert.equal(Buffer.byteLength(serialized) <= TWO_MIB, true, `initial state was ${Buffer.byteLength(serialized)} bytes`);
   } finally {
     store.close();

@@ -3,11 +3,6 @@ import {
   importLegacyOnlineAutoSellPolicies,
   saveOnlineAutoTradePolicy,
 } from '../api/game';
-import {
-  getClientOrderIndex,
-  hasCrossingCommodityOrder,
-  managedCommodityOrder,
-} from '../app/clientOrderIndex';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
   getStateAuthoritySnapshot,
@@ -15,7 +10,7 @@ import {
 } from '../app/stateDelivery.js';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { productionContractStateFromGame } from '../contracts/types';
-import type { AssetOrder, EconomyState, FacilityGroup, FacilityRecipeItem } from '../types';
+import type { EconomyState, FacilityGroup, FacilityRecipeItem } from '../types';
 import { scopeEconomyState } from '../utils/provinceScope';
 import {
   clearAutoSellPolicies,
@@ -160,17 +155,21 @@ function currentContractReservations(game: EconomyState) {
   return cachedContractReservations;
 }
 
+function productOfficialPrice(game: EconomyState, productId: string) {
+  const product = game.products.find((candidate) => candidate.id === productId);
+  const market = game.markets[productId];
+  const candidate = Number(market?.officialPrice);
+  if (Number.isFinite(candidate) && candidate >= 0.01) return candidate;
+  return Math.max(0.01, Number(product?.basePrice || 1));
+}
+
 function affordableBuyQuantity(
   credits: number,
-  policy: AutoBuyPolicy,
-  order: AssetOrder | null,
+  price: number,
   desired: number,
 ) {
-  if (policy.maxPrice <= 0) return 0;
-  const reusable = order
-    ? nonNegativeInteger(order.remaining) * Math.max(0, Number(order.price || 0))
-    : 0;
-  const affordable = Math.floor((Math.max(0, Number(credits || 0)) + reusable) / policy.maxPrice);
+  if (!Number.isFinite(price) || price <= 0) return 0;
+  const affordable = Math.floor(Math.max(0, Number(credits || 0)) / price);
   return Math.max(0, Math.min(desired, Number.isSafeInteger(affordable) ? affordable : Number.MAX_SAFE_INTEGER));
 }
 
@@ -257,14 +256,11 @@ export function useOnlineAutoTrade(
     const productionReserved = currentProductionReservations(game);
     const contractReserved = currentContractReservations(game);
     const sources = [
-      game.orders,
       game.markets,
       game.inventories,
       game.credits,
       game.onlineAutoBuyPolicies,
       game.onlineAutoSellPolicies,
-      game.onlineAutoBuyManagedOrderIds,
-      game.onlineAutoSellManagedOrderIds,
       game.facilityGroups,
       game.facilityTypes,
       game.productionContracts,
@@ -275,70 +271,43 @@ export function useOnlineAutoTrade(
     const cached = statusCacheRef.current.values.get(productId);
     if (cached) return cached;
 
-    const orderIndex = getClientOrderIndex(game.orders);
     const buyPolicy = buyPolicyForGame(game, productId);
     const sellPolicy = sellPolicyForGame(game, productId);
-    const market = game.markets[productId];
-    const bestAsk = typeof market?.bestAsk === 'number' ? market.bestAsk : null;
-    const bestBid = typeof market?.bestBid === 'number' ? market.bestBid : null;
+    const officialPrice = productOfficialPrice(game, productId);
     const availableInventory = nonNegativeInteger(game.inventories[productId]?.available);
     const production = nonNegativeInteger(productionReserved[productId]);
     const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };
     const contractHold = nonNegativeInteger(contract.availableHold);
     const currentFreeInventory = Math.max(0, availableInventory - production - contractHold);
 
-    const buyManaged = managedCommodityOrder(
-      orderIndex,
-      game.onlineAutoBuyManagedOrderIds?.[productId],
-      productId,
-      'buy',
-    );
     const buyDesiredQuantity = Math.max(
       0,
       production + contractHold + nonNegativeInteger(buyPolicy.targetFreeInventory) - availableInventory,
     );
     const buyEligibleQuantity = affordableBuyQuantity(
       game.credits,
-      buyPolicy,
-      buyManaged,
+      officialPrice,
       buyDesiredQuantity,
     );
-    const buyManagedRemaining = nonNegativeInteger(buyManaged?.remaining);
+    const buyPriceEligible = officialPrice <= buyPolicy.maxPrice;
     const buyNeedsMaintenance = Boolean(
       buyPolicy.enabled
-      && (
-        (buyEligibleQuantity > 0 && !buyManaged)
-        || (buyManaged && (
-          buyManagedRemaining !== buyEligibleQuantity
-          || Number(buyManaged.price || 0) !== Number(buyPolicy.maxPrice)
-        ))
-      ),
+      && buyPriceEligible
+      && buyEligibleQuantity > 0
     );
 
-    const sellManaged = managedCommodityOrder(
-      orderIndex,
-      game.onlineAutoSellManagedOrderIds?.[productId],
-      productId,
-      'sell',
-    );
-    const sellManagedRemaining = nonNegativeInteger(sellManaged?.remaining);
     const sellEligibleQuantity = Math.max(
       0,
       availableInventory
-        + sellManagedRemaining
         - production
         - contractHold
         - nonNegativeInteger(sellPolicy.minimumFreeInventory),
     );
+    const sellPriceEligible = officialPrice >= sellPolicy.price;
     const sellNeedsMaintenance = Boolean(
       sellPolicy.enabled
-      && (
-        (sellEligibleQuantity > 0 && !sellManaged)
-        || (sellManaged && (
-          sellManagedRemaining !== sellEligibleQuantity
-          || Number(sellManaged.price || 0) !== Number(sellPolicy.price)
-        ))
-      ),
+      && sellPriceEligible
+      && sellEligibleQuantity > 0
     );
 
     const status: AutoTradeProductStatus = {
@@ -349,26 +318,14 @@ export function useOnlineAutoTrade(
       buyDesiredQuantity,
       buyEligibleQuantity,
       buyFundingLimited: buyEligibleQuantity < buyDesiredQuantity,
-      blockedBuyByOwnSell: hasCrossingCommodityOrder(
-        orderIndex,
-        productId,
-        'sell',
-        true,
-        buyPolicy.maxPrice,
-      ),
-      hasCrossingSeller: bestAsk !== null && bestAsk <= buyPolicy.maxPrice,
-      hasManagedBuyOrder: Boolean(buyManaged),
+      blockedBuyByOwnSell: false,
+      hasCrossingSeller: buyPriceEligible,
+      hasManagedBuyOrder: false,
       buyNeedsMaintenance,
       sellEligibleQuantity,
-      blockedSellByOwnBuy: hasCrossingCommodityOrder(
-        orderIndex,
-        productId,
-        'buy',
-        true,
-        sellPolicy.price,
-      ),
-      hasCrossingBuyer: bestBid !== null && bestBid >= sellPolicy.price,
-      hasManagedSellOrder: Boolean(sellManaged),
+      blockedSellByOwnBuy: false,
+      hasCrossingBuyer: sellPriceEligible,
+      hasManagedSellOrder: false,
       sellNeedsMaintenance,
     };
     statusCacheRef.current.values.set(productId, status);
@@ -436,37 +393,19 @@ export function useOnlineAutoTrade(
     const byCatalogOrder = (left: string, right: string) => (
       (productOrder.get(left) ?? Number.MAX_SAFE_INTEGER) - (productOrder.get(right) ?? Number.MAX_SAFE_INTEGER)
     );
-    const enabledSellProductIds = Object.entries(sellPolicies)
+    const sellProductIds = Object.entries(sellPolicies)
       .filter(([, policy]) => policy?.enabled)
-      .map(([productId]) => productId);
-    const enabledBuyProductIds = Object.entries(buyPolicies)
+      .map(([productId]) => productId)
+      .sort(byCatalogOrder);
+    const buyProductIds = Object.entries(buyPolicies)
       .filter(([, policy]) => policy?.enabled)
-      .map(([productId]) => productId);
-    // Legacy managed links remain maintenance candidates even when factory-derived policy is now disabled.
-    // The server re-derives authority and commits cancellation before these links can influence the new strategy.
-    const sellProductIds = [...new Set([
-      ...enabledSellProductIds,
-      ...Object.keys(game.onlineAutoSellManagedOrderIds ?? {}),
-    ])].sort(byCatalogOrder);
-    const buyProductIds = [...new Set([
-      ...enabledBuyProductIds,
-      ...Object.keys(game.onlineAutoBuyManagedOrderIds ?? {}),
-    ])].sort(byCatalogOrder);
+      .map(([productId]) => productId)
+      .sort(byCatalogOrder);
 
-    const sellProductId = sellProductIds.find((productId) => {
-      const status = statusFor(productId, game);
-      const policy = sellPolicies[productId];
-      if (!policy?.enabled) return status.hasManagedSellOrder;
-      return (!status.blockedSellByOwnBuy && status.sellNeedsMaintenance)
-        || (status.blockedSellByOwnBuy && status.hasManagedSellOrder);
-    });
-    const buyProductId = sellProductId ? undefined : buyProductIds.find((productId) => {
-      const status = statusFor(productId, game);
-      const policy = buyPolicies[productId];
-      if (!policy?.enabled) return status.hasManagedBuyOrder;
-      return (!status.blockedBuyByOwnSell && status.buyNeedsMaintenance)
-        || (status.blockedBuyByOwnSell && status.hasManagedBuyOrder);
-    });
+    const sellProductId = sellProductIds.find((productId) => statusFor(productId, game).sellNeedsMaintenance);
+    const buyProductId = sellProductId
+      ? undefined
+      : buyProductIds.find((productId) => statusFor(productId, game).buyNeedsMaintenance);
     const productId = sellProductId ?? buyProductId;
     if (!productId) return;
     const side = sellProductId ? 'sell' : 'buy';
@@ -495,7 +434,7 @@ export function useOnlineAutoTrade(
   useEffect(() => {
     maintainAutoTrade();
     return subscribeStateAuthorityDependencies(
-      ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes', 'contract'],
+      ['catalog', 'player.assets', 'player.production', 'market.quotes', 'contract'],
       maintainAutoTrade,
     );
   }, [busyProductId, busySide, maintainAutoTrade]);

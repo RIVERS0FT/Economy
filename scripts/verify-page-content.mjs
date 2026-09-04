@@ -60,7 +60,7 @@ for (const text of [
   '图标式快捷生产设置',
   '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
   '概览始终显示官方常住人口',
-  '市场按正常市场规则提供目录、行情、订单簿和写操作',
+  '市场提供商品目录、今日官方价格、真实成交行情和当日价即时交易写操作',
   '建筑与仓库直接显示本地经营内容',
   '一级市场商品的地区行情列表与一级建筑工厂的地区列表覆盖连续 48 州',
   '邀请卡与礼品码兑换唯一归属商店',
@@ -150,7 +150,7 @@ for (const text of [
 ]) forbidText('src/pages/PageRouter.tsx', text);
 
 for (const text of [
-  '<EmbeddedMarketPage model={model} embedded readOnly={false} />',
+  '<EmbeddedMarketPage model={model} embedded />',
   '<EmbeddedBuildingsPage',
   'onDetailFacilityChange={handleFacilityDetailChange}',
   "import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';",
@@ -169,14 +169,21 @@ for (const text of [
   'province-unlock-button',
 ]) forbidText('src/pages/ProvincePage.tsx', text);
 for (const text of [
+  '即时交易',
+  '今日成交价',
+  '下次调价',
+  'local-trades-section',
+]) requireText('src/pages/MarketPage.tsx', text);
+for (const text of [
   'readOnly = false',
   'readOnly?: boolean;',
   '该地区尚未解锁，市场仅供查看。',
   'market-trade-readonly',
-  'readOnly ? (',
-  'disabled={readOnly}',
-  "readOnly ? '实时五档 · 只读' : '实时五档 · 点击填价'",
-]) requireText('src/pages/MarketPage.tsx', text);
+  '实时五档',
+  'orderBook.bids',
+  'orderBook.asks',
+  'market-order-price',
+]) forbidText('src/pages/MarketPage.tsx', text);
 for (const path of ['src/pages/GlobalMarketPage.tsx', 'src/pages/GlobalBuildingsPage.tsx']) {
   requireText(path, 'return model.game.provinces;');
   requireText(path, 'const provinces = operationalProvinces(model);');
@@ -293,12 +300,11 @@ for (const text of [
 ]) forbidText('src/pages/GlobalMarketPage.tsx', text);
 for (const text of [
   'market-commodity-row-header',
-  '卖单量',
-  '买单量',
-  '市场价',
-  '24h',
+  '今日价格',
+  '24h成交量',
+  '24h价格变化',
 ]) requireText('src/components/market/MarketCommodityRow.tsx', text);
-for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
+for (const text of ['卖单量', '买单量', '挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
 for (const text of [
   '.entity-list-surface {',
   '.entity-list-rows {',
@@ -342,9 +348,9 @@ forbidText('src/pages/GlobalMarketPage.tsx', '筛选与排序');
 forbidText('src/pages/MarketPage.tsx', '筛选与排序');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '连续 48 州从玩家首次建档起全部可直接经营');
-requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '不存在起始州选择、地区解锁或解锁费用');
+requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '任一州都可直接进行商品即时交易');
 requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '连续 48 州均直接显示本地库存内容');
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不存在地区锁定、只读锁定市场、解锁信息、解锁按钮或按解锁状态裁剪全局列表');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑与仓库直接显示本地经营内容');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品列表字段名使用独立表头');
@@ -421,9 +427,26 @@ for (const text of [
   'aria-label="重置地图缩放和平移"',
 ]) forbidText('src/components/shell/StrategicWorkspace.tsx', text);
 
+for (const text of [
+  '起始州选择已永久移除',
+  '连续 48 州不得按访问资格灰显',
+  '不存在未解锁州、解锁费用、解锁按钮或市场只读分支',
+  '概览只展示当前州库存、工厂、运行／异常与经营摘要',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of [
+  '起始州选择固定复用唯一常驻战略地图',
+  '起始州选点模式则只更新候选',
+  '未解锁州灰显',
+  '新玩家首次进入游戏必须先按 3.1 的地图选点流程选择起始州',
+  '市场保持只读',
+  '州解锁按钮点击后',
+  '距永久起始州距离',
+  '概览只展示当前州库存、工厂、运行／异常与挂单摘要',
+]) forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+
 if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场、地区商品、建筑和地区建筑目录共用统一页面实体列表表面、间距、Chevron、目录插画槽和正负数值色；一级建筑按工厂类型 → 地区 → 现有地区工厂详情下钻；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留逻辑 1–4 动态美国居中手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场目录使用今日价格与真实成交信息，地区商品详情使用服务器当日价即时交易且禁止恢复五档/自定义价格；建筑和地区建筑目录继续共用统一页面实体列表表面、间距、Chevron、目录插画槽和正负数值色；一级建筑按工厂类型 → 地区 → 现有地区工厂详情下钻；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留逻辑 1–4 动态美国居中手势缩放并禁止恢复独立缩放功能面板。');

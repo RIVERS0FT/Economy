@@ -58,11 +58,10 @@ requireAll(paths.router, [
   "'player.assets'",
   "'player.production'",
   "'player.progression'",
-  "'market.orders'",
-  "'market.quotes'",
-  "'market.calendar'",
 ]);
 forbidAll(paths.router, ['localStorage', 'sessionStorage', 'marketAssetId']);
+const homeDependencyBlock = read(paths.router).split('home: [')[1]?.split('],\n  map:')[0] ?? '';
+if (homeDependencyBlock.includes("'market.")) failures.push('OverviewPage 不得再订阅 market.* 切片');
 
 requireAll(paths.overview, [
   'title="概览"',
@@ -74,7 +73,6 @@ requireAll(paths.overview, [
   'weeklyBonusEligible',
   '签到领取 1 宝石',
   '本周全勤奖励已领取',
-  'overview-open-orders-list--scrollable',
   'title="生产摘要"',
   'title="资产与银行"',
   "title=\"资产与银行\" action={<Button variant=\"text\" onClick={() => setTab('bank')}>查看详情</Button>}",
@@ -83,7 +81,6 @@ requireAll(paths.overview, [
   'label="可支配资产"',
   'label="冻结资产"',
   'label="贷款负债"',
-  'title="当前挂单"',
   'theoreticalDailyOutput',
   'home-grid',
 ]);
@@ -116,6 +113,15 @@ forbidAll(paths.overview, [
   '连续签到 7 天可额外获得 5 宝石',
   '签到日期由服务器按北京时间判定，不支持补签。',
   '/ 7 天',
+  'title="当前挂单"',
+  '管理订单',
+  'ownOpenOrders',
+  'overview-open-orders-card',
+  'overview-open-orders-list',
+  'overview-open-order',
+  'orderAssetId(',
+  'orderKind(',
+  'orderStatusNames',
 ]);
 requireAll(paths.strategicWorkspace, [
   'export function StrategicWorkspaceChrome',
@@ -194,10 +200,13 @@ requireAll(paths.overviewStyle, [
   'container: overview / inline-size;',
   '@container overview (max-width: 1050px)',
   '@container overview (max-width: 580px)',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
   'overflow-y: visible;',
   '.overview-check-in-status {',
 ]);
 forbidAll(paths.overviewStyle, [
+  'overview-open-order',
+  'overview-open-orders-card',
   '384px',
   'overscroll-behavior: contain',
   '.overview-today-panel',
@@ -216,10 +225,10 @@ requireAll(paths.eventLogStyle, [
 
 requireAll(paths.polishStyle, [
   '--overview-summary-card-height: 330px;',
-  '.overview-open-orders-list--scrollable {',
-  'overflow-y: auto;',
+  '.overview-assets-card .overview-core-data .ui-data-row',
   '.overview-check-in-day small {',
 ]);
+forbidAll(paths.polishStyle, ['overview-open-order', 'overview-open-orders-list']);
 forbidAll(paths.polishStyle, ['clamp(168px, 20vw, 210px)', '.overview-asset-events {\n  overflow-y: auto;']);
 requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-strip--outliner', '.game-guide-progress {', '@media (max-width: 720px)']);
 forbidAll(paths.guideStyle, [
@@ -347,7 +356,7 @@ requireAll(paths.browserSpec, [
   'overview shows completed and partial-week attendance states',
   'overview check-in calendar preserves seven columns on mobile',
   'overview shows authoritative asset status and opens the bank page',
-  'overview only scrolls the order list after the visible capacity is exceeded',
+  'overview does not expose retired player resting-order summaries',
   'overview keeps the decision rows visible and adapts to a narrower desktop',
   'compact desktop keeps QQ group and settings footer actions visible',
   'desktop command rail expansion overlays the integrated card without reflowing overview or outliner',
@@ -370,8 +379,10 @@ requireAll(paths.pageDesign, [
   '`1920×1080`',
   '`1440×900`',
   '桌面教程固定显示在战略追踪器顶部',
+  '概览与通知中心不得恢复玩家商品挂单摘要',
+  '概览不得显示“当前挂单”、管理订单、玩家买卖单统计、开放订单列表或订单专用滚动区',
 ]);
-requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '签到日历']);
+requireAll(paths.uiDesign, ['## 10. 概览布局', '`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`', '`OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md`', '不得以 UI 兼容理由恢复“当前挂单”']);
 requireAll(paths.integrityDesign, [
   '概览位于玩家外壳唯一毛玻璃 `workspaceCard` 的左侧页面区域',
   '结构性 `Panel`',
@@ -384,13 +395,16 @@ requireAll(paths.integrityDesign, [
   '`.strategic-outliner` 不得成为 `.page-content`',
   '签到日历',
   '资产与银行',
+  '两张经营摘要',
+  '玩家商品挂单已经退役',
   '可支配资产、冻结资产和贷款负债',
   '`1684×931`',
   '`390×844`',
   'Outliner 保持完整宽度且不存在整体 `data-collapsed` 或 `44px` 收起轨道',
   '侧栏悬浮展开覆盖概览但不改变页面和战略追踪器几何',
 ]);
-for (const path of [paths.pageDesign, paths.uiDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
+for (const path of [paths.pageDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
+forbidText(paths.uiDesign, '统一为 `384px` 高');
 
 requireText(paths.main, "import './styles/overview.css'");
 requireText(paths.main, "import './styles/overview-polish.css'");

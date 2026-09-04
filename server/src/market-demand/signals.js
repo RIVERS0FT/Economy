@@ -1,8 +1,7 @@
-import { iterateOrderBookSide, recordOrderBookVisit } from '../order-book-runtime.js';
 import { PRICE_WINDOW_MS } from './catalog.js';
 import { clamp } from './math.js';
 
-export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
+export function createMarketSignalRuntime({ marketFor }) {
   let planningCache = null;
 
   function activePlanningCache(world, now = null) {
@@ -38,10 +37,14 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
     const summarize = (selected) => {
       const quantity = selected.reduce((sum, point) => sum + weightedQuantity(point), 0);
       const value = selected.reduce((sum, point) => sum + weightedQuantity(point) * Number(point.price), 0);
-      const netActive = selected.reduce((sum, point) => (
-        sum + weightedQuantity(point) * (point.takerSide === 'buy' ? 1 : -1)
+      const buyQuantity = selected.reduce((sum, point) => (
+        sum + (point.takerSide === 'buy' ? weightedQuantity(point) : 0)
       ), 0);
-      return { quantity, value, netActive, vwap: quantity > 0 ? value / quantity : null };
+      const sellQuantity = selected.reduce((sum, point) => (
+        sum + (point.takerSide === 'sell' ? weightedQuantity(point) : 0)
+      ), 0);
+      const netActive = buyQuantity - sellQuantity;
+      return { quantity, value, buyQuantity, sellQuantity, netActive, vwap: quantity > 0 ? value / quantity : null };
     };
     const all = summarize(points);
     const player = summarize(points.filter((point) => point.marketRole === 'player'));
@@ -51,6 +54,8 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
       ...all,
       playerQuantity: player.quantity,
       playerValue: player.value,
+      playerBuyQuantity: player.buyQuantity,
+      playerSellQuantity: player.sellQuantity,
       playerNetActive: player.netActive,
       consumptionQuantity: consumption.quantity,
       consumptionValue: consumption.value,
@@ -61,48 +66,30 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
     return result;
   }
 
-  function orderBookQuote(world, product, depth, referencePrice, provinceId) {
-    const cache = activePlanningCache(world);
+  function orderBookQuote(world, product, depth, referencePrice, provinceId, now = activePlanningCache(world)?.now) {
+    const signalNow = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    const cache = activePlanningCache(world, signalNow);
     const cacheKey = `${String(provinceId || '')}:${product.id}:${Number(depth)}:${Number(referencePrice)}`;
     if (cache?.quotes.has(cacheKey)) return cache.quotes.get(cacheKey);
-    const asks = iterateOrderBookSide(world, {
-      provinceId,
-      assetKind: 'commodity',
-      assetId: product.id,
-      side: 'sell',
-    });
+    // Player resting asks are retired: use the fixed daily system price as the executable quote and recent player sells only as internal supply evidence.
+    const market = marketFor(world, product.id, signalNow, provinceId);
+    const officialPrice = Number(market?.officialPrice);
+    const quote = Number.isFinite(officialPrice) && officialPrice > 0 ? officialPrice : referencePrice;
     const targetDepth = Math.max(1, Math.ceil(depth));
-    let remaining = targetDepth;
-    let available = 0;
-    let cost = 0;
-    let fallbackPrice = referencePrice;
-    let visited = 0;
-    for (const ask of asks) {
-      visited += 1;
-      if (remaining <= 0) break;
-      if (ask.ownerType !== 'player' || !isOpenOrder(ask)) continue;
-      const quantity = Math.min(remaining, Math.max(0, Number(ask.remaining || 0)));
-      if (quantity <= 0) continue;
-      fallbackPrice = Math.max(fallbackPrice, Number(ask.price || referencePrice));
-      cost += quantity * Number(ask.price || referencePrice);
-      available += quantity;
-      remaining -= quantity;
-    }
-    recordOrderBookVisit(world, visited);
-    const result = available === 0
-      ? { quote: referencePrice, available: 0, coverage: 0 }
-      : {
-        quote: Math.max(1, (cost + (remaining > 0 ? remaining * fallbackPrice : 0)) / targetDepth),
-        available,
-        coverage: clamp(0, 1, available / targetDepth),
-      };
+    const stats = realTradeStats(world, product.id, signalNow, PRICE_WINDOW_MS, provinceId);
+    const available = Math.max(0, Number(stats.playerSellQuantity || 0));
+    const result = {
+      quote,
+      available,
+      coverage: clamp(0, 1, available / targetDepth),
+    };
     cache?.quotes.set(cacheKey, result);
     return result;
   }
 
   function effectivePrice(world, product, depth, priceState, now, provinceId) {
     const referencePrice = Math.max(0.01, Number(priceState?.referencePrice || product.basePrice));
-    const quote = orderBookQuote(world, product, depth, referencePrice, provinceId);
+    const quote = orderBookQuote(world, product, depth, referencePrice, provinceId, now);
     const trades = realTradeStats(world, product.id, now, PRICE_WINDOW_MS, provinceId);
     const vwap = trades.vwap === null ? referencePrice : trades.vwap;
     return {

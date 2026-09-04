@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EconomyStore } from '../src/runtime-store.js';
+import { provinceScopedKey } from '../src/provinces.js';
 
 function createRegistrationTable(store) {
   store.database.exec(`
@@ -61,7 +62,12 @@ test('player statistics record successful economic actions once and keep reads r
 
     store.transaction(() => {
       const { revision, world } = store.loadWorld(now + 2);
-      world.players[String(player.id)].stats.commodityVolume += 4;
+      const statisticsPlayer = world.players[String(player.id)];
+      statisticsPlayer.stats.commodityVolume += 4;
+      statisticsPlayer.inventories.wheat = { available: 2, frozen: 3, inTransit: 4 };
+      const wheatMarket = world.markets[provinceScopedKey('california', 'wheat')];
+      wheatMarket.officialPrice = 7;
+      wheatMarket.lastTradePrice = 111;
       world.assetAuctions.push({
         id: 'player-statistics-asset-auction',
         items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 1 }],
@@ -138,6 +144,10 @@ test('player statistics record successful economic actions once and keep reads r
     assert.equal(statistics.snapshot.registeredInRange, 1);
     assert.equal(statistics.activity.tradeParticipantsInRange, 1);
     assert.equal(statistics.participation.rows.find((row) => row.id === 'open-auction')?.count, 1);
+    assert.equal(statistics.wealth.composition.commodities, 63);
+    assert.equal(statistics.wealth.composition.frozen, 21);
+    assert.equal(statistics.wealth.unpricedAssetPlayers, 0);
+    assert.notEqual(statistics.wealth.composition.commodities, 9 * 111);
     assert.equal(statistics.range.key, '30d');
     assert.equal(statistics.range.timeZone, 'Asia/Shanghai');
     assert.equal(JSON.stringify(statistics).includes(player.email), false);

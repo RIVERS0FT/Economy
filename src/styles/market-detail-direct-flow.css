@@ -1,6 +1,6 @@
 /* Regional market detail keeps contextual and trading content in the page flow.
- * Order-entry and order-book controls keep their internal boundaries without an outer card shell.
- * Commodity identity exposes only the two retained facts, so removed fundamentals reserve no layout tracks.
+ * Immediate-trade controls keep their internal boundaries without an outer card shell.
+ * Commodity identity keeps the retained daily-price, trend, and inventory facts without restoring removed fundamentals.
  * This page-flow contract is independent of unrelated global state-version migrations. */
 
 .market-detail-surface > .market-detail-hero.ui-primary-surface,
@@ -61,9 +61,6 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.market-detail-surface .market-trade-summary > span:nth-child(2) {
-  display: none;
-}
 
 .market-detail-surface .market-account-panel {
   margin-top: var(--space-2);

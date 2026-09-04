@@ -304,7 +304,7 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '整包出价输入框与“提交出价／提高出价”按钮在桌面和移动宽度都必须保持同一横向操作行',
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`auction-audit-store.js`', '`economy_asset_auction_events`', 'GET | `/api/game/auctions/:auctionId/bids`']);
-requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['拍卖使用自身规则快照', '拍卖独立收费不得被误删']);
+requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['工厂资产不得重新进入商品即时市场；工厂所有权转移继续只通过拍卖完成']);
 requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['未达保留价']);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
   '出价历史使用原生按钮',
