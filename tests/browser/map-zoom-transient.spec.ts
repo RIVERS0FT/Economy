@@ -31,7 +31,10 @@ test('active zoom uses one transient camera transform while static geometry stay
     viewBox: container.querySelector<SVGSVGElement>('.province-map-world-svg')?.getAttribute('viewBox') ?? '',
   }));
 
-  await canvas.evaluate((container) => {
+  const activeBoundary = await canvas.evaluate(async (container) => {
+    const cameraSurface = container.querySelector<HTMLElement>('.province-map-camera-surface');
+    const worldSvg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
+    if (!cameraSurface || !worldSvg) throw new Error('map transient camera fixture is incomplete');
     const bounds = container.getBoundingClientRect();
     for (let index = 0; index < 8; index += 1) {
       container.dispatchEvent(new WheelEvent('wheel', {
@@ -42,12 +45,20 @@ test('active zoom uses one transient camera transform while static geometry stay
         deltaY: -70,
       }));
     }
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const style = getComputedStyle(cameraSurface);
+    return {
+      active: container.dataset.mapZoomActive,
+      transform: style.transform,
+      willChange: style.willChange,
+      viewBox: worldSvg.getAttribute('viewBox') ?? '',
+    };
   });
 
-  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'true');
-  await expect(camera).toHaveCSS('will-change', 'transform');
-  await expect.poll(async () => camera.evaluate((element) => getComputedStyle(element).transform)).not.toBe('none');
-  expect(await svg.getAttribute('viewBox')).toBe(baseline.viewBox);
+  expect(activeBoundary.active).toBe('true');
+  expect(activeBoundary.transform).not.toBe('none');
+  expect(activeBoundary.willChange).toBe('transform');
+  expect(activeBoundary.viewBox).toBe(baseline.viewBox);
 
   const during = await canvas.evaluate((container) => ({
     pathRevision: container.dataset.mapPathRevision,
