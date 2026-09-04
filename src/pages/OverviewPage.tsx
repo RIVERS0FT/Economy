@@ -129,6 +129,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
                 <DataRow label="现金资产" value={<CurrencyAmount>{formatCurrency(derived.cashValue)}</CurrencyAmount>} />
                 <DataRow label="商品估值" value={<CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount>} />
                 <DataRow label="工厂估值" value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>} />
+                <DataRow label="商业建筑估值" value={<CurrencyAmount>{formatCurrency(game.assetSummary.commercialValue ?? 0)}</CurrencyAmount>} />
                 <DataRow label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} tone={game.frozenCredits > 0 ? 'warning' : 'neutral'} />
               </DataList>
               <div className="overview-subsection-heading">

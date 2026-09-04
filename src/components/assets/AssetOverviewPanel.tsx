@@ -9,10 +9,17 @@ import '../../styles/entity-list-header.css';
 
 export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
   const { game, derived } = model;
+  const commercialValue = game.assetSummary.commercialValue ?? 0;
+  const commercialBuildingCount = ((game as typeof game & {
+    commercialBuildingGroups?: Array<{ count: number }>;
+  }).commercialBuildingGroups ?? []).reduce(
+    (sum, group) => sum + Math.max(0, Number(group.count || 0)),
+    0,
+  );
   const { cashShare, commodityShare, facilityShare } = buildAssetAllocation(
     derived.cashValue,
     derived.commodityValue,
-    derived.facilityValue,
+    derived.facilityValue + commercialValue,
   );
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
@@ -33,7 +40,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
     <PagePanel className="asset-overview-card">
       <WidgetHeading
         title="资产总览"
-        action={<span className="muted">商品按当日官方价、工厂按最近产权成交价估值</span>}
+        action={<span className="muted">商品按当日官方价、工厂按最近产权成交价、商业建筑按目录系统价值估值</span>}
       />
 
       <div className="asset-overview-body">
@@ -66,12 +73,12 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
           <AssetAllocationChart
             cash={derived.cashValue}
             commodities={derived.commodityValue}
-            facilities={derived.facilityValue}
+            facilities={derived.facilityValue + commercialValue}
           />
           <div className="allocation-legend">
             <span><i className="cash-dot" />现金 <strong>{cashShare}%</strong></span>
             <span><i className="commodity-dot" />商品 <strong>{commodityShare}%</strong></span>
-            <span><i className="facility-dot" />工厂 <strong>{facilityShare}%</strong></span>
+            <span><i className="facility-dot" />建筑 <strong>{facilityShare}%</strong></span>
           </div>
         </section>
 
@@ -120,11 +127,24 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
               <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(availableFacilityValue)}</CurrencyAmount></span>
               <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(frozenFacilityValue + mortgagedFacilityValue)}</CurrencyAmount></span>
             </div>
+            <div
+              className="asset-composition-row commercial"
+              role="row"
+              aria-label={`商业建筑，总计 ${formatCurrency(commercialValue)}，可用 ${formatCurrency(commercialValue)}，冻结 ${formatCurrency(0)}，共 ${formatNumber(commercialBuildingCount)} 座`}
+            >
+              <span className="asset-composition-name" role="cell">
+                <i className="facility-dot" />
+                <span>商业建筑<small>共 {<CompactNumber value={commercialBuildingCount} />} 座</small></span>
+              </span>
+              <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(commercialValue)}</CurrencyAmount></strong>
+              <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(commercialValue)}</CurrencyAmount></span>
+              <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(0)}</CurrencyAmount></span>
+            </div>
           </div>
         </section>
       </div>
 
-      <p className="ui-helper-text asset-freeze-note">冻结资产和抵押工厂仍归当前玩家所有并计入资产毛值；贷款负债从资产毛值中扣除形成净资产。抵押工厂继续生产，但不能交易、拍卖或重复抵押。</p>
+      <p className="ui-helper-text asset-freeze-note">冻结资产和抵押工厂仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结、抵押或产权交易状态；贷款负债从资产毛值中扣除形成净资产。</p>
     </PagePanel>
   );
 }

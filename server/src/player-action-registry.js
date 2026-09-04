@@ -65,6 +65,7 @@ export const PLAYER_ACTION_REGISTRY = Object.freeze({
   checkIn: defineAction({ mutationScope: 'local-player' }),
   settleProduction: defineAction({ mutationScope: 'local-player', domain: 'production' }),
   buildFacility: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
+  commercialBuilding: defineAction({ mutationScope: 'local-player', domain: 'commercial', economicActivity: true }),
   startResearch: defineAction({ mutationScope: 'local-player', domain: 'research', economicActivity: true }),
   accelerateResearch: defineAction({ mutationScope: 'local-player', domain: 'research', economicActivity: true }),
   placeOrder: defineAction({ rateLimitCategory: 'orders', mutationScope: 'order', domain: 'order', latencyClass: 'market', economicActivity: true }),

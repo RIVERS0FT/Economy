@@ -1,6 +1,6 @@
 # Economy 产业目录与工厂集群设计
 
-市场交易以 `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` 为准；共享仓库以 `WAREHOUSE_EXPANSION_DESIGN.md` 为准；页面归属以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准。
+市场交易以 `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` 为准；共享仓库以 `WAREHOUSE_EXPANSION_DESIGN.md` 为准；商业建筑资产与营业结算以 `COMMERCIAL_BUILDINGS_DESIGN.md` 为准；页面归属以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准。本文中的“工厂”只表示工业生产资产，不包含商业建筑。
 
 ## 1. 不可回退决策
 

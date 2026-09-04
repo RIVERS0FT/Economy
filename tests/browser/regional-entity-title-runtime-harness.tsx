@@ -12,7 +12,10 @@ import '../../src/styles/regional-entity-page-title.css';
 import '../../src/styles/interaction-states.css';
 
 const params = new URLSearchParams(window.location.search);
-const kind = params.get('kind') === 'facility' ? 'facility' : 'product';
+const requestedKind = params.get('kind');
+const kind = requestedKind === 'facility' || requestedKind === 'commercial'
+  ? requestedKind
+  : 'product';
 const initialLocation: PlayerPageLocation = kind === 'facility'
   ? {
       type: 'regional-facility',
@@ -20,12 +23,18 @@ const initialLocation: PlayerPageLocation = kind === 'facility'
       provinceId: 'US-CA',
       facilityTypeId: 'farm',
     }
-  : {
-      type: 'regional-product',
-      host: 'market',
-      provinceId: 'US-CA',
-      productId: 'wheat',
-    };
+  : kind === 'commercial'
+    ? {
+        type: 'regional-commercial',
+        provinceId: 'US-CA',
+        commercialTypeId: 'convenience-store',
+      }
+    : {
+        type: 'regional-product',
+        host: 'market',
+        provinceId: 'US-CA',
+        productId: 'wheat',
+      };
 
 function RuntimeHarness() {
   const [currentLocation, setCurrentLocation] = useState<PlayerPageLocation>(initialLocation);
@@ -45,12 +54,18 @@ function RuntimeHarness() {
     },
   }), [currentLocation]);
 
+  const entityName = kind === 'facility'
+    ? '农场'
+    : kind === 'commercial'
+      ? '便利店'
+      : '小麦';
+
   return (
     <PlayerPageNavigationProvider value={navigation}>
       <main>
         <h1>
           <RegionalEntityPageTitle
-            entityName={kind === 'facility' ? '农场' : '小麦'}
+            entityName={entityName}
             regionName="加利福尼亚"
           />
         </h1>

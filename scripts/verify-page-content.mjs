@@ -58,10 +58,10 @@ for (const text of [
   '表头允许按工厂名称、平均利润和拥有数量',
   '一级建筑只提供工厂类型全局总览与工厂优先地区钻取',
   '图标式快捷生产设置',
-  '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
+  '`ProvincePage` 内的市场、商业与工业分区仍始终是地图所打开当前州的本地视图',
   '概览始终显示官方常住人口',
   '市场提供商品目录、今日官方价格、真实成交行情和当日价即时交易写操作',
-  '建筑与仓库直接显示本地经营内容',
+  '商业、工业与仓库直接显示本地经营内容',
   '一级市场商品的地区行情列表与一级建筑工厂的地区列表覆盖连续 48 州',
   '邀请卡与礼品码兑换唯一归属商店',
   '战略地图镜头、缩放、重置和平移边界唯一遵循 `LIQUID_GLASS_CHROME_DESIGN.md`',
@@ -151,6 +151,7 @@ for (const text of [
 
 for (const text of [
   '<EmbeddedMarketPage model={model} embedded />',
+  '<EmbeddedCommercePage',
   '<EmbeddedBuildingsPage',
   'onDetailFacilityChange={handleFacilityDetailChange}',
   "import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';",
@@ -350,7 +351,7 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商�
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '连续 48 州从玩家首次建档起全部可直接经营');
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '任一州都可直接进行商品即时交易');
 requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '连续 48 州均直接显示本地库存内容');
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑与仓库直接显示本地经营内容');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商业、工业与仓库直接显示本地经营内容');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品列表字段名使用独立表头');
@@ -431,7 +432,7 @@ for (const text of [
   '起始州选择已永久移除',
   '连续 48 州不得按访问资格灰显',
   '不存在未解锁州、解锁费用、解锁按钮或市场只读分支',
-  '概览只展示当前州库存、工厂、运行／异常与经营摘要',
+  '概览始终显示官方常住人口以及该玩家在该州的只读经营摘要',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   '起始州选择固定复用唯一常驻战略地图',

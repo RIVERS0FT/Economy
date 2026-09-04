@@ -97,7 +97,10 @@ test('account-free game shell navigates all eleven visible business pages and cl
   await expect(page.locator('.province-overview-content')).toBeVisible();
   await expect(page.locator('.province-overview-panel')).toHaveCount(0);
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
-  await expect(page.getByRole('tablist', { name: '得克萨斯页面分区' }).getByRole('tab')).toHaveCount(4);
+  const provinceTabs = page.getByRole('tablist', { name: '得克萨斯页面分区' });
+  await expect(provinceTabs.getByRole('tab')).toHaveCount(5);
+  await expect(provinceTabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();
+  await expect(provinceTabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();
   await expect(page.getByText('当前经营地区', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');

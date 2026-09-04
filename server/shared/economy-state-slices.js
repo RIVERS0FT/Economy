@@ -32,6 +32,7 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
       'provinceFacilityGroups',
       'facilityConstruction',
       'factoryAutoOperationPolicies',
+      'commercialBuildingGroups',
     ]),
   }),
   'player.progression': Object.freeze({

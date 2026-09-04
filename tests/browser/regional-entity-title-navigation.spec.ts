@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-for (const kind of ['product', 'facility'] as const) {
+for (const kind of ['product', 'commercial', 'facility'] as const) {
   test(`${kind} regional title pushes the matching province overview`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`regional-entity-title-runtime-test.html?kind=${kind}`);
@@ -9,7 +9,8 @@ for (const kind of ['product', 'facility'] as const) {
     const regionButton = page.getByRole('button', { name: '前往加利福尼亚地区页面' });
     await expect(regionButton).toBeVisible();
     await expect(regionButton).toHaveAttribute('data-regional-entity-region-link', 'true');
-    await expect(page.locator('.regional-entity-title__name')).toHaveText(kind === 'facility' ? '农场' : '小麦');
+    const expectedEntityName = kind === 'facility' ? '农场' : kind === 'commercial' ? '便利店' : '小麦';
+    await expect(page.locator('.regional-entity-title__name')).toHaveText(expectedEntityName);
     await expect(regionButton).toHaveText('加利福尼亚');
 
     const geometry = await title.evaluate((element) => {

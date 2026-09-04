@@ -27,7 +27,7 @@
     "verify:contract-layout": "node scripts/verify-contract-layout.mjs",
     "verify:page-spacing": "node scripts/verify-page-section-spacing.mjs",
     "verify:order-matching-core": "node scripts/verify-order-matching-core.mjs",
-    "verify:provincial-economy": "node scripts/verify-provincial-economy.mjs",
+    "verify:provincial-economy": "node scripts/verify-provincial-economy.mjs && node scripts/verify-commercial-buildings.mjs",
     "verify:province-map-focus": "node scripts/verify-province-map-focus.mjs",
     "verify:game-tutorial": "node scripts/verify-game-tutorial.mjs",
     "verify:strategic-outliner": "node scripts/verify-strategic-outliner.mjs",

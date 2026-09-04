@@ -17,11 +17,11 @@ export function AssetAllocationChart({
   const rows = [
     { name: '现金', value: Math.max(0, cash), color: chartColor.success },
     { name: '商品', value: Math.max(0, commodities), color: chartColor.warning },
-    { name: '工厂', value: Math.max(0, facilities), color: chartColor.info },
+    { name: '建筑', value: Math.max(0, facilities), color: chartColor.info },
   ];
   const option = useMemo<EChartsCoreOption>(() => ({
     animation: false,
-    aria: { enabled: true, description: '按资产毛值计算的现金、商品与工厂配置比例。' },
+    aria: { enabled: true, description: '按资产毛值计算的现金、商品与建筑配置比例；建筑包含工业工厂和商业建筑。' },
     tooltip: {
       ...commonTooltip,
       trigger: 'item',
