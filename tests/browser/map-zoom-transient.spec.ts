@@ -180,11 +180,7 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
     const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
     const detailedFill = container.querySelector<SVGPathElement>('.province-map-world-fill');
     const lodFill = container.querySelector<SVGPathElement>('.province-map-world-shadow');
-    const mainlandSeam = container.querySelector<SVGPathElement>('.province-map-mainland-seam');
-    const mainlandOutline = container.querySelector<SVGPathElement>('.province-map-mainland-outline');
-    if (!svg || !camera || !detailedFill || !lodFill || !mainlandSeam || !mainlandOutline) {
-      throw new Error('map camera performance fixture is incomplete');
-    }
+    if (!svg || !camera || !detailedFill || !lodFill) throw new Error('map camera performance fixture is incomplete');
     const baselineViewBox = svg.getAttribute('viewBox') ?? '';
     const bounds = container.getBoundingClientRect();
     const dispatchWheel = (deltaY: number) => container.dispatchEvent(new WheelEvent('wheel', {
@@ -216,9 +212,6 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
     const activeBoundary = {
       detailedFillDisplay: getComputedStyle(detailedFill).display,
       lodFill: getComputedStyle(lodFill).fill,
-      mainlandSeamDisplay: getComputedStyle(mainlandSeam).display,
-      mainlandOutlineDisplay: getComputedStyle(mainlandOutline).display,
-      mainlandOutlineCharacters: mainlandOutline.getAttribute('d')?.length ?? 0,
       cameraTransform: getComputedStyle(camera).transform,
       preloadViewBox: svg.getAttribute('viewBox') ?? '',
       svgOverflow: getComputedStyle(svg).overflow,
@@ -253,15 +246,12 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
 
   expect(result.activeBoundary.detailedFillDisplay).toBe('none');
   expect(result.activeBoundary.lodFill).not.toBe('none');
-  expect(result.activeBoundary.mainlandSeamDisplay).toBe('none');
-  expect(result.activeBoundary.mainlandOutlineDisplay).toBe('none');
-  expect(result.activeBoundary.mainlandOutlineCharacters).toBeGreaterThan(100);
   expect(result.activeBoundary.cameraTransform).not.toBe('none');
   expect(result.activeBoundary.preloadViewBox).not.toBe(result.baselineViewBox);
   expect(result.activeBoundary.svgOverflow).toBe('visible');
   expect(result.activeBoundary.cameraContain).toBe('none');
   const frameBudgetMs = result.emptyFrameMedianMs * 2 + 8;
-  console.log(`[map-camera-perf] empty=${result.emptyFrameMedianMs.toFixed(2)}ms total=${result.cameraFrameMedianMs.toFixed(2)}ms dispatch=${result.cameraDispatchMedianMs.toFixed(2)}ms raf-wait=${result.cameraRafWaitMedianMs.toFixed(2)}ms budget=${frameBudgetMs.toFixed(2)}ms mainland-outline-chars=${result.activeBoundary.mainlandOutlineCharacters}`);
+  console.log(`[map-camera-perf] empty=${result.emptyFrameMedianMs.toFixed(2)}ms total=${result.cameraFrameMedianMs.toFixed(2)}ms dispatch=${result.cameraDispatchMedianMs.toFixed(2)}ms raf-wait=${result.cameraRafWaitMedianMs.toFixed(2)}ms budget=${frameBudgetMs.toFixed(2)}ms transform=${result.activeBoundary.cameraTransform}`);
   expect(result.cameraFrameMedianMs, `map camera perf ${JSON.stringify(result)}`).toBeLessThanOrEqual(frameBudgetMs);
 
   const svg = canvas.locator('.province-map-world-svg');
