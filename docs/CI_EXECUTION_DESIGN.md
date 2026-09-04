@@ -105,6 +105,7 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 部署 `browser-test` 四分片执行完整 ST-browser；
 - `deploy` 只有在上述两类验证都成功后才允许上传和切换生产版本；
 - 部署完成后继续运行 ST-production acceptance，验证服务健康、正式域名、公网入口、账号／注册／游戏 API 与数据库只读完整性边界。
+- 正式域名的公网页面、健康 API 与游戏 API 必须继续通过真实 `game.riversoft.top` DNS 与 HTTPS 验证，不得使用 `--resolve`、`--connect-to` 或固定 Host/IP 绕过公网 DNS。仅当 `curl` 未获得任何 HTTP 状态（`000`，包括瞬时 DNS／传输失败）时允许最多 3 次、间隔 1 秒的有界重试，单次连接超时 2 秒、总耗时 3 秒；一旦正式域名返回非预期 HTTP 状态必须立即失败，不得重试掩盖应用／代理错误。该重试不得改变 `ECONOMY_DEPLOY_VERIFY_START` 后 45 秒真实健康检查门槛。
 
 部署 Job 不得在上传阶段再次串行执行完整 `npm run build` 或 Playwright，避免同一源码重复跑完整门禁并挤压部署超时预算。
 
@@ -143,5 +144,6 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 在权威 DOM 状态切换后立即一次性读取 computed style，或用固定 sleep／删除视觉断言替代 `expect.poll` 条件等待；
 - 只依赖静态 `pointer-events` 检查而删除真实浏览器输入穿透回归；
 - 让 SignedInShell runtime harness 绕过共享外壳聚合入口或缺少 `safe-floating.css`，再用测试专用 CSS 伪造 Tooltip Layer 几何；
+- 把正式域名公网验收改成单次无重试 DNS 请求、把传输失败当成功，或用 `--resolve`／`--connect-to` 绕过真实 DNS；正式域名返回非预期 HTTP 状态时不得继续重试。
 - 把生产数据库诊断改成自动触发、可写连接、维护操作或服务控制入口；
 - 为诊断上传数据库文件、WAL/SHM、备份或玩家级明细 Artifact。
