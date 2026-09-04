@@ -31,10 +31,10 @@
 - 鼠标滚轮和双指缩放围绕真实屏幕焦点执行：先按当前 target viewBox 把屏幕点反求为世界坐标，再计算新倍率与新视场，并调整 center 使同一世界锚点仍位于该屏幕位置，最后按固定 world bounds clamp。
 - 鼠标／单指拖动把屏幕位移按 target viewBox 尺寸换算为世界坐标中心位移，再使用同一固定边界 clamp。不得先越界再回弹。
 - 输入从 idle 进入 active 时，只允许在 active 边界一次性发布诊断状态并由 CSS 临时启用 `.province-map-camera-surface` 的 compositor promotion；不得把 `will-change: transform` 设为永久样式。
-- active 阶段的 `requestAnimationFrame` 热路径只允许：把内存 target 规范化为 current，并对 `.province-map-camera-surface` 写入 **一个** transient transform CSS custom property。这个 transform 必须完全由“当前已提交 viewBox → current 目标 viewBox”的同一 Camera 数学推导，不得读取 DOM 几何、不得写根 SVG `viewBox`、不得发布 `data-*`、不得创建定时器、不得提交 React state、不得重算 path／标签、不得调用 ECharts／ZRender。
-- transient transform custom property 必须通过 `@property` 注册为 `inherits:false`（当前属性名 `--province-map-camera-transform`）。原因是普通 custom property 默认继承；若每帧在 Camera Surface 改写可继承变量，浏览器会把变量失效传播到包含 48 州、州名和路线的整棵 SVG 子树，重新引入大范围 style recalculation。该属性只能作为 Camera Surface 自身 `transform` 的非继承输入，不得被 SVG 子节点消费。
+- active 阶段的 `requestAnimationFrame` 热路径只允许：把内存 target 规范化为 current，并对 `.province-map-camera-surface` **直接写浏览器内建的 `style.transform` 一次**。这个 transform 必须完全由“当前已提交 viewBox → current 目标 viewBox”的同一 Camera 数学推导，不得读取 DOM 几何、不得写根 SVG `viewBox`、不得发布 `data-*`、不得创建定时器、不得提交 React state、不得重算 path／标签、不得调用 ECharts／ZRender。
+- Camera RAF 不得再通过 CSS custom property、`var(...)` 或 `@property` 间接驱动 transform。实测即使把 `--province-map-camera-transform` 注册成 `inherits:false`，Chrome 仍出现约 `46–52ms` 的中位 Camera 帧，高于同浏览器约 `41ms` 的门槛；因此 transient Camera 必须直接写内建 `transform` 属性，把 CSS 仅保留为 active/idle 边界的 `will-change`、`transform-origin` 和 LOD owner。
 - 同一任务中的多次 wheel／pointermove 必须合并为下一帧的一次 transient transform 写入。active 热路径不得同时写 transform 与 `viewBox`，否则会恢复高成本双路径并破坏同一 Camera 的坐标基准。
-- 输入 settle 使用单一 deadline 与单一定时器。只要仍有待提交 RAF，本轮不得先进入 idle；deadline 到达且 RAF 已清空后，必须 **一次性** 把 current Camera 提交为根 `.province-map-world-svg` 的最终 `viewBox`，随后清除 transient transform，再切回 idle，使最终样式恢复 `transform:none / will-change:auto`。
+- 输入 settle 使用单一 deadline 与单一定时器。只要仍有待提交 RAF，本轮不得先进入 idle；deadline 到达且 RAF 已清空后，必须 **一次性** 把 current Camera 提交为根 `.province-map-world-svg` 的最终 `viewBox`，随后清除内联 `transform`，再切回 idle，使最终样式恢复 `transform:none / will-change:auto`。
 - reset 和真实容器 resize 可以直接提交新的 settled `viewBox`，并必须同时清除 transient transform。空白双击／双触回到动态 `1×` 美国居中视场。移动双指的 click 抑制窗口继续只负责输入仲裁，不复制 Camera。
 - 诊断 `data-*` 只在初始化、active/idle 边界和 reset 同步；不得为了展示每一帧的 current 值而重新把诊断写入 RAF。
 
@@ -88,7 +88,7 @@
 - 每个 wheel／pointermove RAF 都改根 SVG `viewBox`；
 - active RAF 同时改 transient transform 与根 SVG `viewBox`；
 - 把 `.province-map-camera-surface` transform 重新作为长期或独立权威 Camera，或在 settle 后保留非 `none` transform；
-- 让 `--province-map-camera-transform` 恢复为默认可继承 custom property，或让任何 SVG 子节点消费该属性；
+- 使用 `--province-map-camera-transform`、`@property` 或任何 CSS custom property 间接驱动 active Camera transform；
 - 永久 `will-change: transform` 全世界合成层；
 - 另建第二套 center／zoom、第二投影、第二 SVG 或第二 HTML Camera 与 transient Camera 同步；
 - 逻辑倍率越大、合法 world bounds 越大的动态上下文；
@@ -106,14 +106,14 @@
 
 ## 10. 实现与验证映射
 
-- `src/components/provinces/provinceMapCamera.ts`：唯一 Camera 数学状态、固定 world bounds、焦点反求、active transient transform、settle 单次 viewBox 提交和输入仲裁。
+- `src/components/provinces/provinceMapCamera.ts`：唯一 Camera 数学状态、固定 world bounds、焦点反求、active 直接内建 `style.transform`、settle 单次 viewBox 提交和输入仲裁。
 - `src/components/provinces/provinceMapRouteLayout.ts`：公路／铁路中心线复用、航空抛物线、反向 segment 和同源运动采样。
 - `src/components/provinces/UsMainlandMap.tsx`：唯一静态 SVG 世界、路线和 marker 挂载。
 - `src/pages/TransportPage.tsx` 与 `TransportRouteDraftContext`：路线 hover／focus／详情高亮身份。
-- `src/styles/province-map.css` 与 `src/styles/strategic-map-rendering.css`：idle 矢量层级、`@property ... inherits:false` transient transform 注册、active compositor promotion、active/idle 世界背景 LOD、无滤镜热路径、三种方式线型和地图专属实体表面。
+- `src/styles/province-map.css` 与 `src/styles/strategic-map-rendering.css`：idle 矢量层级、active compositor promotion、active/idle 世界背景 LOD、无滤镜热路径、三种方式线型和地图专属实体表面；CSS 不再拥有逐帧 Camera transform 值。
 - `scripts/verify-provincial-economy.mjs`、`scripts/verify-transport-route-lanes.mjs` 与 `scripts/verify-province-map-focus.mjs`：结构防回退。
 - `tests/browser/map-zoom-transient.spec.ts`：同帧 wheel burst 在 active 阶段必须是 `0` 次根 SVG `viewBox` 变化、`1` 次 Camera Surface style 变化、`0` 次诊断属性变化；active 边界与 transform 必须在同一浏览器 RAF 中原子捕获，避免跨 90ms settle 窗口轮询；同时锁定 path/glyph 静态、active 110m 背景 LOD、settle 单次最终 viewBox、idle `transform:none / will-change:auto`，并继续以同浏览器空帧中位数验证 `empty×2+8ms` 的真实 Camera 帧预算。
-- `tests/browser/province-map-world-boundary.spec.ts`：锁定闲置态 10m 土地填充、同源 110m 背景描边、10m 美国本土最终轮廓及背景描边复杂度预算；同时验证不同倍率下 fixed world bounds 不变，并按 Camera 状态反求可用 center。
+- `tests/browser/province-map-world-boundary.spec.ts`：锁定闲置态 10m 土地填充、同源 110m 背景描边、10m 美国本土最终轮廓及背景描边复杂度预算；所有边界重复拖拽比较必须先等待 Camera settle，再以最终 viewBox 验证固定 world bounds，不得把 transient 帧误当 settled 边界。
 - `tests/browser/map-zoom-out-boundary.spec.ts`：锁定缩小 active 阶段已提交 viewBox 不变、transient transform 即时把屏外州带回视口、48 个 path 始终挂载，settle 后再回写 1× viewBox。
 - `tests/browser/map-reset-sync.spec.ts`、`map-mobile-pinch.spec.ts`、`map-zoom-render-sync.spec.ts`、`province-map-focus.spec.ts`：重置、移动双指、settled SVG 同步和州交互不破坏同一 Camera。
 - 运输浏览器回归必须验证重复路线共线、运行时无车道字段、往返无第二 path、公路／铁路／航空路径不同、航空包含 `Q` 曲线、运输标记沿对应几何、高亮不改变路线 `d`，以及地图镜头栏／选路面板最终 `backdrop-filter:none`。
