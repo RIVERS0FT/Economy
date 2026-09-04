@@ -29,16 +29,22 @@ for (const token of [
   "'src/app/revisionGate.js'",
   "'src/utils/assetAllocation.ts'",
   "'src/utils/virtualListRange.ts'",
+  "coverageMode: 'explicit'",
+  "coverageMode: 'loaded'",
+  "'server/test/*.test.js'",
+  "'server/test/**/*.test.js'",
   "thresholds: { lines: 95, functions: 95, branches: 90 }",
   "thresholds: { lines: 60, functions: 55, branches: 50 }",
-  "'server/src/**/*.js'",
-  "'server/shared/**/*.js'",
-  "'shared/**/*.js'",
   '--experimental-test-coverage',
+  "config.coverageMode === 'explicit'",
+  '--test-coverage-include=',
+  '--test-coverage-exclude=',
   '--test-coverage-lines=',
   '--test-coverage-functions=',
   '--test-coverage-branches=',
 ]) check(runner.includes(token), `覆盖率执行器缺少边界: ${token}`);
+
+check(!runner.includes("it: {\n    directory: 'server/test',\n    matcher: /\\.test\\.js$/,\n    stripTypes: false,\n    include:"), 'IT 不得恢复显式 include，把未加载服务器源码按零覆盖计入 targeted 分母');
 
 for (const path of [
   'tests/dt/client-runtime-logic.test.ts',
@@ -66,6 +72,7 @@ for (const token of [
   'ST（System Test）',
   'Lines ≥ 95%',
   'Lines ≥ 60%',
+  'IT 覆盖率执行器不得使用 `--test-coverage-include`',
   '`build` 聚合 Job',
 ]) check(ciDesign.includes(token), `CI 设计缺少覆盖率或分层规则: ${token}`);
 

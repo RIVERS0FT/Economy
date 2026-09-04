@@ -62,6 +62,8 @@ DT 最低覆盖率固定为：
 
 IT 覆盖已由选中服务器测试实际加载的 `server/src/**/*.js`、`server/shared/**/*.js` 与 `shared/**/*.js`。Node 24 不会把从未加载的文件自动计为零覆盖，因此关键权威模块必须同时由 `scripts/verify-code-coverage.mjs` 锁定源码和对应 IT 基线存在，避免通过完全不加载关键模块制造虚高覆盖率。
 
+IT 覆盖率执行器不得使用 `--test-coverage-include` 强制把未加载的服务器源码按零覆盖加入分母；targeted 与 full 都只统计本次 IT 实际加载的正式代码，并排除测试文件本身。关键模块是否具备 IT 基线继续由 `scripts/verify-code-coverage.mjs` 静态锁定，不能用扩大分母替代测试选择正确性。
+
 IT 最低覆盖率固定为：
 
 - Lines ≥ 60%；
@@ -132,6 +134,7 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 在 IT 或 ST Job 中重新计算 changed files 或建立第二套领域选择规则；
 - 让主分支 required `build` 在所需 ST-browser 失败、取消或未完成时成功；
 - 删除 DT／IT 覆盖率阈值、降低阈值或把关键源码从范围中移除以绕过失败；
+- 在 IT 覆盖率中恢复 `--test-coverage-include`，把 targeted 模式没有加载的服务器源码按零覆盖计入分母；
 - 把 selected/full 浏览器测试重新串行放回 DT 或 IT Job；
 - PR/分支需要浏览器验证时只使用单个 Job 执行全部选中测试，或用延长 20 分钟上限替代四分片；
 - targeted shard 自行重新定义测试集合；
