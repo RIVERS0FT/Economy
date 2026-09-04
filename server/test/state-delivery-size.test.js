@@ -52,6 +52,8 @@ test('48-province initial state remains below two MiB without embedded market hi
     assert.equal(serialized.includes('cycleSellQuantity'), false);
     assert.equal(serialized.includes('systemPriceVersion'), false);
     assert.equal(serialized.includes('lastImbalance'), false);
+    assert.equal(serialized.includes('baselineQuantity'), false);
+    assert.equal(serialized.includes('spendingPower'), false);
     assert.equal(typeof snapshot.state.provinceMarkets[DEFAULT_PROVINCE_ID].wheat.officialPrice, 'number');
     assert.equal(Buffer.byteLength(serialized) <= TWO_MIB, true, `initial state was ${Buffer.byteLength(serialized)} bytes`);
   } finally {
