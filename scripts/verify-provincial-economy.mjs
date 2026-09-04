@@ -26,8 +26,8 @@ const requiredFiles = [
   'src/components/provinces/provinceMapStaticLabels.ts',
   'src/components/provinces/provinceMapRouteLayout.ts',
   'src/components/provinces/provinceMapTransportNetwork.ts',
-  'src/data/north-america-coastline-110m.json',
   'src/data/north-america-land-10m.json',
+  'src/data/north-america-coastline-110m.json',
   'scripts/generate-province-map-world-context.mjs',
   'src/styles/performance.css',
   'src/styles/province-map.css',
@@ -110,7 +110,7 @@ const docsIndex = read('docs/README.md');
 assert.ok(docsIndex.includes('`UI_DESIGN_SYSTEM.md`') && docsIndex.includes('州级中文短名'), '设计索引必须将州级中文短名路由到 UI DESIGN owner');
 assert.ok(docsIndex.includes('`STRATEGIC_MAP_RENDERING_DESIGN.md`'), '设计索引必须登记战略地图渲染唯一 owner');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
-for (const text of ['地区商品／工厂详情共享两行标题', '州级地区全称', '中文州全名']) {
+for (const text of ['地区商品／商业建筑／工厂详情共享两行标题', '州级地区全称', '中文州全名']) {
   assert.ok(uiDesign.includes(text), `UI DESIGN 缺少州级名称视觉语义: ${text}`);
 }
 
@@ -219,7 +219,7 @@ for (const text of ['appendPlayerPageHistory', 'pushPlayerPage', 'replacePlayerP
 }
 const pageStack = read('src/navigation/playerPageStack.ts');
 for (const text of [
-  'MAX_PLAYER_PAGE_STACK_DEPTH = 20', "type: 'province'", "type: 'regional-product'", "type: 'regional-facility'",
+  'MAX_PLAYER_PAGE_STACK_DEPTH = 20', "type: 'province'", "type: 'regional-product'", "type: 'regional-commercial'", "type: 'regional-facility'",
   'maximumHistoryDepth = MAX_PLAYER_PAGE_STACK_DEPTH - 1',
 ]) assert.ok(pageStack.includes(text), `受限页面栈缺少: ${text}`);
 
@@ -227,8 +227,8 @@ const provincePage = read('src/pages/ProvincePage.tsx');
 for (const text of [
   'export function ProvincePage', 'title={isMarketDetail && marketDetailProduct ? (', 'role="tablist"', 'role="tab"', 'role="tabpanel"',
   "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }",
-  "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
-  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedBuildingsPage',
+  "{ id: 'commerce', label: '商业' }", "{ id: 'buildings', label: '工业' }", "{ id: 'warehouse', label: '仓库' }",
+  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedCommercePage', '<EmbeddedBuildingsPage',
   '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
   "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);',
   'pageNavigation.replacePage(provinceLocation);',
@@ -237,7 +237,7 @@ for (const forbidden of ['isUnlocked', 'provinceUnlockCostBreakdown', 'unlockPro
   assert.equal(provincePage.includes(forbidden), false, `州级上下文页不得恢复地区解锁分支: ${forbidden}`);
 }
 const provinceStyles = read('src/styles/province-page.css');
-assert.ok(provinceStyles.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'), '州级上下文切换必须保持四个等宽按钮');
+assert.ok(provinceStyles.includes('grid-template-columns: repeat(5, minmax(0, 1fr));'), '州级上下文切换必须保持五个等宽按钮');
 assert.ok(provinceStyles.includes('min-height: 44px;'), '州级上下文切换必须保持 44px 触控高度');
 
 const mapComponent = read('src/components/provinces/UsMainlandMap.tsx');
@@ -295,37 +295,49 @@ for (const text of [
 const worldContextAsset = read('src/data/north-america-land-10m.json');
 assert.ok(worldContextAsset.length < 1_500_000, '北美 10m 裁剪 TopoJSON 不得退化为完整 atlas 或预展开浮点 GeoJSON 体积');
 const worldStrokeAsset = read('src/data/north-america-coastline-110m.json');
-assert.ok(worldStrokeAsset.length < 30_000, '北美 110m 描边 TopoJSON 必须保持轻量，避免 viewBox Camera 每帧重新描画十万级顶点');
+assert.ok(worldStrokeAsset.length < 30_000, '北美 110m 描边 TopoJSON 必须保持轻量，避免 settled viewBox 提交重新描画十万级背景顶点');
 execFileSync(process.execPath, ['scripts/generate-province-map-world-context.mjs', '--check'], { stdio: 'inherit' });
 
 const camera = read('src/components/provinces/provinceMapCamera.ts');
 for (const text of [
   'export const PROVINCE_MAP_ZOOM_MIN = 1', 'export const PROVINCE_MAP_ZOOM_MAX = 4',
   'MAINLAND_MIN_AREA_RATIO = 2 / 3', 'MAINLAND_CONTEXT_EXPAND_X = 0.35', 'MAINLAND_CONTEXT_EXPAND_Y = 0.25',
-  "container.dataset.mapCameraMode = 'svg-viewbox'", "container.dataset.mapCameraHotPath = 'single-svg-viewbox-write'",
+  "container.dataset.mapCameraMode = 'svg-viewbox'", "container.dataset.mapCameraHotPath = 'single-css-transform-write'",
+  "container.dataset.mapCameraTransientMode = 'compositor-transform'", "container.dataset.mapZoomHotPath = 'css-transform'",
+  "container.dataset.mapZoomCommitMode = 'settle-viewbox'",
   "container.dataset.mapCameraBoundaryMode = options.focusBounds ? 'fixed-world-bounds' : 'source-viewbox'",
   "container.dataset.mapPanBoundary = options.focusBounds ? 'fixed-world-context' : 'source-viewbox'",
   "container.dataset.mapPanClampMode = options.focusBounds ? 'fixed-world-viewbox' : 'none'",
   'function baseViewSize(', 'function clampCameraCenter(', 'const normalizedState = (', 'const viewBoxFor = (', 'const screenPointToWorld = (',
-  'zoom <= PROVINCE_MAP_ZOOM_MIN + MIN_ZOOM_EPSILON',
+  'zoom <= PROVINCE_MAP_ZOOM_MIN + MIN_ZOOM_EPSILON', 'let committed: CameraState = { ...current };',
+  'const transientTransformFor = (state: CameraState', 'const commitCamera = () => {',
   'let settleDeadline = 0;', 'const finishSettle = () => {', 'settleDeadline = performance.now() + INPUT_SETTLE_MS;',
   "container.addEventListener('wheel', handleWheel, { passive: false })", 'event.preventDefault();',
   'applyZoomAround', 'activeTouchPointerIds.size >= 2', "container.dataset.mapCameraReset = 'blank-double-click'",
   "container.dataset.mapCameraReset = 'blank-double-tap'",
-]) assert.ok(camera.includes(text), `SVG viewBox Camera 缺少: ${text}`);
+]) assert.ok(camera.includes(text), `Transient SVG Camera 缺少: ${text}`);
 const writeCameraStart = camera.indexOf('const writeCamera = () => {');
 const writeCameraEnd = camera.indexOf('\n  };', writeCameraStart);
 assert.ok(writeCameraStart >= 0 && writeCameraEnd > writeCameraStart, '必须能定位地图相机 RAF 热路径');
 const writeCameraSource = camera.slice(writeCameraStart, writeCameraEnd);
-assert.ok(writeCameraSource.includes("svg.setAttribute('viewBox'"), '地图相机 RAF 必须写入唯一 SVG viewBox');
-for (const forbidden of ['surface.style.transform', 'container.dataset', 'publishState(', 'getBoundingClientRect(', 'setTimeout(', 'setActive(', 'setState(']) {
+assert.ok(writeCameraSource.includes('surface.style.setProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY'), '地图 active RAF 必须只写唯一 transient Camera transform');
+for (const forbidden of ["svg.setAttribute('viewBox'", 'container.dataset', 'publishState(', 'getBoundingClientRect(', 'setTimeout(', 'setActive(', 'setState(', 'surface.style.transform']) {
   assert.equal(writeCameraSource.includes(forbidden), false, `地图相机 RAF 热路径不得包含: ${forbidden}`);
+}
+const commitCameraStart = camera.indexOf('const commitCamera = () => {');
+const commitCameraEnd = camera.indexOf('\n  };', commitCameraStart);
+assert.ok(commitCameraStart >= 0 && commitCameraEnd > commitCameraStart, '必须能定位地图 settle viewBox 提交');
+const commitCameraSource = camera.slice(commitCameraStart, commitCameraEnd);
+assert.ok(commitCameraSource.includes("svg.setAttribute('viewBox'"), '地图 settle 必须一次性提交最终 SVG viewBox');
+assert.ok(commitCameraSource.includes('surface.style.removeProperty(TRANSIENT_CAMERA_TRANSFORM_PROPERTY)'), '地图 settle 必须清除 transient Camera transform');
+for (const forbidden of ['requestAnimationFrame(', 'container.dataset', 'getBoundingClientRect(', 'setState(']) {
+  assert.equal(commitCameraSource.includes(forbidden), false, `地图 settle 提交不得引入第二热路径: ${forbidden}`);
 }
 for (const forbidden of [
   'geoRoam', 'dispatchAction', 'setOption(', 'convertToPixel', 'layoutSize', 'layoutCenter',
-  "mapCameraMode = 'html-compositor-transform'", "mapCameraHotPath = 'single-css-transform'",
+  "mapCameraMode = 'html-compositor-transform'", "mapCameraHotPath = 'single-svg-viewbox-write'",
   'surface.style.transform = `translate3d(', "surface.style.willChange = nextActive ? 'transform' : ''",
-]) assert.equal(camera.includes(forbidden), false, `地图交互热路径不得恢复旧实现: ${forbidden}`);
+]) assert.equal(camera.includes(forbidden), false, `地图交互不得恢复旧 Camera 实现: ${forbidden}`);
 
 const labels = read('src/components/provinces/provinceMapStaticLabels.ts');
 for (const text of [
@@ -364,13 +376,17 @@ for (const forbidden of ['.province-map-route-return-path', '.province-map-toolt
   assert.equal(mapStyles.includes(forbidden), false, `地图基础样式不得恢复返程副线、锁定态或高成本滤镜: ${forbidden}`);
 }
 const performanceStyles = read('src/styles/performance.css');
-assert.ok(performanceStyles.includes('.province-map-camera-surface') && performanceStyles.includes('will-change: auto;'), 'SVG viewBox Camera 不得永久提升完整世界纹理');
-assert.equal(performanceStyles.includes('will-change: transform;'), false, '地图性能样式不得恢复永久 transform 合成');
+assert.ok(performanceStyles.includes('.province-map-camera-surface') && performanceStyles.includes('will-change: auto;'), 'idle Camera 不得永久提升完整世界纹理');
+assert.equal(performanceStyles.includes('will-change: transform;'), false, 'performance 基础样式不得永久提升 Camera');
 const renderingStyles = read('src/styles/strategic-map-rendering.css');
 for (const text of [
+  '.province-map-static-viewport[data-map-zoom-active=\'true\'] .province-map-camera-surface',
+  'transform: var(--province-map-camera-transform, none) !important;', 'will-change: transform !important;',
+  ".province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-fill", 'display: none;',
+  ".province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-shadow", 'fill-opacity: .78;',
   '.application-map-layer > .strategic-map-lens-bar', '.transport-map-picking-bar',
   'backdrop-filter: none;', '-webkit-backdrop-filter: none;',
-]) assert.ok(renderingStyles.includes(text), `地图专属实体表面覆盖缺少: ${text}`);
+]) assert.ok(renderingStyles.includes(text), `战略地图最终渲染覆盖缺少: ${text}`);
 assert.ok(read('src/main.tsx').includes("import './styles/strategic-map-rendering.css';"), '战略地图最终渲染样式必须被正式入口加载');
 for (const forbidden of ['.province-map-marker', '.province-map-silhouette', '.province-map-command-panel', '.province-map-meta', '.province-map-legend']) {
   assert.equal(mapStyles.includes(forbidden), false, `地图样式不得恢复旧地图标记或卡片: ${forbidden}`);
@@ -404,7 +420,7 @@ for (const text of [
 const mapBrowserTest = read('tests/browser/province-map.spec.ts');
 for (const text of [
   'persistent strategy map uses one static SVG world for 48 states and Chinese labels',
-  "data-map-renderer', 'static-svg'", "data-map-camera-mode', 'svg-viewbox'", "data-map-camera-hot-path', 'single-svg-viewbox-write'",
+  "data-map-renderer', 'static-svg'", "data-map-camera-mode', 'svg-viewbox'", "data-map-camera-hot-path', 'single-css-transform-write'",
   "data-map-world-path-count', '48'", "data-map-label-camera-mode', 'shared-static-world'",
   "'加利福尼亚', '得克萨斯', '华盛顿', '佛罗里达', '纽约'",
   'state selection opens local context without resetting the static camera',
@@ -413,12 +429,14 @@ for (const text of [
 ]) assert.ok(mapBrowserTest.includes(text), `静态地图浏览器回归缺少: ${text}`);
 const transientTest = read('tests/browser/map-zoom-transient.spec.ts');
 for (const text of [
-  'map zoom changes only the root SVG viewBox while static geometry and glyph transforms stay immutable',
-  'pathData', 'glyphTransforms', 'active wheel bursts mutate only the root SVG viewBox once per animation frame',
+  'active zoom uses one transient camera transform while static geometry stays immutable and settle commits one viewBox',
+  'pathData', 'glyphTransforms', 'active wheel bursts mutate only the transient camera transform once per animation frame and settle one viewBox',
   'MutationObserver', 'viewBoxMutations', 'cameraStyleMutations', 'diagnosticMutations',
-  'expect(result.viewBoxMutations).toBe(1)', 'expect(result.cameraStyleMutations).toBe(0)', 'expect(result.diagnosticMutations).toBe(0)',
+  'expect(result.viewBoxMutations).toBe(0)', 'expect(result.cameraStyleMutations).toBe(1)', 'expect(result.diagnosticMutations).toBe(0)',
+  'transient camera frames stay close to the same-browser empty-frame budget',
+  'result.emptyFrameMedianMs * 2 + 8', 'detailedFillDisplay', 'cameraTransform',
   "toHaveCSS('will-change', 'auto')",
-]) assert.ok(transientTest.includes(text), `地图 viewBox 热路径回归缺少: ${text}`);
+]) assert.ok(transientTest.includes(text), `地图 transient Camera 热路径回归缺少: ${text}`);
 const syncTest = read('tests/browser/map-zoom-render-sync.spec.ts');
 for (const text of [
   'province paths and labels share one static SVG world and never require camera resynchronization',
@@ -426,14 +444,15 @@ for (const text of [
 ]) assert.ok(syncTest.includes(text), `地图州名同步回归缺少: ${text}`);
 const zoomOutTest = read('tests/browser/map-zoom-out-boundary.spec.ts');
 for (const text of [
-  'states outside the viewport re-enter during zoom-out because all 48 paths remain mounted',
-  'offscreenBeforeZoomOut', 'zoomOutActiveFrame.active', "toBe('true')", 'restoredDuringActiveZoom', 'pathsAfter', 'pathsBefore', 'zoomOutActiveFrame.viewBox',
+  'states outside the committed viewBox re-enter during transient zoom-out because all 48 paths remain mounted',
+  'offscreenBeforeZoomOut', 'zoomOutActiveFrame.active', "toBe('true')", 'restoredDuringActiveZoom', 'pathsAfter', 'pathsBefore',
+  'zoomOutActiveFrame.cameraTransform', 'zoomedSettledViewBox',
 ]) assert.ok(zoomOutTest.includes(text), `地图屏外州恢复回归缺少: ${text}`);
 const resetTest = read('tests/browser/map-reset-sync.spec.ts');
 for (const text of [
   'blank double click resets the single SVG viewBox camera', "'blank-double-click'", 'baselinePathRevision', 'baselineLabelCenter', 'firstFrameLabelCenter',
 ]) assert.ok(resetTest.includes(text), `地图重置回归缺少: ${text}`);
-assert.ok(read('tests/browser/map-mobile-pinch.spec.ts').includes("data-map-camera-mode', 'svg-viewbox'"), '移动双指必须使用 SVG viewBox Camera');
+assert.ok(read('tests/browser/map-mobile-pinch.spec.ts').includes("data-map-camera-mode', 'svg-viewbox'"), '移动双指必须使用同一 SVG Camera 数学');
 const routeBrowserTest = read('tests/browser/transport-route-cost-style-lock.spec.ts');
 for (const text of [
   "data-route-id', 'draft-road-route'", "data-route-id', 'draft-rail-route'", "data-route-id', 'draft-air-route'",
@@ -449,10 +468,10 @@ for (const text of [
 
 const mapDesign = read('docs/STRATEGIC_MAP_RENDERING_DESIGN.md');
 for (const text of [
-  '本文是战略地图', 'SVG viewBox Camera', '该 world bounds 不得随 zoom 改变',
+  '本文是战略地图', 'Transient Camera + settled viewBox', '该 world bounds 不得随 zoom 改变',
   '`viewWidth = baseViewWidth / zoom`', '真实 SVG `text`', '二次贝塞尔抛物线',
-  '1:10m 北美填充', '1:110m TopoJSON', '低于 `2,000` 个 `M/L` 顶点',
-  '不得生成平行车道', '`backdrop-filter` 与 `-webkit-backdrop-filter` 必须为 `none`',
+  '1:10m countries', '1:110m TopoJSON', '低于 `2,000` 个 `M/L` 顶点',
+  'settle 后必须清除', '不得生成平行车道', '`backdrop-filter` 与 `-webkit-backdrop-filter` 必须为 `none`',
 ]) assert.ok(mapDesign.includes(text), `战略地图渲染 DESIGN 缺少: ${text}`);
 const networkDesign = read('docs/TRANSPORT_NETWORK_GEOMETRY_DESIGN.md');
 for (const text of [
@@ -461,7 +480,7 @@ for (const text of [
 ]) assert.ok(networkDesign.includes(text), `运输几何 DESIGN 缺少: ${text}`);
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 for (const text of [
-  '州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名',
+  '州级上下文页（无导航按钮）', '概览｜市场｜商业｜工业｜仓库', '中文州全名作为唯一州面名称',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 
 const navigation = read('src/config/navigation.ts');
@@ -476,4 +495,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、中文展示名、首府目录和州级经济隔离保持稳定；所有州直接经营；战略地图使用 10m 土地填充、轻量 110m 背景描边和固定 world bounds 的单次 viewBox RAF Camera；公路、铁路和航空沿各自正式几何运动，运行时不保留车道数据模型或返程副线，地图专属镜头栏和选路面板不使用毛玻璃。');
+console.log('地区经济验证通过：美国连续 48 州、中文展示名、首府目录和州级经济隔离保持稳定；所有州直接经营；战略地图闲置使用 10m 土地填充和轻量 110m 背景描边，active RAF 只写 transient compositor transform，settle 后单次提交根 SVG viewBox 并恢复 transform:none / will-change:auto；固定 world bounds 与州面、州名、路线矢量几何保持同一 Camera；公路、铁路和航空沿各自正式几何运动，运行时不保留车道数据模型或返程副线，地图专属镜头栏和选路面板不使用毛玻璃。');
