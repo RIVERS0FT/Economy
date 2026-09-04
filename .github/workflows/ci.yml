@@ -69,12 +69,14 @@ jobs:
               raise SystemExit('No push workflow run found for the pull request head SHA')
           PY
 
-  build:
+  dt:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
       mode: ${{ steps.scope.outputs.mode }}
       browser: ${{ steps.scope.outputs.browser }}
+      dependencies: ${{ steps.scope.outputs.dependencies }}
+      plan_json: ${{ steps.scope.outputs.plan_json }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -133,35 +135,85 @@ jobs:
         if: steps.scope.outputs.dependencies == 'true'
         run: npm ci
 
-      - name: Build and test full fallback
+      - name: Run full DT fallback
         if: steps.scope.outputs.mode == 'full'
         shell: bash
         run: |
           set -o pipefail
           node scripts/verify-deployment-pipeline.mjs
-          npm run build 2>&1 | tee build-test.log
+          npm run validate:dt 2>&1 | tee dt-test.log
 
-      - name: Build and test selected changes
+      - name: Run targeted DT
         if: steps.scope.outputs.mode == 'targeted'
         shell: bash
         run: |
           set -o pipefail
           node scripts/select-ci-tests.mjs run \
             --plan-file "$RUNNER_TEMP/economy-ci-plan.json" \
-            --phase checks 2>&1 | tee build-test.log
+            --phase dt 2>&1 | tee dt-test.log
 
-      - name: Upload build test artifacts
+      - name: Upload DT failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: economy-build-test-artifacts
-          path: build-test.log
+          name: economy-dt-failure
+          path: dt-test.log
+          if-no-files-found: warn
+          retention-days: 3
+
+  it:
+    needs: dt
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Restore CI plan
+        env:
+          PLAN_JSON: ${{ needs.dt.outputs.plan_json }}
+        run: printf '%s\n' "$PLAN_JSON" > "$RUNNER_TEMP/economy-ci-plan.json"
+
+      - name: Install dependencies
+        if: needs.dt.outputs.dependencies == 'true'
+        run: npm ci
+
+      - name: Run full IT fallback with coverage
+        if: needs.dt.outputs.mode == 'full'
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run validate:it 2>&1 | tee it-test.log
+
+      - name: Run targeted IT with coverage
+        if: needs.dt.outputs.mode == 'targeted'
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/select-ci-tests.mjs run \
+            --plan-file "$RUNNER_TEMP/economy-ci-plan.json" \
+            --phase it 2>&1 | tee it-test.log
+
+      - name: Upload IT failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-it-coverage-failure
+          path: it-test.log
           if-no-files-found: warn
           retention-days: 3
 
   browser-test:
-    needs: build
-    if: needs.build.outputs.browser == 'true'
+    needs: [dt, it]
+    if: needs.dt.outputs.browser == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -180,75 +232,26 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Select changed-file CI scope
-        id: scope
-        shell: bash
+      - name: Restore CI plan
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          changed_files="$RUNNER_TEMP/economy-changed-files.txt"
-          plan_file="$RUNNER_TEMP/economy-ci-plan.json"
-
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            : > "$changed_files"
-            node scripts/select-ci-tests.mjs plan \
-              --changed-files-file "$changed_files" \
-              --plan-file "$plan_file" \
-              --github-output "$GITHUB_OUTPUT" \
-              --full
-          elif [ "$EVENT_NAME" = "pull_request" ]; then
-            git diff --check "$PR_BASE_SHA" "$PR_HEAD_SHA"
-            git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" > "$changed_files"
-            node scripts/select-ci-tests.mjs plan \
-              --changed-files-file "$changed_files" \
-              --plan-file "$plan_file" \
-              --github-output "$GITHUB_OUTPUT"
-          else
-            git fetch --no-tags origin main:refs/remotes/origin/main
-            BASE_SHA="$(git merge-base origin/main "$GITHUB_SHA")"
-            git diff --check "$BASE_SHA" "$GITHUB_SHA"
-            git diff --name-only "$BASE_SHA" "$GITHUB_SHA" > "$changed_files"
-            node scripts/select-ci-tests.mjs plan \
-              --changed-files-file "$changed_files" \
-              --plan-file "$plan_file" \
-              --github-output "$GITHUB_OUTPUT"
-          fi
-
-          echo "ECONOMY_CI_CHANGED_FILES"
-          cat "$changed_files"
-          echo "ECONOMY_CI_PLAN"
-          cat "$plan_file"
-
-      - name: Verify browser scope consistency
-        shell: bash
-        env:
-          BUILD_MODE: ${{ needs.build.outputs.mode }}
-          BROWSER_MODE: ${{ steps.scope.outputs.mode }}
-          BROWSER_REQUIRED: ${{ steps.scope.outputs.browser }}
-        run: |
-          set -euo pipefail
-          test "$BUILD_MODE" = "$BROWSER_MODE"
-          test "$BROWSER_REQUIRED" = "true"
+          PLAN_JSON: ${{ needs.dt.outputs.plan_json }}
+        run: printf '%s\n' "$PLAN_JSON" > "$RUNNER_TEMP/economy-ci-plan.json"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Prepare Chromium
-        if: steps.scope.outputs.browser == 'true'
         run: bash scripts/prepare-playwright-chromium.sh
 
       - name: Test browser runtime full fallback
-        if: steps.scope.outputs.mode == 'full'
+        if: needs.dt.outputs.mode == 'full'
         shell: bash
         run: |
           set -o pipefail
           npm run test:browser -- --shard=${{ matrix.shard }}/4 2>&1 | tee browser-test.log
 
       - name: Test browser runtime selected changes
-        if: steps.scope.outputs.mode == 'targeted' && steps.scope.outputs.browser == 'true'
+        if: needs.dt.outputs.mode == 'targeted'
         shell: bash
         env:
           ECONOMY_PLAYWRIGHT_SHARD: ${{ matrix.shard }}/4
@@ -269,3 +272,42 @@ jobs:
             test-results
           if-no-files-found: warn
           retention-days: 3
+
+  build:
+    if: always()
+    needs: [verify-head-ci-registration, dt, it, browser-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate DT IT ST quality gate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REGISTRATION_RESULT: ${{ needs.verify-head-ci-registration.result }}
+          DT_RESULT: ${{ needs.dt.result }}
+          IT_RESULT: ${{ needs.it.result }}
+          BROWSER_REQUIRED: ${{ needs.dt.outputs.browser }}
+          BROWSER_RESULT: ${{ needs.browser-test.result }}
+        run: |
+          set -euo pipefail
+          test "$DT_RESULT" = "success"
+          test "$IT_RESULT" = "success"
+
+          if [ "$BROWSER_REQUIRED" = "true" ]; then
+            test "$BROWSER_RESULT" = "success"
+          else
+            case "$BROWSER_RESULT" in
+              skipped|success) ;;
+              *) echo "Unexpected browser result: $BROWSER_RESULT" >&2; exit 1 ;;
+            esac
+          fi
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            test "$REGISTRATION_RESULT" = "success"
+          else
+            case "$REGISTRATION_RESULT" in
+              skipped|success) ;;
+              *) echo "Unexpected head registration result: $REGISTRATION_RESULT" >&2; exit 1 ;;
+            esac
+          fi
+
+          echo "ECONOMY_QUALITY_GATE_OK dt=$DT_RESULT it=$IT_RESULT browser=$BROWSER_RESULT"
