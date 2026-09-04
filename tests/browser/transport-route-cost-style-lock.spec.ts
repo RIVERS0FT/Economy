@@ -101,7 +101,9 @@ test('transport route cards stay rounded without row dividers and the add action
 
   const visual = await page.locator('.page-card-scroll').evaluate((container) => {
     const routesPanel = container.querySelector<HTMLElement>('.transport-routes-panel');
+    const footerElement = document.querySelector<HTMLElement>('.transport-page-footer');
     if (!routesPanel) throw new Error('transport routes panel missing');
+    if (!footerElement) throw new Error('transport page footer missing');
 
     const routeGrid = document.createElement('div');
     routeGrid.className = 'transport-route-grid transport-route-style-fixture';
@@ -147,8 +149,8 @@ test('transport route cards stay rounded without row dividers and the add action
       firstSectionBorderTopWidth: firstSectionStyle.borderTopWidth,
       secondSectionBorderTopWidth: secondSectionStyle.borderTopWidth,
       secondSectionBorderTopStyle: secondSectionStyle.borderTopStyle,
-      footerAlignSelf: getComputedStyle(footer).alignSelf,
-      footerMarginTop: getComputedStyle(footer).marginTop,
+      footerAlignSelf: getComputedStyle(footerElement).alignSelf,
+      footerMarginTop: getComputedStyle(footerElement).marginTop,
     };
 
     legacyPanel.remove();
