@@ -30,7 +30,11 @@ async function readEdgeProvinceHits(page: Page) {
 
 async function wheelBurst(page: Page, deltaY: number, count: number) {
   const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
-  return canvas.evaluate((container, input) => new Promise<{ active: string | undefined; viewBox: string }>((resolve) => {
+  return canvas.evaluate((container, input) => new Promise<{
+    active: string | undefined;
+    viewBox: string;
+    cameraTransform: string;
+  }>((resolve) => {
     const bounds = container.getBoundingClientRect();
     for (let index = 0; index < input.count; index += 1) {
       container.dispatchEvent(new WheelEvent('wheel', {
@@ -41,23 +45,29 @@ async function wheelBurst(page: Page, deltaY: number, count: number) {
         deltaY: input.deltaY,
       }));
     }
-    requestAnimationFrame(() => resolve({
-      active: container.dataset.mapZoomActive,
-      viewBox: container.querySelector<SVGSVGElement>('.province-map-world-svg')?.getAttribute('viewBox') ?? '',
-    }));
+    requestAnimationFrame(() => {
+      const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
+      resolve({
+        active: container.dataset.mapZoomActive,
+        viewBox: container.querySelector<SVGSVGElement>('.province-map-world-svg')?.getAttribute('viewBox') ?? '',
+        cameraTransform: camera ? getComputedStyle(camera).transform : 'none',
+      });
+    });
   }), { deltaY, count });
 }
 
-test('states outside the viewport re-enter during zoom-out because all 48 paths remain mounted', async ({ page }) => {
+test('states outside the committed viewBox re-enter during transient zoom-out because all 48 paths remain mounted', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.province-map-static-viewport');
+  const camera = map.locator('.province-map-camera-surface');
   const svg = map.locator('.province-map-world-svg');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
+  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
   await expect(canvas).toHaveAttribute('data-map-world-path-count', '48');
   await expect(map.locator('.province-map-region')).toHaveCount(48);
 
@@ -70,15 +80,24 @@ test('states outside the viewport re-enter during zoom-out because all 48 paths 
     paths.map((path) => path.getAttribute('d'))
   ));
   const zoomedInFrame = await wheelBurst(page, -180, 8);
-  expect(zoomedInFrame.viewBox).not.toBe(initialViewBox);
+  expect(zoomedInFrame.active).toBe('true');
+  expect(zoomedInFrame.viewBox).toBe(initialViewBox);
+  expect(zoomedInFrame.cameraTransform).not.toBe('none');
   const zoomedInHits = await readEdgeProvinceHits(page);
   const offscreenBeforeZoomOut = zoomedInHits.filter((entry) => !entry.insideCanvas).length;
   expect(offscreenBeforeZoomOut).toBeGreaterThanOrEqual(2);
   await expect(map.locator('.province-map-region')).toHaveCount(48);
 
+  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+  const zoomedSettledViewBox = await svg.getAttribute('viewBox');
+  expect(zoomedSettledViewBox).not.toBe(initialViewBox);
+  await expect(camera).toHaveCSS('transform', 'none');
+  await expect(camera).toHaveCSS('will-change', 'auto');
+
   const zoomOutActiveFrame = await wheelBurst(page, 180, 16);
   expect(zoomOutActiveFrame.active).toBe('true');
-  expect(zoomOutActiveFrame.viewBox).toBe(initialViewBox);
+  expect(zoomOutActiveFrame.viewBox).toBe(zoomedSettledViewBox);
+  expect(zoomOutActiveFrame.cameraTransform).not.toBe('none');
   const restoredDuringActiveZoom = await readEdgeProvinceHits(page);
   expect(restoredDuringActiveZoom.every((entry) => entry.insideCanvas)).toBe(true);
   expect(restoredDuringActiveZoom.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
@@ -89,6 +108,9 @@ test('states outside the viewport re-enter during zoom-out because all 48 paths 
   expect(pathsAfter).toEqual(pathsBefore);
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
+  expect(await svg.getAttribute('viewBox')).toBe(initialViewBox);
+  await expect(camera).toHaveCSS('transform', 'none');
+  await expect(camera).toHaveCSS('will-change', 'auto');
 
   const california = restoredDuringActiveZoom.find((entry) => entry.provinceId === '110000');
   if (!california) throw new Error('California probe missing');
