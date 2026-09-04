@@ -88,8 +88,10 @@ for (const text of [
   'routeBorderRadius',
   'footerBefore',
   'footerAfter',
+  'footerPosition',
+  'footerBottom',
   'footerAlignSelf',
-  'footerMarginTop',
+  'footerPaddingTop',
 ]) requireText(browserTest, text, `运输浏览器回归缺少：${text}`);
 forbidText(browserTest, "toContainText('0/50')", '运输浏览器回归不得要求已删除的路线数量胶囊。');
 
