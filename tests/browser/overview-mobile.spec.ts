@@ -11,6 +11,10 @@ test('mobile overview keeps all seven check-in days on one row', async ({ page }
   await expect(panel).toBeVisible();
   await expect(days).toHaveCount(7);
   await expect(page.getByRole('button', { name: '签到领取 1 宝石' })).toBeVisible();
+  await expect(page.locator('.overview-summary-card')).toHaveCount(2);
+  await expect(page.getByRole('heading', { name: '当前挂单', exact: true })).toHaveCount(0);
+  await expect(page.getByText('管理订单', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.overview-open-orders-card, .overview-open-orders-list, .overview-open-order')).toHaveCount(0);
 
   const gridColumns = await calendar.evaluate((element) => getComputedStyle(element).gridTemplateColumns
     .split(' ')
