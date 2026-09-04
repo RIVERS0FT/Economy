@@ -456,7 +456,7 @@ test('consumer substitutes shift demand toward the cheaper grain without changin
   const shares = world.demandGroups.food.lastClassAllocation.basic.staples.shares;
   assert.ok(shares.rice > shares.wheat);
   assert.ok(world.demandGroups.food.lastBudget > 0);
-}
+});
 
 test('beverage production paths shift toward cheaper fruit inputs', () => {
   const routeShares = ({ fruitPrice, milkPrice }) => {
