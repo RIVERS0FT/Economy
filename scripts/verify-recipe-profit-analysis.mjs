@@ -242,7 +242,9 @@ for (const removedText of [
 
 for (const text of [
   'const market = game.markets[product.id];',
-  ': selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;',
+  'const selectedProductMarket = selectedProduct ? game.markets[selectedProduct.id] : undefined;',
+  'const selectedFacilityMarket = selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;',
+  'const selectedMarket = selectedProductMarket ?? selectedFacilityMarket;',
   'lastTradePrice: typeof market?.lastTradePrice === \'number\' ? market.lastTradePrice : undefined',
   "marketPrice: typeof market?.officialPrice === 'number' ? market.officialPrice : undefined,",
   'marketPrice={entry.marketPrice}',
