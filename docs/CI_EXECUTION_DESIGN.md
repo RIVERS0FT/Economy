@@ -26,6 +26,8 @@ IT 负责证明服务器模块在真实事务、SQLite、状态投影、幂等�
 
 Targeted 模式必须由选择器挑出与改动相关的 IT 文件，并通过统一覆盖率执行器运行；full 模式执行完整 `server/test/*.test.js`。服务端源码若无法归入任何领域且没有任何 verifier、IT 或 ST 引用，必须回退 full，而不是静默跳过验证。
 
+领域匹配扩展 `server/test` 候选只允许在本次 changed files 含 `server/src` 源码时启用；纯前端源码不得仅因与服务端测试共享“市场／shell／tutorial”等领域关键词而拉起无关 IT。直接修改 `server/test` 时仍必须执行该 IT，测试对 changed file 的直接引用仍可跨层选中对应 IT。
+
 ### 2.3 ST（System Test）
 
 ST 负责从完整系统或真实用户输入角度验证运行行为：
@@ -130,6 +132,7 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 
 - 把 DT、IT 和 ST 重新混成一个无法区分失败层级的单一 PR Job；
 - 在 IT 或 ST Job 中重新计算 changed files 或建立第二套领域选择规则；
+- 让纯前端源码仅因领域关键词与 `server/test` 文件名重合而拉起无关 IT；
 - 让主分支 required `build` 在所需 ST-browser 失败、取消或未完成时成功；
 - 删除 DT／IT 覆盖率阈值、降低阈值或把关键源码从范围中移除以绕过失败；
 - 把 selected/full 浏览器测试重新串行放回 DT 或 IT Job；
