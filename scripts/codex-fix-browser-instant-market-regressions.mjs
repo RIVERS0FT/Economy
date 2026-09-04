@@ -51,16 +51,16 @@ replaceOnce(
 
 replaceOnce(
   'tests/browser/market-order-entry-compact.spec.ts',
-  `  await page.goto('/market-runtime-test.html');`,
-  `  await page.goto('/market-runtime-test.html?view=catalog');`,
-  'catalog entry URL',
+  `test('commodity trade entry accepts quantity only', async ({ page }) => {\n  await page.goto('/market-runtime-test.html');\n  await page.getByRole('button', { name: /查看.*详情/ }).first().click();\n  await expect(page.locator('#market-trade-quantity')).toBeVisible();`,
+  `test('commodity trade entry accepts quantity only', async ({ page }) => {\n  await page.goto('/market-runtime-test.html');\n  await expect(page.getByText('即时交易', { exact: true })).toBeVisible();\n  await expect(page.locator('#market-trade-quantity')).toBeVisible();`,
+  'direct detail entry assertion',
 );
 
 replaceOnce(
   'tests/browser/market-runtime.spec.ts',
-  `  await page.goto('/market-runtime-test.html');`,
-  `  await page.goto('/market-runtime-test.html?view=catalog');`,
-  'catalog helper URL',
+  `async function openCommodityDetail(page: Page) {\n  await page.goto('/market-runtime-test.html');\n  const wheat = page.getByRole('button', { name: /查看.*详情/ }).first();\n  await expect(wheat).toBeVisible();\n  await wheat.click();\n  await expect(page.getByText('即时交易', { exact: true })).toBeVisible();\n}`,
+  `async function openCommodityDetail(page: Page) {\n  await page.goto('/market-runtime-test.html');\n  await expect(page.getByText('即时交易', { exact: true })).toBeVisible();\n}`,
+  'direct detail helper',
 );
 replaceOnce(
   'tests/browser/market-runtime.spec.ts',
@@ -72,7 +72,7 @@ replaceOnce(
 replaceOnce(
   'tests/browser/shell-floating-safe-zone.spec.ts',
   `  const priceInput = page.getByRole('textbox', { name: '价格', exact: true });\n  await expect(priceInput).toHaveValue('2');\n  await page.getByRole('button', { name: '价格增加 0.01' }).click();\n  await expect(priceInput).toHaveValue('2.01');`,
-  `  const quantityInput = page.getByRole('textbox', { name: '数量', exact: true });\n  await expect(quantityInput).toHaveValue('1');\n  await page.getByRole('button', { name: '数量增加 1' }).click();\n  await expect(quantityInput).toHaveValue('2');\n  await expect(page.getByRole('textbox', { name: '价格', exact: true })).toHaveCount(0);`,
+  `  const quantityInput = page.locator('#market-trade-quantity');\n  await expect(quantityInput).toHaveValue('1');\n  await page.getByRole('button', { name: '数量增加 1' }).click();\n  await expect(quantityInput).toHaveValue('2');\n  await expect(page.locator('#market-order-price')).toHaveCount(0);`,
   'retired price-input pointer assertion',
 );
 
