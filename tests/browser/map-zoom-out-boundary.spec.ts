@@ -87,7 +87,7 @@ test('states outside the committed viewBox re-enter during transient zoom-out be
   expect(zoomedInFrame.active).toBe('true');
   expect(zoomedInFrame.viewBox).not.toBe(initialViewBox);
   expect(zoomedInFrame.cameraTransform).not.toBe('none');
-  expect(zoomedInFrame.svgOverflow).toBe('hidden');
+  expect(zoomedInFrame.svgOverflow).toBe('visible');
   const preloadViewBox = zoomedInFrame.viewBox;
   const zoomedInHits = await readEdgeProvinceHits(page);
   const offscreenBeforeZoomOut = zoomedInHits.filter((entry) => !entry.insideCanvas).length;
@@ -106,7 +106,7 @@ test('states outside the committed viewBox re-enter during transient zoom-out be
   expect(zoomOutActiveFrame.viewBox).toBe(preloadViewBox);
   expect(zoomOutActiveFrame.viewBox).not.toBe(zoomedSettledViewBox);
   expect(zoomOutActiveFrame.cameraTransform).not.toBe('none');
-  expect(zoomOutActiveFrame.svgOverflow).toBe('hidden');
+  expect(zoomOutActiveFrame.svgOverflow).toBe('visible');
   const restoredDuringActiveZoom = await readEdgeProvinceHits(page);
   expect(restoredDuringActiveZoom.every((entry) => entry.insideCanvas)).toBe(true);
   expect(restoredDuringActiveZoom.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
