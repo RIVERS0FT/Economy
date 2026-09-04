@@ -72,7 +72,7 @@ for (const text of [
   '玩家商品交易不得创建 `open`／`partial` 商品订单',
   '客户端只决定地区、商品、方向和数量',
   '玩家商品页面永久移除：价格输入框',
-  '地区商品详情只展示当前商品身份、今日价格',
+  '地区商品详情的模块归属、顶部摘要字段及响应式呈现唯一由 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 定义',
 ]) requireText(orderDesignPath, text);
 
 for (const text of [
