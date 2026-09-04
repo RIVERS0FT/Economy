@@ -22,49 +22,53 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
-          def replace_once(path: str, old: str, new: str) -> None:
-              file = Path(path)
-              source = file.read_text(encoding='utf-8')
-              if source.count(old) != 1:
-                  raise RuntimeError(f'{path}: expected exactly one match, got {source.count(old)}')
-              file.write_text(source.replace(old, new, 1), encoding='utf-8')
+          harness_path = Path('tests/browser/runtime-harness.tsx')
+          harness = harness_path.read_text(encoding='utf-8')
+          start = harness.index("    if (scenario === 'facility-card-profit') {")
+          end = harness.index("    if (scenario === 'facility-order') {", start)
+          section = harness[start:end]
 
-          replace_once(
-              'tests/browser/runtime-harness.tsx',
-              """      markets.steel = {
-                ...markets.machinery,
-                productId: 'steel',
-                lastPrice: 29,
-                lastTradePrice: 28.75,
-                priceHistory: [],
-              };
-              markets.machinery = {
-                ...markets.machinery,
-                lastTradePrice: 76.25,
-              };""",
-              """      markets.steel = {
-                ...markets.machinery,
-                productId: 'steel',
-                lastPrice: 29,
-                officialPrice: 28.75,
-                lastTradePrice: 28.75,
-                priceHistory: [],
-              };
-              markets.machinery = {
-                ...markets.machinery,
-                officialPrice: 76.25,
-                lastTradePrice: 76.25,
-              };""",
+          section, count = re.subn(
+              r"(lastPrice: 29,\n)(\s*)lastTradePrice: 28\.75,",
+              lambda match: (
+                  f"{match.group(1)}{match.group(2)}officialPrice: 28.75,\n"
+                  f"{match.group(2)}lastTradePrice: 28.75,"
+              ),
+              section,
+              count=1,
           )
+          if count != 1:
+              raise RuntimeError(f'runtime-harness steel officialPrice replacement count={count}')
 
-          replace_once(
-              'tests/browser/runtime.spec.ts',
-              """  const nestedOverflowModes = await page.locator('.overview-open-orders-list')
-                .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowY));
-              expect(nestedOverflowModes).toEqual(['visible']);""",
-              """  await expect(page.locator('.overview-open-orders-list')).toHaveCount(0);""",
+          section, count = re.subn(
+              r"(markets\.machinery = \{\n\s*\.\.\.markets\.machinery,\n)(\s*)lastTradePrice: 76\.25,",
+              lambda match: (
+                  f"{match.group(1)}{match.group(2)}officialPrice: 76.25,\n"
+                  f"{match.group(2)}lastTradePrice: 76.25,"
+              ),
+              section,
+              count=1,
           )
+          if count != 1:
+              raise RuntimeError(f'runtime-harness machinery officialPrice replacement count={count}')
+
+          harness_path.write_text(harness[:start] + section + harness[end:], encoding='utf-8')
+
+          runtime_path = Path('tests/browser/runtime.spec.ts')
+          runtime = runtime_path.read_text(encoding='utf-8')
+          runtime, count = re.subn(
+              r"  const nestedOverflowModes = await page\.locator\('\.overview-open-orders-list'\)\n"
+              r"\s*\.evaluateAll\(\(elements\) => elements\.map\(\(element\) => getComputedStyle\(element\)\.overflowY\)\);\n"
+              r"  expect\(nestedOverflowModes\)\.toEqual\(\['visible'\]\);",
+              "  await expect(page.locator('.overview-open-orders-list')).toHaveCount(0);",
+              runtime,
+              count=1,
+          )
+          if count != 1:
+              raise RuntimeError(f'runtime.spec retired order assertion replacement count={count}')
+          runtime_path.write_text(runtime, encoding='utf-8')
           PY
           node scripts/verify-recipe-profit-analysis.mjs
           node scripts/verify-overview-content.mjs
