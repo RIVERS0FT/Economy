@@ -89,6 +89,8 @@ PR／非 `main` push 的执行顺序固定为：
 
 Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-ci-tests.mjs` 生成的同一 JSON 计划。不得在后续 Job 重新计算 changed files、重新推断领域或自行扩缩测试集合。
 
+部署验收基础设施文件即使文件名包含 `production`，也只属于 CI／部署路径，不得因此归入 gameplay `facility` 域。`scripts/verify-production-deployment.sh`、正式域名验收专项 verifier 与其行为测试只通过直接文件／引用关系选择对应 DT；仅修改这些部署验收基础设施时不得凭文件名扩散到工厂 IT 或 ST-browser。选择器本身仍属于 high-risk full trigger，修改该边界时必须回退完整 DT、完整 IT 与完整 ST-browser。
+
 ## 5. PR 与分支浏览器门禁
 
 - 只要选择器要求浏览器验证，ST-browser 固定拆成四个独立 shard，使用 `fail-fast: false`，每个 shard 保留 20 分钟 Job 上限。
@@ -136,6 +138,7 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 让主分支 required `build` 在所需 ST-browser 失败、取消或未完成时成功；
 - 删除 DT／IT 覆盖率阈值、降低阈值或把关键源码从范围中移除以绕过失败；
 - 在 IT 覆盖率中恢复 `--test-coverage-include`，把 targeted 模式没有加载的服务器源码按零覆盖计入分母；
+- 把部署验收基础设施文件仅因名称含 `production` 重新归入 gameplay `facility` 域，进而无依据扩大到工厂 IT／ST-browser；选择器边界本身发生变化时不得取消 full fallback。
 - 把 selected/full 浏览器测试重新串行放回 DT 或 IT Job；
 - PR/分支需要浏览器验证时只使用单个 Job 执行全部选中测试，或用延长 20 分钟上限替代四分片；
 - targeted shard 自行重新定义测试集合；
