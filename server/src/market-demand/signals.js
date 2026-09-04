@@ -71,6 +71,7 @@ export function createMarketSignalRuntime({ marketFor }) {
     const cache = activePlanningCache(world, signalNow);
     const cacheKey = `${String(provinceId || '')}:${product.id}:${Number(depth)}:${Number(referencePrice)}`;
     if (cache?.quotes.has(cacheKey)) return cache.quotes.get(cacheKey);
+    // Player resting asks are retired: use the fixed daily system price as the executable quote and recent player sells only as internal supply evidence.
     const market = marketFor(world, product.id, signalNow, provinceId);
     const officialPrice = Number(market?.officialPrice);
     const quote = Number.isFinite(officialPrice) && officialPrice > 0 ? officialPrice : referencePrice;
