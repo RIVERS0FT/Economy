@@ -159,6 +159,10 @@ function formatCameraValue(value: number) {
   return Object.is(rounded, -0) ? 0 : rounded;
 }
 
+function serializeViewBox(view: SourceViewBox) {
+  return `${formatCameraValue(view.x)} ${formatCameraValue(view.y)} ${formatCameraValue(view.width)} ${formatCameraValue(view.height)}`;
+}
+
 export function createProvinceMapCamera(
   container: HTMLElement,
   surface: HTMLElement,
@@ -181,6 +185,7 @@ export function createProvinceMapCamera(
   };
   let target: CameraState = { ...current };
   let committed: CameraState = { ...current };
+  let transientBasisView: SourceViewBox | null = null;
   let metrics: CameraMetrics | null = null;
   let frame: number | null = null;
   let settleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -209,6 +214,7 @@ export function createProvinceMapCamera(
   container.dataset.mapCameraMode = 'svg-viewbox';
   container.dataset.mapCameraHotPath = 'single-css-transform-write';
   container.dataset.mapCameraTransientMode = 'compositor-transform';
+  container.dataset.mapCameraPreloadMode = 'fixed-world-viewbox';
   container.dataset.mapCameraGeometryMode = 'immutable-svg-world';
   container.dataset.mapZoomMode = 'svg-viewbox';
   container.dataset.mapZoomCameraMode = 'fixed-world-viewbox';
@@ -316,6 +322,28 @@ export function createProvinceMapCamera(
     };
   };
 
+  const preloadViewFor = (currentMetrics = readMetrics()): SourceViewBox => {
+    if (!currentMetrics) return { ...sourceViewBox };
+    const bounds = currentMetrics.worldBounds;
+    const worldWidth = bounds.maxX - bounds.minX;
+    const worldHeight = bounds.maxY - bounds.minY;
+    const aspect = currentMetrics.viewportWidth / Math.max(1, currentMetrics.viewportHeight);
+    let width = worldWidth;
+    let height = width / Math.max(Number.EPSILON, aspect);
+    if (height < worldHeight) {
+      height = worldHeight;
+      width = height * aspect;
+    }
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+    return {
+      x: centerX - width / 2,
+      y: centerY - height / 2,
+      width,
+      height,
+    };
+  };
+
   const readBounds = () => interactionBounds ?? (interactionBounds = container.getBoundingClientRect());
   const localPoint = (clientX: number, clientY: number): PointerPosition => {
     const bounds = readBounds();
@@ -378,16 +406,24 @@ export function createProvinceMapCamera(
   };
 
   const transientTransformFor = (state: CameraState, currentMetrics = readMetrics()) => {
-    const committedView = viewBoxFor(committed, currentMetrics);
+    const basisView = transientBasisView ?? viewBoxFor(committed, currentMetrics);
     const nextView = viewBoxFor(state, currentMetrics);
     const viewportWidth = Math.max(1, currentMetrics?.viewportWidth ?? container.clientWidth);
     const viewportHeight = Math.max(1, currentMetrics?.viewportHeight ?? container.clientHeight);
-    const scaleX = committedView.width / Math.max(Number.EPSILON, nextView.width);
-    const scaleY = committedView.height / Math.max(Number.EPSILON, nextView.height);
+    const scaleX = basisView.width / Math.max(Number.EPSILON, nextView.width);
+    const scaleY = basisView.height / Math.max(Number.EPSILON, nextView.height);
     const scale = (scaleX + scaleY) / 2;
-    const translateX = ((committedView.x - nextView.x) / Math.max(Number.EPSILON, nextView.width)) * viewportWidth;
-    const translateY = ((committedView.y - nextView.y) / Math.max(Number.EPSILON, nextView.height)) * viewportHeight;
+    const translateX = ((basisView.x - nextView.x) / Math.max(Number.EPSILON, nextView.width)) * viewportWidth;
+    const translateY = ((basisView.y - nextView.y) / Math.max(Number.EPSILON, nextView.height)) * viewportHeight;
     return `translate3d(${formatCameraValue(translateX)}px, ${formatCameraValue(translateY)}px, 0) scale(${formatCameraValue(scale)})`;
+  };
+
+  const prepareTransientSurface = () => {
+    const currentMetrics = readMetrics();
+    transientBasisView = preloadViewFor(currentMetrics);
+    svg.setAttribute('viewBox', serializeViewBox(transientBasisView));
+    surface.style.transform = transientTransformFor(current, currentMetrics);
+    writeCount += 2;
   };
 
   const writeCamera = () => {
@@ -402,8 +438,9 @@ export function createProvinceMapCamera(
 
   const commitCamera = () => {
     const view = viewBoxFor(current, metrics);
-    svg.setAttribute('viewBox', `${formatCameraValue(view.x)} ${formatCameraValue(view.y)} ${formatCameraValue(view.width)} ${formatCameraValue(view.height)}`);
+    svg.setAttribute('viewBox', serializeViewBox(view));
     surface.style.removeProperty('transform');
+    transientBasisView = null;
     committed = { ...current };
     writeCount += 1;
   };
@@ -435,7 +472,10 @@ export function createProvinceMapCamera(
 
   const scheduleWrite = (mode: Exclude<CameraInputMode, 'idle' | 'reset'>) => {
     inputMode = mode;
-    if (!active) setActive(true);
+    if (!active) {
+      prepareTransientSurface();
+      setActive(true);
+    }
     if (frame === null) frame = requestAnimationFrame(writeCamera);
     scheduleSettle();
   };
@@ -463,6 +503,7 @@ export function createProvinceMapCamera(
     settleDeadline = 0;
     interactionBounds = null;
     metrics = null;
+    transientBasisView = null;
     const currentMetrics = readMetrics();
     target = {
       centerX: currentMetrics?.baseCenterX ?? sourceViewBox.x + sourceViewBox.width / 2,
@@ -475,7 +516,7 @@ export function createProvinceMapCamera(
     inputMode = 'reset';
     active = false;
     const view = viewBoxFor(current, currentMetrics);
-    svg.setAttribute('viewBox', `${formatCameraValue(view.x)} ${formatCameraValue(view.y)} ${formatCameraValue(view.width)} ${formatCameraValue(view.height)}`);
+    svg.setAttribute('viewBox', serializeViewBox(view));
     surface.style.removeProperty('transform');
     writeCount += 1;
     publishState();
@@ -742,6 +783,7 @@ export function createProvinceMapCamera(
       if (frame !== null) cancelAnimationFrame(frame);
       if (settleTimer !== null) clearTimeout(settleTimer);
       if (multiTouchIdleTimer !== null) clearTimeout(multiTouchIdleTimer);
+      transientBasisView = null;
       surface.style.removeProperty('transform');
       container.removeEventListener('wheel', handleWheel);
       container.removeEventListener('pointerdown', handlePointerDown);
