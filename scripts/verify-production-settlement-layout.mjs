@@ -179,10 +179,21 @@ for (const text of [
 ]) assert.equal(productionSettingsSource.includes(text), true, `生产配置富内容选项缺少: ${text}`);
 const settingsStart = detail.indexOf('<section className="facility-production-settings mobile-detail-section" aria-label="生产配置">');
 const settingsEnd = detail.indexOf('<FacilityProductionFormula', settingsStart);
-const settingsSource = `${detail.slice(settingsStart, settingsEnd)}\n${configControls}`;
-for (const forbidden of ['<SelectInput', '<option', '<strong>生产设置</strong>', 'facility-production-settings-heading']) {
+const detailSettingsSource = detail.slice(settingsStart, settingsEnd);
+const settingsSource = `${detailSettingsSource}\n${configControls}`;
+for (const forbidden of ['<strong>生产设置</strong>', 'facility-production-settings-heading']) {
   assert.equal(settingsSource.includes(forbidden), false, `生产配置不得恢复: ${forbidden}`);
 }
+assert.equal(configControls.includes('<SelectInput'), false, '生产产物与作业制度两个 production-config 槽不得恢复通用 SelectInput');
+assert.equal(configControls.includes('<option'), false, '生产产物与作业制度必须继续使用富内容 option 数据而不是原生 option JSX');
+assert.equal((detailSettingsSource.match(/<SelectInput/g) ?? []).length, 1, '生产配置区必须且只允许一个原料保障共享 SelectInput');
+assert.equal((detailSettingsSource.match(/<option /g) ?? []).length, 4, '原料保障共享 SelectInput 必须保留四个周期候选');
+for (const text of [
+  'label={<GameConcept concept="input-coverage">原料保障</GameConcept>}',
+  'aria-label={`${type.name}原料保障`}',
+  'fieldClassName="facility-auto-operation__coverage"',
+  'inputCoverageCycles: Number(event.target.value) as 1 | 2 | 3 | 5',
+]) assert.equal(detailSettingsSource.includes(text), true, `原料保障共享下拉缺少: ${text}`);
 
 for (const text of [
   'description={',
