@@ -35,11 +35,13 @@
 }
 
 .province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-world-svg {
+  display: none;
   opacity: 0;
 }
 
-/* The outer strategic viewport owns the active clip. The authoritative SVG remains mounted while the preloaded raster
-   snapshot is visible; settled mode restores the SVG clip and final viewBox immediately after camera input stops. */
+/* The outer strategic viewport owns the active clip. When the preloaded raster snapshot is ready, the authoritative SVG
+   stays mounted in the DOM but temporarily leaves the render tree so the transformed Camera surface contains only one
+   composited Canvas texture. Settled mode restores the SVG immediately with its final viewBox. */
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
   overflow: visible;
 }
