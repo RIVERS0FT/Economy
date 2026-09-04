@@ -16,18 +16,18 @@
   backface-visibility: hidden;
 }
 
+/* The outer strategic viewport owns the active clip. Removing the inner SVG viewport clip avoids re-clipping the large
+   transiently transformed vector world on every compositor frame; settled mode restores the SVG clip with the final viewBox. */
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
+  overflow: visible;
+}
+
 .province-map-world-svg {
   shape-rendering: auto;
 }
 
 .province-map-label {
   text-rendering: optimizeLegibility;
-}
-
-/* Each Chinese state label is built from multiple independently rotated SVG text glyphs. Keep their exact geometry mounted,
-   but remove only their active paint while profiling transient-camera raster cost; settled viewBox commits restore them unchanged. */
-.province-map-static-viewport[data-map-zoom-active='true'] .province-map-label-camera {
-  display: none;
 }
 
 /* viewBox settle re-rasterizes the visible vectors. Keep the map world filter-free so the final vector commit does not rerun large SVG filters. */
