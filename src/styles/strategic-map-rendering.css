@@ -52,13 +52,6 @@
   fill-opacity: .78;
 }
 
-/* The contiguous-US seam and final outline are non-interactive finishing strokes derived from the same 10m state union.
-   Temporarily remove them from active paint to isolate their raster cost; settled mode restores the exact vector strokes. */
-.province-map-static-viewport[data-map-zoom-active='true'] .province-map-mainland-seam,
-.province-map-static-viewport[data-map-zoom-active='true'] .province-map-mainland-outline {
-  display: none;
-}
-
 .province-map-region[data-selected='true'],
 .province-map-region:focus-visible,
 .province-map-shipment[data-selected='true'] .province-map-shipment-badge,
