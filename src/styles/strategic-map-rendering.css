@@ -1,22 +1,28 @@
 /* Strategic map rendering owns only the map camera viewport, route strokes and map-only floating surfaces. */
+@property --province-map-camera-transform {
+  syntax: '<transform-list>';
+  inherits: false;
+  initial-value: none;
+}
+
 .province-map-static-viewport,
 .province-map-world-svg {
   overflow: hidden;
 }
 
 .province-map-camera-surface {
-  transform: var(--province-map-camera-transform, none) !important;
-  transform-origin: 0 0;
+  transform: none !important;
   will-change: auto !important;
   backface-visibility: visible;
 }
 
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface {
+  transform: var(--province-map-camera-transform, none) !important;
+  transform-origin: 0 0 !important;
   will-change: transform !important;
   backface-visibility: hidden;
 }
 
-/* The transient compositor camera can move world content outside the last committed SVG viewport. The outer map viewport remains the only physical clip. */
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
   overflow: visible;
 }
@@ -29,7 +35,7 @@
   text-rendering: optimizeLegibility;
 }
 
-/* Idle viewBox commits re-rasterize the visible vectors. Keep the map world filter-free so the settle frame does not rerun large SVG filters. */
+/* viewBox settle re-rasterizes the visible vectors. Keep the map world filter-free so the final vector commit does not rerun large SVG filters. */
 .province-map-world-shadow {
   fill: none !important;
   fill-opacity: 0;
