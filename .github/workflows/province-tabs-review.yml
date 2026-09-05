@@ -1,0 +1,39 @@
+name: Prepare regional tab review workspace
+on:
+  push:
+    branches: [codex/split-province-building-tabs]
+    paths: [.github/workflows/province-tabs-review.yml]
+permissions:
+  contents: read
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 097ea255e3bc77658a521488c8bfc24193d17d2f
+      - name: Export exact source snapshot
+        run: git archive --format=zip HEAD > /tmp/economy-current-source.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: province-tabs-source
+          path: /tmp/economy-current-source.zip
+          retention-days: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci && npm run generate:local-preview
+      - run: npx playwright install chromium
+      - name: Package isolated regression dependencies
+        run: |
+          mkdir -p /tmp/province-tabs-runtime/bin
+          cp "$(command -v node)" /tmp/province-tabs-runtime/bin/node
+          tar -czf /tmp/province-tabs-runtime/dependencies.tgz node_modules src/dev/generated
+          tar -czf /tmp/province-tabs-runtime/browser.tgz -C "$HOME/.cache" ms-playwright
+      - uses: actions/upload-artifact@v4
+        with:
+          name: province-tabs-runtime
+          path: /tmp/province-tabs-runtime
+          retention-days: 1
