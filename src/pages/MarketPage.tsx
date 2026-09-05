@@ -266,7 +266,7 @@ export function MarketPage({
     && marketDetail.assetId === assetId
     ? marketDetail
     : null;
-  const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail);
+  const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail && !selectedMarket);
   const marketDetailRefreshToken = [
     selectedMarket?.lastTradeAt ?? '',
     selectedMarket?.lastTradePrice ?? '',
