@@ -61,11 +61,15 @@ test('persistent strategy map uses one static SVG world for 48 states and Chines
   await expect(page.getByLabel('地图图例')).toHaveCount(0);
 
   const viewportFontFamily = await canvas.evaluate((node) => getComputedStyle(node).fontFamily);
-  const labelFontFamily = await map.locator('.province-map-label').first().evaluate((node) => getComputedStyle(node).fontFamily);
-  expect(viewportFontFamily).toContain('Playfair Display');
-  expect(viewportFontFamily).toContain('Noto Serif SC');
+  const labelFont = await map.locator('.province-map-label').first().evaluate((node) => ({
+    family: getComputedStyle(node).fontFamily,
+    weight: getComputedStyle(node).fontWeight,
+  }));
+  expect(viewportFontFamily).toContain('Source Han Serif SC');
+  expect(viewportFontFamily).not.toContain('Playfair Display');
   expect(viewportFontFamily.toLowerCase()).toContain('serif');
-  expect(labelFontFamily).toBe(viewportFontFamily);
+  expect(labelFont.family).toBe(viewportFontFamily);
+  expect(labelFont.weight).toBe('600');
 
   const labels = await map.locator('.province-map-label').allTextContents();
   for (const name of ['加利福尼亚', '得克萨斯', '华盛顿', '佛罗里达', '纽约']) {
