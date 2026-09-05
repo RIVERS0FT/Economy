@@ -99,7 +99,7 @@ for (const text of [
   '页面顺序固定为“资产总览／资金管理／工厂冻结融资／银行记录”',
   '不得恢复独立资产页',
   '商业建筑按服务器目录 `systemValue` 估值',
-  '第一版全部计入可用建筑资产，不进入冻结、冻结或产权交易',
+  '第一版全部计入可用建筑资产，不进入冻结或产权交易',
 ]) requireText(designPath, text);
 
 for (const text of [
