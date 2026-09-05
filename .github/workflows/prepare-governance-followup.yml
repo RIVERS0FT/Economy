@@ -33,11 +33,11 @@ jobs:
           runtime = runtime[:start] + """// Workflow topology and shard completeness belong to verify-deployment-pipeline.
           // This verifier only owns runtime preparation and failure diagnostics.
           for (const text of [
-            'group: economy-ci-${{ github.event.pull_request.number || github.ref }}',
+            'group: economy-ci-',
             'cancel-in-progress: true',
             'bash scripts/prepare-playwright-chromium.sh',
             '--phase browser 2>&1 | tee browser-test.log',
-            'name: economy-browser-test-artifacts-${{ matrix.shard }}',
+            'name: economy-browser-test-artifacts-',
             'if: failure()',
             'retention-days: 3',
           ]) requireText('.github/workflows/ci.yml', text);""" + runtime[end:]
