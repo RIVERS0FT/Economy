@@ -1,15 +1,17 @@
-name: Prepare trade confirmation and commercial staffing
+name: Review trade confirmation and commercial staffing
 on:
   push:
     branches: [codex/trade-confirmation-commercial-staffing]
     paths:
       - .github/workflows/prepare-trade-staffing.yml
-      - .github/apply-trade-staffing.py
-      - .github/document-trade-staffing.py
+      - .github/review-trade-staffing.py
 permissions:
   contents: write
+defaults:
+  run:
+    shell: bash
 jobs:
-  prepare:
+  review:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -21,46 +23,71 @@ jobs:
         with:
           node-version: 24.4.0
           cache: npm
-      - name: Apply reviewed source and design changes
-        shell: bash
+      - name: Apply reviewed regression corrections
         run: |
-          set -euo pipefail
-          if ! grep -q 'inFlightWrites' src/api/idempotentGameWriteFetch.ts; then
-            python3 .github/apply-trade-staffing.py
-            python3 .github/document-trade-staffing.py
-          fi
+          python3 .github/review-trade-staffing.py
+          if [ -f .github/correct-trade-staffing.py ]; then python3 .github/correct-trade-staffing.py; fi
           node scripts/normalize-repository-text.mjs
-          git add src server shared tests docs scripts
+          git add src server shared tests docs scripts runtime-test.html
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if ! git diff --cached --quiet; then
-            git commit -m 'fix: confirm commodity writes and lock staffed commercial cycles'
+            git commit -m 'test: retain trade safety and commercial staffing regression contracts'
             git push origin HEAD:codex/trade-confirmation-commercial-staffing
           fi
       - run: npm ci
       - name: Type checking and direct regressions
         run: |
           npm run generate:local-preview
-          npm run typecheck
-          node --test tests/dt/game-write-confirmation.test.ts tests/dt/commercial-staffing.test.ts tests/dt/commercial-auto-operation.test.ts server/test/commercial-staffing.test.js server/test/commercial-buildings.test.js server/test/commercial-auto-operation.test.js server/test/market-scheduler-admission.test.js
+          npm run typecheck 2>&1 | tee /tmp/trade-staffing-types.log
+          node --test tests/dt/game-write-confirmation.test.ts tests/dt/commercial-staffing.test.ts tests/dt/commercial-auto-operation.test.ts server/test/commercial-staffing.test.js server/test/commercial-buildings.test.js server/test/commercial-auto-operation.test.js server/test/market-scheduler-admission.test.js 2>&1 | tee /tmp/trade-staffing-focused.log
       - name: Full development validation
         if: always()
-        shell: bash
+        run: npm run validate:dt > /tmp/trade-staffing-dt.log 2>&1 || { tail -n 65 /tmp/trade-staffing-dt.log; exit 1; }
+      - name: Independent component owner diagnostics
+        if: always()
         run: |
-          set -o pipefail
-          npm run validate:dt > /tmp/trade-staffing-dt.log 2>&1 || { tail -n 180 /tmp/trade-staffing-dt.log; exit 1; }
-          tail -n 25 /tmp/trade-staffing-dt.log
+          node --input-type=module <<'JS' > /tmp/trade-staffing-contracts.log 2>&1
+          import { readFileSync } from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          let failed = false;
+          for (const raw of pkg.scripts['verify:architecture'].split('&&')) {
+            const command = raw.trim();
+            const result = spawnSync(command, { shell: true, encoding: 'utf8', timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
+            if (result.status !== 0) {
+              failed = true;
+              console.log('\nFAILED', command, '\n', (result.stdout + result.stderr).slice(-9000));
+            }
+          }
+          if (failed) process.exitCode = 1;
+          JS
       - name: Full domain integration validation
         if: always()
-        shell: bash
+        run: npm run test:it > /tmp/trade-staffing-it.log 2>&1 || { tail -n 100 /tmp/trade-staffing-it.log; exit 1; }
+      - name: Trade and building browser acceptance
+        if: always()
         run: |
-          set -o pipefail
-          npm run test:it > /tmp/trade-staffing-it.log 2>&1 || { tail -n 220 /tmp/trade-staffing-it.log; exit 1; }
-          tail -n 20 /tmp/trade-staffing-it.log
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: trade-staffing-diagnostics
-          path: /tmp/trade-staffing-*.log
-          retention-days: 1
+          bash scripts/prepare-playwright-chromium.sh
+          npx playwright test tests/browser/trade-confirmation.spec.ts tests/browser/commercial-staffing.spec.ts tests/browser/commercial-buildings-layout.spec.ts tests/browser/unified-buildings.spec.ts --workers=4 --reporter=line > /tmp/trade-staffing-browser.log 2>&1 || { tail -n 160 /tmp/trade-staffing-browser.log; exit 1; }
+      - name: Publish bounded review diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          sections = []
+          for name in ['types', 'focused', 'dt', 'contracts', 'it', 'browser']:
+              p = Path('/tmp/trade-staffing-' + name + '.log')
+              text = re.sub(r'\x1b\[[0-9;]*m', '', p.read_text()) if p.exists() else 'not run'
+              if name == 'it' and 'ℹ tests' in text: text = text[text.index('ℹ tests'):]
+              if name == 'browser': text = '\n'.join(line for line in text.splitlines() if not line.startswith('[WebServer]'))
+              sections.append('## ' + name + '\n' + text[-24000:])
+          Path('.github/trade-staffing-diagnostics.md').write_text('\n\n'.join(sections))
+          PY
+          git add .github/trade-staffing-diagnostics.md
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: record temporary trade and staffing validation results'
+            git push origin HEAD:codex/trade-confirmation-commercial-staffing
+          fi
