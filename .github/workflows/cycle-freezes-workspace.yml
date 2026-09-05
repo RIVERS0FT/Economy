@@ -8,15 +8,22 @@ permissions:
 jobs:
   source:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: 26dae91f41a7e0fec55b7c4e5ecbcba7a066e2bf
-      - name: Package tracked source only
-        run: git archive --format=tar.gz --output=economy-source.tar.gz HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Package pinned local verification tools
+        run: |
+          cp "$(command -v node)" economy-node
+          tar -czf economy-tools.tar.gz node_modules economy-node
       - uses: actions/upload-artifact@v4
         with:
-          name: cycle-freezes-source
-          path: economy-source.tar.gz
+          name: cycle-freezes-tools
+          path: economy-tools.tar.gz
           retention-days: 1
