@@ -1,6 +1,7 @@
 .workspace-tooltip-layer {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  inset: auto;
+  z-index: 3;
   box-sizing: border-box;
   width: auto;
   height: auto;
@@ -8,7 +9,7 @@
   max-height: none;
   margin: 0;
   padding: 0;
-  overflow: visible;
+  overflow: clip;
   border: 0;
   background: transparent;
   pointer-events: none !important;
@@ -35,6 +36,11 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
   pointer-events: none !important;
+}
+
+.safe-tooltip[data-interactive='true'] {
+  pointer-events: auto !important;
+  overscroll-behavior: contain;
 }
 
 .province-map-static-tooltip[popover] {
