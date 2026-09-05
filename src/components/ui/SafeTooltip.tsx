@@ -20,8 +20,11 @@ import {
 } from './WorkspaceFloatingLayer';
 
 const SAFE_FLOATING_GAP = 8;
+const HOVER_BRIDGE_MS = 120;
 
 type FloatingPosition = { left: number; top: number; maxWidth: number; maxHeight: number };
+type TooltipVisibility = 'closed' | 'preview' | 'pinned';
+type TooltipTriggerState = { expanded: boolean; tooltipId: string };
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
@@ -34,13 +37,15 @@ export function SafeTooltip({
   disabled = false,
   anchorRole,
   anchorTabIndex,
+  pinOnClick = false,
 }: {
   content: ReactNode;
-  children: ReactNode;
+  children: ReactNode | ((state: TooltipTriggerState) => ReactNode);
   className?: string;
   disabled?: boolean;
   anchorRole?: AriaRole;
   anchorTabIndex?: number;
+  pinOnClick?: boolean;
 }) {
   const floatingLayer = useWorkspaceFloatingLayer();
   const tooltipLayer = useWorkspaceTooltipLayer();
@@ -48,13 +53,52 @@ export function SafeTooltip({
   const tooltipId = useId();
   const anchorRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  const visibilityRef = useRef<TooltipVisibility>('closed');
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const anchorHoveredRef = useRef(false);
+  const tooltipHoveredRef = useRef(false);
+  const suppressFocusRef = useRef(false);
+  const [visibility, setVisibility] = useState<TooltipVisibility>('closed');
+  const open = visibility !== 'closed';
   const [position, setPosition] = useState<FloatingPosition>({
     left: SAFE_FLOATING_GAP,
     top: SAFE_FLOATING_GAP,
     maxWidth: 320,
     maxHeight: 240,
   });
+
+  const cancelClose = useCallback(() => {
+    if (closeTimerRef.current !== null) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
+  }, []);
+
+  const changeVisibility = useCallback((next: TooltipVisibility) => {
+    cancelClose();
+    // Focus fires before click on touch and keyboard activation. The click toggle
+    // depends on the pinned state, not on whether focus already opened a preview.
+    visibilityRef.current = next;
+    setVisibility(next);
+  }, [cancelClose]);
+
+  const showPreview = useCallback(() => {
+    cancelClose();
+    if (!disabled && !suppressFocusRef.current && visibilityRef.current !== 'pinned') {
+      changeVisibility('preview');
+    }
+  }, [cancelClose, changeVisibility, disabled]);
+
+  const schedulePreviewClose = useCallback(() => {
+    cancelClose();
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null;
+      const active = document.activeElement;
+      if (visibilityRef.current !== 'pinned'
+        && !anchorHoveredRef.current && !tooltipHoveredRef.current
+        && !anchorRef.current?.contains(active) && !tooltipRef.current?.contains(active)) {
+        changeVisibility('closed');
+      }
+    }, HOVER_BRIDGE_MS);
+  }, [cancelClose, changeVisibility]);
 
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -85,34 +129,27 @@ export function SafeTooltip({
     const preferredTop = belowTop + tooltipHeight <= bottomBoundary - SAFE_FLOATING_GAP
       ? belowTop
       : aboveTop;
-
-    setPosition({
+    const next = {
       left: topLayerActive
-        ? clamp(
-          centeredLeft,
-          layerRect.left + SAFE_FLOATING_GAP,
-          layerRect.right - tooltipWidth - SAFE_FLOATING_GAP,
-        )
-        : clamp(
-          centeredLeft,
-          SAFE_FLOATING_GAP,
-          layerRect.width - tooltipWidth - SAFE_FLOATING_GAP,
-        ),
+        ? clamp(centeredLeft, layerRect.left + SAFE_FLOATING_GAP, layerRect.right - tooltipWidth - SAFE_FLOATING_GAP)
+        : clamp(centeredLeft, SAFE_FLOATING_GAP, layerRect.width - tooltipWidth - SAFE_FLOATING_GAP),
       top: topLayerActive
-        ? clamp(
-          preferredTop,
-          layerRect.top + SAFE_FLOATING_GAP,
-          layerRect.bottom - tooltipHeight - SAFE_FLOATING_GAP,
-        )
-        : clamp(
-          preferredTop,
-          SAFE_FLOATING_GAP,
-          layerRect.height - tooltipHeight - SAFE_FLOATING_GAP,
-        ),
+        ? clamp(preferredTop, layerRect.top + SAFE_FLOATING_GAP, layerRect.bottom - tooltipHeight - SAFE_FLOATING_GAP)
+        : clamp(preferredTop, SAFE_FLOATING_GAP, layerRect.height - tooltipHeight - SAFE_FLOATING_GAP),
       maxWidth,
       maxHeight,
-    });
+    };
+    setPosition((current) => (
+      current.left === next.left && current.top === next.top
+      && current.maxWidth === next.maxWidth && current.maxHeight === next.maxHeight
+        ? current : next
+    ));
   }, [floatingLayer, tooltipLayer, topLayerActive]);
+
+  useEffect(() => {
+    if (disabled) changeVisibility('closed');
+  }, [disabled, changeVisibility]);
+  useEffect(() => cancelClose, [cancelClose]);
 
   useLayoutEffect(() => {
     if (!open || disabled || !topLayerActive) return undefined;
@@ -125,31 +162,58 @@ export function SafeTooltip({
   useLayoutEffect(() => {
     if (!open || disabled) return undefined;
     updatePosition();
-    const frame = requestAnimationFrame(updatePosition);
-    return () => cancelAnimationFrame(frame);
-  }, [open, disabled, tooltipLayer, updatePosition]);
+    let frame: number | null = null;
+    const schedulePosition = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { frame = null; updatePosition(); });
+    };
+    schedulePosition();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedulePosition);
+    if (anchorRef.current) observer?.observe(anchorRef.current);
+    if (tooltipRef.current) observer?.observe(tooltipRef.current);
+    if (tooltipLayer ?? floatingLayer) observer?.observe((tooltipLayer ?? floatingLayer)!);
+    return () => {
+      observer?.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [open, disabled, floatingLayer, tooltipLayer, updatePosition]);
 
   useEffect(() => {
     if (!open || disabled) return undefined;
     const handleViewportChange = () => updatePosition();
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
-      if (target instanceof Node && !anchorRef.current?.contains(target)) setOpen(false);
+      if (target instanceof Node && !anchorRef.current?.contains(target)
+        && !(pinOnClick && tooltipRef.current?.contains(target))) changeVisibility('closed');
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key !== 'Escape' || visibilityRef.current === 'closed') return;
+      if (pinOnClick) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (tooltipRef.current?.contains(document.activeElement)) {
+          suppressFocusRef.current = true;
+          (anchorRef.current?.querySelector<HTMLElement>('button, [tabindex]') ?? anchorRef.current)?.focus({ preventScroll: true });
+          suppressFocusRef.current = false;
+        }
+      }
+      changeVisibility('closed');
     };
     window.addEventListener('resize', handleViewportChange);
+    window.visualViewport?.addEventListener('resize', handleViewportChange);
+    window.visualViewport?.addEventListener('scroll', handleViewportChange);
     document.addEventListener('scroll', handleViewportChange, true);
     document.addEventListener('pointerdown', handlePointerDown, true);
     document.addEventListener('keydown', handleKeyDown, true);
     return () => {
       window.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('scroll', handleViewportChange);
       document.removeEventListener('scroll', handleViewportChange, true);
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [open, disabled, updatePosition]);
+  }, [open, disabled, pinOnClick, changeVisibility, updatePosition]);
 
   const tooltipNode = (
     <div
@@ -157,8 +221,19 @@ export function SafeTooltip({
       id={tooltipId}
       className="safe-tooltip ui-tooltip-surface"
       role="tooltip"
+      tabIndex={pinOnClick ? 0 : undefined}
+      data-interactive={pinOnClick ? 'true' : undefined}
+      data-pinned={visibility === 'pinned' ? 'true' : undefined}
       data-top-layer={topLayerActive ? 'true' : undefined}
       popover={topLayerActive ? 'manual' : undefined}
+      onPointerEnter={(event) => {
+        if (pinOnClick && event.pointerType !== 'touch') { tooltipHoveredRef.current = true; cancelClose(); }
+      }}
+      onPointerLeave={(event) => {
+        if (pinOnClick && event.pointerType !== 'touch') { tooltipHoveredRef.current = false; schedulePreviewClose(); }
+      }}
+      onFocus={pinOnClick ? cancelClose : undefined}
+      onBlur={pinOnClick ? schedulePreviewClose : undefined}
       style={{
         position: topLayerActive ? 'fixed' : undefined,
         inset: topLayerActive ? 'auto' : undefined,
@@ -187,17 +262,26 @@ export function SafeTooltip({
         role={anchorRole}
         tabIndex={anchorTabIndex}
         aria-describedby={open && !disabled ? tooltipId : undefined}
-        onMouseEnter={() => setOpen(!disabled)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(!disabled)}
-        onBlur={() => setOpen(false)}
+        onMouseEnter={() => { if (!pinOnClick) showPreview(); }}
+        onMouseLeave={() => { if (!pinOnClick) changeVisibility('closed'); }}
+        onPointerEnter={(event) => {
+          if (pinOnClick && event.pointerType !== 'touch') { anchorHoveredRef.current = true; showPreview(); }
+        }}
+        onPointerLeave={(event) => {
+          if (pinOnClick && event.pointerType !== 'touch') { anchorHoveredRef.current = false; schedulePreviewClose(); }
+        }}
+        onFocus={showPreview}
+        onBlur={() => { if (pinOnClick) schedulePreviewClose(); else changeVisibility('closed'); }}
+        onClick={() => {
+          if (pinOnClick && !disabled) changeVisibility(visibilityRef.current === 'pinned' ? 'closed' : 'pinned');
+        }}
         onPointerDown={(event) => {
           if (event.pointerType !== 'mouse' && anchorTabIndex !== undefined) {
             event.currentTarget.focus({ preventScroll: true });
           }
         }}
       >
-        {children}
+        {typeof children === 'function' ? children({ expanded: open && !disabled, tooltipId }) : children}
       </span>
       {tooltip}
     </>
