@@ -186,7 +186,7 @@ export function EconomyChart({
       onCanvasClickRef.current?.(event as EconomyChartCanvasClickEvent, chart);
     };
     const handleDoubleClick = (event: unknown) => {
-      onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent);
+      onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent, chart);
     };
     chart.on('click', handleClick);
     chart.getZr().on('click', handleCanvasClick);
