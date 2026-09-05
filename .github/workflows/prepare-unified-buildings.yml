@@ -1,19 +1,19 @@
 name: Prepare unified building implementation
-
 on:
   push:
     branches: [codex/unified-buildings-auto-operation]
     paths:
       - .github/workflows/prepare-unified-buildings.yml
       - .github/unify-buildings-*.py
-
 permissions:
   contents: write
-
+defaults:
+  run:
+    shell: bash
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,33 +23,52 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Apply reviewed integration edits
-        shell: bash
+      - name: Check current main integration without discarding conflicts
         run: |
-          set -euo pipefail
-          python3 .github/unify-buildings-acceptance.py
-          python3 .github/unify-buildings-followup.py
-          python3 .github/unify-buildings-fixes.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            if git merge --no-commit --no-ff origin/main; then
+              git commit -m 'merge: retain current market and freeze terminology updates'
+            else
+              python3 - <<'PY'
+          import subprocess, re
+          from pathlib import Path
+          paths = subprocess.check_output(['git', 'diff', '--name-only', '--diff-filter=U'], text=True).splitlines()
+          sections = []
+          for path in paths:
+              text = Path(path).read_text()
+              blocks = re.findall(r'^<<<<<<< .*?^>>>>>>> .*?$', text, re.M | re.S)
+              sections.append('## ' + path + '\n' + '\n\n'.join(blocks))
+          Path('/tmp/merge-conflicts.md').write_text('\n\n'.join(sections))
+          PY
+              git merge --abort
+              cp /tmp/merge-conflicts.md .github/building-merge-conflicts.md
+              git add .github/building-merge-conflicts.md
+              git commit -m 'chore: record main integration conflicts for review' || test -f .github/building-merge-conflicts.md
+            fi
+            git push origin HEAD:codex/unified-buildings-auto-operation
+          fi
+      - name: Apply component owner and artwork corrections
+        run: |
+          python3 .github/unify-buildings-contracts.py
           node scripts/normalize-repository-text.mjs
           git diff --check
           git add src server shared tests docs scripts runtime-test.html
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if ! git diff --cached --quiet; then
-            git commit -m 'fix: align shared operating header and correct official-price fixtures'
+            git commit -m 'fix: constrain commercial artwork and verify shared component owners'
             git push origin HEAD:codex/unified-buildings-auto-operation
           fi
       - run: npm ci
       - run: npm run generate:local-preview && npm run typecheck
-      - name: Domain integration tests
-        if: always()
-        run: npm run test:it 2>&1 | tee /tmp/building-it.log
-      - name: Full development validation
+      - name: Complete development validation
         if: always()
         run: npm run validate:dt 2>&1 | tee /tmp/building-dt.log
+      - name: Complete domain integration tests
+        if: always()
+        run: npm run test:it 2>&1 | tee /tmp/building-it.log
       - name: Independent architecture diagnostics
         if: always()
-        shell: bash
         run: |
           node --input-type=module <<'JS' > /tmp/building-contracts.log 2>&1
           import { readFileSync } from 'node:fs';
@@ -68,20 +87,17 @@ jobs:
           npx playwright test tests/browser/commercial-buildings-layout.spec.ts tests/browser/unified-buildings.spec.ts tests/browser/buildings-ledger-layout.spec.ts tests/browser/production-methods.spec.ts tests/browser/province-map.spec.ts --workers=4 --reporter=line 2>&1 | tee /tmp/building-browser.log
       - name: Publish bounded review diagnostics
         if: always()
-        shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           sections = []
           for name in ['it', 'dt', 'contracts', 'browser']:
-            p = Path('/tmp/building-' + name + '.log')
-            text = re.sub(r'\x1b\[[0-9;]*m', '', p.read_text()) if p.exists() else 'not run'
-            if name == 'it': text = text[text.find('ℹ tests'):] if 'ℹ tests' in text else text[-10000:]
-            if name == 'browser':
-              lines = text.splitlines()
-              text = '\n'.join(line for line in lines if not line.startswith('[WebServer]'))[-32000:]
-            sections.append('## ' + name + '\n' + text[-40000:])
+              p = Path('/tmp/building-' + name + '.log')
+              text = re.sub(r'\x1b\[[0-9;]*m', '', p.read_text()) if p.exists() else 'not run'
+              if name == 'it': text = text[text.find('ℹ tests'):] if 'ℹ tests' in text else text[-8000:]
+              if name == 'browser': text = '\n'.join(line for line in text.splitlines() if not line.startswith('[WebServer]'))[-16000:]
+              sections.append('## ' + name + '\n' + text[-22000:])
           Path('.github/building-review-diagnostics.md').write_text('\n\n'.join(sections))
           PY
           git add .github/building-review-diagnostics.md
