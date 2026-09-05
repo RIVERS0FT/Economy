@@ -13,6 +13,7 @@ for (const path of [
   'package-lock.json',
   'playwright.config.ts',
   'scripts/prepare-playwright-chromium.sh',
+  'scripts/run-browser-tests.mjs',
   'runtime-test.html',
   'shared/provinces.json',
   'scripts/check-server-syntax.mjs',
@@ -55,7 +56,7 @@ for (const [group, dependencies] of Object.entries({
   }
 }
 if (packageJson.engines?.node !== '>=24.4.0 <25') failures.push('package.json 必须固定 Node 24.4.0 主版本范围');
-if (packageJson.scripts?.['test:browser'] !== 'playwright test') failures.push('缺少固定的 Playwright 浏览器测试脚本');
+if (packageJson.scripts?.['test:browser'] !== 'node scripts/run-browser-tests.mjs') failures.push('浏览器测试必须通过隔离定量性能门禁的统一 runner');
 if (packageJson.scripts?.['server:check'] !== 'node scripts/check-server-syntax.mjs') failures.push('服务器语法检查必须使用跨平台 Node 枚举脚本');
 for (const text of [
   'google-chrome',
