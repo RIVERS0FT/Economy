@@ -1,0 +1,33 @@
+name: Apply requested economy patch
+
+on:
+  push:
+    branches:
+      - codex/daily-market-freeze-timeout-fix
+    paths:
+      - scripts/__apply_task_patch.py
+      - .github/workflows/task-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply patch
+        run: python3 scripts/__apply_task_patch.py
+      - name: Remove temporary patch machinery
+        run: rm -f scripts/__apply_task_patch.py .github/workflows/task-apply.yml
+      - name: Check patch
+        run: git diff --check
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "调整30日成交趋势与冻结交互"
+          git push origin HEAD:codex/daily-market-freeze-timeout-fix
