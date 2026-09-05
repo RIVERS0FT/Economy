@@ -51,6 +51,12 @@ test('commodity quantity shortcuts remain available for immediate trading', asyn
   await expect(quantity).not.toHaveValue('');
 });
 
+test('recent local trades remain separate from retired resting orders', async ({ page }) => {
+  await openCommodityDetail(page);
+  await expect(page.getByText('成交记录', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '清除记录' })).toBeVisible();
+});
+
 test('recent local trades heading keeps clear action on the same row on narrow screens', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await openCommodityDetail(page);
