@@ -1,0 +1,42 @@
+name: Fix state delivery verifier
+
+on:
+  push:
+    branches:
+      - codex/daily-market-freeze-timeout-fix
+    paths:
+      - .github/workflows/fix-state-verifier.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update stale verifier assertion
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-state-delivery-capacity.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "  'createPartitionedActionDelivery(actionResponse, knownPartitions)',\n"
+          new = "  'createPartitionedActionDelivery(actionResponse, knownPartitions, actionDeliveryNow)',\n"
+          if old not in text:
+              raise SystemExit('stale action-delivery assertion not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/fix-state-verifier.yml
+      - name: Check diff
+        run: git diff --check
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "更新状态交付容量门禁"
+          git push origin HEAD:codex/daily-market-freeze-timeout-fix
