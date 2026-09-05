@@ -1,0 +1,47 @@
+name: Cycle browser diagnostics
+on:
+  push:
+    branches: [work/cycle-browser-diagnostics-20260905]
+    paths: [.github/workflows/cycle-browser-diagnostics.yml]
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Extract original failure evidence without rerunning tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api repos/RIVERS0FT/Economy/actions/jobs/101325075840/logs > "$RUNNER_TEMP/browser-job.log"
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          text = Path(os.environ['RUNNER_TEMP'], 'browser-job.log').read_text()
+          lines = [re.sub(r'^\d{4}-\d\d-\d\dT\S+\s+', '', line) for line in text.splitlines()]
+          lines = [re.sub(r'\x1b\[[0-9;]*m', '', line) for line in lines]
+          excerpts = []
+          for i, line in enumerate(lines):
+              if 'ECONOMY_PLAYWRIGHT_BROWSER_SOURCE' in line and not line.lstrip().startswith('echo'):
+                  excerpts.append('\n'.join(lines[max(0, i-2):i+2]))
+          error_indices = [i for i, line in enumerate(lines) if line.startswith('::error') or '##[error]' in line]
+          seen = set()
+          for i in error_indices:
+              key = lines[i][:180]
+              if key in seen:
+                  continue
+              seen.add(key)
+              excerpts.append('\n'.join(lines[max(0, i-2):i+24]))
+              if len(seen) >= 3:
+                  break
+          summaries = [line for line in lines if re.search(r'\b\d+ (failed|passed|flaky|skipped)\b', line)]
+          report = '## Browser shard 4: original failure evidence\nJob 101325075840, run 33973015365; no rerun or test modification.\n\n```text\n' + '\n\n'.join(excerpts)[:13000] + '\n\n' + '\n'.join(summaries[-8:])[:2000] + '\n```'
+          Path(os.environ['RUNNER_TEMP'], 'diagnostic-comment.json').write_text(json.dumps({'body': report}))
+          print(report)
+          PY
+          gh api repos/RIVERS0FT/Economy/issues/790/comments --method POST --input "$RUNNER_TEMP/diagnostic-comment.json" --jq '.html_url'
