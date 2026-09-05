@@ -1,0 +1,33 @@
+name: Fix unified freeze boundary
+
+on:
+  push:
+    branches:
+      - codex/daily-market-freeze-timeout-fix
+    paths:
+      - scripts/__fix_unified_freeze.py
+      - .github/workflows/fix-unified-freeze.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply freeze-boundary fix
+        run: python3 scripts/__fix_unified_freeze.py
+      - name: Remove temporary fix machinery
+        run: rm -f scripts/__fix_unified_freeze.py .github/workflows/fix-unified-freeze.yml
+      - name: Check diff
+        run: git diff --check
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修正冻结展示与生产语义边界"
+          git push origin HEAD:codex/daily-market-freeze-timeout-fix
