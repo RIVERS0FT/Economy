@@ -8,6 +8,7 @@ const ciPath = resolve(root, '.github/workflows/ci.yml');
 const pageContentPath = resolve(root, 'scripts/verify-page-content.mjs');
 const pageContentLegacyPath = resolve(root, 'scripts/verify-page-content-base.mjs');
 const uiArchitectureRunnerPath = resolve(root, 'scripts/verify-ui-architecture-runner.mjs');
+const browserRunnerPath = resolve(root, 'scripts/run-browser-tests.mjs');
 const nginxConfiguratorPath = resolve(root, 'scripts/configure-economy-nginx.py');
 const nginxLocationTemplatePath = resolve(root, 'deploy/nginx/game.riversoft.top.economy-location.conf');
 const nginxIpFallbackConfiguratorPath = resolve(root, 'scripts/configure-economy-ip-fallback-nginx.py');
@@ -15,6 +16,7 @@ const workflow = readFileSync(deployPath, 'utf8');
 const ciWorkflow = readFileSync(ciPath, 'utf8');
 const pageContent = readFileSync(pageContentPath, 'utf8');
 const uiArchitectureRunner = readFileSync(uiArchitectureRunnerPath, 'utf8');
+const browserRunner = readFileSync(browserRunnerPath, 'utf8');
 const nginxConfigurator = readFileSync(nginxConfiguratorPath, 'utf8');
 const nginxLocationTemplate = readFileSync(nginxLocationTemplatePath, 'utf8');
 const nginxIpFallbackConfigurator = readFileSync(nginxIpFallbackConfiguratorPath, 'utf8');
@@ -84,6 +86,16 @@ requireNeeds(ciWorkflow, 'build', ['dt', 'it', 'browser-test']);
 requireNeeds(workflow, 'deploy', ['build', 'browser-test']);
 checkShards(ciWorkflow, 'PR CI');
 checkShards(workflow, 'main CI');
+for (const token of [
+  'MAP_PERFORMANCE_PATTERN',
+  "'--grep-invert'",
+  "'--pass-with-no-tests'",
+  "'--workers=1'",
+  "shard.index === shard.total",
+  "selectedSpecs.includes(MAP_PERFORMANCE_FILE)",
+]) {
+  if (!browserRunner.includes(token)) failures.push(`浏览器统一 runner 缺少性能隔离边界: ${token}`);
+}
 if (!/if:\s*always\(\)/.test(jobSection(ciWorkflow, 'build'))) failures.push('required build 必须在依赖结束后报告结果');
 if (/^  push:/m.test(ciWorkflow) || ciWorkflow.includes('verify-head-ci-registration') || /^\s+paths(?:-ignore)?:/m.test(ciWorkflow)) failures.push('PR CI 不得要求重复 push 登记或用路径过滤跳过整个 required 工作流');
 for (const event of ['pull_request', 'workflow_dispatch']) {
