@@ -127,7 +127,8 @@ test('without a page stack both building details return to their own regional ta
     await cards(page).first().click();
     await expect(page.locator('.building-detail-page')).toHaveAttribute('data-building-kind', kind);
     await expect(page.getByRole('tablist')).toHaveCount(0);
-    await page.locator('.page-navigation-button--back').click();
+    await expect(page.locator('.page-navigation-button--close')).toHaveCount(0);
+    await page.getByRole('button', { name: `返回${name}建筑列表`, exact: true }).click();
     await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.building-detail-page')).toHaveCount(0);
   }

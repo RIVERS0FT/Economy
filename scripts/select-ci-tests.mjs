@@ -177,15 +177,15 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   // A deleted or moved test cannot be executed by its old path. Validate the
   // entire remaining suite rather than silently dropping its coverage.
   const removedTest = executableChanges.find((path) => (
-  (isDtTest(path) || isServerTest(path) || isBrowserSpec(path))
-  && !existsSync(resolve(root, path))
+    (isDtTest(path) || isServerTest(path) || isBrowserSpec(path))
+    && !existsSync(resolve(root, path))
   ));
   if (removedTest) {
-  plan.mode = 'full';
-  plan.reasons.push(`removed-test:${removedTest}`);
-  plan.needsDependencies = true;
-  plan.browser = { mode: 'all', tests: [] };
-  return plan;
+    plan.mode = 'full';
+    plan.reasons.push(`removed-test:${removedTest}`);
+    plan.needsDependencies = true;
+    plan.browser = { mode: 'all', tests: [] };
+    return plan;
   }
 
   const fullTrigger = findFullTrigger(executableChanges);
