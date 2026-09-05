@@ -1867,7 +1867,7 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     startFacilityGroup: async () => ({ ok: true, message: '测试开工' }),
     stopFacilityGroup: async () => ({ ok: true, message: '测试停工' }),
     setFacilityRecipes: async () => ({ ok: true, message: '测试配置' }),
-    game: { ...base.game, credits: 10_000, lastProcessedAt: fixtureNow, commercialBuildingTypes: types,
+    game: { ...base.game, credits: 10_000, lastProcessedAt: fixtureNow, commercialBuildingTypes: scenario === 'missing-commercial-catalog' ? [] : types,
       commercialBuildingGroups: groups, products, markets, provinceMarkets: { '110000': markets, '120000': markets },
       facilityGroups: provinceFacilityGroups[provinceId as keyof typeof provinceFacilityGroups] ?? [], provinceFacilityGroups,
       inventories: provinceInventories[provinceId as keyof typeof provinceInventories] ?? {}, provinceInventories,

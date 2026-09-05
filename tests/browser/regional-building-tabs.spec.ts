@@ -132,3 +132,17 @@ test('without a page stack both building details return to their own regional ta
     await expect(page.locator('.building-detail-page')).toHaveCount(0);
   }
 });
+
+test('missing commercial catalog remains stable and does not block the industrial tab', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.text().includes('Maximum update depth')) errors.push(message.text()); });
+  await openRegion(page, 'missing-commercial-catalog');
+  await tab(page, '商业').click();
+  await expect(page.getByText('服务器尚未返回商业建筑目录。', { exact: true })).toBeVisible();
+  await expect(page.locator('.building-type-filter')).toHaveCount(0);
+  await tab(page, '工业').click();
+  await expect(cards(page)).toHaveCount(1);
+  await expect(page.locator('.production-build-card')).toBeVisible();
+  expect(errors).toEqual([]);
+});
