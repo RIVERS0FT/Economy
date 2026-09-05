@@ -58,8 +58,8 @@ replace(path, '    const maxHeight = Math.max(1, layerRect.height - SAFE_FLOATIN
       interactive ? Math.max(belowSpace, aboveSpace) : Infinity));""")
 replace(path, '  }, [floatingLayer, tooltipLayer, topLayerActive]);', '  }, [floatingLayer, tooltipLayer, topLayerActive, interactive]);')
 path = 'docs/UI_DESIGN_SYSTEM.md'
-replace(path, '长明细必须在安全区内翻转、收敛并只滚动浮层内容；',
-        '长明细必须在安全区内翻转、收敛并只滚动浮层内容，最大高度以锚点上／下可用空间为限，不遮住再次点击关闭的冻结数值；')
+replace(path, '长明细必须在安全区内翻转、收敛并只滚动浮层内容',
+        '长明细必须在安全区内翻转、收敛并只滚动浮层内容，最大高度以锚点上／下可用空间为限，不遮住再次点击关闭的冻结数值')
 path = 'tests/browser/commodity-freeze-details.spec.ts'
 replace(path, "  await expect(tooltip).toHaveAttribute('data-pinned', 'true');\n});\n\nfor (const [scenario, text]",
         "  await expect(tooltip).toHaveAttribute('data-pinned', 'true');\n  await trigger.click();\n  await expect(tooltip).toHaveCount(0);\n  await expectGeometry(page, before);\n});\n\nfor (const [scenario, text]")
