@@ -294,7 +294,6 @@ export function resolveMarketBucketIndex(
 """
 save('src/components/charts/marketChartScale.ts', market_scale)
 
-# Types: expose the 30-day daily trend payload without changing old price-history compatibility.
 types = load('src/types.ts')
 price_point = """export interface PricePoint {
   price: number;
@@ -318,55 +317,34 @@ if price_point not in types:
 types = types.replace(price_point, daily_point, 1)
 if types.count('  priceHistory?: PricePoint[];') < 2:
     raise SystemExit('src/types.ts: expected Product/Facility priceHistory fields')
-types = types.replace(
-    '  priceHistory?: PricePoint[];',
-    '  priceHistory?: PricePoint[];\n  /** Fixed Beijing-calendar-day trend history for the latest 30 days. */\n  dailyHistory?: MarketDailyHistoryPoint[];',
-    2,
-)
+types = types.replace('  priceHistory?: PricePoint[];', '  priceHistory?: PricePoint[];\n  /** Fixed Beijing-calendar-day trend history for the latest 30 days. */\n  dailyHistory?: MarketDailyHistoryPoint[];', 2)
 save('src/types.ts', types)
 
-# MarketPage consumes the daily payload first while retaining raw trade points as a compatibility fallback.
 market_page = load('src/pages/MarketPage.tsx')
-market_page = market_page.replace(
-    "  const marketHistory = detailedMarket?.priceHistory ?? selectedMarket?.priceHistory ?? [];\n",
-    "  const marketHistory = detailedMarket?.priceHistory ?? selectedMarket?.priceHistory ?? [];\n  const marketDailyHistory = detailedMarket?.dailyHistory;\n",
-    1,
-)
-market_page = market_page.replace(
-    "() => buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now),\n    [marketFallbackPrice, marketHistory, now],",
-    "() => buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? []),\n    [marketDailyHistory, marketFallbackPrice, marketHistory, now],",
-    1,
-)
+market_page = market_page.replace("  const marketHistory = detailedMarket?.priceHistory ?? selectedMarket?.priceHistory ?? [];\n", "  const marketHistory = detailedMarket?.priceHistory ?? selectedMarket?.priceHistory ?? [];\n  const marketDailyHistory = detailedMarket?.dailyHistory;\n", 1)
+market_page = market_page.replace("() => buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now),\n    [marketFallbackPrice, marketHistory, now],", "() => buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? []),\n    [marketDailyHistory, marketFallbackPrice, marketHistory, now],", 1)
 save('src/pages/MarketPage.tsx', market_page)
 
-# Price chart: 30 daily buckets, no visible buy/sell legend, smaller footer.
 chart = load('src/components/charts/PriceSparkline.tsx')
 chart = chart.replace('近二十四小时', '近三十天')
 chart = chart.replace('近 24 小时', '近 30 天')
-chart = chart.replace(
-"""  const timeLabelHeight = compact ? Math.max(28, rootFontSize * 1.8) : Math.max(52, rootFontSize * 3.2);
+chart = chart.replace("近三十天价格折线和成交量柱状图。蓝色为价格，绿色为净主动买入，红色为净主动卖出，灰色为方向未知。", "近三十天价格折线和成交量柱状图。蓝色为价格，成交量柱按当日净主动方向着色。")
+chart = chart.replace("""  const timeLabelHeight = compact ? Math.max(28, rootFontSize * 1.8) : Math.max(52, rootFontSize * 3.2);
   const legendGap = 8;
   const legendHeight = Math.max(20, rootFontSize * 1.25);
   const legendTitleGap = showXAxisTitle ? 10 : 0;
   const titleHeight = showXAxisTitle ? Math.max(16, rootFontSize) : 0;
   const bottomSafeInset = 6;
   const footerHeight = legendGap + legendHeight + legendTitleGap + titleHeight + bottomSafeInset;
-""",
-"""  const timeLabelHeight = compact ? Math.max(26, rootFontSize * 1.7) : Math.max(44, rootFontSize * 2.75);
+""", """  const timeLabelHeight = compact ? Math.max(26, rootFontSize * 1.7) : Math.max(44, rootFontSize * 2.75);
   const titleGap = showXAxisTitle ? 8 : 0;
   const titleHeight = showXAxisTitle ? Math.max(16, rootFontSize) : 0;
   const bottomSafeInset = 6;
   const footerHeight = titleGap + titleHeight + bottomSafeInset;
-""",
-1,
-)
-chart = chart.replace(
-"""        return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }))}</strong>`
-""",
-"""        return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', timeZone: 'Asia/Shanghai' }))}</strong>`
-""",
-1,
-)
+""", 1)
+chart = chart.replace("""        return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }))}</strong>`
+""", """        return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', timeZone: 'Asia/Shanghai' }))}</strong>`
+""", 1)
 old_footer = """      <div className="market-chart-footer" style={{ paddingLeft: geometry.left, paddingRight: geometry.right }}>
         <div className="market-chart-legend" aria-label="主动买卖方向图例">
           <span className="market-chart-legend-item buy"><i />净主动买入</span>
@@ -386,17 +364,10 @@ if old_footer not in chart:
 chart = chart.replace(old_footer, new_footer, 1)
 save('src/components/charts/PriceSparkline.tsx', chart)
 
-# Remove now-unused legend CSS.
 charts_css = load('src/styles/charts.css')
-charts_css = re.sub(
-    r"\n\.market-chart-legend \{.*?\.market-chart-legend-item\.sell > i \{ background: var\(--color-danger\); \}\n",
-    "\n",
-    charts_css,
-    flags=re.S,
-)
+charts_css = re.sub(r"\n\.market-chart-legend \{.*?\.market-chart-legend-item\.sell > i \{ background: var\(--color-danger\); \}\n", "\n", charts_css, flags=re.S)
 save('src/styles/charts.css', charts_css)
 
-# Server: retain 29 completed Beijing days; current day is appended dynamically by the detail projection.
 system_market = load('server/src/system-market.js')
 marker = "export const DAILY_SYSTEM_MARKET_VERSION = 2;\n"
 helper = marker + """
@@ -410,17 +381,9 @@ function normalizeMarketDailyHistory(market) {
     if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateKey) || !(price > 0)) continue;
     const buyQuantity = positiveInteger(entry?.buyQuantity ?? entry?.buyVolume);
     const sellQuantity = positiveInteger(entry?.sellQuantity ?? entry?.sellVolume);
-    normalized.set(dateKey, {
-      dateKey,
-      price,
-      buyQuantity,
-      sellQuantity,
-      volume: buyQuantity + sellQuantity,
-    });
+    normalized.set(dateKey, { dateKey, price, buyQuantity, sellQuantity, volume: buyQuantity + sellQuantity });
   }
-  market.dailyHistory = [...normalized.values()]
-    .sort((left, right) => left.dateKey.localeCompare(right.dateKey))
-    .slice(-SYSTEM_MARKET_DAILY_HISTORY_LIMIT);
+  market.dailyHistory = [...normalized.values()].sort((left, right) => left.dateKey.localeCompare(right.dateKey)).slice(-SYSTEM_MARKET_DAILY_HISTORY_LIMIT);
   return market.dailyHistory;
 }
 
@@ -431,52 +394,28 @@ function appendMarketDailyHistory(market, entry) {
   if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateKey) || !(price > 0)) return;
   const buyQuantity = positiveInteger(entry?.buyQuantity);
   const sellQuantity = positiveInteger(entry?.sellQuantity);
-  market.dailyHistory = [
-    ...market.dailyHistory.filter((candidate) => candidate.dateKey !== dateKey),
-    {
-      dateKey,
-      price,
-      buyQuantity,
-      sellQuantity,
-      volume: buyQuantity + sellQuantity,
-    },
-  ].sort((left, right) => left.dateKey.localeCompare(right.dateKey))
-    .slice(-SYSTEM_MARKET_DAILY_HISTORY_LIMIT);
+  market.dailyHistory = [...market.dailyHistory.filter((candidate) => candidate.dateKey !== dateKey), { dateKey, price, buyQuantity, sellQuantity, volume: buyQuantity + sellQuantity }].sort((left, right) => left.dateKey.localeCompare(right.dateKey)).slice(-SYSTEM_MARKET_DAILY_HISTORY_LIMIT);
 }
 """
 if marker not in system_market:
     raise SystemExit('system-market version marker not found')
 system_market = system_market.replace(marker, helper, 1)
-system_market = system_market.replace(
-    "    market.provinceId = normalizeProvinceId(market.provinceId || DEFAULT_PROVINCE_ID);\n",
-    "    market.provinceId = normalizeProvinceId(market.provinceId || DEFAULT_PROVINCE_ID);\n    normalizeMarketDailyHistory(market);\n",
-    1,
-)
+system_market = system_market.replace("    market.provinceId = normalizeProvinceId(market.provinceId || DEFAULT_PROVINCE_ID);\n", "    market.provinceId = normalizeProvinceId(market.provinceId || DEFAULT_PROVINCE_ID);\n    normalizeMarketDailyHistory(market);\n", 1)
 next_price_line = "    const nextPrice = clampSystemPrice(product, market.officialPrice * (1 + changeBps / 10_000));\n"
-daily_append = next_price_line + """    appendMarketDailyHistory(market, {
+if next_price_line not in system_market:
+    raise SystemExit('system-market next price line not found')
+system_market = system_market.replace(next_price_line, next_price_line + """    appendMarketDailyHistory(market, {
       dateKey: String(market.priceDateKey || yesterdayKey),
       price: market.officialPrice,
       buyQuantity,
       sellQuantity,
     });
-"""
-if next_price_line not in system_market:
-    raise SystemExit('system-market next price line not found')
-system_market = system_market.replace(next_price_line, daily_append, 1)
+""", 1)
 save('server/src/system-market.js', system_market)
 
-# Server market detail: expose fixed 30-day daily trend; keep existing 24h raw points for compatibility/summary.
 delivery = load('server/src/market-state-delivery.js')
-delivery = delivery.replace(
-    "import { createEconomicCalendarClientState } from './economic-events.js';\n",
-    "import { createEconomicCalendarClientState } from './economic-events.js';\nimport { checkInDateKey } from './daily-check-in.js';\n",
-    1,
-)
-delivery = delivery.replace(
-    "const DAY_MS = 24 * 60 * 60 * 1_000;\n",
-    "const DAY_MS = 24 * 60 * 60 * 1_000;\nconst MARKET_DAILY_HISTORY_DAYS = 30;\n",
-    1,
-)
+delivery = delivery.replace("import { createEconomicCalendarClientState } from './economic-events.js';\n", "import { createEconomicCalendarClientState } from './economic-events.js';\nimport { checkInDateKey } from './daily-check-in.js';\n", 1)
+delivery = delivery.replace("const DAY_MS = 24 * 60 * 60 * 1_000;\n", "const DAY_MS = 24 * 60 * 60 * 1_000;\nconst MARKET_DAILY_HISTORY_DAYS = 30;\n", 1)
 between_marker = """function realTradePointsBetween(market, startsAt, endsAt) {
   return (market?.priceHistory || [])
     .filter((point) => (
@@ -497,39 +436,15 @@ function dailyHistoryForMarket(market, assetKind, now) {
     const buyVolume = Math.max(0, Number(entry?.buyQuantity ?? entry?.buyVolume) || 0);
     const sellVolume = Math.max(0, Number(entry?.sellQuantity ?? entry?.sellVolume) || 0);
     const neutralVolume = Math.max(0, Number(entry?.neutralVolume) || 0);
-    byDate.set(dateKey, {
-      dateKey,
-      price,
-      buyVolume,
-      sellVolume,
-      neutralVolume,
-      volume: Math.max(
-        buyVolume + sellVolume + neutralVolume,
-        Math.max(0, Number(entry?.volume) || 0),
-      ),
-    });
+    byDate.set(dateKey, { dateKey, price, buyVolume, sellVolume, neutralVolume, volume: Math.max(buyVolume + sellVolume + neutralVolume, Math.max(0, Number(entry?.volume) || 0)) });
   };
-
   for (const entry of Array.isArray(market?.dailyHistory) ? market.dailyHistory : []) remember(entry);
-
   if (assetKind === 'commodity') {
-    remember({
-      dateKey: checkInDateKey(now),
-      price: Number(market?.officialPrice || market?.lastPrice || 0),
-      buyQuantity: Math.max(0, Number(market?.todayBuyQuantity || 0)),
-      sellQuantity: Math.max(0, Number(market?.todaySellQuantity || 0)),
-    });
+    remember({ dateKey: checkInDateKey(now), price: Number(market?.officialPrice || market?.lastPrice || 0), buyQuantity: Math.max(0, Number(market?.todayBuyQuantity || 0)), sellQuantity: Math.max(0, Number(market?.todaySellQuantity || 0)) });
   } else {
     for (const point of realTradePointsBetween(market, now - MARKET_DAILY_HISTORY_DAYS * DAY_MS, now)) {
       const dateKey = checkInDateKey(Number(point.createdAt || 0));
-      const current = byDate.get(dateKey) || {
-        dateKey,
-        price: Number(point.price || 0),
-        buyVolume: 0,
-        sellVolume: 0,
-        neutralVolume: 0,
-        volume: 0,
-      };
+      const current = byDate.get(dateKey) || { dateKey, price: Number(point.price || 0), buyVolume: 0, sellVolume: 0, neutralVolume: 0, volume: 0 };
       const quantity = Math.max(0, Number(point.quantity || 0));
       current.price = Number(point.price || current.price || 0);
       current.volume += quantity;
@@ -538,33 +453,17 @@ function dailyHistoryForMarket(market, assetKind, now) {
       byDate.set(dateKey, current);
     }
   }
-
-  return [...byDate.values()]
-    .sort((left, right) => left.dateKey.localeCompare(right.dateKey))
-    .slice(-MARKET_DAILY_HISTORY_DAYS);
+  return [...byDate.values()].sort((left, right) => left.dateKey.localeCompare(right.dateKey)).slice(-MARKET_DAILY_HISTORY_DAYS);
 }
 """
 if between_marker not in delivery:
     raise SystemExit('market-state-delivery realTradePointsBetween block not found')
 delivery = delivery.replace(between_marker, daily_helper, 1)
-delivery = delivery.replace(
-    "  const priceHistory = realTradePoints(market, now).map(publicPricePoint);\n",
-    "  const priceHistory = realTradePoints(market, now).map(publicPricePoint);\n  const dailyHistory = dailyHistoryForMarket(market, assetKind, now);\n",
-    1,
-)
-delivery = delivery.replace(
-    "    .update(JSON.stringify({ summary, priceHistory, bids, asks }))\n",
-    "    .update(JSON.stringify({ summary, priceHistory, dailyHistory, bids, asks }))\n",
-    1,
-)
-delivery = delivery.replace(
-    "    market: { ...summary, priceHistory },\n",
-    "    market: { ...summary, priceHistory, dailyHistory },\n",
-    1,
-)
+delivery = delivery.replace("  const priceHistory = realTradePoints(market, now).map(publicPricePoint);\n", "  const priceHistory = realTradePoints(market, now).map(publicPricePoint);\n  const dailyHistory = dailyHistoryForMarket(market, assetKind, now);\n", 1)
+delivery = delivery.replace("    .update(JSON.stringify({ summary, priceHistory, bids, asks }))\n", "    .update(JSON.stringify({ summary, priceHistory, dailyHistory, bids, asks }))\n", 1)
+delivery = delivery.replace("    market: { ...summary, priceHistory },\n", "    market: { ...summary, priceHistory, dailyHistory },\n", 1)
 save('server/src/market-state-delivery.js', delivery)
 
-# Authoritative write latency: state projection happens after the write queue has released the committed transaction.
 runtime_store = load('server/src/runtime-store.js')
 projection_block = """    Object.defineProperty(response, 'stateSnapshot', {
       configurable: true,
@@ -600,7 +499,6 @@ if app_old not in app:
 app = app.replace(app_old, app_new, 1)
 save('server/src/app.js', app)
 
-# Unify the player-visible frozen count while keeping internal mortgage/collateral fields for loan settlement.
 fg = load('server/src/facility-groups.js')
 fg_old = """  const listedCount = listedQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
   const auctionedCount = auctionedQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
@@ -620,7 +518,6 @@ if fg_old not in fg:
 fg = fg.replace(fg_old, fg_new, 1)
 save('server/src/facility-groups.js', fg)
 
-# Facility detail displays one unified frozen count.
 detail = load('src/pages/production/ProductionFacilityDetail.tsx')
 detail_old = """              <span>
                 冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>
@@ -638,48 +535,20 @@ if detail_old not in detail:
 detail = detail.replace(detail_old, detail_new, 1)
 save('src/pages/production/ProductionFacilityDetail.tsx', detail)
 
-# Asset overview exposes only the unified frozen bucket; internal values remain separately available for compatibility.
 assets = load('src/components/assets/AssetOverviewPanel.tsx')
-assets = assets.replace(
-    "  const frozenFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.frozenCount || 0), 0);\n  const mortgagedFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.mortgagedCount || 0), 0);\n",
-    "  const frozenFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.frozenCount || 0), 0);\n",
-    1,
-)
-assets = assets.replace(
-    "  const mortgagedFacilityValue = game.assetSummary.mortgagedFacilityValue ?? 0;\n  const frozenFacilityValue = game.assetSummary.frozenFacilityValue ?? 0;\n",
-    "  const frozenFacilityValue = (game.assetSummary.frozenFacilityValue ?? 0) + (game.assetSummary.mortgagedFacilityValue ?? 0);\n",
-    1,
-)
-assets = assets.replace(
-    "              aria-label={`工厂，总计 ${formatCurrency(derived.facilityValue)}，可转让 ${formatCurrency(availableFacilityValue)}，抵押 ${formatCurrency(mortgagedFacilityValue)}，交易冻结 ${formatCurrency(frozenFacilityValue)}，冻结 ${formatNumber(frozenFacilities)} 座，抵押 ${formatNumber(mortgagedFacilities)} 座，共 ${formatNumber(totalFacilities)} 座`}\n",
-    "              aria-label={`工厂，总计 ${formatCurrency(derived.facilityValue)}，可转让 ${formatCurrency(availableFacilityValue)}，冻结 ${formatCurrency(frozenFacilityValue)}，冻结 ${formatNumber(frozenFacilities)} 座，共 ${formatNumber(totalFacilities)} 座`}\n",
-    1,
-)
-assets = assets.replace(
-    "                <span>工厂<small>交易冻结 {<CompactNumber value={frozenFacilities} />} · 抵押 {<CompactNumber value={mortgagedFacilities} />} · 共 {<CompactNumber value={totalFacilities} />}</small></span>\n",
-    "                <span>工厂<small>冻结 {<CompactNumber value={frozenFacilities} />} · 共 {<CompactNumber value={totalFacilities} />}</small></span>\n",
-    1,
-)
-assets = assets.replace(
-    "              <span role=\"cell\" data-label=\"冻结\"><CurrencyAmount>{formatCurrency(frozenFacilityValue + mortgagedFacilityValue)}</CurrencyAmount></span>\n",
-    "              <span role=\"cell\" data-label=\"冻结\"><CurrencyAmount>{formatCurrency(frozenFacilityValue)}</CurrencyAmount></span>\n",
-    1,
-)
+assets = assets.replace("  const frozenFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.frozenCount || 0), 0);\n  const mortgagedFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.mortgagedCount || 0), 0);\n", "  const frozenFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.frozenCount || 0), 0);\n", 1)
+assets = assets.replace("  const mortgagedFacilityValue = game.assetSummary.mortgagedFacilityValue ?? 0;\n  const frozenFacilityValue = game.assetSummary.frozenFacilityValue ?? 0;\n", "  const frozenFacilityValue = (game.assetSummary.frozenFacilityValue ?? 0) + (game.assetSummary.mortgagedFacilityValue ?? 0);\n", 1)
+assets = assets.replace("              aria-label={`工厂，总计 ${formatCurrency(derived.facilityValue)}，可转让 ${formatCurrency(availableFacilityValue)}，抵押 ${formatCurrency(mortgagedFacilityValue)}，交易冻结 ${formatCurrency(frozenFacilityValue)}，冻结 ${formatNumber(frozenFacilities)} 座，抵押 ${formatNumber(mortgagedFacilities)} 座，共 ${formatNumber(totalFacilities)} 座`}\n", "              aria-label={`工厂，总计 ${formatCurrency(derived.facilityValue)}，可转让 ${formatCurrency(availableFacilityValue)}，冻结 ${formatCurrency(frozenFacilityValue)}，冻结 ${formatNumber(frozenFacilities)} 座，共 ${formatNumber(totalFacilities)} 座`}\n", 1)
+assets = assets.replace("                <span>工厂<small>交易冻结 {<CompactNumber value={frozenFacilities} />} · 抵押 {<CompactNumber value={mortgagedFacilities} />} · 共 {<CompactNumber value={totalFacilities} />}</small></span>\n", "                <span>工厂<small>冻结 {<CompactNumber value={frozenFacilities} />} · 共 {<CompactNumber value={totalFacilities} />}</small></span>\n", 1)
+assets = assets.replace("              <span role=\"cell\" data-label=\"冻结\"><CurrencyAmount>{formatCurrency(frozenFacilityValue + mortgagedFacilityValue)}</CurrencyAmount></span>\n", "              <span role=\"cell\" data-label=\"冻结\"><CurrencyAmount>{formatCurrency(frozenFacilityValue)}</CurrencyAmount></span>\n", 1)
 save('src/components/assets/AssetOverviewPanel.tsx', assets)
 
-# Mobile handle: reduce only the hit/blank region, keeping the visual handle and drag behavior intact.
-replace_exact(
-    'src/styles/mobile-detail-sheet.css',
-    """  .mobile-detail-sheet-drag-handle {
+replace_exact('src/styles/mobile-detail-sheet.css', """  .mobile-detail-sheet-drag-handle {
     min-height: 32px;
-""",
-    """  .mobile-detail-sheet-drag-handle {
+""", """  .mobile-detail-sheet-drag-handle {
     min-height: 24px;
-""",
-    count=1,
-)
+""", count=1)
 
-# Auto-operation title and switch are locked into one row at all supported widths.
 save('src/styles/factory-auto-operation.css', """.facility-auto-operation {
   display: grid;
   gap: var(--space-4, 1rem);
@@ -718,7 +587,6 @@ save('src/styles/factory-auto-operation.css', """.facility-auto-operation {
 }
 """)
 
-# Remove the old Chinese mortgage term everywhere in maintained source/design/tests.
 text_suffixes = {'.ts', '.tsx', '.js', '.mjs', '.md', '.css', '.json'}
 for base in ['src', 'server/src', 'server/test', 'docs', 'scripts', 'tests/browser']:
   for path in (ROOT / base).rglob('*'):
@@ -728,30 +596,17 @@ for base in ['src', 'server/src', 'server/test', 'docs', 'scripts', 'tests/brows
     if '抵押' in text:
       path.write_text(text.replace('抵押', '冻结').replace('冻结物', '冻结资产'), encoding='utf-8')
 
-# Repair duplicate/ambiguous wording created by the terminology migration.
 product_design = load('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
-product_design = product_design.replace(
-    '冻结与冻结只改变可用性，不改变所有权。',
-    '所有冻结只改变可用性，不改变所有权。',
-)
-product_design = product_design.replace(
-    '冻结资产和冻结工厂继续计入资产毛值；',
-    '冻结资产继续计入资产毛值；',
-)
-product_design = product_design.replace(
-    '冻结工厂继续参与其所在地区的现有集群生产，但在贷款结清前不能出售、拍卖或重复冻结；市场卖单冻结和拍卖冻结仍会退出生产，冻结数量不得复用 `frozenCount`，同类型但不同地区的工厂不得被重复扣减。',
-    '贷款冻结工厂继续参与其所在地区的现有集群生产，但在贷款结清前不能出售、拍卖或重复冻结；市场卖单冻结和拍卖冻结仍会退出生产。贷款冻结仍由内部 `mortgagedCount`／`collateral` 字段保存，交易冻结仍由内部交易冻结字段保存；普通玩家界面统一归类为“冻结”，同类型但不同地区的工厂不得被重复扣减。',
-)
+product_design = product_design.replace('冻结与冻结只改变可用性，不改变所有权。', '所有冻结只改变可用性，不改变所有权。')
+product_design = product_design.replace('冻结资产和冻结工厂继续计入资产毛值；', '冻结资产继续计入资产毛值；')
+product_design = product_design.replace('冻结工厂继续参与其所在地区的现有集群生产，但在贷款结清前不能出售、拍卖或重复冻结；市场卖单冻结和拍卖冻结仍会退出生产，冻结数量不得复用 `frozenCount`，同类型但不同地区的工厂不得被重复扣减。', '贷款冻结工厂继续参与其所在地区的现有集群生产，但在贷款结清前不能出售、拍卖或重复冻结；市场卖单冻结和拍卖冻结仍会退出生产。贷款冻结仍由内部 `mortgagedCount`／`collateral` 字段保存，交易冻结仍由内部交易冻结字段保存；普通玩家界面统一归类为“冻结”，同类型但不同地区的工厂不得被重复扣减。')
 save('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', product_design)
 
 industry = load('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
 industry = industry.replace('运行／冻结／冻结数量摘要', '运行／冻结数量摘要')
 industry = industry.replace('运行中／冻结中／冻结中三项数量明细', '运行中／冻结中两项数量明细')
 industry = industry.replace('运行中／冻结中／冻结中三列', '运行中／冻结中两列')
-industry = industry.replace(
-    '银行冻结数量继续参与生产，但不得出售、拍卖或重复冻结；冻结数量与拍卖冻结数量分别保存。',
-    '银行贷款冻结数量继续参与生产，但不得出售、拍卖或重复冻结；贷款冻结与拍卖／交易冻结在内部仍分别保存，普通玩家界面统一归类为“冻结”。',
-)
+industry = industry.replace('银行冻结数量继续参与生产，但不得出售、拍卖或重复冻结；冻结数量与拍卖冻结数量分别保存。', '银行贷款冻结数量继续参与生产，但不得出售、拍卖或重复冻结；贷款冻结与拍卖／交易冻结在内部仍分别保存，普通玩家界面统一归类为“冻结”。')
 save('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', industry)
 
 page_design = load('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
@@ -778,61 +633,26 @@ save('docs/LIQUID_GLASS_CHROME_DESIGN.md', chrome_design)
 server_design = load('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
 needle = 'HTTP 传输层在事务提交后必须从当前 committed world 为当前玩家生成一次权威状态交付'
 if needle in server_design and '权威写执行器释放串行写队列之后生成' not in server_design:
-    server_design = server_design.replace(
-        needle,
-        'HTTP 传输层在事务提交且权威写执行器释放串行写队列之后生成，从当前 committed world 为当前玩家生成一次权威状态交付',
-        1,
-    )
+    server_design = server_design.replace(needle, 'HTTP 传输层在事务提交且权威写执行器释放串行写队列之后生成，从当前 committed world 为当前玩家生成一次权威状态交付', 1)
 save('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', server_design)
 
-# Market chart design: replace the retired 24h/6m model only where it owns the chart, while preserving separate 24h catalog metrics.
 chart_design = load('docs/MARKET_CHART_LAYOUT_DESIGN.md')
-chart_design = chart_design.replace(
-    '本文件只负责市场页近 24h 行情图的绘图区、坐标、悬浮交互、图例与安全区几何。',
-    '本文件只负责市场页近 30 天按日行情图的绘图区、坐标、悬浮交互与安全区几何。',
-)
-chart_design = chart_design.replace(
-    '价格 `line` 与成交量 `bar` 共享同一 24h 时间尺度。',
-    '价格 `line` 与成交量 `bar` 共享同一最近 30 个北京时间自然日的日期尺度。',
-)
-chart_design = chart_design.replace(
-    '24h 聚合、整数坐标、颜色方向、动态刻度和几何结果仍由项目纯函数计算',
-    '最近 30 天按日聚合、整数坐标、颜色方向、动态刻度和几何结果仍由项目纯函数计算',
-)
-chart_design = chart_design.replace(
-    '- 行情仍统计当前资产最近 24h，使用 `6m × 240` 固定数据分段；动态变化只影响可见刻度密度，不改变聚合窗口或经济数据。',
-    '- 行情固定统计当前资产最近 30 个北京时间自然日，每个自然日一个桶，共 30 个连续日桶；当天桶实时读取当日成交量和当前官方价，已完成日桶由服务器持久化，缺失自然日以零成交量并延续最近有效价格补齐。',
-)
-chart_design = chart_design.replace(
-    '- 横轴时间间隔必须根据真实绘图区宽度、根字号和 compact／full 变体，从 `1／2／3／4／6／8／12` 小时中选择，宽屏显示更多刻度，窄屏或放大字号自动减少刻度。',
-    '- 横轴日期间隔必须根据真实绘图区宽度、根字号和 compact／full 变体，从 `1／2／3／5／7／10／15` 天中选择，宽屏显示更多日期刻度，窄屏或放大字号自动减少刻度。',
-)
-chart_design = chart_design.replace(
-    '- 图例只显示“净主动买入”和“净主动卖出”；中性成交量继续使用灰色柱，但不显示“均衡／方向未知”图例。',
-    '- 行情图不显示主动买入／主动卖出方向图例；成交量柱仍按日净主动方向使用成功色／危险色／中性色，具体买入、卖出和净主动量只在 Tooltip 中读取。',
-)
+chart_design = chart_design.replace('本文件只负责市场页近 24h 行情图的绘图区、坐标、悬浮交互、图例与安全区几何。', '本文件只负责市场页近 30 天按日行情图的绘图区、坐标、悬浮交互与安全区几何。')
+chart_design = chart_design.replace('价格 `line` 与成交量 `bar` 共享同一 24h 时间尺度。', '价格 `line` 与成交量 `bar` 共享同一最近 30 个北京时间自然日的日期尺度。')
+chart_design = chart_design.replace('24h 聚合、整数坐标、颜色方向、动态刻度和几何结果仍由项目纯函数计算', '最近 30 天按日聚合、整数坐标、颜色方向、动态刻度和几何结果仍由项目纯函数计算')
+chart_design = chart_design.replace('- 行情仍统计当前资产最近 24h，使用 `6m × 240` 固定数据分段；动态变化只影响可见刻度密度，不改变聚合窗口或经济数据。', '- 行情固定统计当前资产最近 30 个北京时间自然日，每个自然日一个桶，共 30 个连续日桶；当天桶实时读取当日成交量和当前官方价，已完成日桶由服务器持久化，缺失自然日以零成交量并延续最近有效价格补齐。')
+chart_design = chart_design.replace('- 横轴时间间隔必须根据真实绘图区宽度、根字号和 compact／full 变体，从 `1／2／3／4／6／8／12` 小时中选择，宽屏显示更多刻度，窄屏或放大字号自动减少刻度。', '- 横轴日期间隔必须根据真实绘图区宽度、根字号和 compact／full 变体，从 `1／2／3／5／7／10／15` 天中选择，宽屏显示更多日期刻度，窄屏或放大字号自动减少刻度。')
+chart_design = chart_design.replace('- 图例只显示“净主动买入”和“净主动卖出”；中性成交量继续使用灰色柱，但不显示“均衡／方向未知”图例。', '- 行情图不显示主动买入／主动卖出方向图例；成交量柱仍按日净主动方向使用成功色／危险色／中性色，具体买入、卖出和净主动量只在 Tooltip 中读取。')
 chart_design = chart_design.replace('当前分段的时间、价格', '当前日桶的日期、价格')
 chart_design = chart_design.replace('6 分钟分段', '单日日桶')
-chart_design = chart_design.replace(
-    '页面顺序固定为“顶部交易摘要 → 近 24h 行情图 → 手动即时交易 → 浏览器本地成交记录”。',
-    '页面顺序固定为“顶部交易摘要 → 近 30 天按日行情图 → 手动即时交易 → 浏览器本地成交记录”。',
-)
-chart_design = chart_design.replace(
-    '- 成交趋势详情接口只下发当前时刻向前 24h 内带真实 `buy`／`sell` `takerSide` 的成交点；更早历史点和没有真实成交方向的合成点不得进入详情 payload 或 revision。客户端详情刷新跟随所选市场公开摘要的原始数值变化，不依赖 `game.orders` 或市场对象引用变化，避免主状态对象重建造成无意义重复详情请求和“游戏服务器响应超时”。已有有效详情时，单次后台刷新失败不得用错误文案覆盖当前行情。',
-    '- 成交趋势详情接口提供最近 30 个北京时间自然日的 `dailyHistory`；已完成商品日桶由服务器持久化，当前日桶实时合并 `todayBuyQuantity`／`todaySellQuantity` 与当前官方价。原始 `priceHistory` 继续只承担兼容与 24h 摘要用途，不再决定 30 天图表的保留能力。客户端详情刷新跟随所选市场公开摘要的原始数值变化，不依赖 `game.orders` 或市场对象引用变化；已有有效详情时，单次后台刷新失败不得覆盖当前行情或已经确认的交易结果。',
-)
-# Retire every remaining legend-specific layout sentence in this owner document.
+chart_design = chart_design.replace('页面顺序固定为“顶部交易摘要 → 近 24h 行情图 → 手动即时交易 → 浏览器本地成交记录”。', '页面顺序固定为“顶部交易摘要 → 近 30 天按日行情图 → 手动即时交易 → 浏览器本地成交记录”。')
+chart_design = chart_design.replace('- 成交趋势详情接口只下发当前时刻向前 24h 内带真实 `buy`／`sell` `takerSide` 的成交点；更早历史点和没有真实成交方向的合成点不得进入详情 payload 或 revision。客户端详情刷新跟随所选市场公开摘要的原始数值变化，不依赖 `game.orders` 或市场对象引用变化，避免主状态对象重建造成无意义重复详情请求和“游戏服务器响应超时”。已有有效详情时，单次后台刷新失败不得用错误文案覆盖当前行情。', '- 成交趋势详情接口提供最近 30 个北京时间自然日的 `dailyHistory`；已完成商品日桶由服务器持久化，当前日桶实时合并 `todayBuyQuantity`／`todaySellQuantity` 与当前官方价。原始 `priceHistory` 继续只承担兼容与 24h 摘要用途，不再决定 30 天图表的保留能力。客户端详情刷新跟随所选市场公开摘要的原始数值变化，不依赖 `game.orders` 或市场对象引用变化；已有有效详情时，单次后台刷新失败不得覆盖当前行情或已经确认的交易结果。')
 chart_design = '\n'.join(line for line in chart_design.splitlines() if '图例' not in line)
 chart_design += "\n\n- 防回退：成交趋势必须保持最近 30 个北京时间自然日、按日 30 桶；不得恢复 24h／6 分钟 240 桶，也不得恢复“净主动买入／净主动卖出”可见图例。\n"
 save('docs/MARKET_CHART_LAYOUT_DESIGN.md', chart_design + '\n')
 
-# Verifier: update functional 30-day aggregation assertions and retired legend expectations.
 verifier = load('scripts/verify-market-chart.mjs')
-verifier = verifier.replace(
-    '  countMarketHistoryPointsInWindow,\n',
-    '  countMarketHistoryPointsInWindow,\n  getMarketWindowBounds,\n',
-    1,
-)
+verifier = verifier.replace('  countMarketHistoryPointsInWindow,\n', '  countMarketHistoryPointsInWindow,\n  getMarketWindowBounds,\n', 1)
 start = verifier.index("const now = Date.UTC(2026, 6, 17, 8, 3, 0);")
 end = verifier.index("const chart = read('src/components/charts/PriceSparkline.tsx');")
 new_assertions = """const now = Date.UTC(2026, 6, 17, 8, 3, 0);
@@ -849,22 +669,10 @@ assert.equal(MARKET_BUCKET_COUNT, 30, '成交趋势必须固定保留最近 30 �
 assert.equal(MARKET_BUCKET_MS, 24 * 60 * 60 * 1000, '成交趋势必须按日聚合');
 assert.equal(buckets.length, 30, '行情聚合必须输出固定 30 个日桶');
 assert.equal(countMarketHistoryPointsInWindow(points, now), 3, '成交笔数只统计最近 30 个自然日窗口');
-assert.deepEqual(
-  { price: buckets[0].price, volume: buckets[0].volume, buyVolume: buckets[0].buyVolume, sellVolume: buckets[0].sellVolume, netVolume: buckets[0].netVolume, direction: buckets[0].direction },
-  { price: 12, volume: 5, buyVolume: 2, sellVolume: 3, netVolume: -1, direction: 'sell' },
-  '同一自然日必须使用最后成交价并按吃单方向汇总',
-);
-assert.deepEqual(
-  { price: buckets[2].price, volume: buckets[2].volume, netVolume: buckets[2].netVolume, direction: buckets[2].direction },
-  { price: 15, volume: 0, netVolume: 0, direction: 'neutral' },
-  '无成交自然日必须延续最近有效价格且成交量为零',
-);
+assert.deepEqual({ price: buckets[0].price, volume: buckets[0].volume, buyVolume: buckets[0].buyVolume, sellVolume: buckets[0].sellVolume, netVolume: buckets[0].netVolume, direction: buckets[0].direction }, { price: 12, volume: 5, buyVolume: 2, sellVolume: 3, netVolume: -1, direction: 'sell' }, '同一自然日必须使用最后成交价并按吃单方向汇总');
+assert.deepEqual({ price: buckets[2].price, volume: buckets[2].volume, netVolume: buckets[2].netVolume, direction: buckets[2].direction }, { price: 15, volume: 0, netVolume: 0, direction: 'neutral' }, '无成交自然日必须延续最近有效价格且成交量为零');
 const summary = summarizeMarketFlow(buckets);
-assert.deepEqual(
-  { volume: summary.volume, buyVolume: summary.buyVolume, sellVolume: summary.sellVolume, netVolume: summary.netVolume },
-  { volume: 9, buyVolume: 6, sellVolume: 3, netVolume: 3 },
-  '30 天汇总必须保留完整主动方向数据',
-);
+assert.deepEqual({ volume: summary.volume, buyVolume: summary.buyVolume, sellVolume: summary.sellVolume, netVolume: summary.netVolume }, { volume: 9, buyVolume: 6, sellVolume: 3, netVolume: 3 }, '30 天汇总必须保留完整主动方向数据');
 assert.equal(buckets[0].startAt, windowStart, '首个日桶必须从 30 天窗口起点开始');
 assert.equal(buckets.at(-1).startAt + MARKET_BUCKET_MS, windowEnd, '最后日桶必须覆盖当前北京时间自然日');
 
@@ -881,17 +689,10 @@ assert.equal(resolveMarketBucketIndex(windowEnd + 1, windowStart, 30, MARKET_BUC
 
 """
 verifier = verifier[:start] + new_assertions + verifier[end:]
-verifier = verifier.replace(
-    '  \'geometry.showXAxisTitle ? <div className="market-chart-x-axis-title">时间</div> : null\',\n  \'净主动买入\', \'净主动卖出\',\n',
-    '  \'<div className="market-chart-x-axis-title">日期</div>\',\n',
-)
+verifier = verifier.replace('  \'geometry.showXAxisTitle ? <div className="market-chart-x-axis-title">时间</div> : null\',\n  \'净主动买入\', \'净主动卖出\',\n', '  \'<div className="market-chart-x-axis-title">日期</div>\',\n')
 verifier = verifier.replace("'MARKET_TIME_INTERVAL_HOURS',", "'MARKET_TIME_INTERVAL_DAYS',")
-verifier = verifier.replace(
-    "'buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now)'",
-    "'buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? [])'",
-)
+verifier = verifier.replace("'buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now)'", "'buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? [])'")
 verifier = verifier.replace("'近 24h 真实成交趋势',", "'近 30 天按日成交趋势',")
-# Add explicit legend absence and 30-day payload guards.
 insert_after = "for (const text of ['<svg', '<polyline', '<polygon', '<rect', 'context.measureText', 'useChartAxisMetrics']) {\n"
 if insert_after in verifier:
     guard = """for (const text of ['market-chart-legend', '净主动买入', '净主动卖出']) {
@@ -905,49 +706,35 @@ assert.ok(!chartDesign.includes('`6m × 240`'), '行情设计不得保留 6 分�
     verifier = verifier.replace(insert_after, guard + insert_after, 1)
 save('scripts/verify-market-chart.mjs', verifier)
 
-# Rewrite the browser safe-zone geometry helper to validate date ticks and absence of the legend.
 safe = load('tests/browser/market-chart-safe-zone.spec.ts')
-safe = safe.replace(
-"""    const legendRects = Array.from(wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item'))
+safe = safe.replace("""    const legendRects = Array.from(wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item'))
       .map((item) => item.getBoundingClientRect());
     const title = wrapper.querySelector<HTMLElement>('.market-chart-x-axis-title');
     if (!canvas || !svg || !divider || legendRects.length !== 2) throw new Error('ECharts market chart fixture is incomplete');
-""",
-"""    const legendCount = wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item').length;
+""", """    const legendCount = wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item').length;
     const title = wrapper.querySelector<HTMLElement>('.market-chart-x-axis-title');
     if (!canvas || !svg || !divider) throw new Error('ECharts market chart fixture is incomplete');
-""",
-1,
-)
-safe = safe.replace(
-"""    const timeTicks = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
+""", 1)
+safe = safe.replace("""    const timeTicks = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
       .filter((text) => /^\\d{2}:\\d{2}$/.test(text.textContent?.trim() ?? ''))
       .map((text) => text.getBoundingClientRect());
     const legendLeft = Math.min(...legendRects.map((rect) => rect.left));
     const legendRight = Math.max(...legendRects.map((rect) => rect.right));
     const legendBottom = Math.max(...legendRects.map((rect) => rect.bottom));
-""",
-"""    const timeTicks = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
+""", """    const timeTicks = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
       .filter((text) => /^\\d{2}[/\\-]\\d{2}$/.test(text.textContent?.trim() ?? ''))
       .map((text) => text.getBoundingClientRect());
-""",
-1,
-)
+""", 1)
 safe = safe.replace("    const plotCenterX = readNumber('plotCenterX');\n", "", 1)
-safe = safe.replace(
-"""      timeLegendGap: Math.min(...legendRects.map((rect) => rect.top)) - canvasRect.bottom,
+safe = safe.replace("""      timeLegendGap: Math.min(...legendRects.map((rect) => rect.top)) - canvasRect.bottom,
       legendTitleGap: titleRect ? titleRect.top - legendBottom : null,
       bottomGap: wrapperRect.bottom - (titleRect?.bottom ?? legendBottom),
       legendCenterDelta: Math.abs((legendLeft + legendRight) / 2 - (wrapperRect.left + plotCenterX)),
-""",
-"""      titleGap: titleRect ? titleRect.top - canvasRect.bottom : null,
+""", """      titleGap: titleRect ? titleRect.top - canvasRect.bottom : null,
       bottomGap: wrapperRect.bottom - (titleRect?.bottom ?? canvasRect.bottom),
       legendCount,
-""",
-1,
-)
-safe = safe.replace(
-"""  expect(bounds.timeLegendGap, `${context}时间刻度区与图例之间必须保留安全区`).toBeGreaterThanOrEqual(7);
+""", 1)
+safe = safe.replace("""  expect(bounds.timeLegendGap, `${context}时间刻度区与图例之间必须保留安全区`).toBeGreaterThanOrEqual(7);
   if (bounds.xAxisTitleVisible === 'true') {
     expect(bounds.titlePresent, `${context}宽图时间轴标题必须存在`).toBe(true);
     expect(bounds.legendTitleGap, `${context}图例与时间轴标题之间必须保留安全区`).toBeGreaterThanOrEqual(9);
@@ -957,8 +744,7 @@ safe = safe.replace(
   }
   expect(bounds.bottomGap, `${context}底部可见内容不得贴住图表边缘`).toBeGreaterThanOrEqual(5);
   expect(bounds.legendCenterDelta, `${context}两项图例必须围绕绘图区中心整体居中`).toBeLessThanOrEqual(Math.max(2, bounds.chartWidth * 0.01));
-""",
-"""  expect(bounds.legendCount, `${context}不得显示净主动买入／卖出图例`).toBe(0);
+""", """  expect(bounds.legendCount, `${context}不得显示净主动买入／卖出图例`).toBe(0);
   if (bounds.xAxisTitleVisible === 'true') {
     expect(bounds.titlePresent, `${context}宽图日期轴标题必须存在`).toBe(true);
     expect(bounds.titleGap, `${context}日期刻度与日期轴标题之间必须保留安全区`).toBeGreaterThanOrEqual(7);
@@ -967,28 +753,17 @@ safe = safe.replace(
     expect(bounds.titleGap).toBeNull();
   }
   expect(bounds.bottomGap, `${context}底部可见内容不得贴住图表边缘`).toBeGreaterThanOrEqual(5);
-""",
-1,
-)
+""", 1)
 safe = safe.replace('可见时间标题必须由图表自身宽度决定', '可见日期标题必须由图表自身宽度决定')
 save('tests/browser/market-chart-safe-zone.spec.ts', safe)
 
-# Other source-verifiers that explicitly required the retired legend.
 overview_verify = load('scripts/verify-overview-content.mjs')
-overview_verify = overview_verify.replace(
-    '  \'className="market-chart-legend-item buy"\',\n  \'className="market-chart-legend-item sell"\',\n',
-    '',
-)
+overview_verify = overview_verify.replace('  \'className="market-chart-legend-item buy"\',\n  \'className="market-chart-legend-item sell"\',\n', '')
 save('scripts/verify-overview-content.mjs', overview_verify)
 
-# Market action latency verifier: guard the new queue boundary rather than increasing timeout.
 latency = load('scripts/verify-market-action-latency.mjs')
 if "const runtimeStore = 'server/src/runtime-store.js';" not in latency:
-    latency = latency.replace(
-        "const serverDesign = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';\n",
-        "const serverDesign = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';\nconst runtimeStore = 'server/src/runtime-store.js';\nconst serverApp = 'server/src/app.js';\n",
-        1,
-    )
+    latency = latency.replace("const serverDesign = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';\n", "const serverDesign = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';\nconst runtimeStore = 'server/src/runtime-store.js';\nconst serverApp = 'server/src/app.js';\n", 1)
 guard_anchor = "for (const text of [\n  '普通玩家权威动作的持久化幂等确认仍固定为 `{ result: { ok, message }, revision }`',"
 if guard_anchor in latency:
     extra = """for (const text of [
@@ -1004,7 +779,6 @@ for (const text of ["Object.defineProperty(response, 'stateSnapshot'", 'value: t
     latency = latency.replace(guard_anchor, extra + guard_anchor, 1)
 save('scripts/verify-market-action-latency.mjs', latency)
 
-# Mobile verifier and warehouse verifier lock the two small layout rules.
 mobile_verify = load('scripts/verify-mobile-page-sheet.mjs')
 if "min-height: 24px;" not in mobile_verify:
     mobile_verify += "\nrequireAll('src/styles/mobile-detail-sheet.css', ['min-height: 24px;']);\n"
@@ -1015,23 +789,14 @@ if "grid-template-columns: minmax(0, 1fr) auto;" not in warehouse_verify:
     warehouse_verify += "\nrequireText('src/styles/factory-auto-operation.css', 'grid-template-columns: minmax(0, 1fr) auto;');\n"
 save('scripts/verify-warehouse-expansion.mjs', warehouse_verify)
 
-# Assets verifier should require unified frozen wording and no visible legacy term.
 assets_verify = load('scripts/verify-assets-page.mjs')
-assets_verify = assets_verify.replace(
-    '冻结资产和冻结工厂仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结、冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。',
-    '冻结资产仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。',
-)
+assets_verify = assets_verify.replace('冻结资产和冻结工厂仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结、冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。', '冻结资产仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。')
 save('scripts/verify-assets-page.mjs', assets_verify)
 
-# Clean duplicated helper wording in the component after global term migration.
 assets = load('src/components/assets/AssetOverviewPanel.tsx')
-assets = assets.replace(
-    '冻结资产和冻结工厂仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结、冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。',
-    '冻结资产仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。',
-)
+assets = assets.replace('冻结资产和冻结工厂仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结、冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。', '冻结资产仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。')
 save('src/components/assets/AssetOverviewPanel.tsx', assets)
 
-# Final policy guards.
 for path in [ROOT / 'src', ROOT / 'server/src', ROOT / 'docs']:
     for file in path.rglob('*'):
         if file.is_file() and file.suffix in text_suffixes:
