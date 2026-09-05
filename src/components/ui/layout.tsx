@@ -32,6 +32,7 @@ export function PageLayout({
   children: ReactNode;
 }) {
   const pageNavigation = usePlayerPageNavigation();
+  const showBackButton = Boolean(pageNavigation || backAction);
   const pageStack = (
     <div className="ui-page-stack">
       {children}
@@ -46,17 +47,17 @@ export function PageLayout({
     )}>
       <div className="page-fixed-header">
         <div
-          className={classNames('page-heading', pageNavigation && 'page-heading--player-navigation')}
+          className={classNames('page-heading', showBackButton && 'page-heading--player-navigation')}
           data-player-page-navigation={pageNavigation ? 'true' : undefined}
         >
-          {pageNavigation ? (
+          {showBackButton ? (
             <Button
               variant="secondary"
               className="page-navigation-button page-navigation-button--back"
               aria-label={backAction?.label ?? '返回上一页面'}
               title={backAction?.label ?? '返回上一页面'}
-              disabled={!backAction && !pageNavigation.canGoBack}
-              onClick={backAction?.onClick ?? pageNavigation.onBack}
+              disabled={!backAction && !pageNavigation?.canGoBack}
+              onClick={backAction?.onClick ?? pageNavigation?.onBack}
             >
               <BackIcon />
             </Button>

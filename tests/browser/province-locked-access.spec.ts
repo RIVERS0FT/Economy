@@ -25,7 +25,7 @@ test('legacy access fields cannot make a regional market read-only', async ({ pa
 
 test('legacy access fields cannot hide regional buildings or warehouse', async ({ page }) => {
   await page.goto(legacyAccessSnapshotUrl);
-  await page.getByRole('tab', { name: '建筑', exact: true }).click();
+  await page.getByRole('tab', { name: '工业', exact: true }).click();
   await expect(page.getByText('建筑功能未解锁', { exact: true })).toHaveCount(0);
   await expect(page.locator('.province-unlock-button')).toHaveCount(0);
   await expect(page.getByText('建设新工厂', { exact: true })).toBeVisible();

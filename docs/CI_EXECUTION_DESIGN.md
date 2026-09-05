@@ -20,6 +20,8 @@ DT 负责快速证明单模块、静态结构和纯逻辑正确，不依赖完�
 
 纯前端源码发生变化时，targeted 计划必须执行 DT 覆盖率；直接修改 DT 测试时也必须执行同一覆盖率入口。DT 不得通过模拟浏览器 DOM 来替代应由 ST 验证的真实交互。
 
+页面源码／设计文本结构断言属于 DT，应位于 `scripts/verify-*.mjs` 或 `tests/dt/*.test.ts`，不得仅因文件名包含 contract 就作为服务器合同集成测试；商业页面结构基线位于 `tests/dt/commercial-page.test.ts`。迁移时保留原断言，并继续由正式 DT 入口执行。
+
 ### 2.2 IT（Integration Test）
 
 IT 负责证明服务器模块在真实事务、SQLite、状态投影、幂等与跨领域协作下能够组合工作。现有 `server/test/*.test.js` 是正式 IT 测试集合；测试可使用 `EconomyStore(':memory:')`，但必须保留正式事务、世界状态和领域实现，不得用重新实现的假业务逻辑替代。
@@ -169,3 +171,5 @@ Markdown 路径本身不表示业务源码变更。纯文档计划只执行仓�
 `tests/dt/project-governance.test.ts` 用临时文档目录、选择计划和实际工作流 shell 验证文案可改写、登记／链接错误仍失败、文档不扩大业务测试、必要检查失败不放行及错误部署产物不能解包；不使用固定设计句子代替行为断言。
 
 工作流依赖与分片完整性统一由 `scripts/verify-deployment-pipeline.mjs` 验证；`scripts/verify-runtime-reliability.mjs` 只保留运行环境准备、失败诊断及自身运行时边界，不另建第二份 CI 拓扑或设计文案清单。目录 README 与普通 Markdown 先按文档分类，不能仅因位于 `src`、`shared` 或工作流目录而当成可执行基础设施；混合变更仍按非文档路径判断影响。
+
+选择计划遇到已删除或迁移的 DT、IT 或 ST-browser 测试路径时必须回退完整验证，不把不存在的旧路径交给 runner，也不得静默删除测试覆盖。该回退继续执行完整 DT、完整 IT 与完整浏览器分片，覆盖率门槛不变。
