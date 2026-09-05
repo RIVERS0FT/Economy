@@ -16,7 +16,8 @@ const ACTIVE_BUCKET_INDEX = Math.min(MARKET_BUCKET_COUNT - 1, Math.floor(MARKET_
 function buildBuckets(dataRevision: number): MarketHistoryBucket[] {
   return Array.from({ length: MARKET_BUCKET_COUNT }, (_, index) => {
     const active = index === ACTIVE_BUCKET_INDEX;
-    const price = active ? 12 + dataRevision : 12;
+    const price = (active ? 12 + dataRevision : 12)
+      + (new URLSearchParams(window.location.search).get('scenario') === 'decimal' ? 4.03 : 0);
     const volume = active ? 120 + dataRevision * 80 : index % 7 === 0 ? 20 : 0;
     return {
       startAt: windowStart + index * MARKET_BUCKET_MS,

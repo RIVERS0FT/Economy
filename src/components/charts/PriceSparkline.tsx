@@ -371,7 +371,9 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   const pointerTypeRef = useRef('mouse');
   const bucketCountRef = useRef(safeBuckets.length);
   const restoreFrameRef = useRef<number | null>(null);
+  const interactionGeometryRef = useRef({ windowStart, top: geometry.top, priceBottom: geometry.priceBottom });
   bucketCountRef.current = safeBuckets.length;
+  interactionGeometryRef.current = { windowStart, top: geometry.top, priceBottom: geometry.priceBottom };
 
   const hideActiveTooltip = useCallback(() => {
     pointerInsideRef.current = false;
@@ -393,9 +395,16 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       if (chartInstance.isDisposed() || !pointerInsideRef.current || pointerRatioRef.current === null) return;
       const dataIndex = Math.min(bucketCountRef.current - 1,
         Math.floor(pointerRatioRef.current * bucketCountRef.current));
-      // A single API action selects the daily price point and drives both linked axes.
-      // Native mouse/click drivers are disabled to prevent independent resnapping.
-      chartInstance.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex });
+      const metrics = interactionGeometryRef.current;
+      const value = metrics.windowStart + (dataIndex + 0.5) * MARKET_BUCKET_MS;
+      const x = Number(chartInstance.convertToPixel({ xAxisIndex: 0 }, value));
+      if (!Number.isFinite(x)) return;
+      // Trigger only the price axis from its interior, even when the price point lies
+      // on the shared boundary. ECharts links the volume pointer and one HTML tooltip.
+      chartInstance.dispatchAction({
+        type: 'updateAxisPointer', x, y: (metrics.top + metrics.priceBottom) / 2,
+        axesInfo: [{ axisDim: 'x', axisIndex: 0, value }],
+      });
     });
   }, []);
 
@@ -458,8 +467,8 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     animation: false,
     aria: { enabled: true, description: '近三十天价格折线和成交量柱状图。蓝色为价格，成交量柱按当日净主动方向着色。' },
     grid: [
-      { id: 'market-price-grid', left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
-      { id: 'market-volume-grid', left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
+      { id: 'market-price-grid', outerBoundsMode: 'none', left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
+      { id: 'market-volume-grid', outerBoundsMode: 'none', left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
     ],
     axisPointer: { link: [{ xAxisIndex: [0, 1] }], triggerOn: 'none', animation: false },
     tooltip: {
@@ -492,15 +501,15 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     },
     xAxis: [
       {
-        id: 'market-price-time-axis', type: 'value', gridIndex: 0, min: windowStart, max: windowEnd, interval: axisInterval,
+        id: 'market-price-time-axis', type: 'value', containShape: false, gridIndex: 0, min: windowStart, max: windowEnd, interval: axisInterval,
         axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false },
         axisPointer: { show: true, snap: true, animation: false, label: { show: false }, lineStyle: MARKET_AXIS_POINTER_LINE_STYLE },
         splitLine: { show: true, lineStyle: { color: chartColor.border } },
       },
       {
-        id: 'market-volume-time-axis', type: 'value', gridIndex: 1, min: windowStart, max: windowEnd, interval: axisInterval,
+        id: 'market-volume-time-axis', type: 'value', containShape: false, gridIndex: 1, min: windowStart, max: windowEnd, interval: axisInterval,
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
-        axisPointer: { show: true, snap: true, animation: false, label: { show: false }, lineStyle: { ...MARKET_AXIS_POINTER_LINE_STYLE, dashOffset: priceHeight % 8 } },
+        axisPointer: { show: true, snap: true, animation: false, label: { show: false }, lineStyle: { ...MARKET_AXIS_POINTER_LINE_STYLE, dashOffset: -volumeHeight % 8 } },
         axisLabel: {
           color: chartColor.secondary,
           fontSize: Math.max(11, rootFontSize * 0.75),
@@ -603,6 +612,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     >
       <EconomyChart
         option={option}
+        lazyUpdate={false}
         className="market-history-echart"
         style={{ height: geometry.canvasHeight }}
         ariaLabel="近 30 天价格、成交量与主动买卖方向趋势图"
