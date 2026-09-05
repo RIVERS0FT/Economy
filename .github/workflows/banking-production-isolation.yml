@@ -27,23 +27,16 @@ jobs:
           import_marker = "} from '../src/facility-groups.js';\n"
           assert text.count(import_marker) == 1
           text = text.replace(import_marker, import_marker + "import { provinceScopedKey } from '../src/provinces.js';\n", 1)
-          marker = """  player.facilityGroups = [farmGroup(2, {
-            enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now,
-          })];
-          migrateFacilityGroupWorld(world, now);
-          """
-          replacement = """  player.facilityGroups = [farmGroup(2, {
-            enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now,
-          })];
-          player.factoryAutoOperationPolicies = {
+          test_start = text.index("test('mortgaged factories keep producing but cannot be transferred'")
+          insert_at = text.index('  migrateFacilityGroupWorld(world, now);', test_start)
+          policy = """  player.factoryAutoOperationPolicies = {
             [provinceScopedKey('110000', 'farm')]: {
               enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus',
             },
           };
-          migrateFacilityGroupWorld(world, now);
           """
-          assert text.count(marker) == 1
-          path.write_text(text.replace(marker, replacement, 1))
+          text = text[:insert_at] + policy + text[insert_at:]
+          path.write_text(text)
           PY
           git diff --check
       - name: Run banking regression
