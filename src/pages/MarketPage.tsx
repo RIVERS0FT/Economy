@@ -1,5 +1,7 @@
+import { subscribeCommodityWriteProgress } from '../api/commodityWriteProgress';
+import { WRITE_RESULT_UNCONFIRMED } from '../api/gameWriteConfirmation';
 import { CompactNumber } from '../components/ui/CompactNumber';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getMarketDetail } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
@@ -68,6 +70,7 @@ function trendForMarket(
 }
 
 function MarketImmediateTradeEntry({
+  provinceId,
   assetId,
   assetName,
   officialPrice,
@@ -79,6 +82,7 @@ function MarketImmediateTradeEntry({
   placeAssetOrder,
   showResult,
 }: {
+  provinceId: string;
   assetId: string;
   assetName: string;
   officialPrice: number;
@@ -91,6 +95,15 @@ function MarketImmediateTradeEntry({
   showResult: LoadedGameViewModel['showResult'];
 }) {
   const [quantityDraft, setQuantityDraft] = useState(String(orderQuantity));
+  const [tradePhase, setTradePhase] = useState<'idle' | 'submitting' | 'confirming' | 'unconfirmed'>('idle');
+  const [tradeFeedback, setTradeFeedback] = useState('');
+  const tradePending = useRef(false);
+  const pendingTrade = useRef<{ side: OrderSide; quantity: number; price: number } | null>(null);
+  const controlsLocked = tradePhase !== 'idle';
+  useEffect(() => subscribeCommodityWriteProgress((progress) => {
+    if (!tradePending.current || progress.provinceId !== provinceId || progress.assetId !== assetId) return;
+    if (progress.phase === 'confirming') setTradePhase('confirming');
+  }), [provinceId, assetId]);
   const maxBuyByFunds = officialPrice > 0 ? Math.max(0, Math.floor(credits / officialPrice)) : 0;
   const maxTradeQuantity = orderSide === 'buy' ? maxBuyByFunds : Math.max(0, availableQuantity);
   const parsedQuantity = parseIntegerDraft(quantityDraft, { min: 1 });
@@ -122,9 +135,25 @@ function MarketImmediateTradeEntry({
     setQuantityDraft(String(Math.min(maxTradeQuantity, next)));
   }
 
-  function submitTrade() {
-    if (quantityReason || parsedQuantity === null) return;
-    void showResult(placeAssetOrder('commodity', assetId, orderSide, parsedQuantity, officialPrice));
+  async function submitTrade() {
+    if (tradePending.current) return;
+    if (!pendingTrade.current && (quantityReason || parsedQuantity === null)) return;
+    const snapshot = pendingTrade.current ?? { side: orderSide, quantity: parsedQuantity!, price: officialPrice };
+    const confirming = pendingTrade.current !== null;
+    pendingTrade.current = snapshot;
+    tradePending.current = true;
+    setTradePhase(confirming ? 'confirming' : 'submitting');
+    setTradeFeedback('');
+    try {
+      const result = await placeAssetOrder('commodity', assetId, snapshot.side, snapshot.quantity, snapshot.price);
+      setTradeFeedback(result.message);
+      if (result.code === WRITE_RESULT_UNCONFIRMED) setTradePhase('unconfirmed');
+      else { pendingTrade.current = null; setTradePhase('idle'); }
+      void Promise.resolve(showResult(result)).catch(() => {});
+    } catch {
+      setTradePhase('unconfirmed');
+      setTradeFeedback('交易结果尚未确认，请勿重复交易；请确认原交易结果。');
+    } finally { tradePending.current = false; }
   }
 
   return (
@@ -134,12 +163,14 @@ function MarketImmediateTradeEntry({
           variant="text"
           className={orderSide === 'buy' ? 'ui-segmented__button active' : 'ui-segmented__button'}
           aria-pressed={orderSide === 'buy'}
+          disabled={controlsLocked}
           onClick={() => selectOrderSide('buy')}
         >买入</Button>
         <Button
           variant="text"
           className={orderSide === 'sell' ? 'ui-segmented__button active danger' : 'ui-segmented__button'}
           aria-pressed={orderSide === 'sell'}
+          disabled={controlsLocked}
           onClick={() => selectOrderSide('sell')}
         >卖出</Button>
       </div>
@@ -149,7 +180,7 @@ function MarketImmediateTradeEntry({
             variant="compact"
             className="market-stepper__button"
             aria-label="数量减少 1"
-            disabled={maxTradeQuantity < 1 || (parsedQuantity ?? 1) <= 1}
+            disabled={controlsLocked || maxTradeQuantity < 1 || (parsedQuantity ?? 1) <= 1}
             onClick={() => adjustQuantity(-1)}
           >−</Button>
           <IntegerInput
@@ -161,7 +192,7 @@ function MarketImmediateTradeEntry({
             fallbackValue={Math.min(Math.max(1, orderQuantity), Math.max(1, maxTradeQuantity))}
             min={1}
             max={maxTradeQuantity > 0 ? maxTradeQuantity : undefined}
-            disabled={maxTradeQuantity < 1}
+            disabled={controlsLocked || maxTradeQuantity < 1}
             aria-invalid={Boolean(quantityReason)}
             aria-describedby={quantityReason ? 'market-trade-quantity-error' : undefined}
             onValueChange={setQuantityDraft}
@@ -171,16 +202,16 @@ function MarketImmediateTradeEntry({
             variant="compact"
             className="market-stepper__button"
             aria-label="数量增加 1"
-            disabled={maxTradeQuantity < 1 || (parsedQuantity ?? 1) >= maxTradeQuantity}
+            disabled={controlsLocked || maxTradeQuantity < 1 || (parsedQuantity ?? 1) >= maxTradeQuantity}
             onClick={() => adjustQuantity(1)}
           >＋</Button>
         </div>
         {quantityReason ? <small id="market-trade-quantity-error" className="ui-form-field__error" role="alert">{quantityReason}</small> : null}
       </div>
       <div className="order-quick-fill" role="group" aria-label="快捷填写交易数量">
-        <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>25%</Button>
-        <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>50%</Button>
-        <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>最大</Button>
+        <Button variant="compact" disabled={controlsLocked || maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>25%</Button>
+        <Button variant="compact" disabled={controlsLocked || maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>50%</Button>
+        <Button variant="compact" disabled={controlsLocked || maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>最大</Button>
       </div>
       <div className="market-order-summary-grid">
         <span><small>交易总额</small><strong><CurrencyAmount>{formatCurrency(total)}</CurrencyAmount></strong></span>
@@ -192,11 +223,14 @@ function MarketImmediateTradeEntry({
       <Button
         block
         className="market-submit-order"
-        disabled={Boolean(quantityReason)}
+        disabled={tradePhase === 'submitting' || tradePhase === 'confirming' || (!pendingTrade.current && Boolean(quantityReason))}
         onClick={submitTrade}
       >
-        {orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`}
+        {tradePhase === 'unconfirmed' ? '确认交易结果' : tradePhase === 'confirming' ? '正在确认交易结果…'
+          : tradePhase === 'submitting' ? (orderSide === 'buy' ? '正在买入…' : '正在卖出…')
+            : orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`}
       </Button>
+      {tradeFeedback ? <small className="ui-helper-text market-trade-feedback" role={tradePhase === 'unconfirmed' ? 'alert' : 'status'}>{tradeFeedback}</small> : null}
     </section>
   );
 }
@@ -485,6 +519,7 @@ export function MarketPage({
         {selectedProduct ? (
           <section className="market-trade-card market-immediate-trade-card">
             <MarketImmediateTradeEntry
+            provinceId={model.selectedProvinceId}
                 key={`${assetId}:${orderSide}`}
                 assetId={assetId}
                 assetName={assetName}

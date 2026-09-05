@@ -1816,12 +1816,15 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
   const [groups, setGroups] = useState<CommercialBuildingGroup[]>(() => {
     if (scenario === 'empty') return [];
     const current: CommercialBuildingGroup[] = types.map((type, index) => ({
-      commercialTypeId: type.id, provinceId: '110000', count: scenario === 'commercial-long' ? 1_234_567 : 3,
+      commercialTypeId: type.id, provinceId: '110000',
+      staffingRateBps: 10000, staffingUpdatedAt: fixtureNow, staffingBatchCarryBps: 0, count: scenario === 'commercial-long' ? 1_234_567 : 3,
       participatingCount: index === 0 ? 2 : 0, enabled: index !== 1,
       status: index === 0 ? 'running' : index === 1 ? 'stopped' : 'error',
       statusReason: index > 1 ? 'insufficient_input' : undefined,
       cycleStartedAt: index === 0 ? fixtureNow - 180_000 : undefined,
       cycleCompletesAt: index === 0 ? fixtureNow + 120_000 : undefined,
+      pendingEffectiveCount: index === 0 ? 2 : undefined,
+      pendingStaffingRateBps: index === 0 ? 10000 : undefined,
       pendingRevenue: index === 0 ? 101.25 : undefined,
       pendingProfit: index === 0 ? 5 : undefined,
       pendingGoodsConsumed: index === 0 ? 4 : undefined,

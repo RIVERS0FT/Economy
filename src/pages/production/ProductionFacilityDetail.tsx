@@ -1,3 +1,4 @@
+import { BuildingStaffingProgress } from '../../components/buildings/BuildingStaffingProgress';
 import { BuildingClusterCard } from '../../components/buildings/BuildingClusterCard';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { CompactNumber } from '../../components/ui/CompactNumber';
@@ -125,24 +126,8 @@ export function FacilityStaffingSummary({
     : currentPercent <= 0 ? '已降至最低' : '下降中';
   const description = `${type.name}当前满员率 ${currentPercent}%，${directionLabel}，当前 ${physicalCount} 座工厂形成 ${effectiveCount} 座整数等效产能；周期完成时按届时满员率结算。`;
 
-  return (
-    <section className="facility-staffing-summary" aria-label={description}>
-      <div
-        className="facility-staffing-track"
-        role="progressbar"
-        aria-label={`${type.name}满员率`}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={currentPercent}
-      >
-        <span className="facility-staffing-fill" style={{ width: `${currentPercent}%` }} />
-        <div className="facility-staffing-track-copy">
-          <strong>满员率 {<CompactNumber value={currentPercent} />}%</strong>
-          <span>{directionLabel}</span>
-        </div>
-      </div>
-    </section>
-  );
+  return <BuildingStaffingProgress name={type.name} percent={currentPercent}
+    directionLabel={directionLabel} description={description} />;
 }
 
 export function recipeVariantsForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {

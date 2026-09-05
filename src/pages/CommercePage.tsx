@@ -147,7 +147,7 @@ export function CommercePage({
       <DataList>
         <DataRow label="建造资金" value={formatCurrency(selectedBuildType.buildCost * buildQuantity)} />
         <DataRow
-          label="单座稳定利润"
+          label="单座满员额定利润"
           value={`${formatCurrency(selectedBuildType.profitPerCycle)} / ${formatNumber(selectedBuildType.cycleMs / 60_000)} 分钟`}
         />
         <DataRow
@@ -185,8 +185,8 @@ export function CommercePage({
               artwork={<CommercialBuildingArtwork commercialTypeId={type.id} className="facility-cluster-icon" />}
               profitValue={<CompactCurrency value={profit} />}
               profitTone={profit > 0 ? 'positive' : 'neutral'}
-              profitTitle={`${type.name}单座稳定利润／分钟；不含集群数量倍数`}
-              ariaLabel={`${type.name}，数量 ${formatNumber(group.count)}，${commercialStatusLabel(group)}，单座稳定利润每分钟：${formatCurrency(profit)}`}
+              profitTitle={`${type.name}单座满员额定利润／分钟；不含集群数量倍数`}
+              ariaLabel={`${type.name}，数量 ${formatNumber(group.count)}，${commercialStatusLabel(group)}，单座满员额定利润每分钟：${formatCurrency(profit)}`}
               onSelect={() => selectDetail(type.id)}
             />
           );

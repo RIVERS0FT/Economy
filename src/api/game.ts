@@ -1,3 +1,5 @@
+import { installIdempotentGameWriteFetch } from './idempotentGameWriteFetch';
+import { GameWriteUnconfirmedError, isUnconfirmedWriteStatus, WRITE_RESULT_UNCONFIRMED, WRITE_RESULT_UNCONFIRMED_MESSAGE } from './gameWriteConfirmation';
 import type { AssetKind, EconomyState, MarketDetail, OrderSide, TransportModeId, TransportTripType } from '../types';
 import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
 import type { FacilityBuildProcurementQuote } from '../utils/facilityBuildProcurement';
@@ -21,7 +23,6 @@ let pageSaveEpochStaleMessage = '';
 let pendingProductionSettlement: ProductionSettlementClaim | null = null;
 let suppressedProductionSettlementBasisId: string | null = null;
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
-const DEFAULT_WRITE_TIMEOUT_MS = 12_000;
 const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
 const marketDetailCache = new Map<string, MarketDetail>();
 
@@ -128,7 +129,7 @@ export function resetGameSession() {
 
 export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
 
-export interface GameActionResult { ok: boolean; message: string; }
+export interface GameActionResult { ok: boolean; message: string; code?: string; }
 export interface GameActionResponse {
   result: GameActionResult;
   revision: number;
@@ -307,16 +308,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       headers.set('X-Economy-Save-Epoch', String(requiredPageSaveEpoch()));
     }
   }
-  const timeoutMs = init?.method && init.method !== 'GET'
-    ? DEFAULT_WRITE_TIMEOUT_MS
-    : DEFAULT_READ_TIMEOUT_MS;
-  const timedSignal = createTimedSignal(init?.signal, timeoutMs);
+  const isWrite = Boolean(init?.method && init.method !== 'GET' && init.method !== 'HEAD');
+  if (isWrite) installIdempotentGameWriteFetch();
+  const timedSignal = isWrite ? null : createTimedSignal(init?.signal, DEFAULT_READ_TIMEOUT_MS);
   try {
     const response = await fetch(`${GAME_API_BASE}${path}`, {
       ...init,
       credentials: 'include',
       headers,
-      signal: timedSignal.signal,
+      signal: timedSignal?.signal ?? init?.signal,
     });
     if (!response.ok) {
       let message = '游戏服务器请求失败';
@@ -330,6 +330,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         markPageSaveEpochStale(message);
         throw new SaveEpochPageMismatchError(message);
       }
+      if (isWrite && isUnconfirmedWriteStatus(response.status)) {
+        throw new GameApiError(response.status, WRITE_RESULT_UNCONFIRMED_MESSAGE, WRITE_RESULT_UNCONFIRMED);
+      }
       throw new GameApiError(response.status, message, code);
     }
     const payload = await response.json() as unknown;
@@ -340,7 +343,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     return payload as T;
   } catch (reason) {
-    if (timedSignal.didTimeout() && reason instanceof Error && reason.name === 'AbortError') {
+    if (reason instanceof GameWriteUnconfirmedError) {
+      throw new GameApiError(408, reason.message, reason.code);
+    }
+    if (timedSignal?.didTimeout() && reason instanceof Error && reason.name === 'AbortError') {
       throw new GameApiError(408, '游戏服务器响应超时，请稍后重试');
     }
     if (isBrowserNetworkError(reason)) {
@@ -348,13 +354,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw reason;
   } finally {
-    timedSignal.cleanup();
+    timedSignal?.cleanup();
   }
 }
 
 async function postAction(path: string, body: Record<string, unknown> = {}) {
-  const claim = pendingProductionSettlement;
-  const payload = claim ? { ...body, productionSettlement: claim } : body;
+  const manualCommodity = path === '/orders' && body.assetKind === 'commodity' && !body.execution
+    && (body.side === 'buy' || body.side === 'sell');
+  const requestBody = { ...body };
+  // Manual commodity prices are server-owned. Omit volatile preview fields so a
+  // pending intent stays identical across polls, price rollover and page reload.
+  if (manualCommodity) { delete requestBody.price; delete requestBody.productionSettlement; }
+  const claim = manualCommodity ? null : pendingProductionSettlement;
+  const payload = claim ? { ...requestBody, productionSettlement: claim } : requestBody;
   try {
     const response = await request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(payload) });
     pendingProductionSettlement = null;

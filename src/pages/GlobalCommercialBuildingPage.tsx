@@ -61,7 +61,7 @@ export function GlobalCommercialBuildingPage({ model, type, activeProvinceId, on
                 aria-label={`打开${region.name}${type.name}建筑详情，拥有 ${group.count} 座，${commercialStatusLabel(group)}`}
                 onClick={() => onOpenRegion(region.id)}>
                 <span className="global-facility-region-row__identity"><strong>{region.name}</strong></span>
-                <strong className="entity-list-value global-facility-region-row__profit is-positive" title="单座稳定利润／分钟"><CompactCurrency value={profit} /></strong>
+                <strong className="entity-list-value global-facility-region-row__profit is-positive" title="单座满员额定利润／分钟"><CompactCurrency value={profit} /></strong>
                 <strong className="global-facility-region-row__metric"><CompactNumber value={group.count} /></strong>
                 <strong className="global-facility-region-row__status" title={commercialStatusLabel(group)}>{COMMERCIAL_STATUS_LABELS[group.status]}</strong>
                 <span className="global-facility-region-row__chevron" aria-hidden="true"><ChevronIcon direction="right" /></span>

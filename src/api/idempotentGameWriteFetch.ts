@@ -1,3 +1,5 @@
+import { fetchConfirmedGameWrite, isConfirmedActionResult, isUnconfirmedWriteStatus } from './gameWriteConfirmation';
+import { publishCommodityWriteProgress } from './commodityWriteProgress';
 import {
   acceptExternalStateDelivery,
   getActiveStatePartitionRevisions,
@@ -37,6 +39,7 @@ interface ActionDeliveryReconciliation {
 type StoredPendingWrites = Record<string, PendingWriteReservation>;
 
 const pendingWrites = new Map<string, PendingWriteReservation>();
+const inFlightWrites = new Map<string, Promise<Response>>();
 const directControlTails = new Map<string, Promise<void>>();
 let hydrated = false;
 let installed = false;
@@ -82,12 +85,6 @@ function prunePendingWrites(now: number) {
       changed = true;
     }
   }
-  while (pendingWrites.size > MAX_PENDING_WRITES) {
-    const oldest = pendingWrites.keys().next().value as string | undefined;
-    if (!oldest) break;
-    pendingWrites.delete(oldest);
-    changed = true;
-  }
   if (changed) persistPendingWrites();
 }
 
@@ -119,6 +116,7 @@ function reserveWriteKey(fingerprint: string, proposedKey: string) {
   prunePendingWrites(now);
   const existing = pendingWrites.get(fingerprint);
   if (existing) return existing;
+  if (pendingWrites.size >= MAX_PENDING_WRITES) throw new Error('待确认操作较多，请先确认已有操作。');
   const reservation = { key: proposedKey, createdAt: now };
   pendingWrites.set(fingerprint, reservation);
   prunePendingWrites(now);
@@ -197,16 +195,7 @@ function facilityToggleIntent(
 }
 
 function shouldKeepReservation(response: Response) {
-  return response.status === 408 || response.status === 429 || response.status >= 500;
-}
-
-function errorName(reason: unknown) {
-  if (!reason || typeof reason !== 'object' || !('name' in reason)) return '';
-  return String((reason as { name?: unknown }).name || '');
-}
-
-function isAmbiguousTransportFailure(reason: unknown) {
-  return reason instanceof TypeError || errorName(reason) === 'AbortError';
+  return isUnconfirmedWriteStatus(response.status);
 }
 
 function actionDeliveryPayload(value: unknown): value is {
@@ -235,14 +224,8 @@ function attachKnownStateRevisions(input: RequestInfo | URL, headers: Headers) {
   headers.set('X-Economy-State-Revisions', JSON.stringify(revisions));
 }
 
-async function reconcileActionDelivery(response: Response): Promise<ActionDeliveryReconciliation> {
+function reconcileActionDelivery(response: Response, payload: unknown): ActionDeliveryReconciliation {
   if (!response.ok) return { commandOk: null, authorityApplied: false };
-  let payload: unknown;
-  try {
-    payload = await response.clone().json() as unknown;
-  } catch {
-    return { commandOk: null, authorityApplied: false };
-  }
   if (!actionDeliveryPayload(payload)) return { commandOk: null, authorityApplied: false };
   const commandOk = payload.result.ok === true;
   try {
@@ -275,32 +258,6 @@ async function runSerializedDirectControl<T>(key: string | null, operation: () =
   }
 }
 
-async function fetchWriteAttempt(
-  nativeFetch: typeof globalThis.fetch,
-  input: RequestInfo | URL,
-  init: RequestInit,
-  headers: Headers,
-  callerSignal: AbortSignal | null | undefined,
-) {
-  const controller = new AbortController();
-  const forwardAbort = () => controller.abort();
-  if (callerSignal?.aborted) controller.abort();
-  else callerSignal?.addEventListener('abort', forwardAbort, { once: true });
-  const timeout = isSessionBootstrapWrite(input)
-    ? null
-    : globalThis.setTimeout(() => controller.abort(), WRITE_ATTEMPT_TIMEOUT_MS);
-  try {
-    return await nativeFetch(input, {
-      ...init,
-      headers,
-      signal: controller.signal,
-    });
-  } finally {
-    if (timeout !== null) globalThis.clearTimeout(timeout);
-    callerSignal?.removeEventListener('abort', forwardAbort);
-  }
-}
-
 export function installIdempotentGameWriteFetch() {
   if (installed || typeof globalThis.fetch !== 'function') return;
   installed = true;
@@ -316,7 +273,6 @@ export function installIdempotentGameWriteFetch() {
     const proposedKey = headers.get('Idempotency-Key');
     if (!proposedKey) return nativeFetch(input, init);
     attachKnownStateRevisions(input, headers);
-    const immediateIntent = facilityToggleIntent(input, init);
 
     const fingerprint = stableFingerprint([
       method,
@@ -324,65 +280,49 @@ export function installIdempotentGameWriteFetch() {
       headers.get('X-Economy-Save-Epoch') || '',
       init.body,
     ].join('\n'));
+    const existing = inFlightWrites.get(fingerprint);
+    if (existing) return (await existing).clone();
+    hydratePendingWrites();
+    const wasPending = pendingWrites.has(fingerprint);
     const reservation = reserveWriteKey(fingerprint, proposedKey);
     headers.set('Idempotency-Key', reservation.key);
-
-    return runSerializedDirectControl(immediateIntent?.queueKey ?? null, async () => {
-      let lastFailure: unknown;
-      for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1) {
-        try {
-          const response = await fetchWriteAttempt(
-            nativeFetch,
-            input,
-            init,
-            headers,
-            attemptIndex === 0 ? init.signal : undefined,
-          );
-          const reconciliation = await reconcileActionDelivery(response);
-          if (immediateIntent) {
-            if (!response.ok || reconciliation.commandOk === false) {
-              rejectFacilityEnabledIntent(
-                immediateIntent.provinceId,
-                immediateIntent.facilityTypeId,
-                immediateIntent.sequence,
-              );
-            } else {
-              acknowledgeFacilityEnabledIntent(
-                immediateIntent.provinceId,
-                immediateIntent.facilityTypeId,
-                immediateIntent.sequence,
-                reconciliation.authorityApplied,
-              );
-            }
+    const immediateIntent = facilityToggleIntent(input, init);
+    const isOrder = parsedRequestUrl(input).pathname === `${GAME_API_PATH_PREFIX}/orders`;
+    const notify = (phase: Parameters<typeof publishCommodityWriteProgress>[1]) => {
+      if (isOrder) publishCommodityWriteProgress(init.body as string, phase);
+    };
+    const operation = runSerializedDirectControl(immediateIntent?.queueKey ?? null, async () => {
+      notify(wasPending ? 'confirming' : 'submitting');
+      try {
+        const { response, payload } = await fetchConfirmedGameWrite(nativeFetch, input, { ...init, headers }, {
+          timeoutMs: isSessionBootstrapWrite(input) ? null : WRITE_ATTEMPT_TIMEOUT_MS,
+          signal: init.signal,
+          validateSuccess: isOrder ? isConfirmedActionResult : undefined,
+          onConfirming: () => notify('confirming'),
+        });
+        const reconciliation = reconcileActionDelivery(response, payload);
+        if (immediateIntent) {
+          if (!response.ok || reconciliation.commandOk === false) {
+            rejectFacilityEnabledIntent(immediateIntent.provinceId, immediateIntent.facilityTypeId, immediateIntent.sequence);
+          } else {
+            acknowledgeFacilityEnabledIntent(immediateIntent.provinceId, immediateIntent.facilityTypeId,
+              immediateIntent.sequence, reconciliation.authorityApplied);
           }
-          if (!shouldKeepReservation(response)) {
-            releaseWriteKey(fingerprint, reservation.key);
-          }
-          return response;
-        } catch (reason) {
-          lastFailure = reason;
-          if (!isAmbiguousTransportFailure(reason)) {
-            if (immediateIntent) {
-              rejectFacilityEnabledIntent(
-                immediateIntent.provinceId,
-                immediateIntent.facilityTypeId,
-                immediateIntent.sequence,
-              );
-            }
-            releaseWriteKey(fingerprint, reservation.key);
-            throw reason;
-          }
-          if (attemptIndex === 0) continue;
         }
+        if (!shouldKeepReservation(response)) {
+          releaseWriteKey(fingerprint, reservation.key);
+          notify('settled');
+        } else notify('unconfirmed');
+        return response;
+      } catch (reason) {
+        // Even an unexpected failure after send cannot prove the transaction was cancelled.
+        notify('unconfirmed');
+        if (immediateIntent) rejectFacilityEnabledIntent(immediateIntent.provinceId, immediateIntent.facilityTypeId, immediateIntent.sequence);
+        throw reason;
       }
-      if (immediateIntent) {
-        rejectFacilityEnabledIntent(
-          immediateIntent.provinceId,
-          immediateIntent.facilityTypeId,
-          immediateIntent.sequence,
-        );
-      }
-      throw lastFailure;
     });
+    inFlightWrites.set(fingerprint, operation);
+    try { return (await operation).clone(); }
+    finally { if (inFlightWrites.get(fingerprint) === operation) inFlightWrites.delete(fingerprint); }
   };
 }

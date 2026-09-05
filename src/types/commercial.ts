@@ -27,6 +27,12 @@ export interface CommercialBuildingGroup {
   autoOperationPolicy?: CommercialAutoOperationPolicy;
   cycleStartedAt?: number;
   cycleCompletesAt?: number;
+  cycleActive?: boolean;
+  staffingRateBps?: number;
+  staffingUpdatedAt?: number;
+  staffingBatchCarryBps?: number;
+  pendingStaffingRateBps?: number;
+  pendingEffectiveCount?: number;
   pendingRevenue?: number;
   pendingProfit?: number;
   pendingGoodsConsumed?: number;

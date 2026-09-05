@@ -1,3 +1,4 @@
+import { commercialExpansionStaffingRate, commercialStaffingCapacity, hasCommercialCycle, projectCommercialStaffingRate } from '../../shared/commercial-staffing.js';
 import { normalizeCommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import { PRODUCT_CATALOG } from './product-catalog.js';
@@ -154,7 +155,8 @@ function normalizeGroup(group, now = Date.now()) {
   group.pendingRevenue = normalizeNonNegativeMoney(group.pendingRevenue);
   group.pendingProfit = normalizeNonNegativeMoney(group.pendingProfit);
   group.pendingGoodsConsumed = Math.max(0, Math.floor(Number(group.pendingGoodsConsumed || 0)));
-  if (group.pendingRevenue > 0) {
+  if (hasCommercialCycle(group)) {
+    group.cycleActive = true;
     group.cycleStartedAt = Math.max(0, Number(group.cycleStartedAt || now));
     group.cycleCompletesAt = Math.max(group.cycleStartedAt, Number(group.cycleCompletesAt || (group.cycleStartedAt + type.cycleMs)));
     group.status = 'running';
@@ -168,12 +170,22 @@ function normalizeGroup(group, now = Date.now()) {
     delete group.pendingOperatingCost;
     delete group.pendingInputValue;
     delete group.pendingInputs;
+    delete group.cycleActive;
+    delete group.pendingStaffingRateBps;
+    delete group.pendingEffectiveCount;
     group.participatingCount = 0;
     if (!group.enabled) {
       group.status = 'stopped';
       group.statusReason = 'manual';
     }
   }
+  if (!Number.isInteger(group.staffingRateBps) || group.staffingRateBps < 0 || group.staffingRateBps > 10_000
+    || !Number.isFinite(group.staffingUpdatedAt) || group.staffingUpdatedAt < 0) {
+    // Establish the migration baseline now; never apply decay retroactively to old saves.
+    group.staffingRateBps = 10_000;
+    group.staffingUpdatedAt = Math.max(0, Number(now) || 0);
+  }
+  if (!Number.isInteger(group.staffingBatchCarryBps) || group.staffingBatchCarryBps < 0 || group.staffingBatchCarryBps >= 10_000) group.staffingBatchCarryBps = 0;
   return group.count > 0 ? group : null;
 }
 
@@ -210,6 +222,9 @@ function groupFor(player, commercialTypeId, provinceId, create = false, now = Da
       enabled: false,
       status: 'stopped',
       statusReason: 'manual',
+      staffingRateBps: 10_000,
+      staffingUpdatedAt: now,
+      staffingBatchCarryBps: 0,
       lifetimeRevenue: 0,
       lifetimeProfit: 0,
       lifetimeGoodsConsumed: 0,
@@ -233,23 +248,34 @@ function cycleRequirements(type, participatingCount) {
   };
 }
 
-function setBlocked(group, reason) {
+function commitCommercialStaffing(group, now) {
+  const at = Math.max(Number(group.staffingUpdatedAt) || 0, Number(now) || 0);
+  const rate = projectCommercialStaffingRate(group, at);
+  group.staffingRateBps = rate ?? 10_000;
+  group.staffingUpdatedAt = at;
+  return group.staffingRateBps;
+}
+
+function setBlocked(group, reason, now) {
+  if (group.status !== 'error') commitCommercialStaffing(group, now);
   group.status = 'error';
   group.statusReason = reason;
   group.participatingCount = 0;
 }
 
 function startCycle(world, player, group, type, startedAt) {
-  if (!group.enabled || group.count < 1 || group.pendingRevenue > 0) return false;
+  if (!group.enabled || group.count < 1 || hasCommercialCycle(group)) return false;
   const participatingCount = group.count;
-  const requirements = cycleRequirements(type, participatingCount);
+  const rate = projectCommercialStaffingRate(group, startedAt) ?? 10_000;
+  const capacity = commercialStaffingCapacity(participatingCount, rate, group.staffingBatchCarryBps);
+  const requirements = cycleRequirements(type, capacity.effectiveCount);
   if (requirements.operatingCost > player.credits) {
-    setBlocked(group, 'insufficient_funds');
+    setBlocked(group, 'insufficient_funds', startedAt);
     return false;
   }
   for (const input of requirements.inputs) {
     if (inventoryForProvince(player, input.productId, group.provinceId).available < input.quantity) {
-      setBlocked(group, 'insufficient_input');
+      setBlocked(group, 'insufficient_input', startedAt);
       return false;
     }
   }
@@ -259,7 +285,7 @@ function startCycle(world, player, group, type, startedAt) {
   ), 0);
   const revenue = roundInternalMoney(inputValue + requirements.operatingCost + requirements.profit);
   if (revenue === null || !Number.isFinite(revenue)) {
-    setBlocked(group, 'insufficient_funds');
+    setBlocked(group, 'insufficient_funds', startedAt);
     return false;
   }
 
@@ -275,6 +301,12 @@ function startCycle(world, player, group, type, startedAt) {
     goodsConsumed += input.quantity;
   }
 
+  group.staffingRateBps = rate;
+  group.staffingUpdatedAt = Math.max(Number(group.staffingUpdatedAt) || 0, startedAt);
+  group.staffingBatchCarryBps = capacity.carryBps;
+  group.cycleActive = true;
+  group.pendingStaffingRateBps = rate;
+  group.pendingEffectiveCount = capacity.effectiveCount;
   group.participatingCount = participatingCount;
   group.status = 'running';
   delete group.statusReason;
@@ -313,20 +345,23 @@ function settleCycle(player, group) {
   delete group.pendingOperatingCost;
   delete group.pendingInputValue;
   delete group.pendingInputs;
+  delete group.cycleActive;
+  delete group.pendingStaffingRateBps;
+  delete group.pendingEffectiveCount;
 }
 
 function processGroup(world, player, group, now) {
   const type = typeFor(group.commercialTypeId);
   if (!type) return;
   let cycles = 0;
-  while (group.pendingRevenue > 0 && Number(group.cycleCompletesAt || Number.POSITIVE_INFINITY) <= now) {
+  while (hasCommercialCycle(group) && Number(group.cycleCompletesAt || Number.POSITIVE_INFINITY) <= now) {
     const completedAt = Number(group.cycleCompletesAt);
     settleCycle(player, group);
     cycles += 1;
     if (!group.enabled || cycles >= MAX_CATCH_UP_CYCLES) break;
     if (!startCycle(world, player, group, type, completedAt)) break;
   }
-  if (group.pendingRevenue > 0) return;
+  if (hasCommercialCycle(group)) return;
   if (!group.enabled) {
     group.status = 'stopped';
     group.statusReason = 'manual';
@@ -351,10 +386,13 @@ function buildCommercialBuilding(world, userId, payload, now) {
   if (!type) return result(false, '商业建筑类型不存在');
   const quantity = normalizePositiveInteger(payload.quantity ?? 1, MAX_BUILD_QUANTITY);
   if (!quantity) return result(false, `建造数量必须为 1 到 ${MAX_BUILD_QUANTITY} 的整数`);
+  const provinceId = normalizeProvinceId(payload.provinceId);
+  const existingGroup = groupFor(player, type.id, provinceId, false, now);
+  if (existingGroup) processGroup(world, player, existingGroup, now);
+  if (!Number.isSafeInteger((existingGroup?.count ?? 0) + quantity)) return result(false, '建筑数量超出系统可表示范围');
   const totalCost = multiplyMoneyByInteger(type.buildCost, quantity);
   if (totalCost === null) return result(false, '建造资金超出系统可表示范围');
   if (player.credits < totalCost) return result(false, '建造资金不足');
-  const provinceId = normalizeProvinceId(payload.provinceId);
   player.credits = roundInternalMoney(player.credits - totalCost) ?? 0;
   player.stats.systemSinks = normalizeNonNegativeMoney(Number(player.stats.systemSinks || 0) + totalCost);
   player.stats.commercialBuildingsConstructed = Math.max(
@@ -362,7 +400,10 @@ function buildCommercialBuilding(world, userId, payload, now) {
     Math.floor(Number(player.stats.commercialBuildingsConstructed || 0) + quantity),
   );
   const group = groupFor(player, type.id, provinceId, true, now);
+  const previousCount = group.count;
+  const rate = commitCommercialStaffing(group, now);
   group.count += quantity;
+  group.staffingRateBps = commercialExpansionStaffingRate(rate, previousCount, group.count);
   return result(true, `${quantity} 座${type.name}已建成，默认保持停止营业`);
 }
 
@@ -371,8 +412,10 @@ function startCommercialBuilding(world, userId, payload, now) {
   const type = typeFor(payload.commercialTypeId);
   const group = player && type ? groupFor(player, type.id, payload.provinceId, false, now) : null;
   if (!player || !type || !group || group.count < 1) return result(false, '商业建筑集群不存在');
+  processGroup(world, player, group, now);
+  if (!group.enabled) commitCommercialStaffing(group, now);
   group.enabled = true;
-  if (group.pendingRevenue > 0) return result(true, `${type.name}已保持营业，当前周期继续进行`);
+  if (hasCommercialCycle(group)) return result(true, `${type.name}已保持营业，当前周期继续进行`);
   if (startCycle(world, player, group, type, now)) {
     return result(true, `${type.name}已开始营业，${group.participatingCount} 座建筑参与当前周期`);
   }
@@ -387,8 +430,10 @@ function stopCommercialBuilding(world, userId, payload, now) {
   const type = typeFor(payload.commercialTypeId);
   const group = player && type ? groupFor(player, type.id, payload.provinceId, false, now) : null;
   if (!player || !type || !group) return result(false, '商业建筑集群不存在');
+  processGroup(world, player, group, now);
+  if (group.enabled) commitCommercialStaffing(group, now);
   group.enabled = false;
-  if (group.pendingRevenue > 0) {
+  if (hasCommercialCycle(group)) {
     return result(true, `${type.name}已关闭自动续营，当前已投入周期结算后停止`);
   }
   group.status = 'stopped';
