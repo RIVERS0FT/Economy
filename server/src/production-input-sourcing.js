@@ -46,7 +46,10 @@ export function captureProductionOutputBaseline(world, userId) {
   const player = world.players?.[String(userId)];
   return new Map((player?.facilityGroups || []).map((group) => [
     `${normalizeProvinceId(group.provinceId)}:${String(group.facilityTypeId || '')}`,
-    nonNegativeInteger(group.lifetimeOutput),
+    {
+      lifetimeOutput: nonNegativeInteger(group.lifetimeOutput),
+      cycleStartedAt: Number.isFinite(Number(group.cycleStartedAt)) ? Number(group.cycleStartedAt) : null,
+    },
   ]));
 }
 
@@ -134,10 +137,27 @@ export function finalizeProductionOutputContracts(world, userId, baseline, now =
     const provinceId = normalizeProvinceId(group.provinceId);
     const facilityTypeId = String(group.facilityTypeId || '');
     const key = `${provinceId}:${facilityTypeId}`;
-    if (baseline.has(key)) touchedProvinces.add(provinceId);
-    const before = nonNegativeInteger(baseline.get(key));
-    const after = nonNegativeInteger(group.lifetimeOutput);
-    const delta = Math.max(0, after - before);
+    const previous = baseline.get(key);
+    if (!previous) continue;
+    touchedProvinces.add(provinceId);
+    const beforeOutput = nonNegativeInteger(previous.lifetimeOutput);
+    const afterOutput = nonNegativeInteger(group.lifetimeOutput);
+    const delta = Math.max(0, afterOutput - beforeOutput);
+    const beforeCycleStartedAt = Number(previous.cycleStartedAt);
+    const afterCycleStartedAt = Number(group.cycleStartedAt);
+    const completedCycle = delta > 0 || (
+      Number.isFinite(beforeCycleStartedAt)
+      && Number.isFinite(afterCycleStartedAt)
+      && afterCycleStartedAt > beforeCycleStartedAt
+    );
+    if (!completedCycle) continue;
+
+    const completed = completedByProvince.get(provinceId) || [];
+    if (!completed.some((source) => source.kind === 'production' && source.sourceId === facilityTypeId)) {
+      completed.push({ kind: 'production', sourceId: facilityTypeId });
+    }
+    completedByProvince.set(provinceId, completed);
+
     if (delta <= 0) continue;
     const type = FACILITY_TYPES.get(facilityTypeId);
     const recipe = activeRecipe(type, group.activeRecipeId);
@@ -145,11 +165,6 @@ export function finalizeProductionOutputContracts(world, userId, baseline, now =
     if (!productId) continue;
     recordDailyProductProduction(player, provinceId, productId, delta, now);
     allocateDailySupplyReservesForSupplier(world, userId, provinceId, productId, now);
-    const completed = completedByProvince.get(provinceId) || [];
-    if (!completed.some((source) => source.kind === 'production' && source.sourceId === facilityTypeId)) {
-      completed.push({ kind: 'production', sourceId: facilityTypeId });
-    }
-    completedByProvince.set(provinceId, completed);
     produced += delta;
   }
 
