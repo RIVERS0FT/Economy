@@ -35,6 +35,7 @@
   box-shadow: none;
   cursor: grab;
   touch-action: none;
+  font-family: "Playfair Display", Georgia, "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, SimSun, serif;
 }
 
 .province-map-static-viewport:active {
