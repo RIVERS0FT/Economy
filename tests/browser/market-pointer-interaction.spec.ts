@@ -40,35 +40,15 @@ async function expectActuallyPainted(tooltip: Locator) {
     const host = element.parentElement!;
     const safe = host.getBoundingClientRect();
     const previous = element.style.cssText;
-    // A visible DOM box can still be underneath the Sheet. Probe the actual
-    // paint order, then restore pointer transparency before testing controls.
+    // A visible DOM box can still be underneath the Sheet. Probe actual paint
+    // order, then restore pointer transparency before exercising other controls.
     element.style.setProperty('pointer-events', 'auto', 'important');
     const front = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
     const painted = front !== null && element.contains(front);
     element.style.cssText = previous;
     return {
       painted,
-      diagnostic: {
-        tooltip: { x: box.x, y: box.y, width: box.width, height: box.height, css: element.style.cssText },
-        safe: { x: safe.x, y: safe.y, width: safe.width, height: safe.height },
-        viewport: { width: innerWidth, height: innerHeight },
-        coordinateNodes: [host, ...Array.from(document.querySelectorAll('.market-history-chart, .economy-chart, .economy-chart__canvas, .economy-chart__canvas > div'))].map((parent) => ({
-          tag: parent.tagName, cls: parent.className,
-          rect: parent.getBoundingClientRect().toJSON(), style: (parent as HTMLElement).style.cssText,
-          offsetTop: (parent as HTMLElement).offsetTop, offsetParent: (parent as HTMLElement).offsetParent?.className,
-          children: Array.from(parent.children).filter((child) => child.tagName === 'DIV').map((child) => ({
-            cls: child.className, rect: child.getBoundingClientRect().toJSON(), style: (child as HTMLElement).style.cssText,
-            offsetLeft: (child as HTMLElement).offsetLeft, offsetTop: (child as HTMLElement).offsetTop,
-            offsetParent: (child as HTMLElement).offsetParent?.className,
-          })),
-        })),
-        front: front?.outerHTML.slice(0, 500),
-        parents: [host, host.parentElement, host.parentElement?.parentElement].filter(Boolean).map((node) => ({
-          className: node!.className, z: getComputedStyle(node!).zIndex,
-          position: getComputedStyle(node!).position, transform: getComputedStyle(node!).transform,
-          inert: (node as HTMLElement).inert,
-        })),
-      },
+      geometry: { tooltip: box.toJSON(), safe: safe.toJSON() },
       safe: box.left >= safe.left + 7 && box.top >= safe.top + 7
         && box.right <= safe.right - 7 && box.bottom <= safe.bottom - 7,
       host: host.matches('[data-workspace-tooltip-layer="true"]'),
@@ -77,7 +57,7 @@ async function expectActuallyPainted(tooltip: Locator) {
       glass: getComputedStyle(element).backdropFilter,
     };
   });
-  expect(result.painted, JSON.stringify(result.diagnostic)).toBe(true);
+  expect(result.painted, JSON.stringify(result.geometry)).toBe(true);
   expect(result.safe).toBe(true);
   expect(result.host).toBe(true);
   expect(result.ordinaryHost).toBe(true);
