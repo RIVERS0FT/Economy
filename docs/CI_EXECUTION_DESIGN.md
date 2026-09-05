@@ -96,8 +96,8 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 当前 ST-browser 使用四个独立 shard、`fail-fast: false` 与每个 Job 20 分钟上限。分片数量、并发拓扑与合理超时是可据运行数据调整的配置，不是永久禁令；调整必须保持选中集合完整、分片分母一致、失败可诊断和总耗时有界。
 - `browser-test` 必须等待 DT 与 IT 成功，避免静态或事务失败后继续消耗浏览器运行器。
 - targeted 模式把同一组已选 Playwright spec 交给全部配置 shard，并通过 `--shard=N/总数` 确定性分配；不得漏跑分片、删除相关基线或另建手工测试清单。
-- full fallback 模式同样使用四分片覆盖完整 Playwright 集合，与 `main` 部署前的完整浏览器门禁保持同一执行模型。
-- targeted 浏览器 runner 通过 `ECONOMY_PLAYWRIGHT_SHARD=N/4` 控制 Playwright 分片；该变量只允许控制分片，不得改变选择器计划本身。
+- full fallback 模式同样使用配置的全部分片覆盖完整 Playwright 集合，与 `main` 部署前的完整浏览器门禁保持同一执行模型。
+- targeted 浏览器 runner 通过 `ECONOMY_PLAYWRIGHT_SHARD=N/总数` 控制 Playwright 分片；该变量只允许控制分片，不得改变选择器计划本身。
 
 ## 6. main 部署门禁
 
@@ -162,3 +162,5 @@ Markdown 路径本身不表示业务源码变更。纯文档计划只执行仓�
 文档验证不锁定自然语言措辞、章节标题、文档字节数或第二份手工清单；结构契约与职责路由见 `README.md`。覆盖率与业务安全断言保持现有门槛。本轮规则和 CI 基础设施修改必须运行完整回归，不能通过新的减负路径自我豁免。
 
 `tests/dt/project-governance.test.ts` 用临时文档目录、选择计划和实际工作流 shell 验证文案可改写、登记／链接错误仍失败、文档不扩大业务测试、必要检查失败不放行及错误部署产物不能解包；不使用固定设计句子代替行为断言。
+
+工作流依赖与分片完整性统一由 `scripts/verify-deployment-pipeline.mjs` 验证；`scripts/verify-runtime-reliability.mjs` 只保留运行环境准备、失败诊断及自身运行时边界，不另建第二份 CI 拓扑或设计文案清单。目录 README 与普通 Markdown 先按文档分类，不能仅因位于 `src`、`shared` 或工作流目录而当成可执行基础设施；混合变更仍按非文档路径判断影响。

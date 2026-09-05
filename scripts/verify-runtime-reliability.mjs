@@ -95,31 +95,14 @@ for (const text of [
 ]) requireText('server/test/http.test.js', text);
 forbidText('server/test/http.test.js', 'async function waitFor(url, attempts = 50)');
 
+// Workflow topology and shard completeness belong to verify-deployment-pipeline.
+// This verifier only owns runtime preparation and failure diagnostics.
 for (const text of [
-  'push:',
-  'branches-ignore:',
-  '- main',
-  'group: economy-ci-${{ github.event.pull_request.number || github.ref }}',
+  'group: economy-ci-',
   'cancel-in-progress: true',
-  'verify-head-ci-registration:',
-  'actions: read',
-  'No push workflow run found for the pull request head SHA',
-  'dt:',
-  'it:',
-  'needs: dt',
-  'browser-test:',
-  'needs: [dt, it]',
-  "if: needs.dt.outputs.browser == 'true'",
-  'build:',
-  'needs: [verify-head-ci-registration, dt, it, browser-test]',
-  'Aggregate DT IT ST quality gate',
-  'fail-fast: false',
-  'shard: [1, 2, 3, 4]',
   'bash scripts/prepare-playwright-chromium.sh',
-  'npm run test:browser -- --shard=${{ matrix.shard }}/4 2>&1 | tee browser-test.log',
-  'ECONOMY_PLAYWRIGHT_SHARD: ${{ matrix.shard }}/4',
   '--phase browser 2>&1 | tee browser-test.log',
-  'name: economy-browser-test-artifacts-${{ matrix.shard }}',
+  'name: economy-browser-test-artifacts-',
   'if: failure()',
   'retention-days: 3',
 ]) requireText('.github/workflows/ci.yml', text);
@@ -243,12 +226,6 @@ for (const [path, text] of [
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '默认每页 100 条、最多 200 条'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '验证码终态记录保留 30 天'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'Node 24.4.0'],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '真实头提交'],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'GitHub 合并快照'],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'verify-head-ci-registration'],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得写入 commit status'],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得用手工成功状态替代任一真实检查'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得依赖单次 `ssh-keyscan`'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '最多尝试 5 次'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '数据库备份、文件上传和服务变更之前终止'],
@@ -263,11 +240,6 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '浏览器 CDN'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '45 秒真实健康检查门槛保持不变'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'exact `location = /economy-api/health`'],
-  ['docs/CI_EXECUTION_DESIGN.md', '只要选择器要求浏览器验证，ST-browser 固定拆成四个独立 shard'],
-  ['docs/CI_EXECUTION_DESIGN.md', '不得通过提高 Job 超时'],
-  ['docs/CI_EXECUTION_DESIGN.md', 'ECONOMY_PLAYWRIGHT_SHARD=N/4'],
-  ['docs/CI_EXECUTION_DESIGN.md', '必须在测试声明期按视口生成独立 Playwright test'],
-  ['docs/CI_EXECUTION_DESIGN.md', '再使用 `expect.poll` 条件轮询读取 computed style'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
 ]) requireText(path, text);
@@ -276,4 +248,4 @@ if (failures.length) {
   console.error(`运行时可靠性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('依赖锁、DT/IT/ST 分层 CI、PR/分支四分片浏览器硬门禁、失败步骤日志 Artifact、API 就绪与共享运行时数据、浏览器存储容错、管理员分页、验证码保留、限流清理、冷加载兼容迁移和浏览器测试均符合当前设计。');
+console.log('依赖锁、浏览器运行环境、失败步骤日志 Artifact、API 就绪与共享运行时数据、浏览器存储容错、管理员分页、验证码保留、限流清理、冷加载兼容迁移和浏览器测试均符合当前设计。');
