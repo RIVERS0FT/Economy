@@ -1,0 +1,54 @@
+name: Validate control confirmation recovery
+on:
+  push:
+    branches: [work/audit-error-response-20260906]
+    paths:
+      - .audit-control-recovery.mjs
+      - .github/workflows/audit-control-recovery.yml
+permissions:
+  contents: write
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/work/audit-error-response-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Apply reviewed control recovery
+        run: |
+          node .audit-control-recovery.mjs
+          git add docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md src/api/idempotentGameWriteFetch.ts src/api/gameWriteConfirmation.ts tests/browser/write-session-boundaries.spec.ts
+          git diff --cached --check
+          git diff --cached --stat
+      - name: Full build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build > "$RUNNER_TEMP/build.log" 2>&1 || { tail -150 "$RUNNER_TEMP/build.log"; exit 1; }
+          tail -8 "$RUNNER_TEMP/build.log"
+      - run: bash scripts/prepare-playwright-chromium.sh
+      - name: Browser regressions
+        run: npm run test:browser -- tests/browser/write-error-session.spec.ts tests/browser/write-session-boundaries.spec.ts tests/browser/save-epoch-lifecycle.spec.ts
+      - name: Commit reviewed source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/work/audit-error-response-20260906
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: confirm pending controls before executing later intents'
+          git push origin HEAD:refs/heads/work/audit-error-response-20260906
+          git rev-parse HEAD
+          git ls-tree HEAD docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md src/api/game.ts src/api/gameWriteConfirmation.ts src/api/idempotentGameWriteFetch.ts tests/browser/write-error-session.spec.ts tests/browser/write-session-boundaries.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: audit-control-recovery-failure
+          path: ${{ runner.temp }}/build.log
+          retention-days: 3
