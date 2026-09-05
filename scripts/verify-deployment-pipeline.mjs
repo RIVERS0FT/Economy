@@ -186,6 +186,12 @@ if (!hasDtCommand(directDtPlan, 'node', ['scripts/run-code-coverage.mjs', 'dt'])
 
 const directItPlan = selectCiPlan(['server/test/banking.test.js']);
 if (directItPlan.mode !== 'targeted' || !directItPlan.it.tests.includes('server/test/banking.test.js')) failures.push('直接修改 server test 时必须执行该 IT');
+if (!directItPlan.reasons.includes('domains:banking')) failures.push('banking 测试不得因 ban 子串误归入 auth 域');
+for (const unrelated of ['server/test/auth-cache.test.js', 'server/test/authoritative-hotpaths.test.js', 'server/test/registration.test.js']) {
+  if (directItPlan.it.tests.includes(unrelated)) failures.push(`banking 测试不得扩散无关 auth IT: ${unrelated}`);
+}
+const authoritativeItPlan = selectCiPlan(['server/test/authoritative-hotpaths.test.js']);
+if (authoritativeItPlan.reasons.includes('domains:auth')) failures.push('authoritative 测试不得因 auth 子串误归入认证域');
 
 const directBrowserPlan = selectCiPlan(['tests/browser/bank-runtime.spec.ts']);
 if (directBrowserPlan.mode !== 'targeted' || !directBrowserPlan.browser.tests.includes('tests/browser/bank-runtime.spec.ts')) failures.push('直接修改 Playwright spec 时必须执行该 ST');

@@ -40,7 +40,6 @@
 /* Only opt-in disclosure content accepts input; the shared host remains transparent. */
 .safe-tooltip[data-interactive='true'] {
   pointer-events: auto !important;
-  overscroll-behavior: contain;
 }
 
 @media (max-width: 720px) {

@@ -18,6 +18,7 @@ import {
   migrateFacilityGroupWorld,
   processFacilityGroupWorld,
 } from '../src/facility-groups.js';
+import { provinceScopedKey } from '../src/provinces.js';
 
 const now = 1_800_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
@@ -57,6 +58,11 @@ test('mortgaged factories keep producing but cannot be transferred', () => {
   player.facilityGroups = [farmGroup(2, {
     enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now,
   })];
+  player.factoryAutoOperationPolicies = {
+  [provinceScopedKey('110000', 'farm')]: {
+    enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus',
+  },
+};
   migrateFacilityGroupWorld(world, now);
 
   const borrowed = applyBankAction(world, alice, 'bankBorrow', {
