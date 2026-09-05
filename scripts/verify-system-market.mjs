@@ -36,6 +36,7 @@ for (const token of [
   '不再维护 managed-order ID',
   '建厂一键购料不再读取真实卖盘深度',
   '价格输入框、价格加减按钮、卖 5～卖 1／买 1～买 5',
+  '成功回执的 `message` 固定为空字符串',
 ]) requireText(design, token, `商品即时市场权威设计缺少规则：${token}`);
 
 requireText(systemMarket, "import { dailyCheckInPeriodFor, checkInDateKey } from './daily-check-in.js'", '系统价格必须使用北京时间自然日工具。');
@@ -51,7 +52,8 @@ requireText(balancedMarket, 'nextPriceAt: period.nextResetAt', '新建市场下�
 requireText(domain, 'migrateLegacyPlayerCommodityOrders(migrated);', '世界迁移必须释放旧玩家商品挂单。');
 requireText(domain, 'balancedMarket.settleImmediatePlayerTrade', '玩家商品写动作必须直接调用系统即时结算。');
 requireText(domain, "status: 'filled'", '兼容成交记录必须直接落为 filled。');
-requireText(domain, "message: '已按今日系统价即时成交'", '玩家动作必须返回即时成交语义。');
+requireText(domain, "message: ''", '玩家商品即时交易成功回执不得附带冗余成功文案。');
+forbidText(domain, '已按今日系统价即时成交', '玩家商品即时交易不得恢复已删除的成功文案。');
 forbidText(domain, "return { ok: true, message: '订单已进入订单簿' }", '玩家商品动作不得恢复开放订单返回值。');
 requireText(catalog, 'SYSTEM_PRICE_CYCLE_MS = 24 * 60 * 60 * 1000', '系统价格常量必须按日表达。');
 requireText(catalog, 'SYSTEM_PRICE_K_BPS = 1000', '每日价格失衡响应必须固定为 1000 bps。');
@@ -97,6 +99,7 @@ for (const testName of [
 ]) {
   if (!systemMarketTest.includes(testName)) failures.push(`系统市场测试缺少：${testName}`);
 }
+requireText(systemMarketTest, "assert.equal(result.message, '');", '系统市场测试必须锁定即时交易成功文案为空。');
 
 if (failures.length > 0) {
   console.error('每日系统价即时市场验证失败：');
@@ -104,4 +107,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('每日系统价即时市场验证通过：玩家无挂单、北京时间零点调价、±5% 日变动、旧冻结释放、自动经营与建厂购料均使用当日服务器价格。');
+console.log('每日系统价即时市场验证通过：玩家无挂单、成功回执无冗余文案、北京时间零点调价、±5% 日变动、旧冻结释放、自动经营与建厂购料均使用当日服务器价格。');
