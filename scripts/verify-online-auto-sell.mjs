@@ -22,7 +22,7 @@ for (const path of ['server/src/production-settlement.js', 'server/src/facility-
 }
 for (const token of ['quoteBuildingAutoProcurement', 'netProfitMicros <= 0n', 'calculateCumulativeMarketSellFee',
   'reconcileBuildingInputFreezes', 'freezeCommodity', 'autoOperationCycleCursors', 'applySettledCommodityOrder',
-  'provinceAutoSaleEnabled', 'quotePreparedDailySupply', 'consumePreparedDailySupply']) {
+'quotePreparedDailySupply', 'consumePreparedDailySupply']) {
   requireText('server/src/cycle-auto-operation.js', token);
 }
 for (const token of ['MODE_PRICE_MULTIPLIERS', 'intent.keepOutput', 'intent.extraProtected']) {
@@ -36,9 +36,19 @@ requireText('src/components/market/CommodityFreezeDisclosure.tsx', 'SafeTooltip'
 requireText('src/components/market/CommodityFreezeDisclosure.tsx', 'aria-expanded={expanded}');
 for (const token of ['保障目标', '缺口']) forbidText('src/components/market/CommodityFreezeDisclosure.tsx', token);
 forbidText('src/pages/MarketPage.tsx', '<MarketAutoTradePanel');
+assert.ok(!existsSync('src/components/market/MarketAutoTradePanel.tsx'), '退役自动交易展示组件不得继续保留死代码');
+requireText('src/pages/MarketPage.tsx', '<MarketContractSummary model={model} productId={selectedProduct.id} />');
+for (const token of ['自动经营执行', '预计自动采购', '预计自动出售', '采购价格上限', '出售价格下限', '当前自由库存', '统一商品订单簿']) {
+  forbidText('src/components/market/MarketContractSummary.tsx', token);
+}
 for (const text of ['经营模式', '产成品处理', '保存自动经营策略']) {
   forbidText('src/components/facilities/FacilityAutoOperationControls.tsx', text);
 }
-requireText('src/components/buildings/ProvinceAutoSaleControl.tsx', '出售本地区非冻结商品');
+assert.ok(!existsSync('src/components/buildings/ProvinceAutoSaleControl.tsx'), '不得保留独立地区自动出售开关');
+forbidText('src/components/buildings/BuildingAutoOperationSection.tsx', 'ProvinceAutoSaleControl');
+forbidText('src/api/game.ts', 'saveProvinceAutoSalePolicy');
+forbidText('server/src/cycle-auto-operation.js', 'provinceAutoSaleEnabled');
+requireText('server/src/world-storage-v2.js', 'autoSaleRegions');
+forbidText('server/src/world-storage-v2.js', 'player.provinceAutoSaleEnabled?.[provinceId]');
 requireText('src/auto-trade/useOnlineAutoTrade.ts', 'state.saveEpoch !== saveEpoch');
-console.log('周期自动经营检查通过：完成事件唯一触发，利润计费，来源冻结，地区出售显式启用，客户端只读。');
+console.log('周期自动经营检查通过：完成事件唯一触发，自动经营自身包含地区非冻结出售，利润计费、来源冻结与客户端只读边界保持。');

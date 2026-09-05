@@ -163,72 +163,6 @@
   .warehouse-product-card-icon .product-icon { width: 58px; height: 58px; }
 }
 
-.warehouse-product-card.is-auto-trade-enabled {
-  border-color: color-mix(in srgb, var(--color-success) 42%, var(--color-border));
-}
-
-.warehouse-auto-trade-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.warehouse-auto-trade-status:empty {
-  display: none;
-}
-
-.warehouse-auto-trade-summary,
-.market-auto-trade-execution__prices {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.warehouse-auto-trade-summary > div,
-.market-auto-trade-execution__prices > span {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-  border: 1px solid var(--color-divider);
-  border-radius: var(--radius-control);
-  padding: var(--space-2);
-  background: var(--color-surface-inset);
-}
-
-.warehouse-auto-trade-summary > .is-primary {
-  border-color: color-mix(in srgb, var(--color-success) 42%, var(--color-divider));
-  background: color-mix(in srgb, var(--color-success-soft) 58%, var(--color-surface-inset));
-}
-
-.warehouse-auto-trade-summary span,
-.market-auto-trade-execution__prices small,
-.warehouse-auto-trade-note,
-.warehouse-auto-trade-error {
-  font-size: var(--font-size-xs);
-}
-
-.warehouse-auto-trade-summary span,
-.market-auto-trade-execution__prices small,
-.warehouse-auto-trade-note {
-  color: var(--color-text-muted);
-}
-
-.warehouse-auto-trade-summary strong,
-.market-auto-trade-execution__prices strong {
-  color: var(--color-text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.warehouse-auto-trade-note,
-.warehouse-auto-trade-error {
-  margin: 0;
-  line-height: var(--line-height-relaxed);
-}
-
-.warehouse-auto-trade-error {
-  color: var(--color-danger);
-}
-
 @media (max-width: 720px) {
   .production-warehouse-workspace {
     grid-template-columns: minmax(0, 1fr);
@@ -242,11 +176,6 @@
 }
 
 @media (max-width: 420px) {
-  .warehouse-auto-trade-summary,
-  .market-auto-trade-execution__prices {
-    grid-template-columns: 1fr;
-  }
-
   .warehouse-heading-actions {
     gap: 6px;
   }

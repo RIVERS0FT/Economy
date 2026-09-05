@@ -16,7 +16,7 @@ const contentSurfacePath = 'src/styles/content-surfaces.css';
 const scrollingSurfacePath = 'src/styles/scrolling-page-sections.css';
 const auditStylePath = 'src/styles/contract-audit.css';
 const navigationPath = 'src/contracts/navigation.ts';
-const marketPanelPath = 'src/components/market/MarketAutoTradePanel.tsx';
+const marketPanelPath = 'src/components/market/MarketContractSummary.tsx';
 const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
 const productDesignPath = 'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md';
 const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
@@ -97,8 +97,8 @@ for (const text of [
   "export type ContractMarketDirection = 'purchase' | 'supply'", 'direction?: ContractMarketDirection',
   'setContractMarketIntent(productId: string, provinceId?: string, direction?: ContractMarketDirection)',
 ]) requireText(navigationPath, text);
-for (const text of ['setContractMarketIntent(product.id, model.selectedProvinceId);', '查看相关合同']) requireText(marketPanelPath, text);
-forbidText(marketPanelPath, 'setContractMarketIntent(product.id, model.selectedProvinceId,');
+for (const text of ['setContractMarketIntent(productId, model.selectedProvinceId);', '查看相关合同']) requireText(marketPanelPath, text);
+forbidText(marketPanelPath, 'setContractMarketIntent(productId, model.selectedProvinceId,');
 
 for (const text of [
   '合同是连接生产、市场、库存、运输与玩家资本关系的核心长期经营机制',

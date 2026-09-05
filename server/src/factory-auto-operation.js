@@ -114,10 +114,7 @@ export function applyFactoryAutoOperationPolicyAction(world, user, payload = {},
   const accessError = provinceUnlockError(player, provinceId);
   if (accessError) return result(false, accessError);
   if (payload.operation === 'province-auto-sale') {
-    if (typeof payload.enabled !== 'boolean') return result(false, '地区自动出售设置无效');
-    player.provinceAutoSaleEnabled ||= {};
-    player.provinceAutoSaleEnabled[provinceId] = payload.enabled;
-    return result(true, payload.enabled ? '将在周期完成时出售本地区全部非冻结商品' : '地区自动出售已关闭');
+    return result(false, '地区自动出售已并入建筑自动经营，无需单独设置');
   }
   const facilityTypeId = String(payload.facilityTypeId || payload.assetId || '');
   if (!FACILITY_TYPES.has(facilityTypeId)) return result(false, '工厂类型不存在');

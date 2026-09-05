@@ -55,6 +55,7 @@ test('commercial completion buys and freezes next-cycle goods at official prices
   const { world, player, group, type } = setup(1);
   for (const input of type.consumptionInputs) inventoryForProvince(player, input.productId, provinceId).available = input.quantity;
   inventoryForProvince(player, 'food', other).available = 77;
+  inventoryForProvince(player, 'fruit', provinceId).available = 4;
   applyCommercialBuildingAction(world, user, { operation: 'start', provinceId, commercialTypeId: type.id }, now + 1);
   const market = world.markets[provinceScopedKey(provinceId, 'food')];
   const before = market.todayBuyQuantity;
@@ -69,6 +70,7 @@ test('commercial completion buys and freezes next-cycle goods at official prices
   assert.equal(stock.available, 0);
   assert.ok(frozenForSource(stock, 'commercial', buildingFreezeSource(group, 'commercial')) > 0);
   assert.equal(inventoryForProvince(player, 'food', other).available, 77);
+  assert.equal(inventoryForProvince(player, 'fruit', provinceId).available, 0);
   const snapshot = structuredClone({ stock, credits: player.credits, bought: market.todayBuyQuantity });
   processCommercialWorld(world, dueAt);
   assert.deepEqual({ stock, credits: player.credits, bought: market.todayBuyQuantity }, snapshot);

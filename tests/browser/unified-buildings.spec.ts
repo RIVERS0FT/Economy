@@ -25,18 +25,14 @@ async function assertNoOverflow(page: Page) {
   for (const width of widths) expect(width.scroll).toBeLessThanOrEqual(width.client + 1);
 }
 async function assertOperationControlsAligned(detail: Locator) {
-  // Both independent controls share the visual header; each must stay on its own aligned row.
-  for (const selector of [
-    '.facility-auto-operation > .facility-auto-operation__header',
-    '.province-auto-sale > .facility-auto-operation__header',
-  ]) {
-    const header = detail.locator(selector);
-    await expect(header).toHaveCount(1);
-    const label = await header.locator(':scope > strong').boundingBox();
-    const control = await header.locator('.ui-switch').boundingBox();
-    expect(label).not.toBeNull(); expect(control).not.toBeNull();
-    expect(Math.abs((label!.y + label!.height / 2) - (control!.y + control!.height / 2))).toBeLessThanOrEqual(2);
-  }
+  const header = detail.locator('.facility-auto-operation > .facility-auto-operation__header');
+  await expect(header).toHaveCount(1);
+  const label = await header.locator(':scope > strong').boundingBox();
+  const control = await header.locator('.ui-switch').boundingBox();
+  expect(label).not.toBeNull(); expect(control).not.toBeNull();
+  expect(Math.abs((label!.y + label!.height / 2) - (control!.y + control!.height / 2))).toBeLessThanOrEqual(2);
+  await expect(detail.locator('.province-auto-sale')).toHaveCount(0);
+  await expect(detail.getByRole('checkbox', { name: /本地区自动出售/ })).toHaveCount(0);
 }
 async function openConvenienceDetail(page: Page) {
   await openRegional(page);
@@ -131,15 +127,12 @@ test('commercial automatic operation is independent and prevents duplicate reque
   });
   await openConvenienceDetail(page);
   const auto = page.getByRole('checkbox', { name: /^(开启|关闭)自动经营$/ });
-  const regionSale = page.getByRole('checkbox', { name: /^(开启|关闭)本地区自动出售$/ });
   const running = page.locator('.facility-information-summary .ui-switch');
-  await expect(regionSale).not.toBeChecked();
   await expect(auto).toBeChecked(); await auto.click();
   await expect(auto).toBeDisabled(); await expect(running).toBeDisabled();
   await auto.evaluate((element) => (element as HTMLInputElement).click());
   await expect.poll(() => requests.length).toBe(1); release();
   await expect(auto).not.toBeChecked(); await expect(running).toBeChecked();
-  await expect(regionSale).not.toBeChecked();
   expect(requests[0]).toMatchObject({ operation: 'auto-operation', provinceId: '110000', commercialTypeId: 'convenience-store', policy: { enabled: false, inputCoverageCycles: 2 } });
   await auto.click(); await expect(auto).toBeChecked();
   const coverage = page.getByRole('combobox', { name: '便利店商品保障', exact: true });
@@ -147,7 +140,6 @@ test('commercial automatic operation is independent and prevents duplicate reque
   await expect.poll(() => requests.length).toBe(3);
   expect(requests[2]).toMatchObject({ policy: { enabled: true, inputCoverageCycles: 5 } });
   await expect(coverage).toContainText('5 个营业周期');
-  await expect(regionSale).not.toBeChecked();
   await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).toContainText('5.00');
 });
 
@@ -158,7 +150,7 @@ test('failed commercial policy save preserves the authoritative setting', async 
   await auto.click(); await expect(page.getByRole('alert')).toHaveText('自动经营策略无效');
   await expect(auto).toBeChecked(); await expect(auto).toBeEnabled();
   await expect(page.locator('.facility-information-summary .ui-switch')).toBeChecked();
-  await expect(page.getByRole('checkbox', { name: /^(开启|关闭)本地区自动出售$/ })).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /本地区自动出售/ })).toHaveCount(0);
 });
 
 test('commercial goods open the same local product and return without trading', async ({ page }) => {

@@ -91,7 +91,7 @@ export function FacilityAutoOperationControls({
   };
 
   return (
-    <BuildingAutoOperationSection provinceId={group.provinceId} label={<GameConcept concept="factory-auto-operation">自动经营</GameConcept>}
+    <BuildingAutoOperationSection label={<GameConcept concept="factory-auto-operation">自动经营</GameConcept>}
       enabled={draft.enabled} disabled={group.count < 1 || saving}
       onChange={(enabled) => updatePolicy({ ...draft, enabled })} message={message}>
       {children({ policy: draft, saving, updatePolicy })}

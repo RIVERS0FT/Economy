@@ -27,7 +27,6 @@ function setup(typeId = 'mill', prices = { wheat: 5, flour: 25 }) {
     staffingRateBps: 10_000, staffingUpdatedAt: now, staffingBatchCarryBps: 0 };
   player.facilityGroups = [group];
   player.credits = 10_000;
-  player.provinceAutoSaleEnabled = { [provinceId]: true };
   for (const input of recipe.inputs) inventoryForProvince(player, input.productId, provinceId).available = input.quantity;
   migrateFacilityGroupWorld(world, now);
   for (const [id, price] of Object.entries(prices)) world.markets[provinceScopedKey(provinceId, id)].officialPrice = price;
@@ -93,22 +92,27 @@ test('net margin includes sale fee and does not use former base-price bounds', (
   }
 });
 
-test('region automatic sale is explicit opt-in; stock is not liquidated by a default-enabled building', () => {
+test('automatic sale follows the building automatic-operation switch without a regional toggle', () => {
   const { world, player, recipe } = setup('farm', { wheat: 2 });
-  delete player.provinceAutoSaleEnabled;
   inventoryForProvince(player, 'fruit', provinceId).available = 9;
+  assert.equal(applyFactoryAutoOperationPolicyAction(world, user, { provinceId, facilityTypeId: 'farm',
+    policy: { enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } }, now).ok, true);
   settle(world, now + recipe.cycleMs);
   assert.equal(inventoryForProvince(player, 'fruit', provinceId).available, 9);
-  assert.equal(orders(world).length, 0);
+  assert.equal(orders(world).some((order) => order.side === 'sell' && order.productId === 'fruit'), false);
+  assert.equal(applyFactoryAutoOperationPolicyAction(world, user, { provinceId, facilityTypeId: 'farm',
+    policy: { enabled: true, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } }, now + recipe.cycleMs).ok, true);
+  settle(world, now + recipe.cycleMs * 2);
+  assert.equal(inventoryForProvince(player, 'fruit', provinceId).available, 0);
+  assert.ok(orders(world).some((order) => order.side === 'sell' && order.productId === 'fruit' && order.quantity === 9));
 });
 
-test('automatic procurement cannot spend operating cash or manufacture goods when funds are insufficient', () => {
-  const { world, player, recipe } = setup();
-  player.credits = recipe.operatingCost;
-  player.provinceAutoSaleEnabled[provinceId] = false;
-  settle(world, now + recipe.cycleMs);
-  assert.equal(player.credits, 0);
-  assert.equal(orders(world).length, 0);
+test('unfunded direct cycle maintenance cannot buy before any real sale proceeds exist', () => {
+  const { world, player, group, recipe } = setup();
+  player.credits = 0;
+  for (const input of recipe.inputs) inventoryForProvince(player, input.productId, provinceId).available = 0;
+  assert.equal(completeBuildingCycleAutoOperation(world, player, group, 'production', now + recipe.cycleMs, now + recipe.cycleMs), false);
+  assert.equal(orders(world).some((order) => order.side === 'buy'), false);
   assert.equal(inventoryForProvince(player, 'wheat', provinceId).frozen, 0);
 });
 
@@ -139,31 +143,30 @@ test('production and sale never draw on frozen goods or stock in a different reg
 test('exact zero net profit is not positive and incomplete prices cannot trigger procurement', () => {
   for (const prices of [{ wheat: 5.6, flour: 20 }, { wheat: 5, flour: undefined }]) {
     const { world, player, recipe } = setup('mill', prices);
-    player.provinceAutoSaleEnabled = {};
     settle(world, now + recipe.cycleMs);
     assert.equal(orders(world).some((order) => order.side === 'buy'), false);
     assert.equal(inventoryForProvince(player, 'wheat', provinceId).available + inventoryForProvince(player, 'wheat', provinceId).frozen, 0);
   }
 });
 
-test('multi-input procurement preflights the whole batch and leaves operating cash intact', () => {
+test('multi-input procurement preflights the whole batch when no sale proceeds exist', () => {
   const type = FACILITY_TYPE_CATALOG.find((entry) => (entry.recipes.find((r) => r.id === entry.defaultRecipeId) || entry.recipes[0]).inputs.length > 1);
   assert.ok(type);
-  const { world, player, recipe } = setup(type.id, {});
-  player.provinceAutoSaleEnabled = {};
+  const { world, player, group, recipe } = setup(type.id, {});
   let inputs = 0;
   for (const item of recipe.inputs) {
     world.markets[provinceScopedKey(provinceId, item.productId)].officialPrice = 1;
+    inventoryForProvince(player, item.productId, provinceId).available = 0;
     inputs += item.quantity;
   }
   world.markets[provinceScopedKey(provinceId, recipe.output.productId)].officialPrice = 100_000;
-  player.credits = recipe.operatingCost * 2 + inputs - 0.01;
-  settle(world, now + recipe.cycleMs);
-  assert.ok(player.facilityGroups[0].lifetimeOutput > 0);
+  player.credits = recipe.operatingCost + inputs - 0.01;
+  const before = player.credits;
+  completeBuildingCycleAutoOperation(world, player, group, 'production', now + recipe.cycleMs, now + recipe.cycleMs);
   assert.equal(orders(world).some((order) => order.side === 'buy'), false);
   for (const item of recipe.inputs) {
     const inventory = inventoryForProvince(player, item.productId, provinceId);
     assert.equal(inventory.available + inventory.frozen, 0, 'no partially bought material batch');
   }
-  assert.ok(player.credits >= recipe.operatingCost);
+  assert.equal(player.credits, before);
 });

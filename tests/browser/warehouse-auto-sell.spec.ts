@@ -32,6 +32,8 @@ test.describe('warehouse and factory automatic operation responsibilities', () =
     await expect(controls).not.toContainText('系统仍通过本州统一商品订单簿执行真实买卖；合同保留与其他工厂的原料需求会一起计算，不创建工厂专属订单簿。');
     await expect(controls.locator('[data-game-concept="factory-auto-operation"]')).toHaveCount(1);
     await expect(controls.locator('[data-game-concept="input-coverage"]')).toHaveCount(1);
+    await expect(controls.getByRole('checkbox', { name: /本地区自动出售/ })).toHaveCount(0);
+    await expect(controls.getByText('出售本地区非冻结商品', { exact: true })).toHaveCount(0);
     const productionSettings = page.locator('.facility-production-settings-grid');
     await expect(productionSettings.getByRole('combobox')).toHaveCount(3);
     await expect(productionSettings.getByRole('combobox', { name: '机械工厂原料保障' })).toHaveCount(1);

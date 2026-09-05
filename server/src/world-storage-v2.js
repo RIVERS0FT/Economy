@@ -1,5 +1,7 @@
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-catalog.js';
+import { factoryAutoOperationPolicyFor } from './factory-auto-operation.js';
+import { commercialAutoOperationPolicyFor } from '../../shared/commercial-auto-operation.js';
 import { splitProvinceScopedKey } from './provinces.js';
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import { normalizeProvinceId, provinceScopedKey } from './provinces.js';
@@ -518,6 +520,7 @@ function includeCycleSettlementScope(world, userId, scope) {
   const player = world?.players?.[playerKey(userId)];
   if (!player) return scope;
   const regions = new Set();
+  const autoSaleRegions = new Set();
   const keys = new Set();
   for (const group of player.facilityGroups || []) {
     if (!group.enabled) continue;
@@ -527,6 +530,7 @@ function includeCycleSettlementScope(world, userId, scope) {
       || type?.recipes?.find((item) => item.id === type.defaultRecipeId) || type?.recipes?.[0];
     if (!recipe) continue;
     regions.add(provinceId);
+    if (factoryAutoOperationPolicyFor(player, provinceId, group.facilityTypeId).enabled) autoSaleRegions.add(provinceId);
     for (const item of [...(recipe.inputs || []), recipe.output]) keys.add(provinceScopedKey(provinceId, item.productId));
   }
   for (const group of player.commercialBuildingGroups || []) {
@@ -535,12 +539,13 @@ function includeCycleSettlementScope(world, userId, scope) {
     const type = COMMERCIAL_BUILDING_TYPE_CATALOG.find((item) => item.id === group.commercialTypeId);
     if (!type) continue;
     regions.add(provinceId);
+    if (group.enabled && commercialAutoOperationPolicyFor(group).enabled) autoSaleRegions.add(provinceId);
     for (const item of type.consumptionInputs) keys.add(provinceScopedKey(provinceId, item.productId));
   }
   if (!regions.size) return scope;
   for (const [key, inventory] of Object.entries(player.inventories || {})) {
     const { provinceId, assetId } = splitProvinceScopedKey(key);
-    if (regions.has(provinceId) && player.provinceAutoSaleEnabled?.[provinceId] === true && (inventory.available > 0 || inventory.frozen > 0)
+    if (autoSaleRegions.has(provinceId) && (inventory.available > 0 || inventory.frozen > 0)
       && PRODUCT_CATALOG.some((product) => product.id === assetId)) keys.add(provinceScopedKey(provinceId, assetId));
   }
   scope.segments.add('orders');
