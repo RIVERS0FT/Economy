@@ -29,6 +29,7 @@ import { VirtualRecordTable } from '../components/ui/VirtualRecordTable';
 import type { AssetKind, MarketDetail, OrderSide, ProductCategory, ProductMarketState } from '../types';
 import { formatCurrency, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
+import { inventoryFreezeBreakdown, inventoryFreezeBreakdownTitle } from '../utils/inventoryFreezeBreakdown';
 import { buildMarketHistoryBuckets } from '../utils/marketHistory';
 
 function localTradeKey(trade: { id: string }) { return trade.id; }
@@ -366,6 +367,10 @@ export function MarketPage({
   const todayVolume = selectedProduct
     ? Math.max(0, Number(selectedProductMarket?.todayBuyQuantity || 0)) + Math.max(0, Number(selectedProductMarket?.todaySellQuantity || 0))
     : 0;
+  const freezeBreakdown = selectedProduct
+    ? inventoryFreezeBreakdown(game, model.selectedProvinceId, selectedProduct.id, selectedInventory.frozen)
+    : [];
+  const freezeBreakdownTitle = inventoryFreezeBreakdownTitle(freezeBreakdown);
 
   const catalogEntries = useMemo(() => {
     const entries: MarketCatalogEntry[] = game.products.map((product) => {
@@ -501,7 +506,12 @@ export function MarketPage({
             <span><small>今日价格</small><strong><CurrencyAmount>{formatCurrency(officialPrice ?? selectedProduct.basePrice)}</CurrencyAmount></strong></span>
             <span><small>今日成交量</small><strong><CompactNumber value={todayVolume} /></strong></span>
             <span><small>可用库存</small><strong><CompactNumber value={selectedInventory.available} /></strong></span>
-            <span><small>冻结库存</small><strong><CompactNumber value={selectedInventory.frozen} /></strong></span>
+            <span><small>冻结库存</small><strong
+              className="market-freeze-inventory-value"
+              title={freezeBreakdownTitle}
+              tabIndex={selectedInventory.frozen > 0 ? 0 : undefined}
+              aria-label={`冻结库存 ${selectedInventory.frozen}；${freezeBreakdownTitle.replaceAll('\n', '；')}`}
+            ><CompactNumber value={selectedInventory.frozen} /></strong></span>
           </div>
         </div>
       ) : null}
