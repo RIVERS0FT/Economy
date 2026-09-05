@@ -98,6 +98,14 @@ jobs:
               if old in text:
                   p.write_text(text.replace(old, new, 1), encoding='utf-8')
 
+          for path in [
+              'scripts/verify-assets-page.mjs',
+              'scripts/verify-mobile-page-sheet.mjs',
+              'scripts/verify-warehouse-expansion.mjs',
+          ]:
+              p = Path(path)
+              p.write_text(p.read_text(encoding='utf-8').rstrip('\n') + '\n', encoding='utf-8')
+
           Path('.github/workflows/codex-one-shot-cleanup.yml').unlink()
           PY
           git diff --check
