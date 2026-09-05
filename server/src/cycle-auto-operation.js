@@ -1,4 +1,5 @@
 import { commercialAutoOperationPolicyFor } from '../../shared/commercial-auto-operation.js';
+import { evaluateCommercialCycleProfit, evaluateProductionCycleProfit } from './auto-operation-profit.js';
 import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-catalog.js';
 import { applySettledCommodityOrder, commoditySystemPriceFor } from './domain.js';
 import { factoryAutoOperationPolicyFor } from './factory-auto-operation.js';
@@ -9,7 +10,6 @@ import {
   setInventoryFreezeTarget,
   sourceFrozenQuantity,
 } from './inventory-freezes.js';
-import { applyMarketSellFee } from './market-sell-fee.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
 
@@ -48,16 +48,14 @@ function productionDescriptor(player, group, provinceId) {
     sourceLabel: type.name,
     provinceId,
     count,
+    type,
+    recipe,
     coverageCycles: policy.inputCoverageCycles,
     operatingCost: Number(recipe.operatingCost || 0) * count,
     inputs: (recipe.inputs || []).map((input) => ({
       productId: String(input.productId || ''),
       quantity: nonNegativeInteger(input.quantity) * count,
     })).filter((input) => input.productId && input.quantity > 0),
-    output: {
-      productId: String(recipe.output?.productId || ''),
-      quantity: nonNegativeInteger(recipe.output?.quantity) * count,
-    },
   };
 }
 
@@ -74,13 +72,13 @@ function commercialDescriptor(group, provinceId) {
     sourceLabel: type.name,
     provinceId,
     count,
+    type,
     coverageCycles: policy.inputCoverageCycles,
     operatingCost: Number(type.operatingCost || 0) * count,
     inputs: type.consumptionInputs.map((input) => ({
       productId: String(input.productId || ''),
       quantity: nonNegativeInteger(input.quantity) * count,
     })).filter((input) => input.productId && input.quantity > 0),
-    fixedProfit: Number(type.profitPerCycle || 0) * count,
   };
 }
 
@@ -136,26 +134,15 @@ function releaseInactiveBuildingFreezes(player, provinceId, descriptors) {
   }
 }
 
-function expectedProductionProfit(world, descriptor, now) {
-  if (!descriptor.output.productId || descriptor.output.quantity < 1) return null;
-  let inputCost = 0;
-  for (const input of descriptor.inputs) {
-    const price = commoditySystemPriceFor(world, input.productId, descriptor.provinceId, now);
-    const line = multiplyMoneyByInteger(price, input.quantity);
-    if (line === null) return null;
-    inputCost += line;
-  }
-  const outputPrice = commoditySystemPriceFor(world, descriptor.output.productId, descriptor.provinceId, now);
-  const outputGross = multiplyMoneyByInteger(outputPrice, descriptor.output.quantity);
-  if (outputGross === null) return null;
-  const outputNet = applyMarketSellFee({ ownerType: 'player', side: 'sell', fills: [] }, outputGross).netTotal;
-  return roundInternalMoney(outputNet - inputCost - descriptor.operatingCost);
-}
-
 function descriptorProfitable(world, descriptor, now) {
-  if (descriptor.kind === 'commercial') return Number(descriptor.fixedProfit || 0) > 0;
-  const profit = expectedProductionProfit(world, descriptor, now);
-  return profit !== null && profit > 0;
+  if (descriptor.kind === 'commercial') {
+    return evaluateCommercialCycleProfit(descriptor.type, descriptor.count).profitable;
+  }
+  return evaluateProductionCycleProfit(
+    descriptor.recipe,
+    descriptor.count,
+    (productId) => commoditySystemPriceFor(world, productId, descriptor.provinceId, now),
+  ).profitable;
 }
 
 function missingLines(player, descriptor) {
