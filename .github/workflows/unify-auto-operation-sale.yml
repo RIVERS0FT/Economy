@@ -21,6 +21,11 @@ jobs:
           set -euo pipefail
           python3 scripts/tmp-unify-auto-operation-sale.py
           rm src/components/buildings/ProvinceAutoSaleControl.tsx
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/styles/factory-auto-operation.css')
+          path.write_text(path.read_text().rstrip() + '\n')
+          PY
           git diff --check
       - name: Run domain and architecture regressions
         run: |
