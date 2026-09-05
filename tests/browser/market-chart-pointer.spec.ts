@@ -131,7 +131,7 @@ test.describe('native chart touch scrolling', () => {
     const chart = page.locator('.market-history-chart.full');
     await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
     await chart.scrollIntoViewIfNeeded();
-    const scroll = page.locator('.mobile-detail-sheet-scroll');
+    const scroll = page.locator('[data-mobile-workspace-sheet-host="true"] .page-card-scroll');
     const before = await scroll.evaluate((element) => element.scrollTop);
     const selected = await point(chart, 0.502, true);
     await page.touchscreen.tap(selected.x, selected.y);
