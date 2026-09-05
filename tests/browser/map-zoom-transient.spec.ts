@@ -216,120 +216,140 @@ test('active wheel bursts mutate only the raster transform once per animation fr
   await expect(camera).toHaveCSS('will-change', 'auto');
 });
 
-test('transient raster frames stay close to the same-browser empty-frame budget', async ({ page }) => {
-  test.setTimeout(60_000);
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
-  const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
-  await expect(canvas).toHaveAttribute('data-map-world-stroke-resolution', '110m');
-  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
-  await expect(canvas).toHaveAttribute('data-map-camera-preload-mode', 'fixed-world-viewbox');
-  await waitForRasterReady(canvas);
+test.describe('map frame budget without screenshot recording', () => {
+  // A screencast introduces readback/compositing work only when the scene changes.
+  // Keep action/DOM traces, but measure the unchanged scene and budget without it.
+  test.use({ trace: { mode: 'retain-on-failure', screenshots: false, snapshots: true, sources: true } });
 
-  const result = await canvas.evaluate(async (container) => {
-    const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
-    const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
-    const raster = container.querySelector<HTMLCanvasElement>('.province-map-camera-raster');
-    const detailedFill = container.querySelector<SVGPathElement>('.province-map-world-fill');
-    const lodFill = container.querySelector<SVGPathElement>('.province-map-world-shadow');
-    if (!svg || !camera || !raster || !detailedFill || !lodFill) throw new Error('map camera performance fixture is incomplete');
-    const baselineViewBox = svg.getAttribute('viewBox') ?? '';
-    const bounds = container.getBoundingClientRect();
-    const dispatchWheel = (deltaY: number) => container.dispatchEvent(new WheelEvent('wheel', {
-      bubbles: true,
-      cancelable: true,
-      clientX: bounds.left + bounds.width * 0.54,
-      clientY: bounds.top + bounds.height * 0.47,
-      deltaY,
-    }));
-    const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    const median = (samples: number[]) => {
-      const sorted = [...samples].sort((left, right) => left - right);
-      return sorted[Math.floor(sorted.length / 2)];
-    };
-    const measureEmpty = async () => {
-      const samples: number[] = [];
-      for (let index = 0; index < 4; index += 1) await nextFrame();
+  test('transient raster frames stay close to the same-browser empty-frame budget', async ({ page }, testInfo) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
+    const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
+    await expect(canvas).toHaveAttribute('data-map-world-stroke-resolution', '110m');
+    await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
+    await expect(canvas).toHaveAttribute('data-map-camera-preload-mode', 'fixed-world-viewbox');
+    await waitForRasterReady(canvas);
+
+    const result = await canvas.evaluate(async (container) => {
+      const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
+      const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
+      const raster = container.querySelector<HTMLCanvasElement>('.province-map-camera-raster');
+      const detailedFill = container.querySelector<SVGPathElement>('.province-map-world-fill');
+      const lodFill = container.querySelector<SVGPathElement>('.province-map-world-shadow');
+      if (!svg || !camera || !raster || !detailedFill || !lodFill) throw new Error('map camera performance fixture is incomplete');
+      const baselineViewBox = svg.getAttribute('viewBox') ?? '';
+      const bounds = container.getBoundingClientRect();
+      const dispatchWheel = (deltaY: number) => container.dispatchEvent(new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        clientX: bounds.left + bounds.width * 0.54,
+        clientY: bounds.top + bounds.height * 0.47,
+        deltaY,
+      }));
+      const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const median = (samples: number[]) => {
+        const sorted = [...samples].sort((left, right) => left - right);
+        return sorted[Math.floor(sorted.length / 2)];
+      };
+      const measureEmpty = async () => {
+        const samples: number[] = [];
+        for (let index = 0; index < 4; index += 1) await nextFrame();
+        for (let index = 0; index < 12; index += 1) {
+          const started = performance.now();
+          await nextFrame();
+          samples.push(performance.now() - started);
+        }
+        return samples;
+      };
+
+      const emptySamples = await measureEmpty();
+      const emptyFrameMedianMs = median(emptySamples);
+      dispatchWheel(-40);
+      await nextFrame();
+      const activeBoundary = {
+        detailedFillDisplay: getComputedStyle(detailedFill).display,
+        lodFill: getComputedStyle(lodFill).fill,
+        cameraTransform: getComputedStyle(camera).transform,
+        rasterTransform: getComputedStyle(raster).transform,
+        rasterWillChange: getComputedStyle(raster).willChange,
+        activeViewBox: svg.getAttribute('viewBox') ?? '',
+        svgOverflow: getComputedStyle(svg).overflow,
+        svgOpacity: getComputedStyle(svg).opacity,
+        rasterOpacity: getComputedStyle(raster).opacity,
+        rasterActive: container.dataset.mapRasterActive,
+        rasterReady: container.dataset.mapRasterReady,
+        rasterRevision: container.dataset.mapRasterRevision,
+        rasterPixelSize: container.dataset.mapRasterPixelSize,
+        cameraContain: getComputedStyle(camera).contain,
+      };
+
+      const cameraSamples: number[] = [];
+      const dispatchSamples: number[] = [];
+      const rafWaitSamples: number[] = [];
       for (let index = 0; index < 12; index += 1) {
         const started = performance.now();
+        dispatchWheel(index % 2 === 0 ? -18 : 18);
+        const dispatched = performance.now();
         await nextFrame();
-        samples.push(performance.now() - started);
+        const finished = performance.now();
+        dispatchSamples.push(dispatched - started);
+        rafWaitSamples.push(finished - dispatched);
+        cameraSamples.push(finished - started);
       }
-      return median(samples);
-    };
+      const cameraFrameMedianMs = median(cameraSamples);
+      const cameraDispatchMedianMs = median(dispatchSamples);
+      const cameraRafWaitMedianMs = median(rafWaitSamples);
+      return {
+        baselineViewBox,
+        emptyFrameMedianMs,
+        cameraFrameMedianMs,
+        cameraDispatchMedianMs,
+        cameraRafWaitMedianMs,
+        emptySamples,
+        frames: cameraSamples.map((inputToRafMs, index) => ({
+          index,
+          inputToRafMs,
+          dispatchMs: dispatchSamples[index],
+          rafWaitMs: rafWaitSamples[index],
+        })),
+        activeBoundary,
+      };
+    });
 
-    const emptyFrameMedianMs = await measureEmpty();
-    dispatchWheel(-40);
-    await nextFrame();
-    const activeBoundary = {
-      detailedFillDisplay: getComputedStyle(detailedFill).display,
-      lodFill: getComputedStyle(lodFill).fill,
-      cameraTransform: getComputedStyle(camera).transform,
-      rasterTransform: getComputedStyle(raster).transform,
-      rasterWillChange: getComputedStyle(raster).willChange,
-      activeViewBox: svg.getAttribute('viewBox') ?? '',
-      svgOverflow: getComputedStyle(svg).overflow,
-      svgOpacity: getComputedStyle(svg).opacity,
-      rasterOpacity: getComputedStyle(raster).opacity,
-      rasterActive: container.dataset.mapRasterActive,
-      rasterReady: container.dataset.mapRasterReady,
-      rasterRevision: container.dataset.mapRasterRevision,
-      rasterPixelSize: container.dataset.mapRasterPixelSize,
-      cameraContain: getComputedStyle(camera).contain,
-    };
+    // Input-to-RAF intervals are not physical display/GPU frame durations.
+    await testInfo.attach('map-camera-frame-budget.json', {
+      body: Buffer.from(JSON.stringify({ measurement: 'input-to-raf-without-screencast', ...result }, null, 2)),
+      contentType: 'application/json',
+    });
+    expect(result.frames).toHaveLength(12);
+    expect(result.activeBoundary.detailedFillDisplay).toBe('none');
+    expect(result.activeBoundary.lodFill).not.toBe('none');
+    expect(result.activeBoundary.cameraTransform).toBe('none');
+    expect(result.activeBoundary.rasterTransform).not.toBe('none');
+    expect(result.activeBoundary.rasterWillChange).toBe('transform');
+    expect(result.activeBoundary.activeViewBox).toBe(result.baselineViewBox);
+    expect(result.activeBoundary.svgOverflow).toBe('visible');
+    expect(result.activeBoundary.svgOpacity).toBe('0');
+    expect(result.activeBoundary.rasterOpacity).toBe('1');
+    expect(result.activeBoundary.rasterActive).toBe('true');
+    expect(result.activeBoundary.rasterReady).toBe('true');
+    expect(Number(result.activeBoundary.rasterRevision || 0)).toBeGreaterThan(0);
+    expect(result.activeBoundary.rasterPixelSize).toMatch(/^\d+x\d+$/u);
+    expect(result.activeBoundary.cameraContain).toBe('none');
+    const frameBudgetMs = result.emptyFrameMedianMs * 2 + 8;
+    console.log(`[map-camera-perf] empty=${result.emptyFrameMedianMs.toFixed(2)}ms total=${result.cameraFrameMedianMs.toFixed(2)}ms dispatch=${result.cameraDispatchMedianMs.toFixed(2)}ms raf-wait=${result.cameraRafWaitMedianMs.toFixed(2)}ms budget=${frameBudgetMs.toFixed(2)}ms raster=${result.activeBoundary.rasterReady}/${result.activeBoundary.rasterRevision}/${result.activeBoundary.rasterPixelSize} transform=${result.activeBoundary.rasterTransform}`);
+    expect(result.cameraFrameMedianMs, `map camera perf ${JSON.stringify(result)}`).toBeLessThanOrEqual(frameBudgetMs);
 
-    const cameraSamples: number[] = [];
-    const dispatchSamples: number[] = [];
-    const rafWaitSamples: number[] = [];
-    for (let index = 0; index < 12; index += 1) {
-      const started = performance.now();
-      dispatchWheel(index % 2 === 0 ? -18 : 18);
-      const dispatched = performance.now();
-      await nextFrame();
-      const finished = performance.now();
-      dispatchSamples.push(dispatched - started);
-      rafWaitSamples.push(finished - dispatched);
-      cameraSamples.push(finished - started);
-    }
-    const cameraFrameMedianMs = median(cameraSamples);
-    const cameraDispatchMedianMs = median(dispatchSamples);
-    const cameraRafWaitMedianMs = median(rafWaitSamples);
-    return {
-      baselineViewBox,
-      emptyFrameMedianMs,
-      cameraFrameMedianMs,
-      cameraDispatchMedianMs,
-      cameraRafWaitMedianMs,
-      activeBoundary,
-    };
+    const svg = canvas.locator('.province-map-world-svg');
+    const raster = canvas.locator('.province-map-camera-raster');
+    const camera = canvas.locator('.province-map-camera-surface');
+    await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+    await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(result.baselineViewBox);
+    await expect(svg).toHaveCSS('opacity', '1');
+    await expect(raster).toHaveCSS('opacity', '0');
+    await expect(raster).toHaveCSS('transform', 'none');
+    await expect(camera).toHaveCSS('transform', 'none');
+    await expect(camera).toHaveCSS('will-change', 'auto');
   });
-
-  expect(result.activeBoundary.detailedFillDisplay).toBe('none');
-  expect(result.activeBoundary.lodFill).not.toBe('none');
-  expect(result.activeBoundary.cameraTransform).toBe('none');
-  expect(result.activeBoundary.rasterTransform).not.toBe('none');
-  expect(result.activeBoundary.rasterWillChange).toBe('transform');
-  expect(result.activeBoundary.activeViewBox).toBe(result.baselineViewBox);
-  expect(result.activeBoundary.svgOverflow).toBe('visible');
-  expect(result.activeBoundary.svgOpacity).toBe('0');
-  expect(result.activeBoundary.rasterOpacity).toBe('1');
-  expect(result.activeBoundary.rasterActive).toBe('true');
-  expect(result.activeBoundary.rasterReady).toBe('true');
-  expect(Number(result.activeBoundary.rasterRevision || 0)).toBeGreaterThan(0);
-  expect(result.activeBoundary.rasterPixelSize).toMatch(/^\d+x\d+$/u);
-  expect(result.activeBoundary.cameraContain).toBe('none');
-  const frameBudgetMs = result.emptyFrameMedianMs * 2 + 8;
-  console.log(`[map-camera-perf] empty=${result.emptyFrameMedianMs.toFixed(2)}ms total=${result.cameraFrameMedianMs.toFixed(2)}ms dispatch=${result.cameraDispatchMedianMs.toFixed(2)}ms raf-wait=${result.cameraRafWaitMedianMs.toFixed(2)}ms budget=${frameBudgetMs.toFixed(2)}ms raster=${result.activeBoundary.rasterReady}/${result.activeBoundary.rasterRevision}/${result.activeBoundary.rasterPixelSize} transform=${result.activeBoundary.rasterTransform}`);
-  expect(result.cameraFrameMedianMs, `map camera perf ${JSON.stringify(result)}`).toBeLessThanOrEqual(frameBudgetMs);
-
-  const svg = canvas.locator('.province-map-world-svg');
-  const raster = canvas.locator('.province-map-camera-raster');
-  const camera = canvas.locator('.province-map-camera-surface');
-  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
-  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(result.baselineViewBox);
-  await expect(svg).toHaveCSS('opacity', '1');
-  await expect(raster).toHaveCSS('opacity', '0');
-  await expect(raster).toHaveCSS('transform', 'none');
-  await expect(camera).toHaveCSS('transform', 'none');
-  await expect(camera).toHaveCSS('will-change', 'auto');
 });
