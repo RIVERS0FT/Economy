@@ -8,6 +8,7 @@ import {
 import { useWorkspaceTooltipLayer } from '../ui/WorkspaceFloatingLayer';
 import { initECharts, type EChartsCoreOption, type EChartsType } from './echartsCore';
 import { resolveEChartsCssColors } from './resolveEChartsCssColors';
+import { positionWorkspaceChartTooltip } from './chartOptions';
 
 let nextChartInstanceId = 1;
 
@@ -47,16 +48,20 @@ export interface EconomyChartSize {
   height: number;
 }
 
-function optionWithTooltipLayer(option: EChartsCoreOption, tooltipLayer: HTMLElement | null) {
+function optionWithTooltipLayer(option: EChartsCoreOption, tooltipLayer: HTMLElement | null, container: HTMLElement) {
   if (!tooltipLayer || !option || typeof option !== 'object' || Array.isArray(option)) return option;
   const source = option as unknown as Record<string, unknown>;
   const tooltip = source.tooltip;
   if (!tooltip || typeof tooltip !== 'object' || Array.isArray(tooltip)) return option;
+  const sourceTooltip = tooltip as Record<string, unknown>;
   const next = { ...source };
   next.tooltip = {
-    ...(tooltip as Record<string, unknown>),
+    ...sourceTooltip,
     appendTo: tooltipLayer,
     appendToBody: false,
+    position: sourceTooltip.position ?? ((point: number[], _params: unknown, node: HTMLElement) => (
+      positionWorkspaceChartTooltip(point, node, container)
+    )),
   };
   return next as unknown as EChartsCoreOption;
 }
@@ -74,10 +79,10 @@ function applyChartOption(
   // host DOM itself exists. ECharts fixes the HTML tooltip parent when TooltipHTMLContent
   // is first constructed, so the first setOption must synchronously recover that host.
   if (!tooltipLayer?.isConnected) {
-    tooltipLayer = container.closest('.workspace')
+    tooltipLayer = (container.closest('.signed-in-shell') ?? container.closest('.workspace'))
       ?.querySelector<HTMLElement>('[data-workspace-tooltip-layer="true"]') ?? null;
   }
-  chart.setOption(optionWithTooltipLayer(resolvedOption, tooltipLayer), {
+  chart.setOption(optionWithTooltipLayer(resolvedOption, tooltipLayer, container), {
     notMerge: updateMode !== 'merge',
     lazyUpdate,
   });
@@ -181,7 +186,7 @@ export function EconomyChart({
       onCanvasClickRef.current?.(event as EconomyChartCanvasClickEvent, chart);
     };
     const handleDoubleClick = (event: unknown) => {
-      onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent, chart);
+      onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent);
     };
     chart.on('click', handleClick);
     chart.getZr().on('click', handleCanvasClick);
