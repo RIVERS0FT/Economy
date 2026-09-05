@@ -19,7 +19,7 @@ function fullStateDelivery(revision = 1) {
     },
     patches: {
       catalog: {
-        version: 40,
+        version: 41,
         products: [{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 1 }],
         facilityTypes: [{ id: 'farm', name: '农场', category: 'raw' }],
         commercialBuildingTypes: [{ id: 'convenience-store', name: '便利店' }],
@@ -79,7 +79,7 @@ function brokenCatalogDelivery(revision = 2) {
       leaderboard: 'leader-00001',
     },
     patches: {
-      catalog: { version: 40 },
+      catalog: { version: 41 },
     },
   };
 }

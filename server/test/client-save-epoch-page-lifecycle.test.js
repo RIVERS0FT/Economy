@@ -51,27 +51,13 @@ test('writes require a locked page epoch and server epoch mismatch never auto-up
   );
 });
 
-test('background auto trade only reacts to the current accepted authority and page epoch', () => {
-  assert.match(
-    autoTrade,
-    /getStateAuthoritySnapshot\(\)\.state/,
-    '自动交易维护必须读取当前 authority，而不是仅使用旧 React model 快照',
-  );
-  assert.match(
-    autoTrade,
-    /!authorityGame[\s\S]*?authorityGame\.userId !== userId[\s\S]*?authorityGame\.saveEpoch !== model\.game\.saveEpoch[\s\S]*?return;/,
-    'authority 清空、用户变化或存档世代变化时不得发起自动交易写请求',
-  );
-  assert.match(
-    autoTrade,
-    /scopeEconomyState\(authorityGame, model\.selectedProvinceId\)/,
-    '自动交易必须将最新全局 authority 按当前州重新 scope 后计算维护动作',
-  );
-  assert.match(
-    autoTrade,
-    /statusFor\(productId, game\)/,
-    '非 React authority 事件必须使用最新 scoped authority 计算自动交易状态',
-  );
+test('cycle sale observations respect the current player and save epoch without issuing automatic writes', () => {
+  assert.match(autoTrade, /getStateAuthoritySnapshot\(\)\.state/);
+  assert.match(autoTrade, /state\.userId !== userId \|\| state\.saveEpoch !== saveEpoch/);
+  assert.match(autoTrade, /if \(!previous\) return/);
+  assert.match(autoTrade, /quantity > \(previous\[key\] \|\| 0\)/);
+  assert.doesNotMatch(autoTrade, /model\.onlineAuto(?:Buy|Sell)\(/);
+  assert.doesNotMatch(autoTrade, /maintainAutoTrade|setInterval\(/);
 });
 
 test('production settlement rejection no longer turns a valid state GET into a load failure loop', () => {

@@ -150,6 +150,7 @@ test('running factory switches to a named special method immediately', () => {
   const player = ensurePlayer(world, alice, now);
   player.credits = 100;
   player.inventories.tools.available = 10;
+  player.factoryAutoOperationPolicies = { farm: { enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } };
   player.facilityGroups = [{
     facilityTypeId: 'farm', count: 5, participatingCount: 5, enabled: true,
     status: 'running', cycleStartedAt: now, staffingRateBps: 10_000,
@@ -167,7 +168,7 @@ test('running factory switches to a named special method immediately', () => {
 
   processFacilityGroupWorld(world, now + 20_001);
   assert.equal(player.inventories.wheat.available, 48);
-  assert.equal(player.inventories.tools.available, 6);
+  assert.equal(player.inventories.tools.available + player.inventories.tools.frozen, 6);
 });
 
 test('legacy method IDs migrate to equivalent special methods without resetting progress', () => {
@@ -217,7 +218,7 @@ test('whole-good inputs still fail atomically when a cycle input is unavailable'
   processFacilityGroupWorld(world, now + 20_000);
 
   assert.equal(player.facilityGroups[0].status, 'error');
-  assert.equal(player.inventories.fertilizer.available, 1);
+  assert.equal(player.inventories.fertilizer.available + player.inventories.fertilizer.frozen, 1);
   assert.equal(player.inventories.wheat.available, 0);
   assert.equal(player.credits, 100);
 });

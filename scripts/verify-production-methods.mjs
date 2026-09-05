@@ -70,8 +70,8 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 
 assert.ok(sharedDefinitions.has('precision-fertilization'), '跨工厂共享制度缺少农场／果园样本');
 assert.ok(sharedDefinitions.has('automated-assembly'), '跨工厂共享制度缺少工业装配样本');
-assert.equal(CURRENT_CLIENT_STATE_VERSION, 40);
-assert.equal(MIN_COMPATIBLE_CLIENT_STATE_VERSION, 40);
+assert.equal(CURRENT_CLIENT_STATE_VERSION, 41);
+assert.equal(MIN_COMPATIBLE_CLIENT_STATE_VERSION, 41);
 
 const productionSource = read('server/src/production-methods.js');
 const legacySource = read('server/src/legacy-production-methods.js');
@@ -122,4 +122,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：26 类工厂均使用四种具名制度与语义图标，旧制度只参与等参数存档迁移，共享制度定义、固定精度、研发校验、独立移动视口门禁与客户端版本 40 均已锁定。');
+console.log('生产方式验证通过：26 类工厂均使用四种具名制度与语义图标，旧制度只参与等参数存档迁移，共享制度定义、固定精度、研发校验、独立移动视口门禁与客户端版本 41 均已锁定。');

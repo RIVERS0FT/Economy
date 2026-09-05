@@ -58,6 +58,12 @@ test('warehouse summary counts goods, keeps managed links, and derives no execut
   const summary = createWarehouseSummary(player);
   assert.deepEqual(summary, {
     warehouseStoredQuantity: 40,
+    provinceAutoSaleEnabled: {},
+    cycleAutoSaleCounts: {},
+    inventoryFreezeDetails: {
+      wheat: [{ kind: 'legacy', sourceId: 'unattributed', quantity: 5, label: '历史冻结（待核对来源）' }],
+      steel: [{ kind: 'legacy', sourceId: 'unattributed', quantity: 3, label: '历史冻结（待核对来源）' }],
+    },
     onlineAutoBuyPolicies: {},
     onlineAutoBuyManagedOrderIds: {
       '110000:wheat': 'order-auto-buy-wheat',

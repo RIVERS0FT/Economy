@@ -1,3 +1,6 @@
+import { buildingAvailableInput, buildingFreezeSource, reconcileBuildingInputFreezes } from './building-input-freezes.js';
+import { consumeBuildingCommodity } from './commodity-freezes.js';
+import { completeBuildingCycleAutoOperation } from './cycle-auto-operation.js';
 import { commercialExpansionStaffingRate, commercialStaffingCapacity, hasCommercialCycle, projectCommercialStaffingRate } from '../../shared/commercial-staffing.js';
 import { normalizeCommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
@@ -9,96 +12,11 @@ import {
   provinceScopedKey,
 } from './provinces.js';
 
-const COMMERCIAL_CYCLE_MS = 5 * 60 * 1000;
+import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-catalog.js';
+export { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-catalog.js';
+
 const MAX_BUILD_QUANTITY = 100;
 const MAX_CATCH_UP_CYCLES = 10_000;
-
-const rawCommercialTypes = [
-  {
-    id: 'convenience-store',
-    name: '便利店',
-    description: '消耗食品和饮料，提供基础社区零售服务。',
-    buildCost: 120,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 1.5,
-    profitPerCycle: 2.5,
-    consumptionInputs: [
-      { productId: 'food', quantity: 1 },
-      { productId: 'beverage', quantity: 1 },
-    ],
-    systemValue: 120,
-  },
-  {
-    id: 'fresh-market',
-    name: '生鲜超市',
-    description: '持续消耗水果、肉类和奶，形成农业与养殖业终端需求。',
-    buildCost: 180,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 2,
-    profitPerCycle: 3.2,
-    consumptionInputs: [
-      { productId: 'fruit', quantity: 2 },
-      { productId: 'meat', quantity: 1 },
-      { productId: 'milk', quantity: 1 },
-    ],
-    systemValue: 180,
-  },
-  {
-    id: 'restaurant',
-    name: '餐厅',
-    description: '消耗预制餐和饮料，提供稳定餐饮服务利润。',
-    buildCost: 250,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 3,
-    profitPerCycle: 4.5,
-    consumptionInputs: [
-      { productId: 'prepared-meal', quantity: 2 },
-      { productId: 'beverage', quantity: 1 },
-    ],
-    systemValue: 250,
-  },
-  {
-    id: 'clothing-store',
-    name: '服装店',
-    description: '消费服装商品，将纺织产业的终端商品转化为稳定商业利润。',
-    buildCost: 320,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 3.5,
-    profitPerCycle: 5,
-    consumptionInputs: [{ productId: 'clothing', quantity: 1 }],
-    systemValue: 320,
-  },
-  {
-    id: 'furniture-showroom',
-    name: '家具商场',
-    description: '消费家具商品，为木材加工产业提供稳定终端需求。',
-    buildCost: 420,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 4,
-    profitPerCycle: 6,
-    consumptionInputs: [{ productId: 'furniture', quantity: 1 }],
-    systemValue: 420,
-  },
-  {
-    id: 'appliance-store',
-    name: '家电卖场',
-    description: '消费家电和电子产品，作为高级制造业的商业终端。',
-    buildCost: 560,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 5,
-    profitPerCycle: 8,
-    consumptionInputs: [
-      { productId: 'appliance', quantity: 1 },
-      { productId: 'electronics', quantity: 1 },
-    ],
-    systemValue: 560,
-  },
-];
-
-export const COMMERCIAL_BUILDING_TYPE_CATALOG = Object.freeze(rawCommercialTypes.map((type) => Object.freeze({
-  ...type,
-  consumptionInputs: Object.freeze(type.consumptionInputs.map((item) => Object.freeze({ ...item }))),
-})));
 
 const TYPE_BY_ID = new Map(COMMERCIAL_BUILDING_TYPE_CATALOG.map((type) => [type.id, type]));
 const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
@@ -274,7 +192,7 @@ function startCycle(world, player, group, type, startedAt) {
     return false;
   }
   for (const input of requirements.inputs) {
-    if (inventoryForProvince(player, input.productId, group.provinceId).available < input.quantity) {
+    if (buildingAvailableInput(player, group, input.productId, 'commercial') < input.quantity) {
       setBlocked(group, 'insufficient_input', startedAt);
       return false;
     }
@@ -297,7 +215,7 @@ function startCycle(world, player, group, type, startedAt) {
   let goodsConsumed = 0;
   for (const input of requirements.inputs) {
     const inventory = inventoryForProvince(player, input.productId, group.provinceId);
-    inventory.available -= input.quantity;
+    consumeBuildingCommodity(inventory, 'commercial', buildingFreezeSource(group, 'commercial'), input.quantity);
     goodsConsumed += input.quantity;
   }
 
@@ -354,13 +272,16 @@ function processGroup(world, player, group, now) {
   const type = typeFor(group.commercialTypeId);
   if (!type) return;
   let cycles = 0;
+  let lastCompletedAt = 0;
   while (hasCommercialCycle(group) && Number(group.cycleCompletesAt || Number.POSITIVE_INFINITY) <= now) {
     const completedAt = Number(group.cycleCompletesAt);
     settleCycle(player, group);
+    lastCompletedAt = completedAt;
     cycles += 1;
     if (!group.enabled || cycles >= MAX_CATCH_UP_CYCLES) break;
     if (!startCycle(world, player, group, type, completedAt)) break;
   }
+  if (lastCompletedAt > 0) completeBuildingCycleAutoOperation(world, player, group, 'commercial', lastCompletedAt, now);
   if (hasCommercialCycle(group)) return;
   if (!group.enabled) {
     group.status = 'stopped';
@@ -375,6 +296,7 @@ export function processCommercialWorld(world, now = Date.now()) {
   for (const player of Object.values(world.players || {})) {
     ensureCommercialPlayer(player, now);
     for (const group of player.commercialBuildingGroups) processGroup(world, player, group, now);
+    if (player.commercialBuildingGroups.length > 0) reconcileBuildingInputFreezes(world, player, now);
   }
   return world;
 }
@@ -449,6 +371,7 @@ function setCommercialAutoOperation(world, userId, payload, now) {
   if (!group || group.count < 1) return result(false, '商业建筑集群不存在');
   const policy = normalizeCommercialAutoOperationPolicy(payload.policy);
   if (!policy) return result(false, '自动经营策略无效');
+  processGroup(world, player, group, now);
   group.autoOperationPolicy = policy;
   return result(true, policy.enabled ? '商业自动经营策略已保存' : '商业自动经营已关闭');
 }
@@ -457,9 +380,10 @@ export function applyCommercialBuildingAction(world, user, payload = {}, now = D
   const operation = String(payload.operation || '');
   const userId = Number(user.id);
   ensureCommercialPlayer(world.players?.[String(userId)] || {}, now);
-  if (operation === 'build') return buildCommercialBuilding(world, userId, payload, now);
-  if (operation === 'start') return startCommercialBuilding(world, userId, payload, now);
-  if (operation === 'stop') return stopCommercialBuilding(world, userId, payload, now);
-  if (operation === 'auto-operation') return setCommercialAutoOperation(world, userId, payload, now);
-  return result(false, '不支持的商业建筑操作');
+  const handler = { build: buildCommercialBuilding, start: startCommercialBuilding,
+    stop: stopCommercialBuilding, 'auto-operation': setCommercialAutoOperation }[operation];
+  if (!handler) return result(false, '不支持的商业建筑操作');
+  const applied = handler(world, userId, payload, now);
+  if (applied.ok) reconcileBuildingInputFreezes(world, world.players[String(userId)], now, payload.provinceId);
+  return applied;
 }

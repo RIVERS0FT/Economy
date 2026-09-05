@@ -31,12 +31,14 @@ export function SafeTooltip({
   content,
   children,
   className = '',
+  disabled = false,
   anchorRole,
   anchorTabIndex,
 }: {
   content: ReactNode;
   children: ReactNode;
   className?: string;
+  disabled?: boolean;
   anchorRole?: AriaRole;
   anchorTabIndex?: number;
 }) {
@@ -113,22 +115,22 @@ export function SafeTooltip({
   }, [floatingLayer, tooltipLayer, topLayerActive]);
 
   useLayoutEffect(() => {
-    if (!open || !topLayerActive) return undefined;
+    if (!open || disabled || !topLayerActive) return undefined;
     const tooltip = tooltipRef.current;
     if (!tooltip) return undefined;
     showTopLayerPopover(tooltip);
     return () => hideTopLayerPopover(tooltip);
-  }, [open, topLayerActive, tooltipLayer]);
+  }, [open, disabled, topLayerActive, tooltipLayer]);
 
   useLayoutEffect(() => {
-    if (!open) return undefined;
+    if (!open || disabled) return undefined;
     updatePosition();
     const frame = requestAnimationFrame(updatePosition);
     return () => cancelAnimationFrame(frame);
-  }, [open, tooltipLayer, updatePosition]);
+  }, [open, disabled, tooltipLayer, updatePosition]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || disabled) return undefined;
     const handleViewportChange = () => updatePosition();
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
@@ -147,7 +149,7 @@ export function SafeTooltip({
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [open, updatePosition]);
+  }, [open, disabled, updatePosition]);
 
   const tooltipNode = (
     <div
@@ -175,7 +177,7 @@ export function SafeTooltip({
   const portalTarget = tooltipLayer
     ?? floatingLayer
     ?? (typeof document !== 'undefined' ? document.body : null);
-  const tooltip = open && portalTarget ? createPortal(tooltipNode, portalTarget) : null;
+  const tooltip = open && !disabled && portalTarget ? createPortal(tooltipNode, portalTarget) : null;
 
   return (
     <>
@@ -184,10 +186,10 @@ export function SafeTooltip({
         className={className ? `safe-tooltip-anchor ${className}` : 'safe-tooltip-anchor'}
         role={anchorRole}
         tabIndex={anchorTabIndex}
-        aria-describedby={open ? tooltipId : undefined}
-        onMouseEnter={() => setOpen(true)}
+        aria-describedby={open && !disabled ? tooltipId : undefined}
+        onMouseEnter={() => setOpen(!disabled)}
         onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
+        onFocus={() => setOpen(!disabled)}
         onBlur={() => setOpen(false)}
         onPointerDown={(event) => {
           if (event.pointerType !== 'mouse' && anchorTabIndex !== undefined) {

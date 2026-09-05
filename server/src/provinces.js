@@ -1,3 +1,4 @@
+import { mergeCommodityInventory } from './commodity-freezes.js';
 import provinceCatalog from '../../shared/provinces.json' with { type: 'json' };
 
 export const PROVINCE_CATALOG = Object.freeze(provinceCatalog.map((province) => Object.freeze({ ...province })));
@@ -98,9 +99,7 @@ export function migrateProvinceInventories(player) {
     if (key.includes(SCOPED_KEY_SEPARATOR)) continue;
     const scopedKey = provinceScopedKey(DEFAULT_PROVINCE_ID, key);
     const target = player.inventories[scopedKey] ||= { available: 0, frozen: 0, inTransit: 0 };
-    target.available = Number(target.available || 0) + Number(inventory?.available || 0);
-    target.frozen = Number(target.frozen || 0) + Number(inventory?.frozen || 0);
-    target.inTransit = Number(target.inTransit || 0) + Number(inventory?.inTransit || 0);
+    mergeCommodityInventory(target, inventory);
     delete player.inventories[key];
   }
   installedDefaultProvinceAliasRecords.delete(player.inventories);

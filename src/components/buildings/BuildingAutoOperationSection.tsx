@@ -1,8 +1,10 @@
+import { ProvinceAutoSaleControl } from './ProvinceAutoSaleControl';
 import type { ReactNode } from 'react';
 import { SwitchControl } from '../ui/layout';
 import '../../styles/factory-auto-operation.css';
 
-export function BuildingAutoOperationSection({ label, enabled, disabled, onChange, message, children }: {
+export function BuildingAutoOperationSection({ label, enabled, disabled, onChange, message, children, provinceId }: {
+  provinceId?: string;
   label: ReactNode;
   enabled: boolean;
   disabled: boolean;
@@ -18,6 +20,7 @@ export function BuildingAutoOperationSection({ label, enabled, disabled, onChang
           disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
       </div>
       {children}
+      {provinceId ? <ProvinceAutoSaleControl provinceId={provinceId} /> : null}
       {message ? <small className="facility-auto-operation__message" role="status">{message}</small> : null}
     </section>
   );

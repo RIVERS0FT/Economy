@@ -90,7 +90,7 @@ for (const token of [
   '<small>今日价格</small>',
   '<small>今日成交量</small>',
   '<small>可用库存</small>',
-  '<small>冻结库存</small>',
+  '<CommodityFreezeDisclosure',
 ]) requireText(marketPage, token, `地区商品详情缺少市场事实: ${token}`);
 requireText(marketPage, 'className="market-trade-summary market-detail-trade-summary ui-entity-card"', '地区商品详情必须把四项摘要合并为同一实体卡。');
 requireText(detailStyles, '.market-detail-surface .market-detail-trade-summary.ui-entity-card {', '地区商品详情必须使用单一顶部四项摘要卡。');

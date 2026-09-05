@@ -1,7 +1,8 @@
+import { adoptLegacyCommodityFreeze, consumeCommodityFreeze, freezeCommodity, releaseCommodityFreeze } from './commodity-freezes.js';
 import { randomUUID } from 'node:crypto';
-import { PRODUCT_CATALOG } from './domain.js';
+import { PRODUCT_CATALOG } from './product-catalog.js';
 import { calculateCumulativeMarketSellFee } from './market-sell-fee.js';
-import { multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
+import { internalMoneyToMicros, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import {
   DEFAULT_PROVINCE_ID,
@@ -12,6 +13,23 @@ import {
 } from './provinces.js';
 import { provinceUnlockError } from './province-access.js';
 import { optionalPlayerDisplayName, playerDisplayName } from './player-identity.js';
+
+const retainedDailyContracts = new WeakMap();
+function currentContracts(world) {
+  const retained = retainedDailyContracts.get(world);
+  return retained ? [...(world.productionContracts || []), ...retained] : (world.productionContracts || []);
+}
+
+/** Existing daily objects remain reachable while the legacy scheduler isolates its own contracts. */
+export function withDailySupplyContext(world, contracts, callback) {
+  const previous = retainedDailyContracts.get(world);
+  retainedDailyContracts.set(world, contracts);
+  try { return callback(); }
+  finally {
+    if (previous) retainedDailyContracts.set(world, previous);
+    else retainedDailyContracts.delete(world);
+  }
+}
 
 export const CONTRACT_DAY_MS = 24 * 60 * 60 * 1000;
 export const CONTRACT_DAY_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -185,8 +203,8 @@ function releaseSupplierGoods(contract, supplier) {
   if (!supplier || contract.supplierReservedQuantity <= 0) return 0;
   const inventory = mutableInventory(supplier, contract.productId, contract.provinceId);
   const quantity = Math.min(nonNegativeInteger(contract.supplierReservedQuantity), nonNegativeInteger(inventory.frozen));
-  inventory.frozen = Math.max(0, nonNegativeInteger(inventory.frozen) - quantity);
-  inventory.available = nonNegativeInteger(inventory.available) + quantity;
+  adoptLegacyCommodityFreeze(inventory, 'contract', contract.id, contract.supplierReservedQuantity);
+  releaseCommodityFreeze(inventory, 'contract', contract.id, quantity);
   contract.supplierReservedQuantity = Math.max(0, contract.supplierReservedQuantity - quantity);
   return quantity;
 }
@@ -220,7 +238,9 @@ function reserveSupplierGoods(contract, supplier, now, ignorePriority = false) {
   const inventory = mutableInventory(supplier, contract.productId, contract.provinceId);
   const amount = Math.min(required, nonNegativeInteger(inventory.available));
   if (amount <= 0) return false;
-  inventory.available -= amount; inventory.frozen = nonNegativeInteger(inventory.frozen) + amount; contract.supplierReservedQuantity += amount; applyAliases(contract);
+  adoptLegacyCommodityFreeze(inventory, 'contract', contract.id, contract.supplierReservedQuantity);
+  freezeCommodity(inventory, 'contract', contract.id, amount);
+  contract.supplierReservedQuantity += amount; applyAliases(contract);
   return contract.supplierReservedQuantity >= dailyRemaining(contract);
 }
 function resetDailyWindow(contract, buyer, supplier, now) {
@@ -263,20 +283,23 @@ export function processDailySupplyContracts(world, now = Date.now()) {
   for (const contract of world.productionContracts || []) if (isDailySupplyContract(contract)) processOne(world, contract, now);
   return world;
 }
-export function allocateDailySupplyReservesForSupplier(world, supplierId, provinceId = null, productId = null, now = Date.now()) {
+export function allocateDailySupplyReservesForSupplier(world, supplierId, provinceId = null, productId = null, now = Date.now(), { process = true } = {}) {
   const matches = (contract) => isDailySupplyContract(contract)
     && contract.status === 'active'
+    && contractIsStarted(contract, now)
+    && (contract.endsAt == null || now < contract.endsAt)
+    && Number(contract.currentDayKey) === dayKey(now)
     && contract.supplierAutoReserve
     && Number(contract.supplierId) === Number(supplierId)
     && (provinceId === null || normalizeProvinceId(contract.provinceId) === normalizeProvinceId(provinceId))
     && (productId === null || String(contract.productId) === String(productId));
-  const beforeReserved = new Map((world.productionContracts || [])
+  const beforeReserved = new Map(currentContracts(world)
     .filter(matches)
     .map((contract) => [String(contract.id), nonNegativeInteger(contract.supplierReservedQuantity)]));
-  processDailySupplyContracts(world, now);
+  if (process) processDailySupplyContracts(world, now);
   const supplier = playerFor(world, supplierId);
   if (!supplier) return 0;
-  const contracts = (world.productionContracts || [])
+  const contracts = currentContracts(world)
     .filter(matches)
     .sort((left, right) => Number(priorityEligible(right, supplier, now)) - Number(priorityEligible(left, supplier, now))
       || Number(right.unitPrice) - Number(left.unitPrice)
@@ -293,24 +316,76 @@ function normalizeStats(player) {
   for (const key of ['contractCreditsPaid','contractCreditsReceived','marketServiceFees','employmentPayments']) player.stats[key] = Math.max(0, roundInternalMoney(player.stats[key] || 0) || 0);
   return player.stats;
 }
-function settleQuantity(world, contract, quantity, now) {
+function settleQuantity(world, contract, quantity, now, preparedOnly = false) {
   const buyer = playerFor(world, contract.buyerId); const supplier = playerFor(world, contract.supplierId);
   if (!buyer || !supplier) return 0;
-  processOne(world, contract, now); if (contract.status !== 'active' || !contractIsStarted(contract, now)) return 0;
-  if (contract.buyerAutoFund) reserveBuyerCredits(contract, buyer); if (contract.supplierAutoReserve) reserveSupplierGoods(contract, supplier, now);
+  if (!preparedOnly) processOne(world, contract, now);
+  if (contract.status !== 'active' || !contractIsStarted(contract, now)
+    || (contract.endsAt != null && now >= contract.endsAt)) return 0;
+  if (!preparedOnly) {
+    if (contract.buyerAutoFund) reserveBuyerCredits(contract, buyer);
+    if (contract.supplierAutoReserve) reserveSupplierGoods(contract, supplier, now);
+  }
   const affordable = contract.unitPrice > 0 ? Math.floor((Number(contract.buyerEscrowCredits || 0) + 0.0000001) / contract.unitPrice) : 0;
   const amount = Math.min(nonNegativeInteger(quantity), dailyRemaining(contract), nonNegativeInteger(contract.supplierReservedQuantity), nonNegativeInteger(affordable)); if (amount <= 0) return 0;
   const gross = multiplyMoneyByInteger(contract.unitPrice, amount); if (gross === null || gross <= 0) return 0;
   const supplierInventory = mutableInventory(supplier, contract.productId, contract.provinceId); const buyerInventory = mutableInventory(buyer, contract.productId, contract.provinceId);
   if (supplierInventory.frozen < amount || contract.buyerEscrowCredits + 0.0000001 < gross) return 0;
-  supplierInventory.frozen -= amount; buyerInventory.available = nonNegativeInteger(buyerInventory.available) + amount; contract.supplierReservedQuantity -= amount;
+  adoptLegacyCommodityFreeze(supplierInventory, 'contract', contract.id, contract.supplierReservedQuantity);
+  consumeCommodityFreeze(supplierInventory, 'contract', contract.id, amount);
+  buyerInventory.available = nonNegativeInteger(buyerInventory.available) + amount; contract.supplierReservedQuantity -= amount;
   const paid = consumeFrozenCredits(buyer, gross); contract.buyerEscrowCredits = Math.max(0, roundInternalMoney(contract.buyerEscrowCredits - paid) || 0);
   const previousGross = Math.max(0, roundInternalMoney(contract.marketSellFeeGross || 0) || 0); const previousFee = Math.max(0, roundInternalMoney(contract.marketSellFeeCharged || 0) || 0); const nextGross = addMoney(previousGross, gross); const nextFee = calculateCumulativeMarketSellFee(nextGross); const fee = Math.max(0, roundInternalMoney(nextFee - previousFee) || 0); const net = Math.max(0, roundInternalMoney(gross - fee) || 0);
   supplier.credits = addMoney(supplier.credits, net); if (fee > 0) creditPopulationEmployment(world, fee, 'marketService'); contract.marketSellFeeGross = nextGross; contract.marketSellFeeCharged = nextFee;
   contract.dailyUsedQuantity += amount; contract.totalDeliveredQuantity += amount; contract.completedDeliveryEvents += 1; contract.lastDeliveryQuantity = amount; contract.lastDeliveryGross = gross; contract.lastDeliveryFee = fee; contract.lastDeliveryAt = now;
   const bs = normalizeStats(buyer); const ss = normalizeStats(supplier); bs.contractDeliveriesCompleted += 1; ss.contractDeliveriesCompleted += 1; bs.contractGoodsPurchased += amount; ss.contractGoodsSupplied += amount; bs.contractCreditsPaid = addMoney(bs.contractCreditsPaid, gross); ss.contractCreditsReceived = addMoney(ss.contractCreditsReceived, net); bs.boughtGoods += amount; ss.soldGoods += amount; bs.commodityVolume += amount; ss.commodityVolume += amount; ss.marketServiceFees = addMoney(ss.marketServiceFees, fee); ss.employmentPayments = addMoney(ss.employmentPayments, fee);
-  if (contract.buyerAutoFund) reserveBuyerCredits(contract, buyer); if (contract.supplierAutoReserve) reserveSupplierGoods(contract, supplier, now); applyAliases(contract); contract.quantityPerDelivery = amount; contract.batchGross = gross; return amount;
+  if (!preparedOnly) {
+    if (contract.buyerAutoFund) reserveBuyerCredits(contract, buyer);
+    if (contract.supplierAutoReserve) reserveSupplierGoods(contract, supplier, now);
+  }
+  applyAliases(contract); contract.quantityPerDelivery = amount; contract.batchGross = gross; return amount;
 }
+/** Quotes only real, already-funded and already-frozen contract stock; never future quotas. */
+export function quotePreparedDailySupply(world, buyerId, provinceId, productId, requested, marketPrice, now) {
+  let remaining = nonNegativeInteger(requested);
+  const allocations = [];
+  const contracts = currentContracts(world).filter((contract) => (
+    isDailySupplyContract(contract) && contract.status === 'active'
+    && Number(contract.buyerId) === Number(buyerId)
+    && normalizeProvinceId(contract.provinceId) === normalizeProvinceId(provinceId)
+    && contract.productId === productId && contractIsStarted(contract, now)
+    && (contract.endsAt == null || now < contract.endsAt)
+    && Number(contract.currentDayKey) === dayKey(now)
+    && Number(contract.unitPrice) < marketPrice
+  )).sort((a, b) => a.unitPrice - b.unitPrice || Number(a.acceptedAt || 0) - Number(b.acceptedAt || 0)
+    || String(a.id).localeCompare(String(b.id)));
+  for (const contract of contracts) {
+    if (!remaining) break;
+    const supplier = playerFor(world, contract.supplierId);
+    const inventory = supplier?.inventories?.[provinceScopedKey(provinceId, productId)];
+    const price = internalMoneyToMicros(contract.unitPrice);
+    if (!price || price < 0n) continue;
+    const funded = (internalMoneyToMicros(contract.buyerEscrowCredits) || 0n) / price;
+    const amount = Math.min(remaining, dailyRemaining(contract), nonNegativeInteger(contract.supplierReservedQuantity),
+      nonNegativeInteger(inventory?.frozen), Number(funded > BigInt(Number.MAX_SAFE_INTEGER) ? BigInt(Number.MAX_SAFE_INTEGER) : funded));
+    if (amount <= 0) continue;
+    allocations.push({ contractId: contract.id, quantity: amount, unitPrice: contract.unitPrice });
+    remaining -= amount;
+  }
+  return { allocations, remaining };
+}
+
+export function consumePreparedDailySupply(world, buyerId, allocation, now) {
+  const contract = currentContracts(world).find((item) => item.id === allocation.contractId);
+  if (!contract || Number(contract.buyerId) !== Number(buyerId)
+    || contract.unitPrice !== allocation.unitPrice || Number(contract.currentDayKey) !== dayKey(now)) {
+    throw new Error('周期采购合同基线已变化');
+  }
+  const amount = settleQuantity(world, contract, allocation.quantity, now, true);
+  if (amount !== allocation.quantity) throw new Error('周期采购合同未能完整交付');
+  return amount;
+}
+
 export function consumeDailySupplyForBuyer(world, buyerId, provinceId, productId, quantity, marketUnitPrice, now = Date.now()) {
   processDailySupplyContracts(world, now); let remaining = nonNegativeInteger(quantity); const boundary = Number.isFinite(Number(marketUnitPrice)) ? Number(marketUnitPrice) : Number.POSITIVE_INFINITY; let delivered = 0; let gross = 0; const contractIds = [];
   const contracts = (world.productionContracts || []).filter((contract) => isDailySupplyContract(contract) && contract.status === 'active' && Number(contract.buyerId) === Number(buyerId) && normalizeProvinceId(contract.provinceId) === normalizeProvinceId(provinceId) && String(contract.productId) === String(productId) && contractIsStarted(contract, now) && dailyRemaining(contract) > 0 && Number(contract.unitPrice) < boundary).sort((a,b) => Number(a.unitPrice)-Number(b.unitPrice) || Number(a.acceptedAt||0)-Number(b.acceptedAt||0) || String(a.id).localeCompare(String(b.id)));

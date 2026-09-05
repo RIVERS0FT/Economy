@@ -83,10 +83,10 @@ if (failures.length === 0) {
 
   for (const text of [
     'getStateAuthoritySnapshot',
-    'scopeEconomyState(authorityGame, model.selectedProvinceId)',
-    'authorityGame.userId !== userId',
-    'authorityGame.saveEpoch !== model.game.saveEpoch',
-    'statusFor(productId, game)',
+    'state.cycleAutoSaleCounts',
+    'state.userId !== userId',
+    'state.saveEpoch !== saveEpoch',
+    'if (!previous) return;',
   ]) {
     if (!autoTrade.includes(text)) failures.push(`自动交易存档世代门禁缺少: ${text}`);
   }
@@ -233,7 +233,7 @@ if (failures.length === 0) {
   for (const text of [
     'page save epoch is validated before authority publication',
     'writes require a locked page epoch',
-    'background auto trade only reacts to the current accepted authority and page epoch',
+    'cycle sale observations respect the current player and save epoch without issuing automatic writes',
     'production settlement rejection no longer turns a valid state GET into a load failure loop',
   ]) {
     if (!lifecycleTest.includes(text)) failures.push(`客户端世代生命周期测试缺少: ${text}`);

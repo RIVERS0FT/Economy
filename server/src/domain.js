@@ -1,3 +1,5 @@
+import { migrateCommodityFreezeSources } from './commodity-freeze-state.js';
+import { releaseLegacyOrderFreeze } from './commodity-freezes.js';
 import { multiplyMoneyByInteger, normalizePlayerMoneyInput, normalizeWorldMoneyPrecision } from './money.js';
 import { randomUUID } from 'node:crypto';
 import * as core from './domain-core.js';
@@ -163,9 +165,7 @@ function cancelLegacyCommodityOrder(world, order) {
   } else if (player && order.side === 'sell') {
     const productId = orderAssetId(order);
     const inventory = inventoryForProvince(player, productId, order.provinceId);
-    const release = Math.min(Math.max(0, Number(inventory.frozen || 0)), remaining);
-    inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - release);
-    inventory.available = Math.max(0, Number(inventory.available || 0)) + release;
+    releaseLegacyOrderFreeze(inventory, order.id, remaining);
   }
   order.status = 'cancelled';
   closeOrderInOrderBook(world, order);
@@ -227,7 +227,7 @@ export function createWorld(now = Date.now()) {
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   world.playerCommodityInstantTradeVersion = PLAYER_COMMODITY_INSTANT_TRADE_VERSION;
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = 32;
+  world.version = 33;
   normalizeWorldMoneyPrecision(world);
   return world;
 }
@@ -256,6 +256,7 @@ export function migrateWorld(world, now = Date.now()) {
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
   balancedMarket.normalizeSystemPrices(migrated, now);
   migrateProvinceAccess(migrated, now);
+  migrateCommodityFreezeSources(migrated);
   migrateLegacyPlayerCommodityOrders(migrated);
   if (needsC1InputBalanceMigration) migrateC1InputBalance(migrated);
   if (!hadCompatibleDemandSystem) {
@@ -289,7 +290,7 @@ export function migrateWorld(world, now = Date.now()) {
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   migrated.playerCommodityInstantTradeVersion = PLAYER_COMMODITY_INSTANT_TRADE_VERSION;
   migrated.auctionFeeEscrowCredits = Math.max(0, Number(migrated.auctionFeeEscrowCredits || 0));
-  migrated.version = 32;
+  migrated.version = 33;
   normalizeWorldMoneyPrecision(migrated);
   return migrated;
 }

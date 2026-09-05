@@ -104,8 +104,8 @@ for (const text of [
 forbidText(gameApp, 'onAutoSellPolicyEnabled:', '教程不得再由商品级自动交易设置推进');
 forbidText(gameApp, 'tutorial.recordWorkClick', '基础工作移除后不得继续推进教程');
 forbidText(gameApp, 'tutorial.recordSellOrderSubmit', '教程不得继续把手动卖单作为自动经营步骤');
-requireText(autoTrade, "if (side === 'sell' && result.ok && result.message.includes('自动出售'))", '自动出售步骤必须只由服务器确认实际自动出售成交后推进，单纯挂单不得推进');
-requireText(autoTrade, 'callbacks.onSale?.(productId);', '统一自动交易控制器必须把实际自动出售成交回传教程');
+requireText(autoTrade, 'quantity > (previous[key] || 0)', '自动出售步骤必须只由服务器确认实际自动出售成交后推进，初次同步或无实际成交不得推进');
+requireText(autoTrade, 'handlers.onSale?.(key.slice(prefix.length));', '统一自动交易控制器必须把实际自动出售成交回传教程');
 requireText(autoSellCompat, "from '../auto-trade/useOnlineAutoTrade'", '旧自动出售 hook 入口必须转发到统一自动交易控制器');
 
 requireText(guide, "variant?: 'panel' | 'outliner'", '教程组件必须同时支持普通面板与战略追踪器紧凑模式');

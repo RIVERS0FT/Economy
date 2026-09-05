@@ -1,4 +1,4 @@
-export const PRODUCTION_SETTLEMENT_VERSION: 1;
+export const PRODUCTION_SETTLEMENT_VERSION: 2;
 export const FACILITY_STAFFING_FULL_BPS: 10000;
 export const FACILITY_STAFFING_RECOVERY_MS: number;
 export const FACILITY_STAFFING_DECAY_MS: number;
@@ -34,7 +34,7 @@ export interface ProductionSettlementGroupBasis {
 }
 
 export interface ProductionSettlementBasis {
-  version: 1;
+  version: 2;
   basisId: string;
   userId: number;
   saveEpoch: number;
@@ -42,12 +42,13 @@ export interface ProductionSettlementBasis {
   resources: {
     creditsMicros: string;
     inventories: Record<string, number | string>;
+    inputFreezes?: Record<string, Record<string, number | string>>;
   };
   groups: ProductionSettlementGroupBasis[];
 }
 
 export interface ProductionSettlementClaim {
-  version: 1;
+  version: 2;
   basisId: string;
   settleThrough: number;
   groups: Array<{ key: string; completedCycles: number }>;
@@ -65,6 +66,7 @@ export function projectFacilityStaffingRate(group: Partial<ProductionSettlementG
 export function dueProductionCycles(group: Partial<ProductionSettlementGroupBasis>, settleThrough: number): number;
 export function projectProductionCycles(group: ProductionSettlementGroupBasis, completedCycles: number): ProductionSettlementProjection;
 export function productionResourceUsage(group: ProductionSettlementGroupBasis, completedCycles: number): ProductionSettlementProjection & {
+  sourceKey: string;
   costMicros: bigint;
   inputs: Record<string, bigint>;
   outputKey: string;

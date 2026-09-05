@@ -1,4 +1,4 @@
-export const PRODUCTION_SETTLEMENT_VERSION = 1;
+export const PRODUCTION_SETTLEMENT_VERSION = 2;
 export const FACILITY_STAFFING_FULL_BPS = 10_000;
 export const FACILITY_STAFFING_RECOVERY_MS = 10 * 60 * 1000;
 export const FACILITY_STAFFING_DECAY_MS = 30 * 60 * 1000;
@@ -121,6 +121,7 @@ export function productionResourceUsage(group, completedCycles) {
   const outputQuantity = bigint(recipe.output?.quantity) * projection.effectiveUnits;
   return {
     ...projection,
+    sourceKey: String(group?.key || ''),
     costMicros,
     inputs,
     outputKey,
@@ -143,7 +144,8 @@ export function productionSettlementFits(group, completedCycles, resources) {
   const usage = productionResourceUsage(group, cycles);
   if (usage.costMicros > available.creditsMicros) return false;
   for (const [key, quantity] of Object.entries(usage.inputs)) {
-    if (quantity > (available.inventories[key] || 0n)) return false;
+    const owned = bigint(resources?.inputFreezes?.[String(group?.key || '')]?.[key]);
+    if (quantity > (available.inventories[key] || 0n) + owned) return false;
   }
   return true;
 }
@@ -166,7 +168,11 @@ export function applyProductionUsageToResources(resources, usage) {
   resources.creditsMicros = String(bigint(resources.creditsMicros) - bigint(usage.costMicros));
   resources.inventories ||= {};
   for (const [key, quantity] of Object.entries(usage.inputs || {})) {
-    resources.inventories[key] = String(bigint(resources.inventories[key]) - bigint(quantity));
+    const freezes = resources.inputFreezes?.[usage.sourceKey];
+    const held = bigint(freezes?.[key]);
+    const consumed = held < bigint(quantity) ? held : bigint(quantity);
+    if (freezes && consumed > 0n) freezes[key] = String(held - consumed);
+    resources.inventories[key] = String(bigint(resources.inventories[key]) - bigint(quantity) + consumed);
   }
   if (usage.outputKey) {
     resources.inventories[usage.outputKey] = String(bigint(resources.inventories[usage.outputKey]) + bigint(usage.outputQuantity));
@@ -210,7 +216,8 @@ function appendProductionBasisGroup(parts, group, resources) {
     String(nonNegativeInteger(recipe.output?.quantity)),
   );
   for (const key of [...inventoryKeys].sort()) {
-    parts.push('inventory', key, String(bigint(resources?.inventories?.[key])));
+    parts.push('inventory', key, String(bigint(resources?.inventories?.[key])),
+      'production-freeze', String(bigint(resources?.inputFreezes?.[String(group?.key || '')]?.[key])));
   }
 }
 
@@ -226,7 +233,7 @@ function hashProductionBasisText(text, seed) {
 export function createProductionSettlementBasisId(basis) {
   if (!basis || Number(basis.version) !== PRODUCTION_SETTLEMENT_VERSION) return '';
   const parts = [
-    'production-settlement-basis-v1',
+    'production-settlement-basis-v2',
     String(Number(basis.userId) || 0),
     String(nonNegativeInteger(basis.saveEpoch)),
     String(bigint(basis.resources?.creditsMicros)),
@@ -242,6 +249,7 @@ export function createProductionSettlementClaim(basis) {
   const resources = {
     creditsMicros: String(basis.resources?.creditsMicros || '0'),
     inventories: { ...(basis.resources?.inventories || {}) },
+    inputFreezes: Object.fromEntries(Object.entries(basis.resources?.inputFreezes || {}).map(([key, values]) => [key, { ...values }])),
   };
   let hasWork = false;
   const groups = basis.groups.map((group) => {

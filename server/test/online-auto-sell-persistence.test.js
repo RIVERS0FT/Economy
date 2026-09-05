@@ -71,7 +71,7 @@ test('runtime store persists factory automatic operation and returns it in forma
     const expected = {
       enabled: true,
       inputCoverageCycles: 3,
-      mode: 'profit',
+      mode: 'balanced',
       outputMode: 'surplus',
     };
     const persisted = persistedPlayer(store);
@@ -104,8 +104,8 @@ test('runtime store keeps a disabled factory policy while removing its effective
     const expected = {
       enabled: false,
       inputCoverageCycles: 5,
-      mode: 'supply',
-      outputMode: 'keep',
+      mode: 'balanced',
+      outputMode: 'surplus',
     };
     const persisted = persistedPlayer(store);
     assert.deepEqual(persisted.factoryAutoOperationPolicies[policyKey], expected);
@@ -138,4 +138,23 @@ test('runtime store rejects invalid factory automatic operation without persisti
   } finally {
     store.close();
   }
+});
+
+test('regional automatic sale consent persists without trading and is shared across building kinds', () => {
+  const store = new EconomyStore(':memory:');
+  try {
+    store.getState(alice, now);
+    const before = persistedPlayer(store).credits;
+    assert.equal(store.getState(alice, now).provinceAutoSaleEnabled[DEFAULT_PROVINCE_ID], undefined);
+    const saved = store.apply(alice, request({ provinceId: DEFAULT_PROVINCE_ID,
+      execution: 'factory-auto-operation-policy', operation: 'province-auto-sale', enabled: true,
+    }, 'region-auto-sale-12345678'), now + 1);
+    assert.equal(saved.result.ok, true, saved.result.message);
+    assert.equal(persistedPlayer(store).credits, before);
+    assert.equal(store.getState(alice, now + 2).provinceAutoSaleEnabled[DEFAULT_PROVINCE_ID], true);
+    assert.equal(store.apply(alice, request({ provinceId: DEFAULT_PROVINCE_ID,
+      execution: 'factory-auto-operation-policy', operation: 'province-auto-sale', enabled: 'true',
+    }, 'region-auto-sale-invalid-12345678'), now + 3).result.ok, false);
+    assert.equal(persistedPlayer(store).provinceAutoSaleEnabled[DEFAULT_PROVINCE_ID], true);
+  } finally { store.close(); }
 });

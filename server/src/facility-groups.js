@@ -1,3 +1,6 @@
+import { buildingAvailableInput, buildingFreezeSource, reconcileBuildingInputFreezes } from './building-input-freezes.js';
+import { consumeBuildingCommodity } from './commodity-freezes.js';
+import { completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from './cycle-auto-operation.js';
 import {
   applyAction,
   createClientState,
@@ -417,6 +420,7 @@ function createGroup(typeId, overrides = {}, now = Date.now()) {
     staffingBatchCarryBps: normalizeStaffingCarry(overrides.staffingBatchCarryBps),
     lifetimeOutput: Math.max(0, Number(overrides.lifetimeOutput ?? overrides.completedQuantity ?? 0)),
     activeRecipeId: recipeFor(type, activeRecipeId)?.id,
+    ...(Number.isSafeInteger(overrides.cycleRecordedLifetimeOutput) ? { cycleRecordedLifetimeOutput: overrides.cycleRecordedLifetimeOutput } : {}),
   };
 }
 
@@ -767,7 +771,7 @@ function blockReason(world, player, group, type, physicalCount, effectiveCount =
   if (requirements.cost > player.credits) {
     return { reason: 'insufficient_funds', message: '运营资金不足' };
   }
-  if (requirements.inputs.some((item) => inventoryFor(player, item.productId, group.provinceId).available < item.quantity)) {
+  if (requirements.inputs.some((item) => buildingAvailableInput(player, group, item.productId) < item.quantity)) {
     return { reason: 'insufficient_input', message: '生产原料不足' };
   }
   return null;
@@ -859,7 +863,9 @@ function executeCycle(world, player, group, type, count, capacity, cycleDueAt, n
   player.stats.productionPayroll = Number(player.stats.productionPayroll || 0) + requirements.cost;
   player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + requirements.cost;
   player.stats.producedGoods = Number(player.stats.producedGoods || 0) + requirements.output;
-  for (const item of requirements.inputs) inventoryFor(player, item.productId, group.provinceId).available -= item.quantity;
+  for (const item of requirements.inputs) consumeBuildingCommodity(
+    inventoryFor(player, item.productId, group.provinceId), 'production', buildingFreezeSource(group), item.quantity,
+  );
   inventoryFor(player, recipe.output.productId, group.provinceId).available += requirements.output;
   group.lifetimeOutput += requirements.output;
   group.staffingBatchCarryBps = capacity.carryBps;
@@ -869,12 +875,14 @@ function executeCycle(world, player, group, type, count, capacity, cycleDueAt, n
 }
 
 
-function processGroup(world, player, group, now) {
+function processGroup(world, player, group, now, completedEvents = []) {
   reconcileFacilityGroup(world, player, group, now);
   const type = typeFor(group.facilityTypeId);
   if (!type || group.status !== 'running' || !group.cycleStartedAt) return;
 
   let processed = 0;
+  let lastCompletedAt = 0;
+  const beforeOutput = group.lifetimeOutput;
   while (processed < MAX_CYCLES_PER_GROUP && group.status === 'running') {
     const recipe = activeRecipeFor(type, group);
     if (now - group.cycleStartedAt < recipe.cycleMs) break;
@@ -896,6 +904,7 @@ function processGroup(world, player, group, now) {
 
     executeCycle(world, player, group, type, group.participatingCount, capacity, cycleDueAt, now);
     processed += 1;
+    lastCompletedAt = cycleDueAt;
 
     const nextStaffingRateBps = projectStaffingRate(group, group.cycleStartedAt);
     const nextCapacity = cycleCapacity(group, group.participatingCount, nextStaffingRateBps);
@@ -912,6 +921,8 @@ function processGroup(world, player, group, now) {
       break;
     }
   }
+  if (processed > 0) completedEvents.push({ group, completedAt: lastCompletedAt,
+    productId: activeRecipeFor(type, group).output.productId, output: group.lifetimeOutput - beforeOutput });
 }
 
 function reconcileAllFacilityGroups(world, now) {
@@ -1002,7 +1013,11 @@ export function processFacilityGroupWorld(world, now = Date.now(), { migrate = t
   removeSystemFacilityOrders(world);
   for (const player of Object.values(world.players || {})) {
     ensureWarehouse(player);
-    for (const group of player.facilityGroups || []) processGroup(world, player, group, now);
+    const completed = [];
+    for (const group of player.facilityGroups || []) processGroup(world, player, group, now, completed);
+    for (const event of completed) recordCompletedIndustrialOutput(world, player, event.group, event.productId, event.output, now);
+    for (const event of completed) completeBuildingCycleAutoOperation(world, player, event.group, 'production', event.completedAt, now);
+    reconcileBuildingInputFreezes(world, player, now);
   }
   reconcileAllFacilityGroups(world, now);
   if (migrate) stripLegacyFacilityInstances(world);
@@ -1403,6 +1418,7 @@ export function applyFacilityGroupAction(
   if (migrate) migrateFacilityGroupWorld(world, now);
   reconcileAllFacilityGroups(world, now);
   if (migrate) stripLegacyFacilityInstances(world);
+  if (actionResult?.ok) reconcileBuildingInputFreezes(world, world.players[String(userId)], now);
   return actionResult;
 }
 
@@ -1545,6 +1561,7 @@ function clientGroup(world, player, group, now) {
   const {
     cycleWageMultiplierBps: _cycleWageMultiplierBps,
     cycleStaffingRateBps: _legacyCycleStaffingRateBps,
+    cycleRecordedLifetimeOutput: _cycleRecordedLifetimeOutput,
     productionWageCarryNumerator: _productionWageCarryNumerator,
     productionEmploymentTotalMicros: _productionEmploymentTotalMicros,
     productionEmploymentAllocatedMicros: _productionEmploymentAllocatedMicros,

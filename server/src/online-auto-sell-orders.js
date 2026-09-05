@@ -1,3 +1,4 @@
+import { releaseLegacyOrderFreeze } from './commodity-freezes.js';
 import { closeOrderInOrderBook, orderById } from './order-book-runtime.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import {
@@ -70,9 +71,7 @@ export function cancelManagedOnlineAutoSellOrder(world, userId, productId, provi
   if (!order) return 0;
   const remaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
   const inventory = inventoryForProvince(player, productId, provinceId);
-  const released = Math.min(Math.max(0, Math.floor(Number(inventory.frozen || 0))), remaining);
-  inventory.frozen = Math.max(0, Math.floor(Number(inventory.frozen || 0)) - released);
-  inventory.available = Math.max(0, Math.floor(Number(inventory.available || 0))) + released;
+  const released = releaseLegacyOrderFreeze(inventory, order.id, remaining);
   order.status = 'cancelled';
   closeOrderInOrderBook(world, order);
   const links = linkMap(player);

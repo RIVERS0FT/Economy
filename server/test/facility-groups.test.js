@@ -148,7 +148,7 @@ test('electronics factory deducts no material when either input is missing', () 
 
   assert.equal(player.facilityGroups[0].status, 'error');
   assert.equal(player.facilityGroups[0].statusReason, 'insufficient_input');
-  assert.equal(player.inventories.plastic.available, 1);
+  assert.equal(player.inventories.plastic.available + player.inventories.plastic.frozen, 1);
   assert.equal(player.inventories.copper.available, 0);
   assert.equal(player.inventories.electronics.available, 0);
   assert.equal(player.credits, 100);
@@ -164,6 +164,7 @@ test('fruit beverage recipe uses its own cost and atomically consumes fruit and 
     enabled: true, status: 'running', participatingCount: 1,
     activeRecipeId: 'fruit-beverage', cycleStartedAt: now,
   })];
+  player.factoryAutoOperationPolicies = { '110000:beverage-factory': { enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } };
   migrateFacilityGroupWorld(world, now);
 
   processFacilityGroupWorld(world, now + 60_000);

@@ -68,6 +68,7 @@ export function FacilityAutoOperationControls({
     try {
       const response = await saveFactoryAutoOperationPolicy(group.provinceId, group.facilityTypeId, nextPolicy);
       setMessage(response.result.message || (response.result.ok ? '自动经营策略已保存' : '自动经营策略保存失败'));
+      if (!response.result.ok) setDraft(authorityPolicy(group));
       if (response.result.ok) {
         const state = getStateAuthoritySnapshot().state;
         announceFactoryAutoOperationSaved({
@@ -77,6 +78,7 @@ export function FacilityAutoOperationControls({
         });
       }
     } catch (reason) {
+      setDraft(authorityPolicy(group));
       setMessage(reason instanceof Error ? reason.message : '自动经营策略保存失败');
     } finally {
       setSaving(false);
@@ -89,7 +91,7 @@ export function FacilityAutoOperationControls({
   };
 
   return (
-    <BuildingAutoOperationSection label={<GameConcept concept="factory-auto-operation">自动经营</GameConcept>}
+    <BuildingAutoOperationSection provinceId={group.provinceId} label={<GameConcept concept="factory-auto-operation">自动经营</GameConcept>}
       enabled={draft.enabled} disabled={group.count < 1 || saving}
       onChange={(enabled) => updatePolicy({ ...draft, enabled })} message={message}>
       {children({ policy: draft, saving, updatePolicy })}

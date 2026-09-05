@@ -52,7 +52,8 @@ test('商品拍卖冻结商品并在成交后转移数量，不产生仓库容�
     durationHours: 1,
   });
   assert.equal(created.ok, true);
-  assert.deepEqual(state.players['1'].inventories.wheat, { available: 6, frozen: 4, inTransit: 0 });
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 6, frozen: 4, inTransit: 0,
+    freezes: { [`auction:${state.assetAuctions.at(-1).id}`]: { kind: 'auction', sourceId: state.assetAuctions.at(-1).id, quantity: 4 } } });
   const auction = state.assetAuctions.at(-1);
 
   assert.equal(bid(state, bidderA, auction.id, 90, 3_000).ok, true);
@@ -144,8 +145,10 @@ test('商品与工厂资产包整体冻结并原子成交', () => {
   const auction = state.assetAuctions.at(-1);
   assert.equal(auction.items.length, 3, '重复商品项目应合并');
   assert.equal(auction.items.find((item) => item.assetId === 'wheat').quantity, 3);
-  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 3, inTransit: 0 });
-  assert.deepEqual(state.players['1'].inventories.rice, { available: 1, frozen: 2, inTransit: 0 });
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 3, inTransit: 0,
+    freezes: { [`auction:${state.assetAuctions.at(-1).id}`]: { kind: 'auction', sourceId: state.assetAuctions.at(-1).id, quantity: 3 } } });
+  assert.deepEqual(state.players['1'].inventories.rice, { available: 1, frozen: 2, inTransit: 0,
+    freezes: { [`auction:${state.assetAuctions.at(-1).id}`]: { kind: 'auction', sourceId: state.assetAuctions.at(-1).id, quantity: 2 } } });
   assert.equal(state.players['1'].facilityGroups[0].participatingCount, 1);
 
   assert.equal(bid(state, bidderA, auction.id, 120, 3_000).ok, true);

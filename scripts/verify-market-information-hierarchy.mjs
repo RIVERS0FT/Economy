@@ -74,7 +74,7 @@ for (const token of [
   '<small>今日价格</small>',
   '<small>今日成交量</small>',
   '<small>可用库存</small>',
-  '<small>冻结库存</small>',
+  '<CommodityFreezeDisclosure',
   'className={`widget market-chart-card ui-entity-card${marketDetailUnavailable ?',
   'const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail && !selectedMarket);',
   'className="market-chart-card__content" aria-disabled={marketDetailUnavailable || undefined}',

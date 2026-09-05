@@ -16,7 +16,7 @@ for (const token of [
   '<small>今日价格</small>',
   '<small>今日成交量</small>',
   '<small>可用库存</small>',
-  '<small>冻结库存</small>',
+  '<CommodityFreezeDisclosure',
   'id="market-trade-quantity"',
   'market-quantity-stepper',
   '立即买入',

@@ -201,7 +201,7 @@ test('segmented persistence reconstructs the same committed world without projec
     assert.equal(store.worldCache.revision, persisted.revision);
     assert.deepEqual(persisted.world, store.worldCache.world);
     assert.deepEqual(JSON.parse(String(legacy.state_json)), {
-      version: 32,
+      version: 33,
       storageSchemaVersion: 2,
       segmented: true,
     });

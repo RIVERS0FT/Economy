@@ -64,6 +64,7 @@ test('commercial and industrial cycles retain independent participation, intent 
 
 test('commercial expansion changes nominal capacity without rewriting either invested cycle', () => {
   const { world, player, type, group, operate } = setup();
+  group.autoOperationPolicy = { enabled: false, inputCoverageCycles: 2 };
   const industryBeforeExpansion = structuredClone(player.facilityGroups);
   const locked = {
     participatingCount: group.participatingCount,
@@ -77,7 +78,7 @@ test('commercial expansion changes nominal capacity without rewriting either inv
   assert.equal(group.pendingRevenue, locked.revenue);
   assert.equal(group.pendingProfit, locked.profit);
   assert.equal(group.cycleCompletesAt, locked.completesAt);
-  assert.equal(inventoryForProvince(player, 'clothing', provinceId).available, 4);
+  assert.equal(inventoryForProvince(player, 'clothing', provinceId).available + inventoryForProvince(player, 'clothing', provinceId).frozen, 4);
   assert.deepEqual(player.facilityGroups, industryBeforeExpansion);
 
   processCommercialWorld(world, locked.completesAt);
@@ -87,7 +88,7 @@ test('commercial expansion changes nominal capacity without rewriting either inv
   assert.equal(group.pendingStaffingRateBps, 8332);
   assert.equal(group.staffingBatchCarryBps, 4996);
   assert.equal(group.pendingProfit, type.profitPerCycle * 2);
-  assert.equal(inventoryForProvince(player, 'clothing', provinceId).available, 2);
+  assert.equal(inventoryForProvince(player, 'clothing', provinceId).available + inventoryForProvince(player, 'clothing', provinceId).frozen, 2);
   assert.deepEqual(player.facilityGroups, industryBeforeExpansion);
 });
 

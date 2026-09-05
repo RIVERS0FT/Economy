@@ -323,7 +323,7 @@ for (const path of ['server/src/contract-runtime-index.js', 'server/src/contract
 assert.equal(read('server/src/warehouse.js').includes('createContractRuntimeIndex'), false, '无限仓库不得重新依赖合同运行时索引');
 requireText('server/src/world-storage-v2.js', [
   'WORLD_STORAGE_SCHEMA_VERSION = 2',
-  'AUTHORITATIVE_WORLD_VERSION = 32',
+  'AUTHORITATIVE_WORLD_VERSION = 33',
   'createRuntimeMutationScope',
   'cloneWorldForMutation',
   'prepareSegmentedWorldWrite',
