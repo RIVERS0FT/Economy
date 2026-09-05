@@ -134,3 +134,5 @@ if (failures.length) {
 }
 
 console.log('银行资产总览、商业建筑资产估值、资金管理与冻结融资布局、十二个正式页面与十一项可见导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。');
+
+requireText(componentPath, 'Number(group.frozenCount || 0) + Number(group.mortgagedCount || 0) + Number(group.contractCollateralCount || 0)');

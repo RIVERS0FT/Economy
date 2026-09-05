@@ -126,3 +126,5 @@ if (failures.length) {
 console.log('无限共享仓库/即时自动经营防回退检查通过：连续 48 州仓库直接可用，工厂策略按当日官方价触发即时采购/出售，不维护玩家托管挂单或冻结。');
 
 requireText('src/styles/factory-auto-operation.css', 'grid-template-columns: minmax(0, 1fr) auto;');
+
+requireText('src/pages/production/ProductionFacilityDetail.tsx', '(group.frozenCount ?? group.listedCount) + group.mortgagedCount + (group.contractCollateralCount ?? 0)');

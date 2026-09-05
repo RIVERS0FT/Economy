@@ -69,19 +69,27 @@ function dailyHistoryForMarket(market, assetKind, now) {
     byDate.set(dateKey, { dateKey, price, buyVolume, sellVolume, neutralVolume, volume: Math.max(buyVolume + sellVolume + neutralVolume, Math.max(0, Number(entry?.volume) || 0)) });
   };
   for (const entry of Array.isArray(market?.dailyHistory) ? market.dailyHistory : []) remember(entry);
+  for (const point of realTradePointsBetween(market, now - MARKET_DAILY_HISTORY_DAYS * DAY_MS, now)) {
+    const dateKey = checkInDateKey(Number(point.createdAt || 0));
+    if (byDate.has(dateKey)) continue;
+    const sameDay = realTradePointsBetween(
+      market,
+      Date.parse(`${dateKey}T00:00:00+08:00`),
+      Date.parse(`${dateKey}T23:59:59.999+08:00`),
+    );
+    if (sameDay.length < 1) continue;
+    const buyVolume = sameDay.reduce((sum, trade) => sum + (trade.takerSide === 'buy' ? Math.max(0, Number(trade.quantity || 0)) : 0), 0);
+    const sellVolume = sameDay.reduce((sum, trade) => sum + (trade.takerSide === 'sell' ? Math.max(0, Number(trade.quantity || 0)) : 0), 0);
+    remember({
+      dateKey,
+      price: Number(sameDay[sameDay.length - 1].price || 0),
+      buyVolume,
+      sellVolume,
+      volume: buyVolume + sellVolume,
+    });
+  }
   if (assetKind === 'commodity') {
     remember({ dateKey: checkInDateKey(now), price: Number(market?.officialPrice || market?.lastPrice || 0), buyQuantity: Math.max(0, Number(market?.todayBuyQuantity || 0)), sellQuantity: Math.max(0, Number(market?.todaySellQuantity || 0)) });
-  } else {
-    for (const point of realTradePointsBetween(market, now - MARKET_DAILY_HISTORY_DAYS * DAY_MS, now)) {
-      const dateKey = checkInDateKey(Number(point.createdAt || 0));
-      const current = byDate.get(dateKey) || { dateKey, price: Number(point.price || 0), buyVolume: 0, sellVolume: 0, neutralVolume: 0, volume: 0 };
-      const quantity = Math.max(0, Number(point.quantity || 0));
-      current.price = Number(point.price || current.price || 0);
-      current.volume += quantity;
-      if (point.takerSide === 'buy') current.buyVolume += quantity;
-      else if (point.takerSide === 'sell') current.sellVolume += quantity;
-      byDate.set(dateKey, current);
-    }
   }
   return [...byDate.values()].sort((left, right) => left.dateKey.localeCompare(right.dateKey)).slice(-MARKET_DAILY_HISTORY_DAYS);
 }
