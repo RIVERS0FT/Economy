@@ -76,14 +76,13 @@ for (const side of ['buy', 'sell']) {
   test(`${side} controls freeze pending parameters and confirm even after funds or inventory change`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 1000 });
     await page.goto('runtime-test.html?view=trade-confirmation&scenario=activity');
-    const entry = page.getByRole('region', { name: '商品交易' });
     // The section has an accessible name and contains the actual production MarketPage controls.
     await expect(page.locator('.market-immediate-trade')).toBeVisible();
     if (side === 'sell') await page.locator('.market-side-switch').getByRole('button', { name: '卖出', exact: true }).click();
     const submit = page.locator('.market-submit-order');
     await submit.click();
     await expect(submit).toBeDisabled();
-    await expect(page.locator('.market-side-switch button')).toBeDisabled();
+    for (const control of await page.locator('.market-side-switch button').all()) await expect(control).toBeDisabled();
     await expect(page.locator('#market-trade-quantity')).toBeDisabled();
     await page.evaluate(() => {
       const fixture = (window as unknown as { __tradeFixture: { confirming: () => void } }).__tradeFixture;

@@ -83,8 +83,11 @@ test('commercial expansion changes nominal capacity without rewriting either inv
   processCommercialWorld(world, locked.completesAt);
   assert.equal(group.lifetimeProfit, type.profitPerCycle);
   assert.equal(group.participatingCount, 3);
-  assert.equal(group.pendingProfit, type.profitPerCycle * 3);
-  assert.equal(inventoryForProvince(player, 'clothing', provinceId).available, 1);
+  assert.equal(group.pendingEffectiveCount, 2);
+  assert.equal(group.pendingStaffingRateBps, 8332);
+  assert.equal(group.staffingBatchCarryBps, 4996);
+  assert.equal(group.pendingProfit, type.profitPerCycle * 2);
+  assert.equal(inventoryForProvince(player, 'clothing', provinceId).available, 2);
   assert.deepEqual(player.facilityGroups, industryBeforeExpansion);
 });
 

@@ -1,3 +1,4 @@
+import { TradeConfirmationHarness } from './TradeConfirmationHarness';
 import { GlobalBuildingsPage } from '../../src/pages/GlobalBuildingsPage';
 import { GlobalMarketPage } from '../../src/pages/GlobalMarketPage';
 import { CommercePage } from '../../src/pages/CommercePage';
@@ -146,7 +147,7 @@ const activeTutorial: GameTutorialController = {
   statusLabel: '进行中 · 步骤 1/9',
 };
 
-document.documentElement.dataset.appSurface = ['overview', 'map', 'commerce', 'unified-buildings', 'regional-buildings', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = ['overview', 'map', 'commerce', 'trade-confirmation', 'unified-buildings', 'regional-buildings', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -1886,7 +1887,13 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
   return <GameShell model={model}><FacilityRecipeProfitMarketsProvider markets={model.game.markets}>{page}</FacilityRecipeProfitMarketsProvider></GameShell>;
 }
 
-const runtimeView = view === 'unified-buildings' ? <CommerceHarness scope="global" />
+function TradeConfirmationRuntime() {
+  const [tab, setTab] = useState<TabId>('market');
+  const base = useMemo(() => buildOverviewModel(tab, setTab), [tab]);
+  return <TradeConfirmationHarness base={base} />;
+}
+
+const runtimeView = view === 'trade-confirmation' ? <TradeConfirmationRuntime /> : view === 'unified-buildings' ? <CommerceHarness scope="global" />
   : view === 'regional-buildings' ? <CommerceHarness scope="regional" /> : view === 'commerce' ? <CommerceHarness /> : view === 'overview'
     ? <OverviewHarness />
     : view === 'map'

@@ -48,7 +48,7 @@ forbidText(model, ".finally(finish)");
 
 for (const text of [
   'const DEFAULT_READ_TIMEOUT_MS = 8_000;',
-  'const DEFAULT_WRITE_TIMEOUT_MS = 12_000;',
+  'const timedSignal = isWrite ? null : createTimedSignal(init?.signal, DEFAULT_READ_TIMEOUT_MS);',
   "throw new GameApiError(408, '游戏服务器响应超时，请稍后重试');",
 ]) requireText(api, text);
 
@@ -61,11 +61,9 @@ for (const text of [
   "headers.set('X-Economy-State-Revisions', JSON.stringify(revisions));",
   'acceptExternalStateDelivery(payload);',
   'function isSessionBootstrapWrite(input',
-  'const timeout = isSessionBootstrapWrite(input)',
-  'if (timeout !== null) globalThis.clearTimeout(timeout);',
-  'for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1)',
-  'attemptIndex === 0 ? init.signal : undefined',
-  'return response.status === 408 || response.status === 429 || response.status >= 500;',
+  'timeoutMs: isSessionBootstrapWrite(input) ? null : WRITE_ATTEMPT_TIMEOUT_MS,',
+  'inFlightWrites.get(fingerprint)',
+  'fetchConfirmedGameWrite(nativeFetch',
   'pendingWrites.set(fingerprint, reservation);',
 ]) requireText(writeCoordinator, text);
 
@@ -105,6 +103,19 @@ for (const text of [
   '同一逻辑写操作在超时、断网和结果未确认期间必须持续复用同一个 `Idempotency-Key`',
   'HTTP 408、429 与任意 5xx',
 ]) requireText(countdownDesign, text);
+
+const completeWrite = 'src/api/gameWriteConfirmation.ts';
+for (const token of [
+  'await source.text()', 'JSON.parse(text)', 'Promise.race([read(), aborted])',
+  'if (timeout !== null) globalThis.clearTimeout(timeout);',
+  'for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1)',
+  'attemptIndex === 0 ? options.signal : undefined',
+  'return status === 408 || status === 429 || status >= 500;',
+  'GameWriteUnconfirmedError',
+]) requireText(completeWrite, token);
+requireText(api, 'if (manualCommodity) { delete requestBody.price; delete requestBody.productionSettlement; }');
+requireText(runtimeStore, 'barrier).then(() => this.authoritativeWriteExecutor.submit(options, callback))');
+forbidText(runtimeStore, 'barrier).then(() => this.enqueueAuthoritativeWrite(options, callback))');
 
 if (failures.length > 0) {
   console.error('市场动作延迟防回退验证失败:');

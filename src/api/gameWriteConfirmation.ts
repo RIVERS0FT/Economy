@@ -74,6 +74,7 @@ async function completeAttempt(nativeFetch: typeof fetch, input: RequestInfo | U
 /** At most two attempts of the exact same request; reservation ownership stays outside. */
 export async function fetchConfirmedGameWrite(nativeFetch: typeof fetch, input: RequestInfo | URL,
   init: RequestInit, options: WriteAttemptOptions): Promise<ConfirmedWriteResponse> {
+  if (options.signal?.aborted) throw new DOMException('Game write was cancelled before sending', 'AbortError');
   let lastFailure: unknown;
   for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1) {
     try {

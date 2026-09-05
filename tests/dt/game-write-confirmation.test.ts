@@ -66,3 +66,11 @@ test('confirmation has a fresh signal even if the first caller signal was aborte
   }, '/orders', init, { timeoutMs: 50, signal: caller.signal });
   assert.equal(calls, 2); assert.deepEqual(result.payload, receipt);
 });
+
+test('a request already aborted before send is not retried into a new economic action', async () => {
+  const controller = new AbortController(); controller.abort();
+  let calls = 0;
+  await assert.rejects(fetchConfirmedGameWrite(async () => { calls += 1; return response(); }, '/orders', init,
+    { timeoutMs: 50, signal: controller.signal }), { name: 'AbortError' });
+  assert.equal(calls, 0);
+});
