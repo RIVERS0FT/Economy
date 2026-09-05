@@ -4,11 +4,11 @@ on:
     branches: [fix/map-raster-frame-budget-20260906]
     paths: [.github/workflows/map-raster-frame-diagnostics.yml]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  profile:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,17 +16,37 @@ jobs:
           node-version: 24.4.0
           cache: npm
       - run: npm ci
+      - name: Apply performance isolation runner
+        run: |
+          set -euo pipefail
+          python3 scripts/tmp-isolate-map-performance.py
+          git diff --check
+      - name: Validate runner plan and architecture
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --test tests/dt/browser-test-runner.test.ts
+          node scripts/verify-deployment-pipeline.mjs
+          node scripts/verify-runtime-reliability.mjs
+          node scripts/verify-provincial-economy.mjs
+          git diff --check
       - name: Prepare formal Playwright browser
         run: bash scripts/prepare-playwright-chromium.sh
-      - name: Profile steady transient Camera
-        run: npx playwright test tests/browser/map-camera-frame-diagnostics.spec.ts --grep "trace steady transient map Viz and GPU draw internals" --workers=1
-      - name: Reproduce fixed-budget gate
-        continue-on-error: true
-        run: npx playwright test tests/browser/map-zoom-transient.spec.ts --grep "transient raster frames stay close to the same-browser empty-frame budget" --workers=1
-      - name: Upload diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: map-raster-frame-diagnostics
-          path: test-results
-          retention-days: 2
+      - name: Validate full deployment shard 4 with isolated performance gate
+        run: npm run test:browser -- --shard=4/4
+      - name: Commit tested product changes only
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            package.json \
+            scripts/run-browser-tests.mjs \
+            tests/dt/browser-test-runner.test.ts \
+            scripts/verify-runtime-reliability.mjs \
+            scripts/verify-deployment-pipeline.mjs \
+            docs/CI_EXECUTION_DESIGN.md \
+            docs/STRATEGIC_MAP_RENDERING_DESIGN.md
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m 'fix: isolate quantitative map performance from browser shards'
+          git push origin HEAD:fix/map-raster-frame-budget-20260906
