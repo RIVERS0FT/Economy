@@ -65,8 +65,8 @@ for (const token of [
   '<small>交易总额</small>',
   '<small>预计到账</small>',
   '<small>手续费</small>',
-  "placeAssetOrder('commodity', assetId, orderSide, parsedQuantity, officialPrice)",
-  "{orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`}",
+  "placeAssetOrder('commodity', assetId, snapshot.side, snapshot.quantity, snapshot.price)",
+  "orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`",
 ]) requireText(marketPage, token, `地区商品详情缺少即时成交结构: ${token}`);
 for (const token of ['<small>今日成交价</small>', '<small>下次调价</small>', '<h3 id="market-immediate-trade-title" className="market-trade-section-title">即时交易</h3>']) forbidText(marketPage, token, `地区商品详情不得恢复重复行情字段或操作区标题: ${token}`);
 requireText(marketPage, 'aria-label="交易摘要"', '地区商品详情的交易摘要必须保留无障碍名称。');

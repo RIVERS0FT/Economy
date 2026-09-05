@@ -149,7 +149,7 @@ function MarketImmediateTradeEntry({
       setTradeFeedback(result.message);
       if (result.code === WRITE_RESULT_UNCONFIRMED) setTradePhase('unconfirmed');
       else { pendingTrade.current = null; setTradePhase('idle'); }
-      void Promise.resolve(showResult(result)).catch(() => {});
+      void Promise.resolve().then(() => showResult(result)).catch(() => {});
     } catch {
       setTradePhase('unconfirmed');
       setTradeFeedback('交易结果尚未确认，请勿重复交易；请确认原交易结果。');

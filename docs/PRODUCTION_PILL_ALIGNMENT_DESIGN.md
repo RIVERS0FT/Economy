@@ -37,7 +37,7 @@
 
 地区已拥有商业建筑与工业建筑共用 `BuildingClusterCard` 纯展示组件和本文的选择卡几何、状态颜色、整卡按钮、键盘焦点与二级详情规则；商业不得复制第二套网格、卡片、遮罩或响应式断点。商业与工业详情统一使用 `BuildingDetailPage`，共用 `MobileDetailSummary`、状态胶囊、紧凑开关、利润展示区和线性周期轨道，不创建独立滚动根或专用 Sheet。开关和状态区沿用工业摘要同一行的几何。
 
-商业卡片与详情字段归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，插画与共享组件边界归 `UI_DESIGN_SYSTEM.md`，营业意图、周期锁定与消费规则归 `COMMERCIAL_BUILDINGS_DESIGN.md`；视觉共用不得带入工业满员率、配方或资产资格。
+商业卡片与详情字段归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，插画与共享组件边界归 `UI_DESIGN_SYSTEM.md`，营业意图、周期锁定与消费规则归 `COMMERCIAL_BUILDINGS_DESIGN.md`；视觉共用不得带入工业产能算法、配方或资产资格；商业满员率采用独立商业经营规则。
 
 `tests/browser/commercial-buildings-layout.spec.ts` 对照工业基线验证 320px 起的三列比例、整卡和键盘导航、摘要与开关高度、长名称与大数量、异常与停止状态、权威周期和请求失败行为。
 

@@ -5,10 +5,9 @@ const order = { provinceId: '110000', assetKind: 'commodity', assetId: 'food', p
 
 async function bootCoordinator(page: Page) {
   await page.goto('runtime-test.html?view=commerce&scenario=activity');
-  await page.evaluate(async () => {
-    const path = '/src/api/idempotentGameWriteFetch.ts';
-    const module = await import(/* @vite-ignore */ path);
-    module.installIdempotentGameWriteFetch();
+  await expect(page.locator('.commercial-build-card')).toBeVisible();
+  await page.evaluate(() => {
+    (window as unknown as { __installGameWriteCoordinator: () => void }).__installGameWriteCoordinator();
   });
 }
 async function rawOrder(page: Page, key: string) {
@@ -110,3 +109,21 @@ for (const side of ['buy', 'sell']) {
     expect(await page.locator('.market-immediate-trade').evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
   });
 }
+
+test('notification failure cannot turn a confirmed commodity purchase back into an unknown transaction', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('runtime-test.html?view=trade-confirmation&scenario=activity');
+  await expect(page.locator('.market-immediate-trade')).toBeVisible();
+  await page.evaluate(() => {
+    (window as unknown as { __tradeFixture: { failFeedback: () => void } }).__tradeFixture.failFeedback();
+  });
+  await page.locator('.market-submit-order').click();
+  await page.evaluate(() => {
+    (window as unknown as { __tradeFixture: { resolve: (value: unknown) => void } }).__tradeFixture.resolve({ ok: true, message: '成交完成' });
+  });
+  await expect(page.locator('.market-trade-feedback')).toHaveText('成交完成');
+  await expect(page.locator('.market-submit-order')).toContainText('立即买入');
+  await expect(page.locator('.market-side-switch button').first()).toBeEnabled();
+  expect(errors).toEqual([]);
+});

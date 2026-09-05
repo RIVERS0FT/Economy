@@ -9,6 +9,7 @@ import { publishCommodityWriteProgress } from '../../src/api/commodityWriteProgr
 export function TradeConfirmationHarness({ base }: { base: LoadedGameViewModel }) {
   const [side, setSide] = useState<OrderSide>('buy');
   const [resources, setResources] = useState({ credits: 10_000, available: 100 });
+  const feedbackFails = useRef(false);
   const calls = useRef<unknown[][]>([]);
   const resolver = useRef<((result: GameActionResult) => void) | null>(null);
   const model: LoadedGameViewModel = {
@@ -23,11 +24,12 @@ export function TradeConfirmationHarness({ base }: { base: LoadedGameViewModel }
       calls.current.push(args);
       return new Promise<GameActionResult>((resolve) => { resolver.current = resolve; });
     },
-    showResult: async () => {},
+    showResult: () => { if (feedbackFails.current) throw new Error('fixture notification failed'); },
   };
   Object.assign(window, {
     __tradeFixture: {
       calls: () => calls.current,
+      failFeedback: () => { feedbackFails.current = true; },
       resolve: (result: GameActionResult) => { resolver.current?.(result); resolver.current = null; },
       resources: setResources,
       confirming: () => publishCommodityWriteProgress(JSON.stringify({ provinceId: '110000', assetKind: 'commodity', assetId: 'machinery', side, quantity: 2 }), 'confirming'),

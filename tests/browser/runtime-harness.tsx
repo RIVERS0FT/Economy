@@ -1,3 +1,4 @@
+import { installIdempotentGameWriteFetch } from '../../src/api/idempotentGameWriteFetch';
 import { TradeConfirmationHarness } from './TradeConfirmationHarness';
 import { GlobalBuildingsPage } from '../../src/pages/GlobalBuildingsPage';
 import { GlobalMarketPage } from '../../src/pages/GlobalMarketPage';
@@ -1892,6 +1893,8 @@ function TradeConfirmationRuntime() {
   const base = useMemo(() => buildOverviewModel(tab, setTab), [tab]);
   return <TradeConfirmationHarness base={base} />;
 }
+
+Object.assign(window, { __installGameWriteCoordinator: installIdempotentGameWriteFetch });
 
 const runtimeView = view === 'trade-confirmation' ? <TradeConfirmationRuntime /> : view === 'unified-buildings' ? <CommerceHarness scope="global" />
   : view === 'regional-buildings' ? <CommerceHarness scope="regional" /> : view === 'commerce' ? <CommerceHarness /> : view === 'overview'
