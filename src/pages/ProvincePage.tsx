@@ -44,7 +44,8 @@ interface ProvinceCommercialState {
 const PROVINCE_SECTIONS: Array<{ id: ProvinceSection; label: string }> = [
   { id: 'overview', label: '概览' },
   { id: 'market', label: '市场' },
-  { id: 'buildings', label: '建筑' },
+  { id: 'commerce', label: '商业' },
+  { id: 'buildings', label: '工业' },
   { id: 'warehouse', label: '仓库' },
 ];
 
@@ -137,32 +138,41 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
   const [fallbackSection, setFallbackSection] = useState<ProvinceSection>('overview');
   const [fallbackFacilityDetailTypeId, setFallbackFacilityDetailTypeId] = useState<string | null>(null);
   const [fallbackCommercialDetailTypeId, setFallbackCommercialDetailTypeId] = useState<string | null>(null);
+  const fallbackScope = JSON.stringify([model.game.userId, model.selectedProvinceId]);
+  const [fallbackScopeKey, setFallbackScopeKey] = useState(fallbackScope);
+  const fallbackMatchesProvince = fallbackScopeKey === fallbackScope;
+  useEffect(() => {
+    setFallbackScopeKey(fallbackScope);
+    setFallbackSection('overview');
+    setFallbackFacilityDetailTypeId(null);
+    setFallbackCommercialDetailTypeId(null);
+  }, [fallbackScope]);
   const location = pageNavigation?.currentLocation;
   const locationMatchesProvince = location && 'provinceId' in location
     ? location.provinceId === model.selectedProvinceId
     : false;
   const activeSection: ProvinceSection = pageNavigation
     ? locationMatchesProvince && location?.type === 'province'
-      ? location.section === 'commerce' ? 'buildings' : location.section
+      ? location.section
       : locationMatchesProvince && location?.type === 'regional-product' && location.host === 'province'
         ? 'market'
         : locationMatchesProvince && location?.type === 'regional-commercial' && location.host !== 'buildings'
-          ? 'buildings'
+          ? 'commerce'
           : locationMatchesProvince && location?.type === 'regional-facility' && location.host === 'province'
             ? 'buildings'
             : 'overview'
-    : fallbackSection;
+    : fallbackMatchesProvince ? fallbackSection : 'overview';
   const facilityDetailTypeId = pageNavigation
     && locationMatchesProvince
     && location?.type === 'regional-facility'
     && location.host === 'province'
     ? location.facilityTypeId
-    : fallbackFacilityDetailTypeId;
+    : !pageNavigation && fallbackMatchesProvince ? fallbackFacilityDetailTypeId : null;
   const commercialDetailTypeId = pageNavigation
     && locationMatchesProvince
     && location?.type === 'regional-commercial' && location.host !== 'buildings'
     ? location.commercialTypeId
-    : fallbackCommercialDetailTypeId;
+    : !pageNavigation && fallbackMatchesProvince ? fallbackCommercialDetailTypeId : null;
   const stackedProductId = pageNavigation
     && locationMatchesProvince
     && location?.type === 'regional-product'
@@ -189,7 +199,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     ? (commercialGame.commercialBuildingTypes ?? []).find((type) => type.id === commercialDetailEntry.commercialTypeId)
     : undefined;
   const isFacilityDetail = activeSection === 'buildings' && Boolean(facilityDetailType);
-  const isCommercialDetail = activeSection === 'buildings' && Boolean(commercialDetailType);
+  const isCommercialDetail = activeSection === 'commerce' && Boolean(commercialDetailType);
   const marketDetailProductId = activeSection === 'market'
     ? stackedProductId ?? (
       model.marketViewMode === 'detail' && model.marketAssetKind === 'commodity'
@@ -305,7 +315,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     pageNavigation.replacePage({
       type: 'province',
       provinceId: model.selectedProvinceId,
-      section: 'buildings',
+      section: 'commerce',
     });
   };
 
@@ -377,9 +387,9 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       backAction={pageNavigation ? undefined : isMarketDetail
         ? { label: '返回商品列表', onClick: model.showMarketCatalog }
         : isCommercialDetail
-          ? { label: '返回建筑列表', onClick: () => setFallbackCommercialDetailTypeId(null) }
+          ? { label: '返回商业建筑列表', onClick: () => setFallbackCommercialDetailTypeId(null) }
           : isFacilityDetail
-            ? { label: '返回建筑列表', onClick: () => setFallbackFacilityDetailTypeId(null) }
+            ? { label: '返回工业建筑列表', onClick: () => setFallbackFacilityDetailTypeId(null) }
             : { label: '返回地图', onClick: () => model.setTab('map') }}
     >
       {!isEntityDetail ? sectionSwitch : null}
@@ -396,11 +406,12 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
             <EmbeddedMarketPage model={model} embedded />
           </Suspense>
         ) : null}
-        {activeSection === 'buildings' ? (
+        {activeSection === 'commerce' || activeSection === 'buildings' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
             <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
               <EmbeddedBuildingsPage
                 model={model}
+                kind={activeSection === 'commerce' ? 'commercial' : 'industrial'}
                 embedded
                 detailFacilityTypeId={facilityDetailTypeId ?? undefined}
                 onDetailFacilityChange={handleFacilityDetailChange}

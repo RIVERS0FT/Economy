@@ -1800,6 +1800,7 @@ function ScrollOwnershipHarness() {
 function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'regional' | 'global' }) {
   const [tab, setTab] = useState<TabId>(scope === 'global' ? 'buildings' : 'province');
   const [provinceId, setProvinceId] = useState('110000');
+  const [fixtureUserId, setFixtureUserId] = useState(77901);
   const [marketAssetId, setMarketAssetId] = useState('food');
   const [marketViewMode, setMarketViewMode] = useState<'catalog' | 'detail'>('catalog');
   const fixtureNow = useMemo(() => Date.now(), []);
@@ -1833,6 +1834,8 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     return [...current, { ...current[0], provinceId: '120000', count: 7 }];
   });
   Object.assign(window, {
+    __setBuildingProvince: setProvinceId,
+    __setBuildingUser: setFixtureUserId,
     __updateCommercialGroup: (commercialTypeId: string, patch: Partial<CommercialBuildingGroup>) => {
       setGroups((previous) => previous.map((group) => group.commercialTypeId === commercialTypeId && group.provinceId === provinceId ? { ...group, ...patch } : group));
     },
@@ -1866,7 +1869,7 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     startFacilityGroup: async () => ({ ok: true, message: '测试开工' }),
     stopFacilityGroup: async () => ({ ok: true, message: '测试停工' }),
     setFacilityRecipes: async () => ({ ok: true, message: '测试配置' }),
-    game: { ...base.game, credits: 10_000, lastProcessedAt: fixtureNow, commercialBuildingTypes: types,
+    game: { ...base.game, userId: fixtureUserId, credits: 10_000, lastProcessedAt: fixtureNow, commercialBuildingTypes: types,
       commercialBuildingGroups: groups, products, markets, provinceMarkets: { '110000': markets, '120000': markets },
       facilityGroups: provinceFacilityGroups[provinceId as keyof typeof provinceFacilityGroups] ?? [], provinceFacilityGroups,
       inventories: provinceInventories[provinceId as keyof typeof provinceInventories] ?? {}, provinceInventories,
@@ -1876,6 +1879,9 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     : tab === 'buildings' ? <GlobalBuildingsPage model={model} />
       : tab === 'province' ? <ProvincePage model={model} />
         : tab === 'market' ? <GlobalMarketPage model={model} /> : <MapPage model={model} />;
+  if (new URLSearchParams(window.location.search).get('navigation') === 'none') {
+    return <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>{page}</FacilityRecipeProfitMarketsProvider>;
+  }
   return <GameShell model={model}><FacilityRecipeProfitMarketsProvider markets={model.game.markets}>{page}</FacilityRecipeProfitMarketsProvider></GameShell>;
 }
 

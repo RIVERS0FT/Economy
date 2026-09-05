@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function openRegional(page: Page, scenario = 'activity') {
   await page.goto(`runtime-test.html?view=regional-buildings&scenario=${scenario}`);
-  await expect(page.getByRole('tab', { name: '建筑', exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: '建筑', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '商业', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '商业', exact: true }).click();
   await expect(page.locator('.unified-regional-buildings')).toBeVisible();
 }
 async function filter(page: Page, label: '全部' | '商业建筑' | '工业建筑') {
@@ -52,12 +52,12 @@ for (const width of [320, 1440]) {
   test(`regional directory and both shared details remain usable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await openRegional(page);
-    await expect(page.getByRole('tab')).toHaveCount(4);
-    await expect(page.getByRole('tab', { name: '商业', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('tab')).toHaveCount(5);
+    await expect(page.getByRole('tab', { name: '商业', exact: true })).toBeVisible();
     await expect(page.locator('.unified-building-list')).toHaveCount(1);
-    await expect(page.locator('.unified-building-list > .facility-cluster-selector-card')).toHaveCount(7);
+    await expect(page.locator('.unified-building-list > .facility-cluster-selector-card')).toHaveCount(6);
     await expect(page.locator('.commercial-building-card').first().locator('.facility-cluster-count')).toHaveText('3');
-    await filter(page, '商业建筑');
+    await expect(page.locator('.building-type-filter')).toHaveCount(0);
     await expect(page.locator('.unified-building-list > .facility-cluster-selector-card')).toHaveCount(6);
     await expect(page.locator('.production-build-card:not(.commercial-build-card)')).toHaveCount(0);
     await page.locator('.commercial-building-card').first().click();
@@ -73,9 +73,11 @@ for (const width of [320, 1440]) {
     await assertNoOverflow(page);
     await page.locator('.page-navigation-button--back').click();
     await expect(page.locator('.unified-building-list > .facility-cluster-selector-card')).toHaveCount(6);
-    await filter(page, '工业建筑');
+    await expect(page.getByRole('tab', { name: '商业', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('tab', { name: '工业', exact: true }).click();
     await page.locator('.unified-building-list > .facility-cluster-selector-card').first().click();
     await expect(detail).toHaveAttribute('data-building-kind', 'industrial');
+    await expect(page.getByRole('tablist')).toHaveCount(0);
     await expect(detail.locator('.facility-production-formula-heading')).toHaveText('生产结算');
     await expect(detail.locator('.facility-auto-operation__header')).toContainText('自动经营');
     await assertNoOverflow(page);
@@ -158,8 +160,8 @@ test('legacy unknown settlement detail stays unknown and empty commerce retains 
   await expect(page.locator('.commercial-settlement')).toContainText('锁定明细待确认');
   await expect(page.getByText('本周期锁定商品价值', { exact: true }).locator('..')).toContainText('—');
   await expect(page.getByText('本周期锁定收入', { exact: true }).locator('..')).toContainText('101.25');
-  await openRegional(page, 'empty'); await filter(page, '商业建筑');
+  await openRegional(page, 'empty');
   await expect(page.locator('.commercial-build-card')).toBeVisible();
   await expect(page.locator('.unified-building-list .facility-cluster-selector-card')).toHaveCount(0);
-  await expect(page.getByText('没有符合当前筛选条件的建筑。')).toBeVisible();
+  await expect(page.getByText('当前地区尚未拥有商业建筑。')).toBeVisible();
 });

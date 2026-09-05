@@ -1,3 +1,4 @@
+import type { BuildingConstructionDraft } from '../hooks/useBuildingConstructionDraft';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { runCommercialBuildingAction, type CommercialBuildingOperation } from '../api/commercial';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
@@ -27,12 +28,14 @@ export function CommercePage({
   model,
   embedded = false,
   renderPart,
+  constructionDraft,
   detailCommercialTypeId,
   onDetailCommercialTypeChange,
 }: {
   model: LoadedGameViewModel;
   embedded?: boolean;
   renderPart?: 'build' | 'cards';
+  constructionDraft?: BuildingConstructionDraft;
   detailCommercialTypeId?: string;
   onDetailCommercialTypeChange?: (commercialTypeId: string | null) => void;
 }) {
@@ -42,8 +45,12 @@ export function CommercePage({
   const provinceGroups = (game.commercialBuildingGroups ?? []).filter((group) => (
     group.provinceId === model.selectedProvinceId && group.count > 0
   ));
-  const [selectedBuildTypeId, setSelectedBuildTypeId] = useState(types[0]?.id ?? '');
-  const [buildQuantity, setBuildQuantity] = useState(1);
+  const [internalBuildTypeId, setInternalBuildTypeId] = useState(types[0]?.id ?? '');
+  const selectedBuildTypeId = constructionDraft?.typeId ?? internalBuildTypeId;
+  const setSelectedBuildTypeId = constructionDraft?.setTypeId ?? setInternalBuildTypeId;
+  const [internalBuildQuantity, setInternalBuildQuantity] = useState(1);
+  const buildQuantity = constructionDraft?.quantity ?? internalBuildQuantity;
+  const setBuildQuantity = constructionDraft?.setQuantity ?? setInternalBuildQuantity;
   const [internalDetailTypeId, setInternalDetailTypeId] = useState('');
   const [pendingAction, setPendingAction] = useState('');
   const pendingActionRef = useRef(false);
@@ -55,7 +62,7 @@ export function CommercePage({
   useEffect(() => {
     if (types.some((type) => type.id === selectedBuildTypeId)) return;
     setSelectedBuildTypeId(types[0]?.id ?? '');
-  }, [selectedBuildTypeId, types]);
+  }, [selectedBuildTypeId, setSelectedBuildTypeId, types]);
 
   const typeById = useMemo(
     () => new Map(types.map((type) => [type.id, type])),

@@ -64,10 +64,10 @@ assert.ok(assetChart.includes("{ name: '建筑'"), '资产配置图必须把工�
 assert.ok(overview.includes('label="商业建筑估值"'), '概览资产摘要必须显示商业建筑估值');
 
 const marketIndex = province.indexOf("{ id: 'market', label: '市场' }");
-const buildingsIndex = province.indexOf("{ id: 'buildings', label: '建筑' }");
+const buildingsIndex = province.indexOf("{ id: 'buildings', label: '工业' }");
 assert.ok(marketIndex >= 0 && buildingsIndex > marketIndex, '地区导航必须保持市场 / 建筑顺序');
-assert.equal(province.includes("{ id: 'commerce', label: '商业' }"), false, '商业不再使用独立分区');
-assert.ok(provinceCss.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'), '地区四分区必须等宽');
+assert.ok(province.includes("{ id: 'commerce', label: '商业' }"), '商业必须使用独立地区分区');
+assert.ok(provinceCss.includes('grid-template-columns: repeat(5, minmax(0, 1fr));'), '地区五分区必须等宽');
 assert.ok(navigation.includes("'overview' | 'market' | 'commerce' | 'buildings' | 'warehouse'"));
 assert.ok(navigation.includes("type: 'regional-commercial'"));
 
@@ -86,7 +86,7 @@ for (const token of [
   '不是市场成交',
 ]) assert.ok(design.includes(token), `商业权威设计缺少: ${token}`);
 for (const token of [
-  '概览｜市场｜建筑｜仓库',
+  '概览｜市场｜商业｜工业｜仓库',
   '统一建筑目录',
   '商业建筑卡片与详情',
 ]) assert.ok(pageDesign.includes(token), `地区页面权威设计缺少商业分区规则: ${token}`);
@@ -98,8 +98,10 @@ assert.ok(docsIndex.includes('`COMMERCIAL_BUILDINGS_DESIGN.md`'), '设计索引�
 
 console.log('commercial buildings verification passed');
 
+assert.ok(read('src/pages/GlobalBuildingsPage.tsx').includes('<BuildingTypeFilter'));
+assert.equal(read('src/pages/RegionalBuildingsPage.tsx').includes('<BuildingTypeFilter'), false);
+assert.equal(read('src/pages/RegionalBuildingsPage.tsx').includes('useBuildingTypeFilter'), false);
 for (const path of ['src/pages/GlobalBuildingsPage.tsx', 'src/pages/RegionalBuildingsPage.tsx']) {
-  assert.ok(read(path).includes('<BuildingTypeFilter'));
   assert.ok(read(path).includes('commercialBuildingGroups'));
 }
 const buildingFilter = read('src/components/buildings/BuildingTypeFilter.tsx');

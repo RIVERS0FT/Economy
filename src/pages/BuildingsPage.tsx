@@ -1,3 +1,4 @@
+import type { BuildingConstructionDraft } from '../hooks/useBuildingConstructionDraft';
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getFacilityBuildProcurementQuote } from '../api/game';
@@ -55,19 +56,19 @@ export function BuildingsPage({
   model,
   embedded = false,
   renderPart,
+  constructionDraft,
   detailFacilityTypeId,
   onDetailFacilityChange,
 }: {
   model: LoadedGameViewModel;
   embedded?: boolean;
   renderPart?: 'build' | 'cards';
+  constructionDraft?: BuildingConstructionDraft;
   detailFacilityTypeId?: string;
   onDetailFacilityChange?: (facilityTypeId: string | null) => void;
 }) {
   const {
     game,
-    selectedFacilityTypeId,
-    setSelectedFacilityTypeId,
     buildFacility,
     startFacility,
     stopFacility,
@@ -76,9 +77,13 @@ export function BuildingsPage({
     showResult,
   } = model;
 
+  const selectedFacilityTypeId = constructionDraft?.typeId ?? model.selectedFacilityTypeId;
+  const setSelectedFacilityTypeId = constructionDraft?.setTypeId ?? model.setSelectedFacilityTypeId;
   const now = game.lastProcessedAt;
   const [internalDetailFacilityTypeId, setInternalDetailFacilityTypeId] = useState('');
-  const [buildQuantity, setBuildQuantity] = useState(1);
+  const [internalBuildQuantity, setInternalBuildQuantity] = useState(1);
+  const buildQuantity = constructionDraft?.quantity ?? internalBuildQuantity;
+  const setBuildQuantity = constructionDraft?.setQuantity ?? setInternalBuildQuantity;
   const [procurementQuoteState, setProcurementQuoteState] = useState<{
     key: string;
     quote: FacilityBuildProcurementQuote;

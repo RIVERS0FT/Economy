@@ -41,6 +41,6 @@
 
 `tests/browser/commercial-buildings-layout.spec.ts` 对照工业基线验证 320px 起的三列比例、整卡和键盘导航、摘要与开关高度、长名称与大数量、异常与停止状态、权威周期和请求失败行为。
 
-两类详情的自动经营与结算分别共用 `BuildingAutoOperationSection` 和 `BuildingSettlementPanel`；地区已拥有列表只保留一张混合网格，沿用本文的三列 4:5 规则。商业收入替代工业产出槽的内容，不另设结算几何。
+两类详情的自动经营与结算分别共用 `BuildingAutoOperationSection` 和 `BuildingSettlementPanel`；地区商业与工业分区分别显示本类别网格，共用本文的三列 4:5 规则；入口和类别归属唯一引用 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`。商业收入替代工业产出槽的内容，不另设结算几何。
 
 自动经营标题与开关的垂直中心对齐，正常宽度下不得分行；状态摘要的营业开关仍按本文原胶囊几何排列。该规则由共享自动经营组件同时覆盖工业与商业。
