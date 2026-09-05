@@ -1,0 +1,77 @@
+name: Bootstrap map font subset
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/map-font-subset-bootstrap.yml'
+      - 'shared/provinces.json'
+
+permissions:
+  contents: read
+
+jobs:
+  subset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build pinned Source Han Serif map subset
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'fonttools[woff]==4.59.2' brotli==1.1.0
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          provinces = json.loads(Path('shared/provinces.json').read_text(encoding='utf-8'))
+          chars = ''.join(sorted(set(''.join(item['name'] for item in provinces))))
+          Path('/tmp/map-font-chars.txt').write_text(chars, encoding='utf-8')
+          print(f'MAP_FONT_CHAR_COUNT={len(chars)}')
+          print(f'MAP_FONT_CHARS={chars}')
+          PY
+          curl --fail --location --silent --show-error \
+            'https://raw.githubusercontent.com/adobe-fonts/source-han-serif/2.003R/SubsetOTF/CN/SourceHanSerifCN-SemiBold.otf' \
+            --output /tmp/source-han-serif-cn-semibold.otf
+          test "$(git hash-object /tmp/source-han-serif-cn-semibold.otf)" = '44d7f0c522ee7e9c6cb373a5ef7e851f30b558a1'
+          pyftsubset /tmp/source-han-serif-cn-semibold.otf \
+            --text-file=/tmp/map-font-chars.txt \
+            --output-file=/tmp/economy-map-serif-600.woff2 \
+            --flavor=woff2 \
+            --layout-features='' \
+            --no-layout-closure \
+            --notdef-glyph \
+            --notdef-outline \
+            --recommended-glyphs \
+            --name-IDs='*' \
+            --name-languages='*'
+          python3 - <<'PY'
+          from fontTools.ttLib import TTFont
+          path = '/tmp/economy-map-serif-600.woff2'
+          font = TTFont(path)
+          font['OS/2'].usWeightClass = 600
+          names = {
+              1: 'Economy Map Serif',
+              2: 'SemiBold',
+              3: 'Economy Map Serif SemiBold 2.003R subset',
+              4: 'Economy Map Serif SemiBold',
+              6: 'EconomyMapSerif-SemiBold',
+              16: 'Economy Map Serif',
+              17: 'SemiBold',
+          }
+          table = font['name']
+          for name_id, value in names.items():
+              table.removeNames(nameID=name_id)
+              table.setName(value, name_id, 3, 1, 0x409)
+              table.setName(value, name_id, 1, 0, 0)
+          font.flavor = 'woff2'
+          font.save(path)
+          PY
+          echo "MAP_FONT_SIZE=$(stat -c '%s' /tmp/economy-map-serif-600.woff2)"
+          echo "MAP_FONT_SHA256=$(sha256sum /tmp/economy-map-serif-600.woff2 | cut -d ' ' -f 1)"
+          echo 'MAP_FONT_BASE64_BEGIN'
+          base64 -w 4096 /tmp/economy-map-serif-600.woff2
+          echo
+          echo 'MAP_FONT_BASE64_END'
