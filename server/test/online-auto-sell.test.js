@@ -156,7 +156,7 @@ test('a keep producer disables automatic selling and creates no managed order', 
   const result = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 1);
 
   assert.equal(result.ok, false);
-  assert.match(result.message, /工厂策略无需自动出售/);
+  assert.match(result.message, /建筑策略无需自动出售/);
   assert.equal(seller.inventories[fixture.productId].available, 10);
   assert.equal(seller.inventories[fixture.productId].frozen, 0);
   assert.equal(openPlayerOrders(world).length, 0);

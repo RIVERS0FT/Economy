@@ -1,6 +1,5 @@
-import { CompactCurrency, CompactNumber } from '../ui/CompactNumber';
-import { CreditsIcon, CycleIcon, WarehouseIcon } from '../icons/GameIcons';
-import { ProductArtwork } from '../products/ProductArtwork';
+import { BuildingSettlementPanel } from '../buildings/BuildingSettlementPanel';
+import { BuildingSettlementProducts as RecipeItems } from '../buildings/BuildingSettlementProducts';
 import { GameConcept } from '../ui/GameConcept';
 import type {
   FacilityGroup,
@@ -86,54 +85,6 @@ function recipeText(items: FacilityRecipeItem[], productNames: ProductNameMap, m
     .join('和');
 }
 
-function RecipeItems({
-  items,
-  productNames,
-  inventories,
-  multiplier,
-  groupClassName,
-  itemClassName,
-  onOpenProductMarket,
-}: {
-  items: FacilityRecipeItem[];
-  productNames: ProductNameMap;
-  inventories: Record<string, ProductInventory>;
-  multiplier: number;
-  groupClassName: string;
-  itemClassName: string;
-  onOpenProductMarket: (productId: string) => void;
-}) {
-  return (
-    <div className={groupClassName}>
-      {items.map((item, index) => {
-        const productName = productNames.get(item.productId) ?? item.productId;
-        const quantity = item.quantity * multiplier;
-        const warehouseQuantity = inventories[item.productId]?.available ?? 0;
-        return (
-          <button
-            type="button"
-            className="facility-formula-item-group"
-            data-ui-interactive="surface"
-            key={`${item.productId}-${index}`}
-            aria-label={`查看${productName}本地商品详情，生产数量 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}
-            title={`查看${productName}本地商品详情 · 生产 ${formatNumber(quantity)} · 仓库可用 ${formatNumber(warehouseQuantity)}`}
-            onClick={() => onOpenProductMarket(item.productId)}
-          >
-            <span className={itemClassName}>
-              <ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />
-              <strong>{<CompactNumber value={quantity} />}</strong>
-              <span className="facility-formula-inventory" title={`${productName}仓库可用数量`}>
-                <WarehouseIcon className="facility-formula-meta-icon" />
-                <span>{<CompactNumber value={warehouseQuantity} />}</span>
-              </span>
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function progressDescription(group: FacilityGroup, type: FacilityTypeDefinition, now: number) {
   if (group.status !== 'running' || !group.cycleStartedAt) {
     return group.status === 'error' ? '当前等待条件恢复' : '当前未运行';
@@ -183,64 +134,16 @@ export function FacilityProductionFormula({
     .join('。');
 
   return (
-    <section className="facility-production-formula"
-        data-status={group.status}
-        role="group"
-        aria-label={description}
-      >
-        <div className="facility-production-formula-heading">
-          <strong><GameConcept concept="production-settlement" /></strong>
-        </div>
-        <div className="facility-formula-visual">
-          <div className="facility-formula-top">
-            <div className="facility-formula-input-side">
-              <span className="facility-formula-side-label"><GameConcept concept="production-input" /></span>
-              <div className="facility-formula-input">
-                {inputs.length > 0 ? (
-                  <RecipeItems
-                    items={inputs}
-                    productNames={productNames}
-                    inventories={inventories}
-                    multiplier={scope.count}
-                    groupClassName="facility-formula-input-group"
-                    itemClassName="facility-formula-input-item"
-                    onOpenProductMarket={onOpenProductMarket}
-                  />
-                ) : <span className="facility-formula-empty">无</span>}
-              </div>
-            </div>
-
-            <div className="facility-formula-output-side">
-              <span className="facility-formula-side-label"><GameConcept concept="production-output" /></span>
-              <div className="facility-formula-output">
-                <RecipeItems
-                  items={outputs}
-                  productNames={productNames}
-                  inventories={inventories}
-                  multiplier={scope.count}
-                  groupClassName="facility-formula-output-group"
-                  itemClassName="facility-formula-output-item"
-                  onOpenProductMarket={onOpenProductMarket}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="facility-formula-meta" aria-hidden="true">
-            <span className="facility-formula-meta-unit is-cycle">
-              <CycleIcon className="facility-formula-meta-icon" />
-              <span>{formatDuration(type.cycleMs)}</span>
-            </span>
-            <span className="facility-formula-meta-unit is-cost">
-              <CreditsIcon className="facility-formula-meta-icon" />
-              <span>{<CompactCurrency value={type.operatingCost * scope.count} />}</span>
-            </span>
-          </div>
-
-          <div className="facility-formula-progress" aria-hidden="true">
-            <FacilityGroupProgress group={group} type={type} now={now} />
-          </div>
-        </div>
-    </section>
+    <BuildingSettlementPanel title={<GameConcept concept="production-settlement" />} status={group.status} description={description}
+      inputLabel={<GameConcept concept="production-input" />} outputLabel={<GameConcept concept="production-output" />}
+      inputs={inputs.length > 0 ? <RecipeItems items={inputs} productNames={productNames} inventories={inventories}
+        multiplier={scope.count} groupClassName="facility-formula-input-group" itemClassName="facility-formula-input-item"
+        onOpenProductMarket={onOpenProductMarket} /> : <span className="facility-formula-empty">无</span>}
+      outputs={<RecipeItems items={outputs} productNames={productNames} inventories={inventories}
+        multiplier={scope.count} groupClassName="facility-formula-output-group" itemClassName="facility-formula-output-item"
+        onOpenProductMarket={onOpenProductMarket} />}
+      cycleMs={type.cycleMs} operatingCost={type.operatingCost * scope.count}
+      progress={<FacilityGroupProgress group={group} type={type} now={now} />}
+    />
   );
 }

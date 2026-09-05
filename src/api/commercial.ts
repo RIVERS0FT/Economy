@@ -1,15 +1,17 @@
+import type { CommercialAutoOperationPolicy } from '../types/commercial';
 export interface CommercialBuildingActionResult {
   ok: boolean;
   message: string;
 }
 
-export type CommercialBuildingOperation = 'build' | 'start' | 'stop';
+export type CommercialBuildingOperation = 'build' | 'start' | 'stop' | 'auto-operation';
 
 interface CommercialBuildingActionInput {
   operation: CommercialBuildingOperation;
   provinceId: string;
   commercialTypeId: string;
   quantity?: number;
+  policy?: CommercialAutoOperationPolicy;
 }
 
 function requestKey() {

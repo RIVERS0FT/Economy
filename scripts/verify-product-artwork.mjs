@@ -23,7 +23,7 @@ const productIconsPath = 'src/components/icons/ProductIcons.tsx';
 const iconSystemPath = 'src/styles/icon-system.css';
 const productArtworkPath = 'src/components/products/ProductArtwork.tsx';
 const richSelectPath = 'src/components/ui/RichSelectInput.tsx';
-const formulaPath = 'src/components/facilities/FacilityProductionFormula.tsx';
+const formulaPath = 'src/components/buildings/BuildingSettlementProducts.tsx';
 const marketCommodityRowPath = 'src/components/market/MarketCommodityRow.tsx';
 const denseProductPages = [
   'src/components/assets/AssetOverviewPanel.tsx',

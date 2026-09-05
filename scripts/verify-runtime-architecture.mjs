@@ -59,7 +59,7 @@ for (const legacyTopLevel of ['./MarketPage', './BuildingsPage']) {
   }
 }
 const provinceImports = importTargets('src/pages/ProvincePage.tsx');
-for (const target of ['./MarketPage', './BuildingsPage']) {
+for (const target of ['./MarketPage', './RegionalBuildingsPage']) {
   if (!provinceImports.dynamic.includes(target)) fail(`ProvincePage.tsx 必须动态导入地区页面 ${target}`);
   if (provinceImports.staticImports.includes(target)) fail(`ProvincePage.tsx 不得静态导入地区页面 ${target}`);
 }

@@ -74,7 +74,7 @@ function activeRecipeInputs(game: EconomyState, group: FacilityGroup): FacilityR
   return type.inputs;
 }
 
-function productionReservations(game: EconomyState) {
+function productionReservations(game: EconomyState, provinceId: string) {
   const reserved: Record<string, number> = {};
   for (const group of game.facilityGroups) {
     if (!group.enabled) continue;
@@ -87,20 +87,36 @@ function productionReservations(game: EconomyState) {
       if (quantity > 0) reserved[input.productId] = (reserved[input.productId] ?? 0) + quantity;
     }
   }
+  for (const group of game.commercialBuildingGroups ?? []) {
+    if (!group.enabled || group.provinceId !== provinceId) continue;
+    const type = game.commercialBuildingTypes?.find((candidate) => candidate.id === group.commercialTypeId);
+    if (!type) continue;
+    for (const input of type.consumptionInputs) {
+      reserved[input.productId] = (reserved[input.productId] ?? 0) + input.quantity * nonNegativeInteger(group.count);
+    }
+  }
   return reserved;
 }
 
+let cachedCommercialGroups: EconomyState['commercialBuildingGroups'];
+let cachedCommercialTypes: EconomyState['commercialBuildingTypes'];
+let cachedReservationProvinceId = '';
 let cachedProductionGroups: EconomyState['facilityGroups'] | null = null;
 let cachedProductionTypes: EconomyState['facilityTypes'] | null = null;
 let cachedProductionReservations: Record<string, number> = {};
 
-function currentProductionReservations(game: EconomyState) {
-  if (cachedProductionGroups === game.facilityGroups && cachedProductionTypes === game.facilityTypes) {
+function currentProductionReservations(game: EconomyState, provinceId: string) {
+  if (cachedProductionGroups === game.facilityGroups && cachedProductionTypes === game.facilityTypes
+    && cachedCommercialGroups === game.commercialBuildingGroups && cachedCommercialTypes === game.commercialBuildingTypes
+    && cachedReservationProvinceId === provinceId) {
     return cachedProductionReservations;
   }
   cachedProductionGroups = game.facilityGroups;
   cachedProductionTypes = game.facilityTypes;
-  cachedProductionReservations = productionReservations(game);
+  cachedCommercialGroups = game.commercialBuildingGroups;
+  cachedCommercialTypes = game.commercialBuildingTypes;
+  cachedReservationProvinceId = provinceId;
+  cachedProductionReservations = productionReservations(game, provinceId);
   return cachedProductionReservations;
 }
 
@@ -253,7 +269,7 @@ export function useOnlineAutoTrade(
     sourceGame?: EconomyState,
   ): AutoTradeProductStatus => {
     const game = sourceGame ?? model.game;
-    const productionReserved = currentProductionReservations(game);
+    const productionReserved = currentProductionReservations(game, model.selectedProvinceId);
     const contractReserved = currentContractReservations(game);
     const sources = [
       game.markets,
@@ -264,6 +280,9 @@ export function useOnlineAutoTrade(
       game.facilityGroups,
       game.facilityTypes,
       game.productionContracts,
+      game.commercialBuildingGroups,
+      game.commercialBuildingTypes,
+      model.selectedProvinceId,
     ];
     if (!sameSources(statusCacheRef.current.sources, sources)) {
       statusCacheRef.current = { sources, values: new Map() };

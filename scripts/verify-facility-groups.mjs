@@ -5,7 +5,11 @@ const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const failures = [];
 const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
-const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
+const requireText = (path, text) => {
+  const owners = path === 'src/components/facilities/FacilityProductionFormula.tsx'
+    ? [path, 'src/components/buildings/BuildingSettlementPanel.tsx', 'src/components/buildings/BuildingSettlementProducts.tsx'] : [path];
+  if (!owners.map(read).join('\n').includes(text)) failures.push(`${path} 缺少: ${text}`);
+};
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
 
 [

@@ -1,3 +1,4 @@
+import type { CommercialStateFields } from './types/commercial';
 export interface AuthUser {
   id: number;
   email: string;
@@ -703,7 +704,7 @@ export interface EconomicCalendarState {
   events: EconomicCalendarEvent[];
 }
 
-export interface EconomyState {
+export interface EconomyState extends CommercialStateFields {
   version: 40;
   userId: number;
   playerName: string;

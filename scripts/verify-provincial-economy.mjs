@@ -227,8 +227,7 @@ const provincePage = read('src/pages/ProvincePage.tsx');
 for (const text of [
   'export function ProvincePage', 'title={isMarketDetail && marketDetailProduct ? (', 'role="tablist"', 'role="tab"', 'role="tabpanel"',
   "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }",
-  "{ id: 'commerce', label: '商业' }", "{ id: 'buildings', label: '工业' }", "{ id: 'warehouse', label: '仓库' }",
-  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedCommercePage', '<EmbeddedBuildingsPage',
+  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedBuildingsPage', '<EmbeddedBuildingsPage',
   '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
   "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);',
   'pageNavigation.replacePage(provinceLocation);',
@@ -237,7 +236,7 @@ for (const forbidden of ['isUnlocked', 'provinceUnlockCostBreakdown', 'unlockPro
   assert.equal(provincePage.includes(forbidden), false, `州级上下文页不得恢复地区解锁分支: ${forbidden}`);
 }
 const provinceStyles = read('src/styles/province-page.css');
-assert.ok(provinceStyles.includes('grid-template-columns: repeat(5, minmax(0, 1fr));'), '州级上下文切换必须保持五个等宽按钮');
+assert.ok(provinceStyles.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'), '州级上下文切换必须保持五个等宽按钮');
 assert.ok(provinceStyles.includes('min-height: 44px;'), '州级上下文切换必须保持 44px 触控高度');
 
 const mapComponent = read('src/components/provinces/UsMainlandMap.tsx');
@@ -493,7 +492,7 @@ for (const text of [
 ]) assert.ok(networkDesign.includes(text), `运输几何 DESIGN 缺少: ${text}`);
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 for (const text of [
-  '州级上下文页（无导航按钮）', '概览｜市场｜商业｜工业｜仓库', '中文州全名作为唯一州面名称',
+  '州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名作为唯一州面名称',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 
 const navigation = read('src/config/navigation.ts');

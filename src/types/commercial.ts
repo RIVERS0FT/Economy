@@ -1,3 +1,6 @@
+import type { CommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
+export type { CommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
+
 export interface CommercialBuildingTypeDefinition {
   id: string;
   name: string;
@@ -21,11 +24,15 @@ export interface CommercialBuildingGroup {
   enabled: boolean;
   status: CommercialStatus;
   statusReason?: CommercialStatusReason;
+  autoOperationPolicy?: CommercialAutoOperationPolicy;
   cycleStartedAt?: number;
   cycleCompletesAt?: number;
   pendingRevenue?: number;
   pendingProfit?: number;
   pendingGoodsConsumed?: number;
+  pendingOperatingCost?: number;
+  pendingInputValue?: number;
+  pendingInputs?: { productId: string; quantity: number }[];
   lifetimeRevenue: number;
   lifetimeProfit: number;
   lifetimeGoodsConsumed: number;

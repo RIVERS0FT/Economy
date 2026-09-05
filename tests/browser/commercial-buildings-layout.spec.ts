@@ -78,9 +78,9 @@ test('commercial cards show per-building profit and details show server-locked t
   await expect(page.getByText('本周期锁定收入', { exact: true }).locator('..')).toContainText('101.25');
   await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).toContainText('5.00');
   await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).not.toContainText('7.50');
-  await expect(page.locator('.commercial-consumption-item[data-shortage="true"]')).toHaveCount(2);
-  await expect(page.locator('.commercial-consumption-item').first()).toContainText('库存不足');
-  await expect(page.locator('.commercial-consumption-item button')).toHaveCount(0);
+  await expect(page.locator('.commercial-settlement .facility-formula-item-group[data-shortage="true"]')).toHaveCount(2);
+  await expect(page.locator('.commercial-settlement .facility-formula-item-group').first()).toHaveAttribute('aria-label', /库存不足/);
+  await expect(page.locator('.commercial-settlement button.facility-formula-item-group')).toHaveCount(2);
   await expect(page.getByText('满员率', { exact: true })).toHaveCount(0);
 });
 

@@ -4,7 +4,7 @@ import { getFacilityBuildProcurementQuote } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
+import { BuildingDetailPage } from '../components/buildings/BuildingDetailPage';
 import { SelectInput } from '../components/ui/FormControls';
 import { RichSelectInput } from '../components/ui/RichSelectInput';
 import {
@@ -54,11 +54,13 @@ import '../styles/facility-build-select.css';
 export function BuildingsPage({
   model,
   embedded = false,
+  renderPart,
   detailFacilityTypeId,
   onDetailFacilityChange,
 }: {
   model: LoadedGameViewModel;
   embedded?: boolean;
+  renderPart?: 'build' | 'cards';
   detailFacilityTypeId?: string;
   onDetailFacilityChange?: (facilityTypeId: string | null) => void;
 }) {
@@ -185,7 +187,7 @@ export function BuildingsPage({
 
 
   useEffect(() => {
-    if (!selectedType) return undefined;
+    if (!selectedType || renderPart === 'cards') return undefined;
     const contextKey = `${model.selectedProvinceId}:${selectedType.id}:${buildQuantity}`;
     const controller = new AbortController();
     setProcurementQuoteLoading(true);
@@ -205,9 +207,10 @@ export function BuildingsPage({
       if (!controller.signal.aborted) setProcurementQuoteLoading(false);
     });
     return () => controller.abort();
-  }, [buildQuantity, game.inventories, game.markets, model.selectedProvinceId, selectedType]);
+  }, [buildQuantity, game.inventories, game.markets, model.selectedProvinceId, selectedType, renderPart]);
 
   if (!selectedType) {
+    if (renderPart === 'cards') return null;
     const hasCatalog = game.facilityTypes.length > 0;
     const emptyContent = (
       <Panel className="empty-state">
@@ -438,10 +441,7 @@ export function BuildingsPage({
     </PagePanel>
   );
 
-  const facilityList = (
-    <section className="facility-cluster-selector-region" aria-label="建筑列表">
-      <div className="facility-cluster-selector-list">
-        {orderedFacilityGroups.map((entry) => (
+  const facilityCards = orderedFacilityGroups.map((entry) => (
           <FacilityClusterSelectorCard
             key={entry.group.facilityTypeId}
             entry={entry}
@@ -449,7 +449,12 @@ export function BuildingsPage({
             now={now}
             onSelect={() => selectFacilityEntry(entry.type.id)}
           />
-        ))}
+        ));
+
+  const facilityList = (
+    <section className="facility-cluster-selector-region" aria-label="建筑列表">
+      <div className="facility-cluster-selector-list">
+        {facilityCards}
       </div>
 
       {orderedFacilityGroups.length === 0 ? (
@@ -458,9 +463,12 @@ export function BuildingsPage({
     </section>
   );
 
+  if (renderPart === 'build') return buildCard;
+  if (renderPart === 'cards') return <>{facilityCards}</>;
+
   const facilityDetail = selectedFacilityEntry ? (
-    <div className="facility-cluster-detail-shell facility-cluster-detail-page">
-      <PagePanel className="production-surface facility-card facility-group-card facility-cluster-detail-card">
+    <BuildingDetailPage kind="industrial" name={selectedFacilityEntry.type.name}
+      provinceName={model.selectedProvince?.name || '当前地区'} embedded={embedded} onBack={closeFacilityDetail}>
         <FacilityClusterDetailContent
           entry={selectedFacilityEntry}
           products={game.products}
@@ -475,8 +483,7 @@ export function BuildingsPage({
           onOpenProductMarket={openProductMarket}
           onOpenContracts={openProductContracts}
         />
-      </PagePanel>
-    </div>
+    </BuildingDetailPage>
   ) : null;
 
   const buildingsManagementContent = selectedFacilityEntry ? facilityDetail : (
@@ -488,26 +495,8 @@ export function BuildingsPage({
 
   const buildingsContent = buildingsManagementContent;
 
+  if (selectedFacilityEntry) return facilityDetail;
   if (embedded) return buildingsContent;
-
-  if (selectedFacilityEntry) {
-    const provinceName = model.selectedProvince?.name || '加利福尼亚州';
-    return (
-      <PageLayout
-        title={(
-          <RegionalEntityPageTitle
-            entityName={selectedFacilityEntry.type.name}
-            regionName={provinceName}
-            className="province-facility-detail-title"
-          />
-        )}
-        description="管理本州建筑的建造、运行、满员率、生产方式、投入产出与资产交易；商品库存和自动交易分别归属仓库与市场。"
-        backAction={{ label: '返回建筑列表', onClick: closeFacilityDetail }}
-      >
-        {buildingsContent}
-      </PageLayout>
-    );
-  }
 
   return (
     <PageLayout
