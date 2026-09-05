@@ -171,6 +171,18 @@ function acceptDelivery(client, payload, label) {
   client.serverNow = payload.serverNow;
 }
 
+function acceptCompactActionConfirmation(client, payload, label) {
+  assert.ok(Number.isInteger(payload.revision) && payload.revision >= 0, `${label} 缺少有效修订号`);
+  assert.ok(Number.isFinite(payload.serverNow) && payload.serverNow >= 0, `${label} 缺少 serverNow`);
+  if (client.revision !== null) assert.ok(payload.revision >= client.revision, `${label} 修订号发生倒退`);
+  if (client.serverNow !== null) assert.ok(payload.serverNow >= client.serverNow, `${label} serverNow 发生倒退`);
+  assert.equal(payload.unchanged, undefined, `${label} 不得伪装成状态交付`);
+  assert.equal(payload.patches, undefined, `${label} 不得携带提交后全状态分区`);
+  // Do not advance client.revision here. The client intentionally keeps its last
+  // accepted state revision so the following GET /state returns changed partitions.
+  client.serverNow = payload.serverNow;
+}
+
 async function fetchState(metrics, client, endpoints, invariants) {
   const { payload } = await requestJson(metrics, {
     url: stateUrl(client, endpoints.gameBaseUrl),
@@ -224,7 +236,15 @@ async function postAction(metrics, client, endpoints, path, route, body, idempot
   assert.equal(payload.result?.ok, true, `${route} 业务结果失败：${String(payload.result?.message || '')}`);
   assert.equal(typeof payload.result?.message, 'string', `${route} 确认缺少消息`);
   assert.ok(Number(payload.revision) >= Number(payload.commandRevision), `${route} 权威交付落后于命令提交`);
-  acceptDelivery(client, payload, `${route} 动作响应`);
+  const compactManualCommodityOrder = route === '/api/game/orders'
+    && body?.assetKind === 'commodity'
+    && !body?.execution;
+  if (compactManualCommodityOrder) {
+    assert.equal(payload.revision, payload.commandRevision, `${route} 精简确认修订号不一致`);
+    acceptCompactActionConfirmation(client, payload, `${route} 精简动作确认`);
+  } else {
+    acceptDelivery(client, payload, `${route} 动作响应`);
+  }
   return payload;
 }
 
