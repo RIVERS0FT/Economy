@@ -1,4 +1,3 @@
-import { useId, useState } from 'react';
 import type { CommodityFreezeDetail } from '../../types';
 import { formatFullNumber, formatNumber } from '../../utils/formatters';
 import { SafeTooltip } from '../ui/SafeTooltip';
@@ -30,22 +29,16 @@ function FreezeDetails({ quantity, entries }: { quantity: number; entries?: Comm
   </span>;
 }
 
-/** Shared safe tooltip on hover/focus; tapping expands in-place, without another Sheet or Portal. */
+/** Hover, focus and tap share one out-of-flow tooltip; source updates never expand the summary. */
 export function CommodityFreezeDisclosure({ quantity, entries }: { quantity: number; entries?: CommodityFreezeDetail[] }) {
-  const id = useId();
-  const [expanded, setExpanded] = useState(false);
-  const trigger = <button type="button" className="commodity-freeze-disclosure__trigger" aria-expanded={expanded} aria-controls={id}
-    aria-label={`查看冻结库存 ${formatFullNumber(quantity)} 的来源明细`} onClick={() => setExpanded((value) => !value)}>
-    <strong>{formatNumber(quantity)}</strong>
-  </button>;
-  return <><span className="commodity-freeze-disclosure" onKeyDown={(event) => {
-    if (event.key === 'Escape' && expanded) { setExpanded(false); event.stopPropagation(); }
-  }}>
+  return <span className="commodity-freeze-disclosure">
     <small>冻结库存</small>
-    <SafeTooltip disabled={expanded} content={<FreezeDetails quantity={quantity} entries={entries} />}>{trigger}</SafeTooltip>
-  </span>
-    {expanded ? <span id={id} className="commodity-freeze-disclosure__expanded" role="region" aria-label="冻结明细">
-      <FreezeDetails quantity={quantity} entries={entries} />
-    </span> : null}
-  </>;
+    <SafeTooltip pinOnClick content={<FreezeDetails quantity={quantity} entries={entries} />}>
+      {({ expanded, tooltipId }) => <button type="button" className="commodity-freeze-disclosure__trigger"
+        aria-expanded={expanded} aria-controls={expanded ? tooltipId : undefined} aria-describedby={expanded ? tooltipId : undefined}
+        aria-label={`查看冻结库存 ${formatFullNumber(quantity)} 的来源明细`}>
+        <strong>{formatNumber(quantity)}</strong>
+      </button>}
+    </SafeTooltip>
+  </span>;
 }
