@@ -33,7 +33,7 @@ for (const text of [
   'function MarketImmediateTradeEntry({',
   'officialPrice: number;',
   'const maxBuyByFunds = officialPrice > 0',
-  'const total = officialPrice * effectiveQuantity;',
+  'const total = (pendingTrade.current?.price ?? officialPrice) * effectiveQuantity;',
   'id="market-trade-quantity"',
   'className="market-stepper market-quantity-stepper"',
   '数量减少 1',

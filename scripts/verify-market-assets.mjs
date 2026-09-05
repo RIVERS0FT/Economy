@@ -35,7 +35,7 @@ for (const text of [
   'function MarketImmediateTradeEntry({',
   'const [quantityDraft',
   'const maxBuyByFunds = officialPrice > 0',
-  'const total = officialPrice * effectiveQuantity;',
+  'const total = (pendingTrade.current?.price ?? officialPrice) * effectiveQuantity;',
   'marketDetailRefreshToken',
   'getMarketDetail(',
   'detailedMarket?.priceHistory',
