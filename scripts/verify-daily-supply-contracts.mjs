@@ -16,7 +16,8 @@ const api = read('src/contracts/api.ts');
 const navigation = read('src/contracts/navigation.ts');
 const workspace = read('src/pages/ContractWorkspacePage.tsx');
 const buildings = read('src/pages/BuildingsPage.tsx');
-const productDetail = read('src/components/market/MarketAutoTradePanel.tsx');
+const productDetail = read('src/components/market/MarketContractSummary.tsx');
+const marketPage = read('src/pages/MarketPage.tsx');
 const industry = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 const warehouse = read('docs/WAREHOUSE_EXPANSION_DESIGN.md');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
@@ -80,7 +81,8 @@ for (const token of ['首次交付（分钟）', '交付周期（分钟）', '�
 for (const token of ['合同简要', '采购合同', '供应合同', '今日采购额度', '最低采购合同价', '查看相关合同']) {
   requireText(productDetail, token, `地区商品详情合同摘要缺少：${token}`);
 }
-requireText(productDetail, 'setContractMarketIntent(product.id, model.selectedProvinceId)', '地区商品详情合同跳转必须携带 provinceId + productId。');
+requireText(productDetail, 'setContractMarketIntent(productId, model.selectedProvinceId)', '地区商品详情合同跳转必须携带 provinceId + productId。');
+requireText(marketPage, '<MarketContractSummary model={model} productId={selectedProduct.id} />', '地区商品详情必须实际渲染合同简要，而不是只在未使用组件中保留。');
 
 for (const [source, token, message] of [
   [industry, '周期完成', '产业权威设计必须把自动采购限制在周期完成结算。'],

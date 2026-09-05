@@ -36,6 +36,11 @@ requireText('src/components/market/CommodityFreezeDisclosure.tsx', 'SafeTooltip'
 requireText('src/components/market/CommodityFreezeDisclosure.tsx', 'aria-expanded={expanded}');
 for (const token of ['保障目标', '缺口']) forbidText('src/components/market/CommodityFreezeDisclosure.tsx', token);
 forbidText('src/pages/MarketPage.tsx', '<MarketAutoTradePanel');
+assert.ok(!existsSync('src/components/market/MarketAutoTradePanel.tsx'), '退役自动交易展示组件不得继续保留死代码');
+requireText('src/pages/MarketPage.tsx', '<MarketContractSummary model={model} productId={selectedProduct.id} />');
+for (const token of ['自动经营执行', '预计自动采购', '预计自动出售', '采购价格上限', '出售价格下限', '当前自由库存', '统一商品订单簿']) {
+  forbidText('src/components/market/MarketContractSummary.tsx', token);
+}
 for (const text of ['经营模式', '产成品处理', '保存自动经营策略']) {
   forbidText('src/components/facilities/FacilityAutoOperationControls.tsx', text);
 }
