@@ -28,7 +28,7 @@ IT 负责证明服务器模块在真实事务、SQLite、状态投影、幂等�
 
 Targeted 模式必须由选择器挑出与改动相关的 IT 文件，并通过统一覆盖率执行器运行；full 模式执行完整 `server/test/*.test.js`。服务端源码若无法归入任何领域且没有任何 verifier、IT 或 ST 引用，必须回退 full，而不是静默跳过验证。
 
-Targeted IT 的领域扩散只允许从本次变更中的 `server/src/**/*.js` 或直接修改的 `server/test/*.test.js` 推导；纯前端源码、设计文档、浏览器 spec、静态 verifier 或其他非服务端路径不得仅凭 `province`、`market` 等同名领域把服务器 IT 加入计划。服务器测试对改动文件存在直接引用时仍可按引用关系选择；`shared/`、`server/shared/` 与既有 high-risk 核心边界继续回退 full。这样 targeted IT 的 loaded-code 覆盖率只衡量与真实服务端影响相关的测试加载图，不得用无服务端改动的 UI 领域扩散制造无关分母。 领域关键词匹配必须遵守路径词边界，不得用裸子串把无关术语并入领域；例如认证域的 `auth` 不得命中 `authoritative`，封禁域词 `ban` 不得命中 `banking`。
+Targeted IT 的领域扩散只允许从本次变更中的 `server/src/**/*.js` 或直接修改的 `server/test/*.test.js` 推导；纯前端源码、设计文档、浏览器 spec、静态 verifier 或其他非服务端路径不得仅凭 `province`、`market` 等同名领域把服务器 IT 加入计划。服务器测试对改动文件存在直接引用时仍可按引用关系选择，但 IT 引用匹配必须保留实际文件路径或含后缀文件名，不能把省略后缀的词干当作直接引用，例如 `commodity-freezes.css` 不得命中服务器对 `commodity-freezes.js` 的导入。前端 TypeScript／TSX 的无后缀导入匹配不受此 IT 限制影响；`shared/`、`server/shared/` 与既有 high-risk 核心边界继续回退 full。这样 targeted IT 的 loaded-code 覆盖率只衡量与真实服务端影响相关的测试加载图，不得用无服务端改动的 UI 领域扩散制造无关分母。 领域关键词匹配必须遵守路径词边界，不得用裸子串把无关术语并入领域；例如认证域的 `auth` 不得命中 `authoritative`，封禁域词 `ban` 不得命中 `banking`。
 
 ### 2.3 ST（System Test）
 
