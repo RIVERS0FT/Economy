@@ -1,5 +1,4 @@
 import { CommodityFreezeDisclosure } from '../components/market/CommodityFreezeDisclosure';
-import { MarketContractSummary } from '../components/market/MarketContractSummary';
 import { subscribeCommodityWriteProgress } from '../api/commodityWriteProgress';
 import { WRITE_RESULT_UNCONFIRMED } from '../api/gameWriteConfirmation';
 import { CompactNumber } from '../components/ui/CompactNumber';
@@ -541,8 +540,6 @@ export function MarketPage({
             <p className="muted">工厂产权只通过拍卖转移，市场页仅保留历史行情。</p>
           </Panel>
         )}
-
-        {selectedProduct ? <MarketContractSummary model={model} productId={selectedProduct.id} /> : null}
 
         <Panel className="widget span-3 market-account-panel">
           <section className="local-trades-section">

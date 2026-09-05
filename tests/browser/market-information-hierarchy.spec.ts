@@ -68,10 +68,9 @@ test('regional market detail exposes daily-price immediate trading only', async 
   for (const label of ['今日价格', '今日成交量', '可用库存', '冻结库存']) {
     await expect(detail.locator('.market-detail-trade-summary').getByText(label, { exact: true })).toBeVisible();
   }
-  const contractSummary = detail.locator('.market-contract-summary-card');
-  await expect(contractSummary).toBeVisible();
+  await expect(detail.locator('.market-contract-summary-card')).toHaveCount(0);
   for (const label of ['合同简要', '采购合同', '供应合同', '今日采购额度', '最低采购合同价', '查看相关合同']) {
-    await expect(contractSummary.getByText(label, { exact: true })).toBeVisible();
+    await expect(detail.getByText(label, { exact: true })).toHaveCount(0);
   }
   for (const retired of ['自动经营执行', '预计自动采购', '预计自动出售', '采购价格上限', '出售价格下限', '当前自由库存']) {
     await expect(detail.getByText(retired, { exact: true })).toHaveCount(0);
