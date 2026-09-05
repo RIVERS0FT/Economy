@@ -7,7 +7,7 @@ type TraceEvent = {
 };
 type Span = { event: TraceEvent; start: number; end: number };
 type LayerSnapshot = { layerId: string; backendNodeId?: number };
-type Control = { name: string; selector: string; property: 'filter' | 'backdrop-filter' };
+type Control = { name: string; selector: string; property: 'filter' | 'backdrop-filter' | 'will-change'; value?: string };
 const OWNER_SELECTORS = [
   ['image', '.application-image-layer img'],
   ['atmosphere', '.application-atmosphere-layer'],
@@ -22,6 +22,7 @@ const CONTROLS: Control[] = [
   { name: 'status-backdrop', selector: '.frosted-glass-surface--statusBar', property: 'backdrop-filter' },
   { name: 'workspace-backdrop', selector: '.signed-in-shell__primary-card', property: 'backdrop-filter' },
   { name: 'outliner-backdrop', selector: '.strategic-outliner', property: 'backdrop-filter' },
+  { name: 'photography-filter-promotion', selector: '.application-image-layer img', property: 'will-change', value: 'filter' },
 ];
 const roundMs = (microseconds: number) => Number((microseconds / 1000).toFixed(3));
 const distribution = (values: number[]) => {
@@ -139,7 +140,8 @@ function renderBatches(events: TraceEvent[], start: number, end: number) {
       ...describe(pass),
       quads: spans.filter((span) => /::DoDrawQuad$/u.test(span.event.name ?? '') && inside(span, pass)).map((quad) => ({
         ...describe(quad),
-        skiaCalls: spans.filter((span) => /^SkCanvas::/u.test(span.event.name ?? '') && inside(span, quad)).map(describe),
+        // Chrome may include the C++ return type before SkCanvas:: in the name.
+        skiaCalls: spans.filter((span) => /SkCanvas::/u.test(span.event.name ?? '') && inside(span, quad)).map(describe),
       })),
     })),
   }));
@@ -157,9 +159,10 @@ async function profile(page: Page, browser: Browser, testInfo: TestInfo, label: 
   await expect(viewport).toHaveAttribute('data-map-zoom-active', 'false');
   if (control) {
     await expect(page.locator(control.selector)).toHaveCount(1);
-    const prefix = control.property === 'backdrop-filter' ? '-webkit-backdrop-filter: none !important;' : '';
-    await page.addStyleTag({ content: `${control.selector} { ${control.property}: none !important; ${prefix} }` });
-    await expect(page.locator(control.selector)).toHaveCSS(control.property, 'none');
+    const value = control.value ?? 'none';
+    const prefix = control.property === 'backdrop-filter' ? `-webkit-backdrop-filter: ${value} !important;` : '';
+    await page.addStyleTag({ content: `${control.selector} { ${control.property}: ${value} !important; ${prefix} }` });
+    await expect(page.locator(control.selector)).toHaveCSS(control.property, value);
   }
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -173,7 +176,7 @@ async function profile(page: Page, browser: Browser, testInfo: TestInfo, label: 
     const box = element.getBoundingClientRect();
     return {
       name, x: box.x, y: box.y, width: box.width, height: box.height,
-      filter: css.filter, backdropFilter: css.backdropFilter,
+      filter: css.filter, backdropFilter: css.backdropFilter, willChange: css.willChange,
       background: css.background, shadow: css.boxShadow, opacity: css.opacity,
     };
   }), OWNER_SELECTORS);
@@ -322,7 +325,7 @@ test('frame trace accounting clips crossing events and unions nested and paralle
     { name: 'DirectRenderer::DrawFrame', ph: 'X', ts: 5_000, dur: 30_000, pid: 1, tid: 1 },
     { name: 'DirectRenderer::DrawRenderPass', ph: 'X', ts: 6_000, dur: 25_000, pid: 1, tid: 1, args: { render_pass_id: 99 } },
     { name: 'SoftwareRenderer::DoDrawQuad', ph: 'X', ts: 7_000, dur: 20_000, pid: 1, tid: 1 },
-    { name: 'SkCanvas::drawImage', ph: 'X', ts: 8_000, dur: 18_000, pid: 1, tid: 1 },
+    { name: 'void SkCanvas::drawImage(...)', ph: 'X', ts: 8_000, dur: 18_000, pid: 1, tid: 1 },
     { name: 'SoftwareRenderer::DoDrawQuad', ph: 'X', ts: 7_000, dur: 20_000, pid: 2, tid: 1 },
   ];
   const batch = renderBatches(draw, 10_000, 20_000)[0];
@@ -342,7 +345,7 @@ for (const control of CONTROLS) {
     test.setTimeout(120_000);
     const results = [];
     // Repeat matched baseline/control/baseline triplets, retaining every sample.
-    // These temporary removals locate costs; they NEVER qualify the product gate.
+    // Temporary removals and reverse promotion locate costs, never qualify a gate.
     for (let round = 0; round < 2; round += 1) {
       for (const phase of ['before', 'control', 'after'] as const) {
         results.push(await profile(page, browser, testInfo, `${control.name}-${round}-${phase}`, phase === 'control' ? control : undefined));
@@ -352,5 +355,10 @@ for (const control of CONTROLS) {
     expect(results).toHaveLength(6);
     const geometry = (result: typeof results[number]) => result.scene.map(({ name, x, y, width, height }) => ({ name, x, y, width, height }));
     for (const result of results) expect(geometry(result)).toEqual(geometry(results[0]));
+    if (control.property === 'will-change') {
+      // Restoring the old hint must not alter the photography or glass treatment.
+      const visual = (result: typeof results[number]) => result.scene.map(({ willChange: _hint, ...style }) => style);
+      for (const result of results) expect(visual(result)).toEqual(visual(results[0]));
+    }
   });
 }
