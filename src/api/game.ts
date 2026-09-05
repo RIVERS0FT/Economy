@@ -593,15 +593,6 @@ export function saveFactoryAutoOperationPolicy(
   });
 }
 
-export function saveProvinceAutoSalePolicy(provinceId: string, enabled: boolean) {
-  return postAction('/orders', {
-    provinceId,
-    execution: 'factory-auto-operation-policy',
-    operation: 'province-auto-sale',
-    enabled,
-  });
-}
-
 export function importLegacyOnlineAutoSellPolicies(policies: Record<string, OnlineAutoSellPolicyInput>) {
   return postAction('/orders', {
     execution: 'online-auto-sell-policy',

@@ -13,7 +13,7 @@ export const GAME_CONCEPTS = {
   },
   'commercial-auto-operation': {
     label: '自动经营',
-    description: '营业周期完成后，服务器按正利润和可用资金采购本州经营商品并立即冻结。地区自动出售开启时，同时出售本地区非冻结商品。首次缺货需要手动准备，关闭自动经营不取消已投入周期。',
+    description: '开启后，营业周期完成时出售本地区全部非冻结商品，并按正利润和可用资金采购后续经营商品并冻结。首次缺货需要手动准备，关闭自动经营不取消已投入周期。',
   },
   'commercial-input-coverage': {
     label: '商品保障',
@@ -25,7 +25,7 @@ export const GAME_CONCEPTS = {
   },
   'factory-auto-operation': {
     label: '自动经营',
-    description: '开启后仅在生产周期完成时，按扣除材料、运营成本和卖出手续费后的正利润采购原料并冻结。地区自动出售开启时出售本地区全部非冻结商品，不按基础价设置上下限。',
+    description: '开启后，生产周期完成时出售本地区全部非冻结商品，并按扣除材料、运营成本和卖出手续费后的正利润采购原料并冻结。',
   },
   'input-coverage': {
     label: '原料保障',

@@ -140,21 +140,16 @@ test('runtime store rejects invalid factory automatic operation without persisti
   }
 });
 
-test('regional automatic sale consent persists without trading and is shared across building kinds', () => {
+test('legacy regional sale action is rejected because sale follows building automatic operation', () => {
   const store = new EconomyStore(':memory:');
   try {
     store.getState(alice, now);
-    const before = persistedPlayer(store).credits;
-    assert.equal(store.getState(alice, now).provinceAutoSaleEnabled[DEFAULT_PROVINCE_ID], undefined);
-    const saved = store.apply(alice, request({ provinceId: DEFAULT_PROVINCE_ID,
+    const before = JSON.stringify(persistedPlayer(store));
+    const rejected = store.apply(alice, request({ provinceId: DEFAULT_PROVINCE_ID,
       execution: 'factory-auto-operation-policy', operation: 'province-auto-sale', enabled: true,
-    }, 'region-auto-sale-12345678'), now + 1);
-    assert.equal(saved.result.ok, true, saved.result.message);
-    assert.equal(persistedPlayer(store).credits, before);
-    assert.equal(store.getState(alice, now + 2).provinceAutoSaleEnabled[DEFAULT_PROVINCE_ID], true);
-    assert.equal(store.apply(alice, request({ provinceId: DEFAULT_PROVINCE_ID,
-      execution: 'factory-auto-operation-policy', operation: 'province-auto-sale', enabled: 'true',
-    }, 'region-auto-sale-invalid-12345678'), now + 3).result.ok, false);
-    assert.equal(persistedPlayer(store).provinceAutoSaleEnabled[DEFAULT_PROVINCE_ID], true);
+    }, 'region-auto-sale-retired-12345678'), now + 1);
+    assert.equal(rejected.result.ok, false);
+    assert.match(rejected.result.message, /已并入建筑自动经营/);
+    assert.equal(JSON.stringify(persistedPlayer(store)), before);
   } finally { store.close(); }
 });

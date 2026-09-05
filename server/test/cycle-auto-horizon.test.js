@@ -18,7 +18,6 @@ function setup(world = createWorld(start), player = ensurePlayer(world, user, st
     enabled: true, status: 'running', activeRecipeId: recipe.id, lifetimeOutput: 0, cycleStartedAt: start,
     staffingRateBps: 10000, staffingUpdatedAt: start, staffingBatchCarryBps: 0 }];
   player.credits = 10000;
-  player.provinceAutoSaleEnabled = { [provinceId]: true };
   for (const input of recipe.inputs) inventoryForProvince(player, input.productId, provinceId).available = input.quantity;
   migrateFacilityGroupWorld(world, start);
   world.markets[provinceScopedKey(provinceId, 'wheat')].officialPrice = 5;

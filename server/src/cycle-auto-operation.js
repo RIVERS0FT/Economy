@@ -113,18 +113,16 @@ export function completeBuildingCycleAutoOperation(world, player, group, kind, c
   if (!group.enabled || !policy.enabled) return false;
 
   let changed = false;
-  if (player.provinceAutoSaleEnabled?.[provinceId] === true) {
-    for (const product of PRODUCT_CATALOG) {
-      const quantity = Number(player.inventories?.[provinceScopedKey(provinceId, product.id)]?.available || 0);
-      if (quantity < 1 || priceFor(world, provinceId, product.id) === null) continue;
-      trade(world, player, provinceId, product.id, 'sell', quantity, now);
-      player.cycleAutoSaleCounts ||= {};
-      const key = provinceScopedKey(provinceId, product.id);
-      const cumulative = Number(player.cycleAutoSaleCounts[key] || 0) + quantity;
-      if (!Number.isSafeInteger(cumulative)) throw new RangeError('累计自动出售数量超出系统范围');
-      player.cycleAutoSaleCounts[key] = cumulative;
-      changed = true;
-    }
+  for (const product of PRODUCT_CATALOG) {
+    const quantity = Number(player.inventories?.[provinceScopedKey(provinceId, product.id)]?.available || 0);
+    if (quantity < 1 || priceFor(world, provinceId, product.id) === null) continue;
+    trade(world, player, provinceId, product.id, 'sell', quantity, now);
+    player.cycleAutoSaleCounts ||= {};
+    const key = provinceScopedKey(provinceId, product.id);
+    const cumulative = Number(player.cycleAutoSaleCounts[key] || 0) + quantity;
+    if (!Number.isSafeInteger(cumulative)) throw new RangeError('累计自动出售数量超出系统范围');
+    player.cycleAutoSaleCounts[key] = cumulative;
+    changed = true;
   }
 
   // Do not spend the cash needed to run the first prepared cycle of other active buildings.

@@ -85,7 +85,7 @@ export function CommercialBuildingDetail({ group, type, products, inventories, m
           </div>}
         />
       </section>
-      <BuildingAutoOperationSection provinceId={group.provinceId} label={<GameConcept concept="commercial-auto-operation">自动经营</GameConcept>}
+      <BuildingAutoOperationSection label={<GameConcept concept="commercial-auto-operation">自动经营</GameConcept>}
         enabled={policy.enabled} disabled={pending || group.count < 1}
         onChange={(enabled) => onAutoOperationChange({ ...policy, enabled })}>
         <SelectInput label={<GameConcept concept="commercial-input-coverage">商品保障</GameConcept>}

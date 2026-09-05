@@ -18,7 +18,7 @@ function setup({ contract = false } = {}) {
   store.getState(user, now); store.stopScheduler();
   const world = store.worldCache.world;
   const player = world.players['1'];
-  player.credits = 1_000; player.provinceAutoSaleEnabled = { [region]: true };
+  player.credits = 1_000;
   const wheat = inventoryForProvince(player, 'wheat', region); wheat.available = 2;
   player.facilityGroups = [{ provinceId: region, facilityTypeId: 'mill', count: 1, participatingCount: 1,
     enabled: true, status: 'running', activeRecipeId: 'mill-default', lifetimeOutput: 0, cycleStartedAt: now,
