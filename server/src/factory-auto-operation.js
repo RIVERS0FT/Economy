@@ -1,7 +1,8 @@
-import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-buildings.js';
+import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-catalog.js';
 import { commercialAutoOperationPolicyFor } from '../../shared/commercial-auto-operation.js';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 import { applyOnlineAutoTradePolicyAction } from './online-auto-trade-policy.js';
+import { releaseInventoryFreezeSource } from './inventory-freezes.js';
 import {
   installDefaultProvinceAliases,
   normalizeProvinceId,
@@ -126,6 +127,7 @@ function ensureProductIntent(intents, productId) {
   return intents[productId];
 }
 
+// Compatibility projection only. New automatic trading is settled by the server at building-cycle completion.
 export function deriveFactoryAutoTradePolicies(player, provinceId) {
   const selectedProvinceId = normalizeProvinceId(provinceId);
   const intents = {};
@@ -189,12 +191,12 @@ export function deriveFactoryAutoTradePolicies(player, provinceId) {
     const protectedQuantity = nonNegativeInteger(intent.extraProtected);
     return [product.id, {
       buy: {
-        enabled: intent.buyEnabled,
+        enabled: false,
         maxPrice: buyPrice,
         targetFreeInventory: protectedQuantity,
       },
       sell: {
-        enabled: sellEnabled,
+        enabled: false,
         price: sellPrice,
         minimumFreeInventory: protectedQuantity,
       },
@@ -207,20 +209,9 @@ export function factoryAutoTradeExecutionPolicyFor(player, productId, provinceId
 }
 
 export function createFactoryAutoTradeExecutionClientState(player) {
-  const buyPolicies = {};
-  const sellPolicies = {};
-  const provinceIds = new Set([...(player?.facilityGroups || []), ...(player?.commercialBuildingGroups || [])].map((group) => normalizeProvinceId(group?.provinceId)));
-  for (const provinceId of provinceIds) {
-    const policies = deriveFactoryAutoTradePolicies(player, provinceId);
-    for (const [productId, policy] of Object.entries(policies)) {
-      const key = provinceScopedKey(provinceId, productId);
-      if (policy.buy.enabled) buyPolicies[key] = policy.buy;
-      if (policy.sell.enabled) sellPolicies[key] = policy.sell;
-    }
-  }
   return {
-    onlineAutoBuyPolicies: structuredClone(installDefaultProvinceAliases(buyPolicies)),
-    onlineAutoSellPolicies: structuredClone(installDefaultProvinceAliases(sellPolicies)),
+    onlineAutoBuyPolicies: {},
+    onlineAutoSellPolicies: {},
   };
 }
 
@@ -238,7 +229,7 @@ export function rebuildFactoryAutoTradePoliciesForProvince(world, userId, provin
     });
     if (!update.ok) return update;
   }
-  return result(true, '工厂自动经营已同步到统一商品订单策略');
+  return result(true, '建筑自动经营已切换为周期结算执行');
 }
 
 export function applyFactoryAutoOperationPolicyAction(world, user, payload = {}) {
@@ -260,9 +251,12 @@ export function applyFactoryAutoOperationPolicyAction(world, user, payload = {})
   const policies = ensureFactoryAutoOperationPolicies(player);
   policies[provinceScopedKey(provinceId, facilityTypeId)] = policy;
   player.factoryAutoOperationPolicies = syncDefaultProvinceAlias(policies, facilityTypeId);
+  if (!policy.enabled) {
+    releaseInventoryFreezeSource(player, { kind: 'production', provinceId, sourceId: facilityTypeId });
+  }
   const rebuilt = rebuildFactoryAutoTradePoliciesForProvince(world, user.id, provinceId);
   if (!rebuilt.ok) return rebuilt;
-  return result(true, policy.enabled ? '自动经营策略已保存' : '自动经营已关闭');
+  return result(true, policy.enabled ? '自动经营策略已保存，将在生产周期完成时执行' : '自动经营已关闭');
 }
 
 export function factoryAutoOperationPolicyKey(provinceId, facilityTypeId) {
