@@ -13,12 +13,16 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/unified-buildings-auto-operation
           fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
       - name: Apply reviewed integration edits
         shell: bash
         run: |
@@ -27,45 +31,27 @@ jobs:
             python3 .github/unify-buildings-core.py
             python3 .github/unify-buildings-pages.py
           fi
-          if [ -f .github/unify-buildings-followup.py ]; then
-            python3 .github/unify-buildings-followup.py
-          fi
+          python3 .github/unify-buildings-acceptance.py
+          python3 .github/unify-buildings-followup.py
+          node scripts/normalize-repository-text.mjs
           git diff --check
-          git add src server shared tests docs scripts
+          git add src server shared tests docs scripts runtime-test.html
           if ! git diff --cached --quiet; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git diff --cached --stat
-            git commit -m 'feat: integrate unified building directories and commercial auto-operation'
+            git commit -m 'feat: finalize unified building contracts and acceptance coverage'
             git push origin HEAD:codex/unified-buildings-auto-operation
           fi
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
       - run: npm ci
       - run: npm run generate:local-preview && npm run typecheck
-      - name: Focused regression diagnostics
+      - name: Complete domain integration tests
         if: always()
-        shell: bash
-        run: |
-          set +e
-          failed=0
-          for verifier in verify-commercial-buildings verify-production-settlement-layout verify-unified-factory-recipes-grid verify-online-auto-sell verify-warehouse-expansion verify-production-desktop-layout verify-provincial-economy verify-form-state-isolation; do
-            node --experimental-strip-types scripts/$verifier.mjs || failed=1
-          done
-          exit "$failed"
-      - name: Package isolated verification runtime
+        run: npm run test:it
+      - name: Build and development verification
+        if: always()
+        run: npm run validate:dt
+      - name: Building browser acceptance
         if: always()
         run: |
-          npx playwright install chromium
-          mkdir -p /tmp/building-runtime/bin
-          cp "$(command -v node)" /tmp/building-runtime/bin/node
-          tar -czf /tmp/building-runtime/dependencies.tgz node_modules src/dev/generated
-          tar -czf /tmp/building-runtime/browser.tgz -C "$HOME/.cache" ms-playwright
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: building-review-runtime
-          path: /tmp/building-runtime
-          retention-days: 1
+          npx playwright install --with-deps chromium
+          npx playwright test tests/browser/commercial-buildings-layout.spec.ts tests/browser/unified-buildings.spec.ts tests/browser/buildings-ledger-layout.spec.ts tests/browser/production-methods.spec.ts tests/browser/province-map.spec.ts --workers=4 --reporter=line

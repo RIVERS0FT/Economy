@@ -2,68 +2,45 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-function read(relativePath) {
-  return readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
-}
+const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
-test('province page keeps market-commerce-industry order and commercial detail navigation', () => {
+test('both building directories own filtering and use the same detail page without commercial asset conversion', () => {
   const province = read('src/pages/ProvincePage.tsx');
-  const provinceStyles = read('src/styles/province-page.css');
-  const stack = read('src/navigation/playerPageStack.ts');
+  const regional = read('src/pages/RegionalBuildingsPage.tsx');
+  const global = read('src/pages/GlobalBuildingsPage.tsx');
   const commerce = read('src/pages/CommercePage.tsx');
-  const regionalTitle = read('src/components/ui/RegionalEntityPageTitle.tsx');
-  const provinceMapBrowser = read('tests/browser/province-map.spec.ts');
-  const allPagesBrowser = read('tests/browser/all-pages-preview.spec.ts');
-  const lockedAccessBrowser = read('tests/browser/province-locked-access.spec.ts');
-
-  const marketIndex = province.indexOf("{ id: 'market', label: '市场' }");
-  const commerceIndex = province.indexOf("{ id: 'commerce', label: '商业' }");
-  const industryIndex = province.indexOf("{ id: 'buildings', label: '工业' }");
-  assert.ok(marketIndex >= 0 && commerceIndex > marketIndex && industryIndex > commerceIndex);
-  assert.match(provinceStyles, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
-  assert.match(stack, /ProvinceSection = 'overview' \| 'market' \| 'commerce' \| 'buildings' \| 'warehouse'/);
+  const industrial = read('src/pages/BuildingsPage.tsx');
+  const stack = read('src/navigation/playerPageStack.ts');
+  assert.ok(province.indexOf("{ id: 'buildings', label: '建筑' }") > province.indexOf("{ id: 'market', label: '市场' }"));
+  assert.equal(province.includes("{ id: 'commerce', label: '商业' }"), false);
+  assert.match(read('src/styles/province-page.css'), /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(province, /RegionalBuildingsPage/);
+  assert.match(regional, /<BuildingTypeFilter/);
+  assert.match(global, /<BuildingTypeFilter/);
+  assert.match(regional, /unified-building-list/);
+  assert.match(global, /commercialBuildingGroups/);
+  assert.match(stack, /type: 'global-commercial'/);
   assert.match(stack, /type: 'regional-commercial'/);
-  assert.match(province, /EmbeddedCommercePage/);
-  assert.match(province, /section: 'commerce'/);
-  assert.match(regionalTitle, /currentLocation\?\.type === 'regional-commercial'/);
-  assert.ok(provinceMapBrowser.includes("await expect(tabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();"));
-  assert.ok(provinceMapBrowser.includes("await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();"));
-  assert.ok(provinceMapBrowser.includes("await tabs.getByRole('tab', { name: '工业', exact: true }).click();"));
-  assert.ok(allPagesBrowser.includes("await expect(provinceTabs.getByRole('tab')).toHaveCount(5);"));
-  assert.ok(allPagesBrowser.includes("await expect(provinceTabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();"));
-  assert.ok(allPagesBrowser.includes("await expect(provinceTabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();"));
-  assert.ok(lockedAccessBrowser.includes("await page.getByRole('tab', { name: '工业', exact: true }).click();"));
-
-  for (const token of [
-    'regional-buildings-management',
-    'production-build-card',
-    'facility-cluster-selector-region',
-    'facility-cluster-selector-list',
-    'facility-cluster-detail-shell',
-    'facility-cluster-detail-card',
-    '建设新商业建筑',
-    '稳定利润',
-    '只消耗当前州本地仓库商品',
-  ]) assert.ok(commerce.includes(token), `商业页面缺少工业布局复用或业务契约: ${token}`);
+  assert.match(commerce, /<BuildingDetailPage kind="commercial"/);
+  assert.match(industrial, /<BuildingDetailPage kind="industrial"/);
+  assert.equal(commerce.includes('as FacilityGroup'), false);
+  assert.match(read('src/components/commercial/CommercialBuildingDetail.tsx'), /<BuildingSettlementPanel/);
+  assert.match(read('src/components/facilities/FacilityProductionFormula.tsx'), /<BuildingSettlementPanel/);
 });
 
-test('commercial rules remain independently documented from industrial production', () => {
-  const index = read('docs/README.md');
+test('commercial economics, inventory intent and page owners remain documented independently', () => {
   const design = read('docs/COMMERCIAL_BUILDINGS_DESIGN.md');
-  const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
-  const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
-  assert.match(index, /`COMMERCIAL_BUILDINGS_DESIGN\.md` \| 商业建筑资产、地区商品消费、营业周期与固定商业利润/);
+  const page = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+  const ui = read('docs/UI_DESIGN_SYSTEM.md');
   assert.match(design, /商业建筑不是工厂的另一种配方/);
   assert.match(design, /固定商业利润是服务器目录声明的\*\*绝对金额\*\*/);
   assert.match(design, /不得跨州寻找库存/);
   assert.match(design, /不是市场成交/);
-  assert.match(pageDesign, /概览｜市场｜商业｜工业｜仓库/);
-  assert.match(pageDesign, /技术 section ID 不迁移/);
-  assert.match(pageDesign, /`ProvincePage` 内的市场、商业与工业分区仍始终是地图所打开当前州的本地视图/);
-  assert.match(pageDesign, /商业、工业与仓库直接显示本地经营内容/);
-  assert.match(pageDesign, /概览始终显示官方常住人口以及该玩家在该州的只读经营摘要/);
-  assert.match(pageDesign, /地区商品／商业建筑／工厂详情标题第二行的州级地区名是直接地区导航入口/);
-  assert.match(pageDesign, /返回时必须恢复原商品／商业建筑／工厂详情/);
-  assert.match(uiDesign, /`RegionalEntityPageTitle` 固定负责地区商品／商业建筑／工厂详情共享两行标题/);
-  assert.match(uiDesign, /`regional-product`、`regional-commercial` 或 `regional-facility`/);
+  assert.match(design, /旧存档/);
+  assert.match(page, /概览｜市场｜建筑｜仓库/);
+  assert.match(page, /商业建筑卡片与详情/);
+  assert.match(page, /全部.*商业建筑.*工业建筑/);
+  assert.match(ui, /BuildingDetailPage/);
+  assert.match(ui, /BuildingSettlementPanel/);
+  assert.match(ui, /BuildingTypeFilter/);
 });
