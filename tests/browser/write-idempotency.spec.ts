@@ -8,6 +8,27 @@ const TIMEOUT_HISTORY_KEY = 'economy-write-timeout-test-history';
 
 type MockMode = 'abort-first' | 'network-error' | 'rate-limited' | 'success';
 
+async function initializeWriteSession(page: Page) {
+  await page.evaluate(async () => {
+    const sessionUrl = '/economy/src/api/gameWriteSession.ts';
+    const coordinatorUrl = '/economy/src/api/idempotentGameWriteFetch.ts';
+    const { beginGameWriteSession } = await import(sessionUrl);
+    const { installIdempotentGameWriteFetch } = await import(coordinatorUrl);
+    beginGameWriteSession(805);
+    installIdempotentGameWriteFetch();
+  });
+}
+
+async function openWriteHarness(page: Page) {
+  // These are authenticated transport tests, not an unauthenticated App bootstrap.
+  // Keep the real coordinator while giving reloads the same explicit account identity.
+  await page.route('**/write-idempotency-harness', (route) => route.fulfill({
+    contentType: 'text/html', body: '<!doctype html><title>Write idempotency harness</title>',
+  }));
+  await page.goto('write-idempotency-harness');
+  await initializeWriteSession(page);
+}
+
 async function installNativeWriteMock(page: Page, initialMode: MockMode) {
   await page.addInitScript(({ historyKey, modeKey, initialModeValue, testPath }) => {
     const nativeFetch = window.fetch.bind(window);
@@ -26,13 +47,6 @@ async function installNativeWriteMock(page: Page, initialMode: MockMode) {
           ? input.toString()
           : input.url;
       const url = new URL(rawUrl, window.location.origin);
-
-      if (url.pathname === '/economy-api/me') {
-        return new Response(JSON.stringify({ message: '未登录' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
       if (url.pathname !== testPath) return nativeFetch(input, init);
 
       const key = new Headers(init?.headers).get('Idempotency-Key') || '';
@@ -74,7 +88,7 @@ async function installNativeWriteMock(page: Page, initialMode: MockMode) {
     initialModeValue: initialMode,
     testPath: TEST_PATH,
   });
-  await page.goto('./');
+  await openWriteHarness(page);
 }
 
 async function installWriteTimeoutObservationMock(page: Page) {
@@ -97,12 +111,6 @@ async function installWriteTimeoutObservationMock(page: Page) {
           ? input.toString()
           : input.url;
       const url = new URL(rawUrl, window.location.origin);
-      if (url.pathname === '/economy-api/me') {
-        return new Response(JSON.stringify({ message: '未登录' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
       if (url.pathname === testPath || url.pathname === sessionPath) {
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
@@ -116,7 +124,7 @@ async function installWriteTimeoutObservationMock(page: Page) {
     testPath: TEST_PATH,
     sessionPath: SESSION_PATH,
   });
-  await page.goto('./');
+  await openWriteHarness(page);
 }
 
 async function submitTestWrite(page: Page, key: string, body: string, abortImmediately = false) {
@@ -177,6 +185,7 @@ test('unconfirmed write survives reload and rate limiting until a definitive res
 
   await page.evaluate(({ modeKey }) => window.sessionStorage.setItem(modeKey, 'rate-limited'), { modeKey: MODE_KEY });
   await page.reload();
+  await initializeWriteSession(page);
 
   const rateLimited = await submitTestWrite(page, 'new-key-that-must-not-be-used', '{"quantity":2}');
   expect(rateLimited.status).toBe(429);
