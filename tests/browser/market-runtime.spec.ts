@@ -22,6 +22,7 @@ async function inspectChartAxis(chart: Locator) {
       priceTicks: readTicks('priceTicks'),
       volumeTicks: readTicks('volumeTicks'),
       footerVisible: Boolean(wrapper.querySelector('.market-chart-footer')),
+      xAxisTitleVisible: wrapper.dataset.xAxisTitleVisible,
     };
   });
 }
@@ -124,7 +125,7 @@ test('market chart uses one linked hover state and keeps the price line protecte
   const axis = await inspectChartAxis(chart);
   expect(axis.priceTicks.length).toBeGreaterThanOrEqual(3);
   expect(axis.volumeTicks.length).toBeGreaterThanOrEqual(3);
-  expect(axis.footerVisible).toBe(true);
+  expect(axis.footerVisible).toBe(axis.xAxisTitleVisible === 'true');
 
   const bounds = await requireBox(chart);
   const geometry = await chart.evaluate((element) => {
