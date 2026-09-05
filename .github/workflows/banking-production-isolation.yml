@@ -1,0 +1,60 @@
+name: Banking production test isolation
+on:
+  push:
+    branches: [fix/banking-production-auto-operation-isolation-20260906]
+    paths: [.github/workflows/banking-production-isolation.yml]
+permissions:
+  contents: write
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Isolate mortgage production assertion from automatic trading
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('server/test/banking.test.js')
+          text = path.read_text()
+          import_marker = "} from '../src/facility-groups.js';\n"
+          assert text.count(import_marker) == 1
+          text = text.replace(import_marker, import_marker + "import { provinceScopedKey } from '../src/provinces.js';\n", 1)
+          marker = """  player.facilityGroups = [farmGroup(2, {
+            enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now,
+          })];
+          migrateFacilityGroupWorld(world, now);
+          """
+          replacement = """  player.facilityGroups = [farmGroup(2, {
+            enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now,
+          })];
+          player.factoryAutoOperationPolicies = {
+            [provinceScopedKey('110000', 'farm')]: {
+              enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus',
+            },
+          };
+          migrateFacilityGroupWorld(world, now);
+          """
+          assert text.count(marker) == 1
+          path.write_text(text.replace(marker, replacement, 1))
+          PY
+          git diff --check
+      - name: Run banking regression
+        run: node --test server/test/banking.test.js
+      - name: Commit tested fixture only
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add server/test/banking.test.js
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m 'test: isolate mortgage production from automatic trading'
+          git push origin HEAD:fix/banking-production-auto-operation-isolation-20260906
