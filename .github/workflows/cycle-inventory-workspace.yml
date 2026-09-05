@@ -6,19 +6,26 @@ on:
 permissions:
   contents: read
 jobs:
-  source:
+  dependencies:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: 3bee700b9517ee0be0fb888cfc91d88bd187a950
           persist-credentials: false
-      - name: Export tracked source for isolated implementation
-        run: git archive --format=tar.gz HEAD > "$RUNNER_TEMP/economy-source.tar.gz"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Package pinned local test dependencies
+        run: |
+          cp "$(command -v node)" node24
+          tar -czf "$RUNNER_TEMP/economy-dependencies.tar.gz" node_modules node24
       - uses: actions/upload-artifact@v4
         with:
-          name: cycle-inventory-source
-          path: ${{ runner.temp }}/economy-source.tar.gz
+          name: cycle-inventory-dependencies
+          path: ${{ runner.temp }}/economy-dependencies.tar.gz
           retention-days: 1
           compression-level: 0
