@@ -1,0 +1,35 @@
+name: Review legacy write receipt compatibility
+on:
+  push:
+    branches: [codex/trade-receipt-compatibility]
+    paths: [.github/workflows/review-receipt-compatibility.yml]
+permissions:
+  contents: write
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/trade-receipt-compatibility
+      - name: Extract exact regression paths and relevant source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          candidates = []
+          for p in Path('tests/browser').glob('*.spec.ts'):
+              s = p.read_text()
+              if any(word in p.name for word in ['timeout', 'heartbeat', 'resume', 'idempot']) or 'confirmed ok' in s or 'light-stale' in s:
+                  candidates.append(p)
+          Path('.github/receipt-test-index.md').write_text('\n'.join(str(p) for p in candidates) + '\n')
+          for i, p in enumerate(candidates):
+              Path(f'.github/receipt-test-{i}.txt').write_text(str(p) + '\n' + p.read_text())
+          PY
+          git add .github/receipt-test-*
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: record exact compatibility test sources for review'
+          git push origin HEAD:codex/trade-receipt-compatibility
