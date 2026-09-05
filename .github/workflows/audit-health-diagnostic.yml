@@ -1,0 +1,46 @@
+name: Audit read-only process health diagnostic
+on:
+  push:
+    branches: [work/audit-fixes-20260906]
+    paths: [.github/workflows/audit-health-diagnostic.yml]
+permissions:
+  contents: read
+jobs:
+  health-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      ECONOMY_PRODUCTION_PUBLIC_IP: 116.204.134.56
+    steps:
+      - name: Read service identity and bounded health samples without service or database writes
+        env:
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/audit_key
+          chmod 600 ~/.ssh/audit_key
+          trap 'rm -f ~/.ssh/audit_key' EXIT
+          timeout 75s ssh -i ~/.ssh/audit_key -p "$SERVER_PORT" -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=10 -o ServerAliveCountMax=2 -o StrictHostKeyChecking=accept-new "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          service=riversoft-economy-api.service
+          systemctl show "$service" --property=ActiveState,SubState,MainPID,ExecMainStartTimestamp
+          pid="$(systemctl show "$service" --property=MainPID --value)"
+          for attempt in 1 2 3; do
+            date -u +%FT%TZ
+            ps -p "$pid" -o pid=,etimes=,time=,pcpu=,rss=,stat=
+            curl --silent --show-error --connect-timeout 2 --max-time 3 --write-out '\nLOCAL_HEALTH status=%{http_code} elapsed=%{time_total}\n' http://127.0.0.1:3002/health || true
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
+          done
+          REMOTE
+      - name: Read public website and health without authenticated actions
+        shell: bash
+        run: |
+          set -uo pipefail
+          for endpoint in https://game.riversoft.top/economy/ https://game.riversoft.top/economy-api/health; do
+            curl --silent --show-error --output /dev/null --connect-timeout 2 --max-time 3 --write-out "$endpoint status=%{http_code} elapsed=%{time_total}\n" "$endpoint" || true
+          done
