@@ -24,6 +24,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           python3 .github/unify-buildings-integrate.py
+          git add -A
           node scripts/normalize-repository-text.mjs
           git add -A
           git diff --cached --check
