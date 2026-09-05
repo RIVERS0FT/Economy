@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { MarketHistoryBucket } from '../../utils/marketHistory';
 import { formatMarketAxisTime, MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCompactNumber, formatCurrency } from '../../utils/formatters';
 import { EconomyChart } from './EconomyChart';
 import { syncEChartsTooltipCoordinates, type EChartsCoreOption, type EChartsType } from './echartsCore';
 import { STABLE_TOOLTIP_EMPHASIS, chartColor, commonTooltip, escapeChartHtml } from './chartOptions';
@@ -490,14 +490,14 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         const index = resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS);
         const bucket = safeBuckets[index];
         if (!bucket) return '';
-        const sign = bucket.netVolume > 0 ? '+' : '';
+        const netVolumeText = `${bucket.netVolume > 0 ? '+' : ''}${formatCompactNumber(bucket.netVolume)}`;
         return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', timeZone: 'Asia/Shanghai' }))}</strong>`
           + `<div><small>价格</small> ${escapeChartHtml(formatCurrency(bucket.price))}</div>`
           + `<div><small>总成交量</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.volume))}</div>`
           + `<div><small>主动买入</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.buyVolume))}</div>`
           + `<div><small>主动卖出</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.sellVolume))}</div>`
           + `<div><small>方向未知</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.neutralVolume))}</div>`
-          + `<div><small>净主动量</small> ${escapeChartHtml(`${sign}${fullIntegerFormatter.format(bucket.netVolume)}`)}</div>`;
+          + `<div><small>净主动量</small> ${escapeChartHtml(netVolumeText)}</div>`;
       },
     },
     xAxis: [
