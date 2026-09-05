@@ -6,50 +6,50 @@
 
 
 ## focused
-✔ commercial auto settings are strict, owned and independent of running intent (34.605516ms)
-✔ legacy default and derived execution policy do not rewrite saved groups (17.594755ms)
-✔ commercial purchase fills only the local two-cycle shortfall once (13.35403ms)
-✔ commercial auto-purchase respects price caps, cash and operating intent (13.53114ms)
-✔ commercial inventory protection adds per-consumer demand and survives disabling procurement (19.224731ms)
-✔ commerce alone cannot create an automatic sale or return goods on stop (17.682124ms)
-✔ server locks all commercial settlement details across price, count and policy changes (10.98831ms)
-✔ offline commercial world advancement does not invoke automatic purchases (6.705438ms)
-✔ commercial building consumes local goods and settles a fixed locked profit without market volume (29.310633ms)
-✔ commercial auto operation recovers after missing local goods are restored (11.477896ms)
-✔ commercial building never consumes inventory from another province (18.361328ms)
-✔ stopping during an invested cycle keeps the locked settlement but prevents renewal (9.115232ms)
-✔ commercial cycle locks staffing, integer inputs, costs and profit at start (22.898141ms)
-✔ zero staffing enters a real recovery cycle and is included in the scheduler deadline (9.863745ms)
-✔ stopping a zero-output cycle cannot mint carry or restart its deadline (8.509695ms)
-✔ disabling procurement does not change staffing direction; stopping does (6.441677ms)
-✔ persistent shortage decays from one baseline instead of losing fractional time on every poll (16.786727ms)
-✔ legacy invested amounts survive migration and missing staffing does not retroactively decay (11.395416ms)
-✔ staffed operation remains local and does not write market volumes (7.463528ms)
-(node:2410) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+✔ commercial auto settings are strict, owned and independent of running intent (32.146776ms)
+✔ legacy default and derived execution policy do not rewrite saved groups (12.33238ms)
+✔ commercial purchase fills only the local two-cycle shortfall once (14.187874ms)
+✔ commercial auto-purchase respects price caps, cash and operating intent (9.212577ms)
+✔ commercial inventory protection adds per-consumer demand and survives disabling procurement (9.861057ms)
+✔ commerce alone cannot create an automatic sale or return goods on stop (17.350156ms)
+✔ server locks all commercial settlement details across price, count and policy changes (13.965078ms)
+✔ offline commercial world advancement does not invoke automatic purchases (10.582975ms)
+✔ commercial building consumes local goods and settles a fixed locked profit without market volume (21.73409ms)
+✔ commercial auto operation recovers after missing local goods are restored (8.126359ms)
+✔ commercial building never consumes inventory from another province (8.009651ms)
+✔ stopping during an invested cycle keeps the locked settlement but prevents renewal (5.529532ms)
+✔ commercial cycle locks staffing, integer inputs, costs and profit at start (37.963143ms)
+✔ zero staffing enters a real recovery cycle and is included in the scheduler deadline (15.259504ms)
+✔ stopping a zero-output cycle cannot mint carry or restart its deadline (12.894069ms)
+✔ disabling procurement does not change staffing direction; stopping does (9.212466ms)
+✔ persistent shortage decays from one baseline instead of losing fractional time on every poll (23.681274ms)
+✔ legacy invested amounts survive migration and missing staffing does not retroactively decay (9.359881ms)
+✔ staffed operation remains local and does not write market volumes (8.798383ms)
+(node:2536) ExperimentalWarning: SQLite is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
-✔ a user write joins the serial executor after its arrival barrier without recursively chasing later deadlines (13.7193ms)
-✔ a failed world barrier does not execute or acknowledge an economic write (6.756714ms)
-✔ buy confirmation after delayed admission mutates the real SQLite world once (187.548001ms)
-✔ sell confirmation after delayed admission mutates the real SQLite world once (78.234633ms)
-✔ commercial policies reject coercion and invalid coverage (3.152416ms)
-✔ default commercial policy does not mutate a legacy group (3.350174ms)
-✔ running settlement ignores current price, count and catalog changes (0.541487ms)
-✔ legacy invested cycle cannot fabricate missing locked detail (0.312352ms)
-✔ stopped preview uses full count and only real official prices (0.470996ms)
-✔ commercial page locations retain distinct hosts and identities (0.398461ms)
-✔ commercial staffing uses the authoritative baseline and remains read only (1.926234ms)
-✔ missing or invalid commercial authority never becomes a fabricated 100 percent (0.392991ms)
-✔ integer commercial capacity retains fractional work and supports safe large counts (1.489482ms)
-✔ zero-revenue recovery cycles are active, while absent legacy cycles are not (0.275031ms)
-✔ complete receipt is buffered and reusable after timeout cleanup (41.219517ms)
-✔ headers without a completed body hit the deadline and confirm the identical request (10.859719ms)
-✔ two missing receipts finish as unknown rather than claimed failure or success (10.851273ms)
-✔ unusable success receipt is confirmed before being accepted: {"result": (2.083848ms)
-✔ unusable success receipt is confirmed before being accepted: {} (1.540137ms)
-✔ unusable success receipt is confirmed before being accepted: {"result":{"ok":"true","message":"x"},"revision":1} (1.546277ms)
-✔ definitive business rejection and retryable status preserve their real HTTP results (3.691339ms)
-✔ confirmation has a fresh signal even if the first caller signal was aborted (1.024146ms)
-✔ a request already aborted before send is not retried into a new economic action (0.44083ms)
+✔ a user write joins the serial executor after its arrival barrier without recursively chasing later deadlines (14.188064ms)
+✔ a failed world barrier does not execute or acknowledge an economic write (12.880454ms)
+✔ buy confirmation after delayed admission mutates the real SQLite world once (177.763654ms)
+✔ sell confirmation after delayed admission mutates the real SQLite world once (111.192147ms)
+✔ commercial policies reject coercion and invalid coverage (2.117743ms)
+✔ default commercial policy does not mutate a legacy group (0.27892ms)
+✔ running settlement ignores current price, count and catalog changes (2.337353ms)
+✔ legacy invested cycle cannot fabricate missing locked detail (0.223758ms)
+✔ stopped preview uses full count and only real official prices (0.510804ms)
+✔ commercial page locations retain distinct hosts and identities (0.34781ms)
+✔ commercial staffing uses the authoritative baseline and remains read only (1.421323ms)
+✔ missing or invalid commercial authority never becomes a fabricated 100 percent (0.343672ms)
+✔ integer commercial capacity retains fractional work and supports safe large counts (1.355049ms)
+✔ zero-revenue recovery cycles are active, while absent legacy cycles are not (0.232444ms)
+✔ complete receipt is buffered and reusable after timeout cleanup (46.326938ms)
+✔ headers without a completed body hit the deadline and confirm the identical request (11.01442ms)
+✔ two missing receipts finish as unknown rather than claimed failure or success (12.558352ms)
+✔ unusable success receipt is confirmed before being accepted: {"result": (1.270972ms)
+✔ unusable success receipt is confirmed before being accepted: {} (0.660232ms)
+✔ unusable success receipt is confirmed before being accepted: {"result":{"ok":"true","message":"x"},"revision":1} (1.479262ms)
+✔ definitive business rejection and retryable status preserve their real HTTP results (2.3627ms)
+✔ confirmation has a fresh signal even if the first caller signal was aborted (0.79829ms)
+✔ a request already aborted before send is not retried into a new economic action (0.365081ms)
 ℹ tests 42
 ℹ suites 0
 ℹ pass 42
@@ -57,7 +57,7 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 805.096183
+ℹ duration_ms 678.354691
 
 
 ## dt
@@ -132,13 +132,13 @@ Fixed reusable stress-test account registry, strict slicing and secret boundary 
 > economy@0.4.0 test:stress
 > node --test tests/stress/stress-flow.test.mjs
 
-(node:2779) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(node:2881) ExperimentalWarning: SQLite is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
-✔ stress metrics calculate percentiles and enforce budgets (1.872274ms)
-✔ budgeted routes must provide server-local timing instead of client end-to-end timing (0.279169ms)
-✔ stress safety prevents production writes and unsafe targets (0.683652ms)
-✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (4593.669294ms)
-✔ isolated transaction mix exercises state, orders, facilities, recipes, builds and research (7851.574183ms)
+✔ stress metrics calculate percentiles and enforce budgets (1.888445ms)
+✔ budgeted routes must provide server-local timing instead of client end-to-end timing (0.29998ms)
+✔ stress safety prevents production writes and unsafe targets (0.671674ms)
+✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (4616.6885ms)
+✔ isolated transaction mix exercises state, orders, facilities, recipes, builds and research (7913.338263ms)
 ℹ tests 5
 ℹ suites 0
 ℹ pass 5
@@ -146,7 +146,7 @@ Fixed reusable stress-test account registry, strict slicing and secret boundary 
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 17581.979437
+ℹ duration_ms 17664.503524
 Nested custom/native scroll ownership, shared signed-in page scroll, Strategic Outliner vertical boundary release, regional factory page flow and boundary release verification passed.
 宝石、邀请与封禁验证通过：同 IP 仅上报异常，账号封禁只由管理员执行，邀请防刷与审计边界保持。
 Daily check-in verification passed.
@@ -252,12 +252,6 @@ FAILED node --experimental-strip-types scripts/verify-market-assets.mjs
 - src/pages/MarketPage.tsx 缺少: const total = officialPrice * effectiveQuantity;
 
 
-FAILED node scripts/verify-market-page-layout.mjs 
- 地区即时商品市场验证失败：
-- 地区商品详情缺少即时成交结构: placeAssetOrder('commodity', assetId, orderSide, parsedQuantity, officialPrice)
-- 地区商品详情缺少即时成交结构: {orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`}
-
-
 
 ## it
 ℹ tests 567
@@ -267,17 +261,17 @@ FAILED node scripts/verify-market-page-layout.mjs
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 16825.209856
+ℹ duration_ms 17047.211026
 
 
 ## browser
 
-Running 30 tests using 4 workers
+Running 31 tests using 4 workers
 
-[1/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 390px
-[2/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 720px
-[3/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 1440px
-[4/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 320px
+[1/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 720px
+[2/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 320px
+[3/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 1440px
+[4/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 390px
 
 
 
@@ -292,152 +286,77 @@ Running 30 tests using 4 workers
 
 
 
-[5/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:70:1 › commercial cards show per-building profit and details show server-locked totals
-[6/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:87:1 › commercial switch prevents repeated requests and preserves an invested cycle after stop
-[7/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial network failure leaves the authoritative switch intact
-[8/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial server failure leaves the authoritative switch intact
 
+[5/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:70:1 › commercial cards show per-building profit and details show server-locked totals
+[6/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:87:1 › commercial switch prevents repeated requests and preserves an invested cycle after stop
+[7/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial network failure leaves the authoritative switch intact
+[8/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial server failure leaves the authoritative switch intact
 
-[9/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:133:1 › commercial countdown waits for the server and does not settle or restart locally
 
-[10/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:147:1 › commercial empty state and long names remain usable at 320px
+[9/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:133:1 › commercial countdown waits for the server and does not settle or restart locally
 
-[11/30] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 320px
-[12/30] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 390px
+[10/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:147:1 › commercial empty state and long names remain usable at 320px
 
+[11/31] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 320px
 
-[13/30] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 720px
+[12/31] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 390px
 
+[13/31] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 720px
 
 
 
-[14/30] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 1440px
 
+[14/31] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 1440px
 
 
-[15/30] [chromium] › tests/browser/commercial-staffing.spec.ts:47:1 › staffing changes never overwrite an invested commercial cycle or claim local settlement
+[15/31] [chromium] › tests/browser/commercial-staffing.spec.ts:47:1 › staffing changes never overwrite an invested commercial cycle or claim local settlement
 
 
 
 
-[16/30] [chromium] › tests/browser/commercial-staffing.spec.ts:65:1 › missing staffing is unknown and does not fabricate full efficiency or locked details
+[16/31] [chromium] › tests/browser/commercial-staffing.spec.ts:65:1 › missing staffing is unknown and does not fabricate full efficiency or locked details
 
 
-[17/30] [chromium] › tests/browser/trade-confirmation.spec.ts:28:1 › concurrent identical writes share one HTTP attempt and each receives its own readable receipt
+[17/31] [chromium] › tests/browser/trade-confirmation.spec.ts:27:1 › concurrent identical writes share one HTTP attempt and each receives its own readable receipt
 
 
-[18/30] [chromium] › tests/browser/trade-confirmation.spec.ts:43:1 › two lost receipts retain one key across reload and successful confirmation releases it
-[19/30] [chromium] › tests/browser/trade-confirmation.spec.ts:63:1 › HTTP success with a broken receipt does not release the original transaction key
+[18/31] [chromium] › tests/browser/trade-confirmation.spec.ts:42:1 › two lost receipts retain one key across reload and successful confirmation releases it
 
 
-[20/30] [chromium] › tests/browser/trade-confirmation.spec.ts:76:3 › buy controls freeze pending parameters and confirm even after funds or inventory change
-  1) [chromium] › tests/browser/trade-confirmation.spec.ts:28:1 › concurrent identical writes share one HTTP attempt and each receives its own readable receipt 
 
-    Error: page.evaluate: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:1420/src/api/idempotentGameWriteFetch.ts
+[19/31] [chromium] › tests/browser/trade-confirmation.spec.ts:62:1 › HTTP success with a broken receipt does not release the original transaction key
+[20/31] [chromium] › tests/browser/trade-confirmation.spec.ts:75:3 › buy controls freeze pending parameters and confirm even after funds or inventory change
+[21/31] [chromium] › tests/browser/trade-confirmation.spec.ts:75:3 › sell controls freeze pending parameters and confirm even after funds or inventory change
 
-       6 | async function bootCoordinator(page: Page) {
-       7 |   await page.goto('runtime-test.html?view=commerce&scenario=activity');
-    >  8 |   await page.evaluate(async () => {
-         |              ^
-       9 |     const path = '/src/api/idempotentGameWriteFetch.ts';
-      10 |     const module = await import(/* @vite-ignore */ path);
-      11 |     module.installIdempotentGameWriteFetch();
-        at bootCoordinator (/home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:8:14)
-        at /home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:33:3
 
-    Error Context: test-results/trade-confirmation-concurr-eaaab-es-its-own-readable-receipt-chromium/error-context.md
+[22/31] [chromium] › tests/browser/trade-confirmation.spec.ts:113:1 › notification failure cannot turn a confirmed commodity purchase back into an unknown transaction
+[23/31] [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 320px
 
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/trade-confirmation-concurr-eaaab-es-its-own-readable-receipt-chromium/trace.zip
-    Usage:
 
-        npx playwright show-trace test-results/trade-confirmation-concurr-eaaab-es-its-own-readable-receipt-chromium/trace.zip
+[24/31] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 320px
 
-    ────────────────────────────────────────────────────────────────────────────────────────────────
+[25/31] [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 1440px
 
+[26/31] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 1440px
 
-[21/30] [chromium] › tests/browser/trade-confirmation.spec.ts:76:3 › sell controls freeze pending parameters and confirm even after funds or inventory change
 
+[27/31] [chromium] › tests/browser/unified-buildings.spec.ts:90:1 › global commerce restores its region, detail and filtered catalog
 
 
-  2) [chromium] › tests/browser/trade-confirmation.spec.ts:43:1 › two lost receipts retain one key across reload and successful confirmation releases it 
 
-    Error: page.evaluate: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:1420/src/api/idempotentGameWriteFetch.ts
 
-       6 | async function bootCoordinator(page: Page) {
-       7 |   await page.goto('runtime-test.html?view=commerce&scenario=activity');
-    >  8 |   await page.evaluate(async () => {
-         |              ^
-       9 |     const path = '/src/api/idempotentGameWriteFetch.ts';
-      10 |     const module = await import(/* @vite-ignore */ path);
-      11 |     module.installIdempotentGameWriteFetch();
-        at bootCoordinator (/home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:8:14)
-        at /home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:50:3
 
-    Error Context: test-results/trade-confirmation-two-los-52027-ul-confirmation-releases-it-chromium/error-context.md
+[28/31] [chromium] › tests/browser/unified-buildings.spec.ts:110:1 › commercial automatic operation is independent and prevents duplicate requests
 
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/trade-confirmation-two-los-52027-ul-confirmation-releases-it-chromium/trace.zip
-    Usage:
+[29/31] [chromium] › tests/browser/unified-buildings.spec.ts:138:1 › failed commercial policy save preserves the authoritative setting
 
-        npx playwright show-trace test-results/trade-confirmation-two-los-52027-ul-confirmation-releases-it-chromium/trace.zip
 
-    ────────────────────────────────────────────────────────────────────────────────────────────────
+[30/31] [chromium] › tests/browser/unified-buildings.spec.ts:147:1 › commercial goods open the same local product and return without trading
 
 
-[22/30] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 320px
-  3) [chromium] › tests/browser/trade-confirmation.spec.ts:63:1 › HTTP success with a broken receipt does not release the original transaction key 
 
-    Error: page.evaluate: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:1420/src/api/idempotentGameWriteFetch.ts
+[31/31] [chromium] › tests/browser/unified-buildings.spec.ts:160:1 › legacy unknown settlement detail stays unknown and empty commerce retains construction
 
-       6 | async function bootCoordinator(page: Page) {
-       7 |   await page.goto('runtime-test.html?view=commerce&scenario=activity');
-    >  8 |   await page.evaluate(async () => {
-         |              ^
-       9 |     const path = '/src/api/idempotentGameWriteFetch.ts';
-      10 |     const module = await import(/* @vite-ignore */ path);
-      11 |     module.installIdempotentGameWriteFetch();
-        at bootCoordinator (/home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:8:14)
-        at /home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:70:3
 
-    Error Context: test-results/trade-confirmation-HTTP-su-69df7-he-original-transaction-key-chromium/error-context.md
 
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/trade-confirmation-HTTP-su-69df7-he-original-transaction-key-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/trade-confirmation-HTTP-su-69df7-he-original-transaction-key-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-
-[23/30] [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 320px
-[24/30] [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 1440px
-
-[25/30] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 1440px
-
-
-
-
-
-
-
-[26/30] [chromium] › tests/browser/unified-buildings.spec.ts:90:1 › global commerce restores its region, detail and filtered catalog
-[27/30] [chromium] › tests/browser/unified-buildings.spec.ts:110:1 › commercial automatic operation is independent and prevents duplicate requests
-[28/30] [chromium] › tests/browser/unified-buildings.spec.ts:138:1 › failed commercial policy save preserves the authoritative setting
-
-
-
-
-[29/30] [chromium] › tests/browser/unified-buildings.spec.ts:147:1 › commercial goods open the same local product and return without trading
-
-
-
-[30/30] [chromium] › tests/browser/unified-buildings.spec.ts:160:1 › legacy unknown settlement detail stays unknown and empty commerce retains construction
-
-
-  3 failed
-    [chromium] › tests/browser/trade-confirmation.spec.ts:28:1 › concurrent identical writes share one HTTP attempt and each receives its own readable receipt 
-    [chromium] › tests/browser/trade-confirmation.spec.ts:43:1 › two lost receipts retain one key across reload and successful confirmation releases it 
-    [chromium] › tests/browser/trade-confirmation.spec.ts:63:1 › HTTP success with a broken receipt does not release the original transaction key 
-  27 passed (2.6m)
+  31 passed (2.7m)
