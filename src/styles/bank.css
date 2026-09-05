@@ -386,7 +386,7 @@
   }
 
   .bank-collateral-available::before {
-    content: '可抵押';
+    content: '可冻结';
   }
 
   .bank-collateral-price::before {

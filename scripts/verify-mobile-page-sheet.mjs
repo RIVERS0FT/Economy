@@ -289,3 +289,5 @@ requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
 ]);
 
 console.log('移动唯一 Sheet 自身毛玻璃、稳定松手、透明外部、状态/通知上层与导航隐藏恢复动画验证通过。');
+
+requireAll('src/styles/mobile-detail-sheet.css', ['min-height: 24px;']);

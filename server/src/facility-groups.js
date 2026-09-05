@@ -1529,9 +1529,10 @@ function createLeaderboard(world, currentUserId, now) {
 function clientGroup(world, player, group, now) {
   const listedCount = listedQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
   const auctionedCount = auctionedQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
-  const frozenCount = listedCount + auctionedCount;
+  const transactionFrozenCount = listedCount + auctionedCount;
   const mortgagedCount = mortgagedFacilityQuantity(player, group.facilityTypeId, group.provinceId);
   const contractCollateralCount = playerLoanCollateralQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
+  const frozenCount = transactionFrozenCount + mortgagedCount + contractCollateralCount;
   const leasedOutCount = leasedOutFacilityQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
   const leasedInCount = leasedInFacilityQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
   const productionAvailableCount = Math.max(0, group.count - frozenCount - leasedOutCount + leasedInCount);

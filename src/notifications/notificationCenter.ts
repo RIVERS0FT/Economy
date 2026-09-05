@@ -325,7 +325,7 @@ function bankPendingItems(game: NotificationGameState): PendingNotificationItem[
       category: 'bank',
       severity: 'critical',
       title: '贷款已经进入宽限期',
-      message: '请在宽限期结束前完成还款，避免抵押工厂被处置',
+      message: '请在宽限期结束前完成还款，避免冻结工厂被处置',
       targetTab: 'bank',
     });
   }

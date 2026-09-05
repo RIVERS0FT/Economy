@@ -18,6 +18,8 @@ const contractsApi = 'src/contracts/api.ts';
 const main = 'src/main.tsx';
 const writeCoordinator = 'src/api/idempotentGameWriteFetch.ts';
 const serverDesign = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
+const runtimeStore = 'server/src/runtime-store.js';
+const serverApp = 'server/src/app.js';
 const countdownDesign = 'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md';
 
 for (const text of [
@@ -76,6 +78,15 @@ for (const text of [
   "const GAME_API_BASE = '/economy-api/game';",
   "'Idempotency-Key': requestKey()",
 ]) requireText(contractsApi, text);
+
+for (const text of [
+  "Object.defineProperty(actionResponse, 'stateSnapshot'",
+  'value: store.getStateSnapshot(user, null, actionDeliveryNow)',
+  'createPartitionedActionDelivery(actionResponse, knownPartitions, actionDeliveryNow)',
+]) requireText(serverApp, text);
+for (const text of ["Object.defineProperty(response, 'stateSnapshot'", 'value: this.getStateSnapshot(user, null, now)']) {
+  forbidText(runtimeStore, text);
+}
 
 for (const text of [
   '普通玩家权威动作的持久化幂等确认仍固定为 `{ result: { ok, message }, revision }`',

@@ -197,7 +197,7 @@ requireText(
 );
 requireText(
   contractWorkspace,
-  'label="抵押工厂"',
+  'label="冻结工厂"',
   'contract collateral facility selector',
 );
 requireText(

@@ -270,7 +270,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
 
       <PagePanel className="bank-loan-panel">
         <WidgetHeading
-          title="工厂抵押融资"
+          title="工厂冻结融资"
           action={activeLoan ? <StatusTag tone={activeLoan.status === 'grace' ? 'danger' : 'warning'}>{activeLoan.status === 'grace' ? '宽限期' : '还款中'}</StatusTag> : <StatusTag tone="info">额度评估</StatusTag>}
         />
         {activeLoan ? (
@@ -286,11 +286,11 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
             {activeLoan.status === 'grace' ? (
               <div className="bank-loan-risk-callout" role="status">
                 <strong>宽限期风险</strong>
-                <span>宽限结束仍未结清时，服务器会按届时审慎单价的 80% 处置足以覆盖欠款的最少抵押工厂；本页不会提前预测具体处置数量。</span>
+                <span>宽限结束仍未结清时，服务器会按届时审慎单价的 80% 处置足以覆盖欠款的最少冻结工厂；本页不会提前预测具体处置数量。</span>
               </div>
             ) : null}
             <div className="bank-collateral-summary">
-              <strong>抵押工厂</strong>
+              <strong>冻结工厂</strong>
               <div className="bank-collateral-chips">
                 {activeLoan.collateral.map((item) => {
                   const type = model.game.facilityTypes.find((facility) => facility.id === item.facilityTypeId);
@@ -298,7 +298,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                   return <span key={`${item.provinceId}:${item.facilityTypeId}`}><FactoryIcon />{province?.name || item.provinceId} · {type?.name || item.facilityTypeId} × {<CompactNumber value={item.quantity} />}</span>;
                 })}
               </div>
-              <small>抵押工厂继续生产，但在贷款结清前不能出售、拍卖或重复抵押。</small>
+              <small>冻结工厂继续生产，但在贷款结清前不能出售、拍卖或重复冻结。</small>
             </div>
             <ToggleField
               label="自动还款"
@@ -328,15 +328,15 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
           </div>
         ) : (
           <div className="bank-financing-workspace">
-            <div className="bank-collateral-list" role="table" aria-label="可抵押工厂">
+            <div className="bank-collateral-list" role="table" aria-label="可冻结工厂">
               <div className="entity-list-header bank-collateral-list-header" role="row">
-                <span role="columnheader">抵押资产</span>
-                <span role="columnheader">可抵押</span>
+                <span role="columnheader">冻结资产</span>
+                <span role="columnheader">可冻结</span>
                 <span role="columnheader">审慎单价</span>
-                <span role="columnheader">本次抵押</span>
+                <span role="columnheader">本次冻结</span>
               </div>
               {bankAccount.availableCollateral.length === 0 ? (
-                <EmptyState>当前没有可用于抵押的工厂。已挂牌、拍卖或抵押的工厂不能重复使用。</EmptyState>
+                <EmptyState>当前没有可用于冻结的工厂。已挂牌、拍卖或冻结的工厂不能重复使用。</EmptyState>
               ) : collateralDraftState.map(({ item, key, draft, parsed, invalid }) => {
                 const type = model.game.facilityTypes.find((facility) => facility.id === item.facilityTypeId);
                 const province = provinces.find((candidate) => candidate.id === item.provinceId);
@@ -345,7 +345,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                   <div className="bank-collateral-row" role="row" key={key}>
                     <div className="bank-collateral-identity" role="cell">
                       <span className="bank-factory-name"><FactoryIcon />{type?.name || item.facilityTypeId}</span>
-                      <small>{province?.name || item.provinceId} · 总持有 {<CompactNumber value={item.totalQuantity} />} · 交易冻结 {<CompactNumber value={transactionFrozen} />} · 已抵押 {<CompactNumber value={item.mortgagedQuantity} />}</small>
+                      <small>{province?.name || item.provinceId} · 总持有 {<CompactNumber value={item.totalQuantity} />} · 交易冻结 {<CompactNumber value={transactionFrozen} />} · 已冻结 {<CompactNumber value={item.mortgagedQuantity} />}</small>
                     </div>
                     <strong className="bank-collateral-available" role="cell"><CompactNumber value={item.availableQuantity} /></strong>
                     <span className="bank-collateral-price" role="cell"><CurrencyAmount>{formatCurrency(item.prudentUnitValue)}</CurrencyAmount></span>
@@ -357,7 +357,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                         min={0}
                         max={item.availableQuantity}
                         step={1}
-                        aria-label={`${type?.name || item.facilityTypeId}抵押数量`}
+                        aria-label={`${type?.name || item.facilityTypeId}冻结数量`}
                         aria-invalid={invalid || undefined}
                         value={draft}
                         placeholder="0"
@@ -379,11 +379,11 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
               <div className="bank-section-heading">
                 <div>
                   <h3 id="bank-loan-decision-title">融资方案</h3>
-                  <p>先选择抵押工厂，再决定本次使用多少银行授信。</p>
+                  <p>先选择冻结工厂，再决定本次使用多少银行授信。</p>
                 </div>
               </div>
               <DataList>
-                <DataRow label="抵押物审慎估值" value={<CurrencyAmount>{formatCurrency(collateralValue)}</CurrencyAmount>} />
+                <DataRow label="冻结资产审慎估值" value={<CurrencyAmount>{formatCurrency(collateralValue)}</CurrencyAmount>} />
                 <DataRow label="最高可贷额度" value={<CurrencyAmount>{formatCurrency(maximumLoan)}</CurrencyAmount>} tone="success" />
               </DataList>
               <MoneyInput
@@ -432,7 +432,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                   <DataRow label="最终可贷成数" value={formatRateBps(loanToValueBps)} tone="info" />
                 </DataList>
               </div>
-              {hasInvalidCollateralDraft ? <p className="form-error" role="alert">抵押数量必须是不超过可抵押数量的正整数。</p> : null}
+              {hasInvalidCollateralDraft ? <p className="form-error" role="alert">冻结数量必须是不超过可冻结数量的正整数。</p> : null}
               <Button block disabled={!requestedLoan || selectedCollateral.length === 0 || hasInvalidCollateralDraft || Boolean(pending)} onClick={() => submit(
                 'borrow',
                 () => model.bankBorrow(

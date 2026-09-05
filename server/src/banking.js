@@ -420,7 +420,7 @@ export function calculateLoanAssessment(world, player, collateral, requestedAmou
 
 function completeLoan(account, loan, now) {
   account.repaidLoanCount += 1;
-  recordTransaction(account, 'loan_repaid', loan.principalOriginal, now, '抵押贷款已全部结清', { loanId: loan.id });
+  recordTransaction(account, 'loan_repaid', loan.principalOriginal, now, '冻结贷款已全部结清', { loanId: loan.id });
   account.activeLoan = null;
 }
 
@@ -582,7 +582,7 @@ function settleDefault(world, player, now) {
     bank.riskReserveCredits -= absorbed;
   }
   account.lastDefaultAt = now;
-  recordTransaction(account, 'default', liability, now, '贷款逾期，银行处置抵押工厂', {
+  recordTransaction(account, 'default', liability, now, '贷款逾期，银行处置冻结工厂', {
     loanId: loan.id,
     seized,
     proceeds,
@@ -767,8 +767,8 @@ function applyBorrow(world, player, payload, now) {
   if (account.activeLoan) return { ok: false, message: '每名玩家同时只能有一笔进行中的贷款' };
   const amount = safePositiveMoney(payload.amount);
   const assessment = calculateLoanAssessment(world, player, payload.collateral, amount, now);
-  if (!amount || assessment.collateral.length === 0) return { ok: false, message: '贷款金额或抵押工厂无效' };
-  if (assessment.invalidCollateral) return { ok: false, message: '可抵押工厂数量不足' };
+  if (!amount || assessment.collateral.length === 0) return { ok: false, message: '贷款金额或冻结工厂无效' };
+  if (assessment.invalidCollateral) return { ok: false, message: '可冻结工厂数量不足' };
   if (amount > assessment.maximumLoanCredits) return { ok: false, message: '申请金额超过当前贷款额度' };
   const loan = {
     id: `bank-loan-${randomUUID()}`,
@@ -797,7 +797,7 @@ function applyBorrow(world, player, payload, now) {
   bank.totals.creditIssued = addSafe(bank.totals.creditIssued, amount);
   player.stats ||= {};
   player.stats.bankCreditIssued = addSafe(player.stats.bankCreditIssued, amount);
-  recordTransaction(account, 'loan_disbursed', amount, now, '银行发放工厂抵押贷款', { loanId: loan.id });
+  recordTransaction(account, 'loan_disbursed', amount, now, '银行发放工厂冻结贷款', { loanId: loan.id });
   return { ok: true, message: `贷款已发放，到期应还 ${amount + assessment.totalInterestCredits}` };
 }
 

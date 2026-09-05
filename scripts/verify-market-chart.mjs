@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import {
   buildMarketHistoryBuckets,
   countMarketHistoryPointsInWindow,
+  getMarketWindowBounds,
   MARKET_BUCKET_COUNT,
   MARKET_BUCKET_MS,
   MARKET_WINDOW_MS,
@@ -19,49 +20,36 @@ import {
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8').replace(/\r\n?/g, '\n');
 const now = Date.UTC(2026, 6, 17, 8, 3, 0);
-const windowEnd = Math.floor(now / MARKET_BUCKET_MS) * MARKET_BUCKET_MS + MARKET_BUCKET_MS;
-const windowStart = windowEnd - MARKET_WINDOW_MS;
+const { windowStart, windowEnd } = getMarketWindowBounds(now);
 const points = [
   { price: 8, quantity: 9, createdAt: windowStart - 1_000 },
-  { price: 10, quantity: 2, takerSide: 'buy', createdAt: windowStart + 60_000 },
-  { price: 12, quantity: 3, takerSide: 'sell', createdAt: windowStart + 3 * 60_000 },
-  { price: 13, quantity: 4, createdAt: windowStart + 5 * 60_000 },
-  { price: 15, quantity: 4, takerSide: 'buy', createdAt: windowStart + MARKET_BUCKET_MS + 60_000 },
+  { price: 10, quantity: 2, takerSide: 'buy', createdAt: windowStart + 60 * 60 * 1000 },
+  { price: 12, quantity: 3, takerSide: 'sell', createdAt: windowStart + 3 * 60 * 60 * 1000 },
+  { price: 15, quantity: 4, takerSide: 'buy', createdAt: windowStart + MARKET_BUCKET_MS + 60 * 60 * 1000 },
 ];
 const buckets = buildMarketHistoryBuckets(points, 6, now);
 
-assert.equal(MARKET_BUCKET_COUNT, 240, '24h / 6m 必须等于 240 个分段');
-assert.equal(buckets.length, 240, '行情聚合必须输出固定 240 个分段');
-assert.equal(countMarketHistoryPointsInWindow(points, now), 4, '成交笔数必须只统计与图表相同的最近 24h 窗口');
-assert.deepEqual(
-  { price: buckets[0].price, volume: buckets[0].volume, buyVolume: buckets[0].buyVolume, sellVolume: buckets[0].sellVolume, neutralVolume: buckets[0].neutralVolume, netVolume: buckets[0].netVolume, direction: buckets[0].direction },
-  { price: 13, volume: 9, buyVolume: 2, sellVolume: 3, neutralVolume: 4, netVolume: -1, direction: 'sell' },
-  '同一分段必须使用最后成交价并按吃单方向汇总',
-);
-assert.deepEqual(
-  { price: buckets[2].price, volume: buckets[2].volume, netVolume: buckets[2].netVolume, direction: buckets[2].direction },
-  { price: 15, volume: 0, netVolume: 0, direction: 'neutral' },
-  '无成交分段必须延续最近有效价格且成交量为零',
-);
+assert.equal(MARKET_BUCKET_COUNT, 30, '成交趋势必须固定保留最近 30 个自然日');
+assert.equal(MARKET_BUCKET_MS, 24 * 60 * 60 * 1000, '成交趋势必须按日聚合');
+assert.equal(buckets.length, 30, '行情聚合必须输出固定 30 个日桶');
+assert.equal(countMarketHistoryPointsInWindow(points, now), 3, '成交笔数只统计最近 30 个自然日窗口');
+assert.deepEqual({ price: buckets[0].price, volume: buckets[0].volume, buyVolume: buckets[0].buyVolume, sellVolume: buckets[0].sellVolume, netVolume: buckets[0].netVolume, direction: buckets[0].direction }, { price: 12, volume: 5, buyVolume: 2, sellVolume: 3, netVolume: -1, direction: 'sell' }, '同一自然日必须使用最后成交价并按吃单方向汇总');
+assert.deepEqual({ price: buckets[2].price, volume: buckets[2].volume, netVolume: buckets[2].netVolume, direction: buckets[2].direction }, { price: 15, volume: 0, netVolume: 0, direction: 'neutral' }, '无成交自然日必须延续最近有效价格且成交量为零');
 const summary = summarizeMarketFlow(buckets);
-assert.deepEqual(
-  { volume: summary.volume, buyVolume: summary.buyVolume, sellVolume: summary.sellVolume, neutralVolume: summary.neutralVolume, netVolume: summary.netVolume },
-  { volume: 13, buyVolume: 6, sellVolume: 3, neutralVolume: 4, netVolume: 3 },
-  '24h 汇总必须保留完整方向数据',
-);
-assert.equal(buckets[0].startAt, windowStart, '首个分段必须从 24h 窗口起点开始');
-assert.equal(buckets.at(-1).startAt + MARKET_BUCKET_MS, windowEnd, '最后分段必须覆盖当前区间');
+assert.deepEqual({ volume: summary.volume, buyVolume: summary.buyVolume, sellVolume: summary.sellVolume, netVolume: summary.netVolume }, { volume: 9, buyVolume: 6, sellVolume: 3, netVolume: 3 }, '30 天汇总必须保留完整主动方向数据');
+assert.equal(buckets[0].startAt, windowStart, '首个日桶必须从 30 天窗口起点开始');
+assert.equal(buckets.at(-1).startAt + MARKET_BUCKET_MS, windowEnd, '最后日桶必须覆盖当前北京时间自然日');
 
-assert.equal(chooseMarketTimeInterval(900, 16, 'full', MARKET_WINDOW_MS), 2 * 60 * 60 * 1000, '宽屏应显示两小时间隔');
-assert.equal(chooseMarketTimeInterval(260, 16, 'full', MARKET_WINDOW_MS), 6 * 60 * 60 * 1000, '窄屏应降低为六小时间隔');
-assert.equal(chooseMarketTimeInterval(260, 20, 'full', MARKET_WINDOW_MS), 8 * 60 * 60 * 1000, '放大字号应进一步降低时间刻度密度');
+assert.equal(chooseMarketTimeInterval(900, 16, 'full', MARKET_WINDOW_MS), 2 * MARKET_BUCKET_MS, '宽屏应显示两天间隔');
+assert.equal(chooseMarketTimeInterval(260, 16, 'full', MARKET_WINDOW_MS), 10 * MARKET_BUCKET_MS, '窄屏应降低日期刻度密度');
+assert.equal(chooseMarketTimeInterval(260, 20, 'full', MARKET_WINDOW_MS), 10 * MARKET_BUCKET_MS, '放大字号应保持稀疏日期刻度');
 assert.ok(chooseMarketPriceTickCount(240, 16) > chooseMarketPriceTickCount(112, 16), '价格刻度数必须随真实高度增加');
 assert.equal(chooseMarketVolumeTickCount(48, 16, 'full'), 3, '完整行情图必须至少生成三个成交量刻度');
 assert.equal(chooseMarketVolumeTickCount(48, 16, 'compact'), 2, '紧凑行情图允许保留两个成交量刻度');
 assert.ok(chooseMarketVolumeTickCount(140, 16, 'full') > chooseMarketVolumeTickCount(48, 16, 'full'), '成交量刻度数必须随真实高度增加');
-assert.equal(resolveMarketBucketIndex(windowStart - 1, windowStart, 240, MARKET_BUCKET_MS), 0, '悬浮索引必须限制在首个分段');
-assert.equal(resolveMarketBucketIndex(windowStart + MARKET_BUCKET_MS * 40 + 1, windowStart, 240, MARKET_BUCKET_MS), 40, '悬浮索引必须由统一轴值映射');
-assert.equal(resolveMarketBucketIndex(windowEnd + 1, windowStart, 240, MARKET_BUCKET_MS), 239, '悬浮索引必须限制在最后分段');
+assert.equal(resolveMarketBucketIndex(windowStart - 1, windowStart, 30, MARKET_BUCKET_MS), 0, '悬浮索引必须限制在首个日桶');
+assert.equal(resolveMarketBucketIndex(windowStart + MARKET_BUCKET_MS * 12 + 1, windowStart, 30, MARKET_BUCKET_MS), 12, '悬浮索引必须由统一轴值映射');
+assert.equal(resolveMarketBucketIndex(windowEnd + 1, windowStart, 30, MARKET_BUCKET_MS), 29, '悬浮索引必须限制在最后日桶');
 
 const chart = read('src/components/charts/PriceSparkline.tsx');
 const scale = read('src/components/charts/marketChartScale.ts');
@@ -129,15 +117,21 @@ for (const text of [
   "type: 'showTip'", "type: 'hideTip'", 'data-tooltip-persistence="true"',
   'className="market-chart-price-volume-divider"',
   'className="market-chart-section-label"',
-  'geometry.showXAxisTitle ? <div className="market-chart-x-axis-title">时间</div> : null',
-  '净主动买入', '净主动卖出',
+  '<div className="market-chart-x-axis-title">日期</div>',
   '主动买入', '主动卖出', '方向未知', '净主动量',
 ]) assert.ok(chart.includes(text), `ECharts 行情图缺少: ${text}`);
 for (const text of [
   'chooseMarketTimeInterval', 'chooseMarketPriceTickCount', 'chooseMarketVolumeTickCount',
   "variant: MarketChartVariant = 'full'", "variant === 'compact' ? 2 : 3",
-  'resolveMarketBucketIndex', 'MARKET_TIME_INTERVAL_HOURS',
+  'resolveMarketBucketIndex', 'MARKET_TIME_INTERVAL_DAYS',
 ]) assert.ok(scale.includes(text), `行情动态刻度纯函数缺少: ${text}`);
+for (const text of ['market-chart-legend', '净主动买入', '净主动卖出']) {
+  assert.ok(!chart.includes(text), `行情图不得恢复主动方向图例: ${text}`);
+}
+assert.ok(types.includes('dailyHistory?: MarketDailyHistoryPoint[];'), '市场详情类型必须暴露 30 天日行情');
+assert.ok(chartDesign.includes('最近 30 个北京时间自然日'), '行情设计必须锁定最近 30 天');
+assert.ok(!chartDesign.includes('`6m × 240`'), '行情设计不得保留 6 分钟 240 桶旧规则');
+
 for (const text of ['<svg', '<polyline', '<polygon', '<rect', 'context.measureText', 'useChartAxisMetrics']) {
   assert.ok(!chart.includes(text), `ECharts 行情图不得保留手写 SVG: ${text}`);
 }
@@ -161,7 +155,7 @@ for (const text of ['LineChart', 'BarChart', 'PieChart', 'AxisPointerComponent',
   assert.ok(registry.includes(text), `ECharts 模块注册缺少: ${text}`);
 }
 
-for (const text of ['buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now)', '<PriceSparkline buckets={marketBuckets} variant="full" />']) {
+for (const text of ['buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? [])', '<PriceSparkline buckets={marketBuckets} variant="full" />']) {
   assert.ok(marketPage.includes(text), `MarketPage 缺少: ${text}`);
 }
 for (const text of ['countMarketHistoryPointsInWindow', 'summarizeMarketFlow', 'className="chart-footer"', '最近成交估值', '主动买卖均衡／方向未知']) {
@@ -232,7 +226,7 @@ assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, qua
 
 for (const text of [
   '商品地区详情最上方固定为商品图标与四项交易摘要：今日价格、今日成交量、可用库存和冻结库存',
-  '近 24h 真实成交趋势',
+  '近 30 天按日成交趋势',
     '市场行情图几何继续以 `MARKET_CHART_LAYOUT_DESIGN.md` 为准',
   '24h 成交量',
   '浏览器本地成交记录',

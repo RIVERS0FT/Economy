@@ -390,9 +390,6 @@ export function FacilityClusterInformation({
               <span>
                 冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>
               </span>
-              <span>
-                抵押中 <strong>{<CompactNumber value={group.mortgagedCount} />}</strong>
-              </span>
             </div>
             <FacilityRecipeProfitAnalysis
               type={recipeState.formulaType}

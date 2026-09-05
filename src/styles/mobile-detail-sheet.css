@@ -242,7 +242,7 @@
   }
 
   .mobile-detail-sheet-drag-handle {
-    min-height: 32px;
+    min-height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;

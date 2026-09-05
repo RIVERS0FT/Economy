@@ -678,10 +678,16 @@ const server = createServer(async (request, response) => {
         });
       },
     );
+    const actionDeliveryNow = Date.now();
+    Object.defineProperty(actionResponse, 'stateSnapshot', {
+      configurable: true,
+      enumerable: false,
+      value: store.getStateSnapshot(user, null, actionDeliveryNow),
+    });
     const knownPartitions = readKnownPartitionRevisionsFromHeader(
       request.headers['x-economy-state-revisions'],
     );
-    sendJson(response, 200, createPartitionedActionDelivery(actionResponse, knownPartitions));
+    sendJson(response, 200, createPartitionedActionDelivery(actionResponse, knownPartitions, actionDeliveryNow));
   } catch (error) {
     const statusCode = Number(error?.statusCode) || 500;
     const errorCode = String(error?.code || '');

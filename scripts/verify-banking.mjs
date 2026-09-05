@@ -97,18 +97,18 @@ for (const text of [
   '>50%</Button>',
   '>最大</Button>',
   '本周资金计划',
-  'title="工厂抵押融资"',
+  'title="工厂冻结融资"',
   'bank-collateral-list',
-  'aria-label="可抵押工厂"',
+  'aria-label="可冻结工厂"',
   'bank-loan-decision',
   '授信利用率',
   'role="progressbar"',
   '剩余授信',
-  '抵押物审慎估值',
+  '冻结资产审慎估值',
   '最高可贷额度',
   '贷款本金会同时增加等额负债',
   '成功经济操作会激活本周',
-  '抵押工厂继续生产',
+  '冻结工厂继续生产',
   'bank-history-filters',
 ]) requireText('src/pages/BankPage.tsx', text);
 for (const text of [
@@ -139,9 +139,9 @@ for (const text of [
   '固定日利率',
   '每日固定 1%',
   '预计 10% 周扣除',
-  '页面顺序固定为“资产总览／资金管理／工厂抵押融资／银行记录”',
+  '页面顺序固定为“资产总览／资金管理／工厂冻结融资／银行记录”',
   '授信利用率',
-  '连续抵押列表',
+  '连续冻结列表',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   '每日固定 1%',
@@ -150,7 +150,7 @@ for (const text of [
   '银行利息池使用百万分之一普通货币的整数微单位保存',
   '业务模块不得自行使用 `value * 100`、`value * 1_000_000`',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
-for (const text of ['抵押数量必须继续计入当前或下一周期生产能力', '可转让数量', 'mortgagedCount']) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
+for (const text of ['冻结数量必须继续计入当前或下一周期生产能力', '可转让数量', 'mortgagedCount']) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 for (const text of ['| 银行 | `bank` | `BankPage`', '十一个业务导航按钮', '资产总览', '资金管理', '额度评估']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of ['`banking.js`', '/api/game/bank/deposits', '银行每日结息']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 for (const text of ['`src/styles/bank.css`', '授信利用率', '不得依赖横向滚动']) requireText('docs/UI_DESIGN_SYSTEM.md', text);
@@ -195,4 +195,4 @@ if (failures.length) {
   console.error(`银行与存款利息验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('银行验证通过：现有存取款守恒、抵押生产、净资产、期限利率与活跃周结息规则保持不变，资金管理、连续抵押列表、授信利用率、移动端无横向抵押表格与权威流水筛选均已锁定。');
+console.log('银行验证通过：现有存取款守恒、冻结生产、净资产、期限利率与活跃周结息规则保持不变，资金管理、连续冻结列表、授信利用率、移动端无横向冻结表格与权威流水筛选均已锁定。');

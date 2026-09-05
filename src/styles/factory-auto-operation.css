@@ -4,10 +4,15 @@
 }
 
 .facility-auto-operation__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4, 1rem);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3, 0.75rem);
+}
+
+.facility-auto-operation__header > strong {
+  min-width: 0;
 }
 
 .facility-auto-operation__message {

@@ -20,10 +20,9 @@ async function inspectChartGeometry(chart: Locator) {
     const canvas = wrapper.querySelector<HTMLElement>('.market-history-echart');
     const svg = wrapper.querySelector<SVGSVGElement>('.economy-chart__canvas svg');
     const divider = wrapper.querySelector<HTMLElement>('.market-chart-price-volume-divider');
-    const legendRects = Array.from(wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item'))
-      .map((item) => item.getBoundingClientRect());
+    const legendCount = wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item').length;
     const title = wrapper.querySelector<HTMLElement>('.market-chart-x-axis-title');
-    if (!canvas || !svg || !divider || legendRects.length !== 2) throw new Error('ECharts market chart fixture is incomplete');
+    if (!canvas || !svg || !divider) throw new Error('ECharts market chart fixture is incomplete');
     const canvasRect = canvas.getBoundingClientRect();
     const dividerRect = divider.getBoundingClientRect();
     const titleRect = title?.getBoundingClientRect() ?? null;
@@ -33,23 +32,18 @@ async function inspectChartGeometry(chart: Locator) {
       return value;
     };
     const timeTicks = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
-      .filter((text) => /^\d{2}:\d{2}$/.test(text.textContent?.trim() ?? ''))
+      .filter((text) => /^\d{2}[/\-]\d{2}$/.test(text.textContent?.trim() ?? ''))
       .map((text) => text.getBoundingClientRect());
-    const legendLeft = Math.min(...legendRects.map((rect) => rect.left));
-    const legendRight = Math.max(...legendRects.map((rect) => rect.right));
-    const legendBottom = Math.max(...legendRects.map((rect) => rect.bottom));
     const volumeTop = readNumber('volumeTop');
     const volumeBottom = readNumber('volumeBottom');
     const priceBottom = readNumber('priceBottom');
-    const plotCenterX = readNumber('plotCenterX');
     return {
       ready: wrapper.querySelector('.economy-chart')?.getAttribute('data-echarts-ready'),
       hasSvg: svg.getBoundingClientRect().width > 0,
       timeVolumeGap: timeTicks.length > 0 ? Math.min(...timeTicks.map((rect) => rect.top)) - (wrapperRect.top + volumeBottom) : readNumber('timeLabelHeight'),
-      timeLegendGap: Math.min(...legendRects.map((rect) => rect.top)) - canvasRect.bottom,
-      legendTitleGap: titleRect ? titleRect.top - legendBottom : null,
-      bottomGap: wrapperRect.bottom - (titleRect?.bottom ?? legendBottom),
-      legendCenterDelta: Math.abs((legendLeft + legendRight) / 2 - (wrapperRect.left + plotCenterX)),
+      titleGap: titleRect ? titleRect.top - canvasRect.bottom : null,
+      bottomGap: wrapperRect.bottom - (titleRect?.bottom ?? canvasRect.bottom),
+      legendCount,
       chartWidth: wrapperRect.width,
       actualHeight: wrapperRect.height,
       declaredHeight: readNumber('chartHeight'),
@@ -79,16 +73,15 @@ async function expectChartGeometry(chart: Locator, context: string) {
   expect(bounds.ready).toBe('true');
   expect(bounds.hasSvg).toBe(true);
   expect(bounds.timeVolumeGap, `${context}时间刻度不得侵入成交量图区`).toBeGreaterThanOrEqual(1);
-  expect(bounds.timeLegendGap, `${context}时间刻度区与图例之间必须保留安全区`).toBeGreaterThanOrEqual(7);
+  expect(bounds.legendCount, `${context}不得显示净主动买入／卖出图例`).toBe(0);
   if (bounds.xAxisTitleVisible === 'true') {
-    expect(bounds.titlePresent, `${context}宽图时间轴标题必须存在`).toBe(true);
-    expect(bounds.legendTitleGap, `${context}图例与时间轴标题之间必须保留安全区`).toBeGreaterThanOrEqual(9);
+    expect(bounds.titlePresent, `${context}宽图日期轴标题必须存在`).toBe(true);
+    expect(bounds.titleGap, `${context}日期刻度与日期轴标题之间必须保留安全区`).toBeGreaterThanOrEqual(7);
   } else {
-    expect(bounds.titlePresent, `${context}窄图不得保留冗余时间轴标题`).toBe(false);
-    expect(bounds.legendTitleGap).toBeNull();
+    expect(bounds.titlePresent, `${context}窄图不得保留冗余日期轴标题`).toBe(false);
+    expect(bounds.titleGap).toBeNull();
   }
   expect(bounds.bottomGap, `${context}底部可见内容不得贴住图表边缘`).toBeGreaterThanOrEqual(5);
-  expect(bounds.legendCenterDelta, `${context}两项图例必须围绕绘图区中心整体居中`).toBeLessThanOrEqual(Math.max(2, bounds.chartWidth * 0.01));
   expect(bounds.volumeHeight, `${context}完整行情图成交量图区实际高度不得低于 68px`).toBeGreaterThanOrEqual(68);
   expect(bounds.volumeShare, `${context}成交量图区不得低于数据绘图区的 22%`).toBeGreaterThanOrEqual(0.219);
   expect(Math.abs(bounds.priceVolumeGap), `${context}价格与成交量 Grid 必须零间距连续排列`).toBeLessThanOrEqual(0.5);
@@ -115,7 +108,7 @@ function expectWidthResponsiveAxisChrome(
   ).toBe(usesMobileAxisChrome ? 'true' : 'false');
   expect(
     bounds.xAxisTitleVisible,
-    `${context}可见时间标题必须由图表自身宽度决定`,
+    `${context}可见日期标题必须由图表自身宽度决定`,
   ).toBe(usesMobileAxisChrome ? 'false' : 'true');
 }
 
