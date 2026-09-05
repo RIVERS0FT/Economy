@@ -110,7 +110,7 @@ if (failures.length === 0) {
 
   for (const text of [
     'DEFAULT_READ_TIMEOUT_MS = 8_000',
-    'DEFAULT_WRITE_TIMEOUT_MS = 12_000',
+    'const timedSignal = isWrite ? null : createTimedSignal(init?.signal, DEFAULT_READ_TIMEOUT_MS);',
     'acceptServerNow(payload.serverNow)',
     'resetServerClock()',
     "throw new GameApiError(408, '游戏服务器响应超时，请稍后重试')",

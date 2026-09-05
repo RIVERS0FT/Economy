@@ -168,6 +168,14 @@ function isSessionBootstrapWrite(input: RequestInfo | URL) {
   return canonicalRequestPath(input) === SESSION_BOOTSTRAP_PATH;
 }
 
+function isManualCommodityWrite(input: RequestInfo | URL, body: string) {
+  if (parsedRequestUrl(input).pathname !== `${GAME_API_PATH_PREFIX}/orders`) return false;
+  try {
+    const value = JSON.parse(body);
+    return value?.assetKind === 'commodity' && !value.execution && (value.side === 'buy' || value.side === 'sell');
+  } catch { return false; }
+}
+
 function facilityToggleIntent(
   input: RequestInfo | URL,
   init: RequestInit,
@@ -280,7 +288,8 @@ export function installIdempotentGameWriteFetch() {
       headers.get('X-Economy-Save-Epoch') || '',
       init.body,
     ].join('\n'));
-    const existing = inFlightWrites.get(fingerprint);
+    const deduplicate = isManualCommodityWrite(input, init.body);
+    const existing = deduplicate ? inFlightWrites.get(fingerprint) : undefined;
     if (existing) return (await existing).clone();
     hydratePendingWrites();
     const wasPending = pendingWrites.has(fingerprint);
@@ -321,7 +330,7 @@ export function installIdempotentGameWriteFetch() {
         throw reason;
       }
     });
-    inFlightWrites.set(fingerprint, operation);
+    if (deduplicate) inFlightWrites.set(fingerprint, operation);
     try { return (await operation).clone(); }
     finally { if (inFlightWrites.get(fingerprint) === operation) inFlightWrites.delete(fingerprint); }
   };

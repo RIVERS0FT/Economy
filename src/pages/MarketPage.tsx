@@ -108,7 +108,7 @@ function MarketImmediateTradeEntry({
   const maxTradeQuantity = orderSide === 'buy' ? maxBuyByFunds : Math.max(0, availableQuantity);
   const parsedQuantity = parseIntegerDraft(quantityDraft, { min: 1 });
   const effectiveQuantity = parsedQuantity ?? 0;
-  const total = officialPrice * effectiveQuantity;
+  const total = (pendingTrade.current?.price ?? officialPrice) * effectiveQuantity;
   const estimatedFee = orderSide === 'sell' && total > 0
     ? Math.round(total * 0.01 * 1_000_000) / 1_000_000
     : 0;
@@ -193,8 +193,8 @@ function MarketImmediateTradeEntry({
             min={1}
             max={maxTradeQuantity > 0 ? maxTradeQuantity : undefined}
             disabled={controlsLocked || maxTradeQuantity < 1}
-            aria-invalid={Boolean(quantityReason)}
-            aria-describedby={quantityReason ? 'market-trade-quantity-error' : undefined}
+            aria-invalid={!controlsLocked && Boolean(quantityReason)}
+            aria-describedby={!controlsLocked && quantityReason ? 'market-trade-quantity-error' : undefined}
             onValueChange={setQuantityDraft}
             onKeyDown={(event) => { if (event.key === 'Enter') submitTrade(); }}
           />
@@ -206,7 +206,7 @@ function MarketImmediateTradeEntry({
             onClick={() => adjustQuantity(1)}
           >＋</Button>
         </div>
-        {quantityReason ? <small id="market-trade-quantity-error" className="ui-form-field__error" role="alert">{quantityReason}</small> : null}
+        {!controlsLocked && quantityReason ? <small id="market-trade-quantity-error" className="ui-form-field__error" role="alert">{quantityReason}</small> : null}
       </div>
       <div className="order-quick-fill" role="group" aria-label="快捷填写交易数量">
         <Button variant="compact" disabled={controlsLocked || maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>25%</Button>
@@ -519,8 +519,8 @@ export function MarketPage({
         {selectedProduct ? (
           <section className="market-trade-card market-immediate-trade-card">
             <MarketImmediateTradeEntry
-            provinceId={model.selectedProvinceId}
-                key={`${assetId}:${orderSide}`}
+                provinceId={model.selectedProvinceId}
+                key={`${model.game.userId}:${model.game.saveEpoch ?? 0}:${model.selectedProvinceId}:${assetId}:${orderSide}`}
                 assetId={assetId}
                 assetName={assetName}
                 officialPrice={officialPrice ?? selectedProduct.basePrice}

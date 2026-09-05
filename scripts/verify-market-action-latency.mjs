@@ -107,8 +107,6 @@ for (const text of [
 const completeWrite = 'src/api/gameWriteConfirmation.ts';
 for (const token of [
   'await source.text()', 'JSON.parse(text)', 'Promise.race([read(), aborted])',
-  'if (timeout !== null) globalThis.clearTimeout(timeout);',
-  'for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1)',
   'attemptIndex === 0 ? options.signal : undefined',
   'return status === 408 || status === 429 || status >= 500;',
   'GameWriteUnconfirmedError',
