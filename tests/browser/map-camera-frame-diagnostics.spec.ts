@@ -27,24 +27,24 @@ type AtmosphereVariant = {
 const VARIANTS: AtmosphereVariant[] = [
   { name: 'baseline', css: '' },
   {
-    name: 'noise-disabled',
-    css: '.application-atmosphere-layer::after { content: none !important; }',
+    name: 'will-change-transform',
+    css: '.application-atmosphere-layer { will-change: transform !important; }',
   },
   {
-    name: 'noise-blend-normal',
-    css: '.application-atmosphere-layer::after { mix-blend-mode: normal !important; }',
+    name: 'translate3d-zero',
+    css: '.application-atmosphere-layer { transform: translate3d(0, 0, 0) !important; }',
   },
   {
-    name: 'noise-texture-disabled',
-    css: '.application-atmosphere-layer::after { background-image: none !important; }',
+    name: 'translate3d-will-change',
+    css: '.application-atmosphere-layer { transform: translate3d(0, 0, 0) !important; will-change: transform !important; }',
   },
   {
-    name: 'grid-disabled',
-    css: '.application-atmosphere-layer::before { content: none !important; }',
+    name: 'will-change-opacity',
+    css: '.application-atmosphere-layer { will-change: opacity !important; }',
   },
   {
-    name: 'flat-background',
-    css: '.application-atmosphere-layer { background: rgb(2 10 6 / 90%) !important; }',
+    name: 'translate3d-backface-hidden',
+    css: '.application-atmosphere-layer { transform: translate3d(0, 0, 0) !important; backface-visibility: hidden !important; }',
   },
 ];
 
@@ -119,7 +119,7 @@ async function runVariant(page: Page, variant: AtmosphereVariant) {
     const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     const samples: FrameTiming[] = [];
     for (let index = 0; index < count; index += 1) {
-      performance.mark(`map-atmosphere-ab-${index}-start`);
+      performance.mark(`map-atmosphere-compositing-ab-${index}-start`);
       const started = performance.now();
       container.dispatchEvent(new WheelEvent('wheel', {
         bubbles: true,
@@ -131,7 +131,7 @@ async function runVariant(page: Page, variant: AtmosphereVariant) {
       const dispatched = performance.now();
       await nextFrame();
       const finished = performance.now();
-      performance.mark(`map-atmosphere-ab-${index}-end`);
+      performance.mark(`map-atmosphere-compositing-ab-${index}-end`);
       samples.push({
         index,
         totalMs: Number((finished - started).toFixed(3)),
@@ -195,14 +195,14 @@ async function runVariant(page: Page, variant: AtmosphereVariant) {
   };
 }
 
-test('A/B traces atmosphere components during transient map frames', async ({ page }) => {
+test('A/B traces atmosphere compositing stability during transient map frames', async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1440, height: 900 });
 
   const results = [];
   for (const variant of VARIANTS) results.push(await runVariant(page, variant));
 
-  console.log(`[map-atmosphere-ab] ${JSON.stringify(results)}`);
+  console.log(`[map-atmosphere-compositing-ab] ${JSON.stringify(results)}`);
   expect(results).toHaveLength(VARIANTS.length);
   for (const result of results) expect(result.atmosphereLayerIds.length, result.name).toBeGreaterThan(0);
 });
