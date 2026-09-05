@@ -1,0 +1,78 @@
+name: Unify automatic operation sale
+on:
+  push:
+    branches: [fix/market-contract-summary-cleanup-20260906]
+    paths: [.github/workflows/unify-auto-operation-sale.yml]
+permissions:
+  contents: write
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Apply unified automatic-operation semantics
+        run: |
+          set -euo pipefail
+          python3 scripts/tmp-unify-auto-operation-sale.py
+          rm src/components/buildings/ProvinceAutoSaleControl.tsx
+          git diff --check
+      - name: Run domain and architecture regressions
+        run: |
+          set -euo pipefail
+          node --test \
+            server/test/cycle-auto-operation.test.js \
+            server/test/commercial-auto-operation.test.js \
+            server/test/cycle-auto-runtime.test.js \
+            server/test/cycle-auto-horizon.test.js \
+            server/test/online-auto-sell-persistence.test.js
+          node scripts/verify-online-auto-sell.mjs
+          node scripts/verify-warehouse-expansion.mjs
+          node --experimental-strip-types scripts/verify-runtime-architecture.mjs
+          node scripts/verify-game-tutorial.mjs
+          node scripts/verify-page-content.mjs
+          npm run generate:local-preview
+          npx tsc --noEmit
+          git diff --check
+      - name: Prepare formal Playwright browser
+        run: bash scripts/prepare-playwright-chromium.sh
+      - name: Run building UI regressions
+        run: npx playwright test tests/browser/unified-buildings.spec.ts tests/browser/warehouse-auto-sell.spec.ts
+      - name: Commit tested product changes only
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            docs/WAREHOUSE_EXPANSION_DESIGN.md \
+            scripts/verify-online-auto-sell.mjs \
+            server/src/cycle-auto-operation.js \
+            server/src/factory-auto-operation.js \
+            server/src/world-storage-v2.js \
+            server/test/commercial-auto-operation.test.js \
+            server/test/cycle-auto-horizon.test.js \
+            server/test/cycle-auto-operation.test.js \
+            server/test/cycle-auto-runtime.test.js \
+            server/test/online-auto-sell-persistence.test.js \
+            src/api/game.ts \
+            src/components/buildings/BuildingAutoOperationSection.tsx \
+            src/components/commercial/CommercialBuildingDetail.tsx \
+            src/components/facilities/FacilityAutoOperationControls.tsx \
+            src/game-guide/gameConcepts.ts \
+            src/game-guide/tutorialDefinition.ts \
+            src/styles/factory-auto-operation.css \
+            tests/browser/unified-buildings.spec.ts \
+            tests/browser/warehouse-auto-sell.spec.ts
+          git add -u src/components/buildings/ProvinceAutoSaleControl.tsx
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m 'fix: make automatic operation own regional non-frozen sales'
+          git push origin HEAD:fix/market-contract-summary-cleanup-20260906
