@@ -469,6 +469,15 @@ export function applyProductionSettlementClaim(world, userId, claim, now = Date.
   const basis = createProductionSettlementBasis(world, userId, settleThrough);
   validateClaimShape(basis, claim);
 
+  // Proposals may tolerate transport latency, but cannot omit an already-due cycle or complete a future one.
+  // Otherwise repeated old horizons could spend freshly bought inputs to manufacture past production.
+  for (const entry of basis.groups) {
+    if (entry.status === 'running'
+      && dueProductionCycles(entry, settleThrough) !== dueProductionCycles(entry, now)) {
+      stale('生产周期截止时间已经变化，请按服务器时间重新结算');
+    }
+  }
+
   // All stale identity checks must finish before any production state is mutated,
   // so a stale client proposal can safely fall back inside the same outer action transaction.
   for (let index = 0; index < basis.groups.length; index += 1) {
@@ -508,7 +517,7 @@ export function applyProductionSettlementClaim(world, userId, claim, now = Date.
   for (const event of completed) recordCompletedIndustrialOutput(world, player, event.group, event.entry.recipe.output.productId, event.output, now);
   for (const event of completed) completeBuildingCycleAutoOperation(world, player, event.group, 'production', event.completedAt, now);
   const currentResources = mutableResourcesFromBasis(createProductionSettlementBasis(world, userId, settleThrough));
-  recoverEnabledErrorGroups(world, player, settleThrough, currentResources);
+  recoverEnabledErrorGroups(world, player, now, currentResources);
   reconcileBuildingInputFreezes(world, player, now);
   return {
     ok: true,
