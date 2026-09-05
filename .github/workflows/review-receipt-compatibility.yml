@@ -5,31 +5,119 @@ on:
     paths: [.github/workflows/review-receipt-compatibility.yml]
 permissions:
   contents: write
+defaults:
+  run:
+    shell: bash
 jobs:
-  inspect:
+  compatibility:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/trade-receipt-compatibility
-      - name: Extract exact regression paths and relevant source
-        shell: bash
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Correct full receipt handling without changing retry limits
         run: |
-          set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          candidates = []
-          for p in Path('tests/browser').glob('*.spec.ts'):
+          p = Path('src/api/gameWriteConfirmation.ts')
+          s = p.read_text()
+          if 'preserveTransportError' not in s:
+              s = s.replace('  onConfirming?: () => void;', '  onConfirming?: () => void;\n  preserveTransportError?: boolean;')
+              s = s.replace("      catch { throw new TypeError('Incomplete game write receipt'); }", """      catch {
+                  // Gateways and authentication errors may return HTML. A known HTTP
+                  // error is not a broken successful action receipt or permission to retry.
+                  if (source.ok) throw new TypeError('Incomplete game write receipt');
+                }""")
+              s = s.replace('  throw new GameWriteUnconfirmedError(lastFailure);', '  if (options.preserveTransportError) throw lastFailure;\n  throw new GameWriteUnconfirmedError(lastFailure);')
+              p.write_text(s)
+              p = Path('src/api/idempotentGameWriteFetch.ts')
+              s = p.read_text().replace("          onConfirming: () => notify('confirming'),", "          onConfirming: () => notify('confirming'),\n          preserveTransportError: !deduplicate,")
+              p.write_text(s)
+              p = Path('src/api/game.ts')
               s = p.read_text()
-              if any(word in p.name for word in ['timeout', 'heartbeat', 'resume', 'idempot']) or 'confirmed ok' in s or 'light-stale' in s:
-                  candidates.append(p)
-          Path('.github/receipt-test-index.md').write_text('\n'.join(str(p) for p in candidates) + '\n')
-          for i, p in enumerate(candidates):
-              Path(f'.github/receipt-test-{i}.txt').write_text(str(p) + '\n' + p.read_text())
+              old = "  if (isWrite) installIdempotentGameWriteFetch();"
+              assert old in s
+              s = s.replace(old, """  let manualCommodity = false;
+                if (isWrite && path === '/orders' && typeof init?.body === 'string') {
+                  try {
+                    const body = JSON.parse(init.body);
+                    manualCommodity = body?.assetKind === 'commodity' && !body.execution
+                      && (body.side === 'buy' || body.side === 'sell');
+                  } catch { /* Let the server reject an invalid request body. */ }
+                }
+              """ + old)
+              s = s.replace('if (isWrite && isUnconfirmedWriteStatus(response.status))', 'if (manualCommodity && isUnconfirmedWriteStatus(response.status))')
+              s = s.replace("    if (timedSignal?.didTimeout() && reason instanceof Error && reason.name === 'AbortError') {", "    if ((timedSignal?.didTimeout() || (isWrite && !init?.signal?.aborted))\n      && reason instanceof Error && reason.name === 'AbortError') {")
+              p.write_text(s)
+              p = Path('tests/dt/game-write-confirmation.test.ts')
+              p.write_text(p.read_text() + '''
+          test('HTML gateway errors preserve status and do not cause automatic session resubmission', async () => {
+            let calls = 0;
+            const result = await fetchConfirmedGameWrite(async () => {
+              calls += 1;
+              return new Response('<html>upstream unavailable</html>', { status: 502, headers: { 'Content-Type': 'text/html' } });
+            }, '/session', init, { timeoutMs: null, preserveTransportError: true });
+            assert.equal(calls, 1);
+            assert.equal(result.response.status, 502);
+            assert.equal(result.payload, undefined);
+            assert.equal(await result.response.text(), '<html>upstream unavailable</html>');
+          });
+
+          test('generic writes keep the native error type after two attempts while retaining uncertainty', async () => {
+            const failure = new TypeError('Failed to fetch');
+            let calls = 0;
+            await assert.rejects(fetchConfirmedGameWrite(async () => { calls += 1; throw failure; }, '/generic', init,
+              { timeoutMs: 50, preserveTransportError: true }), (error) => error === failure);
+            assert.equal(calls, 2);
+          });
+
+          test('generic completed JSON responses do not require a commodity action schema', async () => {
+            const result = await fetchConfirmedGameWrite(async () => Response.json({ ok: true }), '/session', init,
+              { timeoutMs: null, preserveTransportError: true });
+            assert.deepEqual(result.payload, { ok: true });
+          });
+          ''')
+              p = Path('docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md')
+              p.write_text(p.read_text() + '\n完整回执协调不改变非商品操作的错误分类：已收到完整非成功 HTTP 响应时，即使正文是网关 HTML 也不自动重发，会话启动保留原 HTTP 错误提示及手动重试边界。非商品操作的断网／中止在同键确认后保留原传输错误类型，待确认键仍保留；仅手动商品交易使用专属未确认结果码和确认交易入口，不能将登录、建造或生产错误描述为商品交易。\n')
           PY
-          git add .github/receipt-test-*
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'chore: record exact compatibility test sources for review'
-          git push origin HEAD:codex/trade-receipt-compatibility
+          node scripts/normalize-repository-text.mjs
+          git add src tests docs
+          git diff --cached --check
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: preserve generic write and session error boundaries'
+            git push origin HEAD:codex/trade-receipt-compatibility
+          fi
+      - run: npm ci
+      - name: Type and transport regression tests
+        run: |
+          npm run generate:local-preview
+          npm run typecheck
+          node --test tests/dt/game-write-confirmation.test.ts
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
+      - name: Existing session, write and new commodity regression tests
+        run: npx playwright test tests/browser/application-error-state.spec.ts tests/browser/write-idempotency.spec.ts tests/browser/trade-confirmation.spec.ts --workers=2 --retries=0 --reporter=line > /tmp/receipt-compatibility.log 2>&1 || { tail -n 180 /tmp/receipt-compatibility.log; exit 1; }
+      - name: Save bounded compatibility results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('/tmp/receipt-compatibility.log')
+          text = re.sub(r'\x1b\[[0-9;]*m', '', p.read_text()) if p.exists() else 'Browser tests not started'
+          lines = [line for line in text.splitlines() if not line.startswith('[WebServer]')]
+          Path('.github/receipt-compatibility-results.md').write_text('\n'.join(lines)[-24000:] + '\n')
+          PY
+          git add .github/receipt-compatibility-results.md
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: record temporary receipt compatibility results'
+            git push origin HEAD:codex/trade-receipt-compatibility
+          fi
