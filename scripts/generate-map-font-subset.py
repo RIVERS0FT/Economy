@@ -59,11 +59,12 @@ def province_characters() -> str:
     return "".join(sorted(set("".join(item["name"] for item in provinces))))
 
 
-def rename_subset_font(path: Path) -> None:
+def normalize_subset_font(path: Path) -> None:
     from fontTools.ttLib import TTFont
 
-    font = TTFont(path)
+    font = TTFont(path, recalcTimestamp=False)
     font["OS/2"].usWeightClass = WEIGHT
+    font["head"].modified = font["head"].created
     names = {
         1: FAMILY,
         2: "SemiBold",
@@ -79,7 +80,7 @@ def rename_subset_font(path: Path) -> None:
         table.setName(value, name_id, 3, 1, 0x409)
         table.setName(value, name_id, 1, 0, 0)
     font.flavor = "woff2"
-    font.save(path)
+    font.save(path, reorderTables=True)
 
 
 def main() -> int:
@@ -119,7 +120,7 @@ def main() -> int:
                 "--name-languages=*",
             ]
         )
-        rename_subset_font(subset_path)
+        normalize_subset_font(subset_path)
         OUTPUT_PATH.write_bytes(subset_path.read_bytes())
 
     output_data = OUTPUT_PATH.read_bytes()
