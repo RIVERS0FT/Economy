@@ -1,6 +1,7 @@
 import { CommercialStaffingSummary } from './CommercialStaffingSummary';
 import { projectCommercialStaffingRate } from '../../../shared/commercial-staffing.js';
-import type { ProductDefinition, ProductInventory } from '../../types';
+import type { CommodityFreezeDetail, ProductDefinition, ProductInventory } from '../../types';
+import { commercialNextCycleAvailability } from '../../utils/commercialInputAvailability';
 import type { CommercialAutoOperationPolicy, CommercialBuildingGroup, CommercialBuildingTypeDefinition } from '../../types/commercial';
 import { commercialAutoOperationPolicyFor } from '../../../shared/commercial-auto-operation.js';
 import { useNow } from '../../hooks/useNow';
@@ -38,12 +39,13 @@ function CommercialCycleProgress({ group, now }: { group: CommercialBuildingGrou
   );
 }
 
-export function CommercialBuildingDetail({ group, type, products, inventories, markets, now, pending, onToggle,
+export function CommercialBuildingDetail({ group, type, products, inventories, inventoryFreezeDetails, markets, now, pending, onToggle,
   onAutoOperationChange, onOpenProductMarket }: {
   group: CommercialBuildingGroup;
   type: CommercialBuildingTypeDefinition;
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
+  inventoryFreezeDetails?: Record<string, CommodityFreezeDetail[]>;
   markets: Record<string, { officialPrice?: number | null }>;
   now: number;
   pending: boolean;
@@ -58,7 +60,7 @@ export function CommercialBuildingDetail({ group, type, products, inventories, m
   const policy = commercialAutoOperationPolicyFor(group);
   const settlement = commercialSettlementPresentation(group, type, markets, liveNow);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
-  const nextRequirements = Object.fromEntries(type.consumptionInputs.map((input) => [input.productId, input.quantity * group.count]));
+  const nextCycle = commercialNextCycleAvailability(group, type, inventories, inventoryFreezeDetails, liveNow);
   const money = (value: number | null) => value === null ? '—' : <CompactCurrency value={value} />;
   return (
     <>
@@ -100,7 +102,7 @@ export function CommercialBuildingDetail({ group, type, products, inventories, m
         inputLabel={settlement.locked ? '已投入商品' : '消费商品'} outputLabel={settlement.locked ? '锁定收入' : '预计收入'}
         inputs={settlement.inputs ? <BuildingSettlementProducts items={settlement.inputs} productNames={productNames}
           inventories={inventories} multiplier={1} groupClassName="facility-formula-input-group commercial-consumption-list"
-          itemClassName="facility-formula-input-item" quantityLabel="营业消耗" requiredForNextCycle={nextRequirements}
+          itemClassName="facility-formula-input-item" quantityLabel="营业消耗" requiredForNextCycle={nextCycle.required} usableForNextCycle={nextCycle.usable}
           onOpenProductMarket={onOpenProductMarket} /> : <span className="facility-formula-empty">锁定明细待确认</span>}
         outputs={<div className="facility-formula-output-group commercial-settlement-revenue">
           <div className="facility-formula-output-item"><CreditsIcon className="facility-formula-meta-icon" /><strong>{money(settlement.revenue)}</strong></div>

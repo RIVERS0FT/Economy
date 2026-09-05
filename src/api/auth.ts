@@ -1,4 +1,5 @@
 import type { AuthUser } from '../types';
+import { beginGameWriteSession, endGameWriteSession } from './gameWriteSession';
 
 const API_BASE = '/economy-api';
 const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
@@ -111,16 +112,21 @@ async function requestGameApi<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
   const response = await fetchApi(`${API_BASE}/me`, { credentials: 'include' });
-  if (response.status === 401) return null;
+  if (response.status === 401) { endGameWriteSession(); return null; }
   if (!response.ok) throw new Error('无法连接主页账号服务');
-  return ((await response.json()) as AuthResponse).user;
+  const user = ((await response.json()) as AuthResponse).user;
+  if (user) beginGameWriteSession(user.id);
+  else endGameWriteSession();
+  return user;
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {
+  endGameWriteSession();
   const payload = await requestGameApi<AuthResponse>('/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
+  beginGameWriteSession(payload.user.id);
   return payload.user;
 }
 
@@ -172,5 +178,6 @@ export async function initializeEconomySession(inviteCode?: string): Promise<Eco
 }
 
 export async function logout(): Promise<void> {
+  endGameWriteSession();
   await requestGameApi<{ message: string }>('/logout', { method: 'POST' });
 }

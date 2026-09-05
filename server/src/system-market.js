@@ -321,8 +321,11 @@ export function createSystemMarketRuntime({
     if (market.priceDateKey === period.todayKey) return false;
     const yesterdayKey = checkInDateKey(period.todayStartsAt - 1);
     const isYesterday = market.priceDateKey === yesterdayKey;
-    const buyQuantity = isYesterday ? positiveInteger(market.todayBuyQuantity) : 0;
-    const sellQuantity = isYesterday ? positiveInteger(market.todaySellQuantity) : 0;
+    // Archive the original day independently from the eligible pricing input.
+    const archivedBuyQuantity = positiveInteger(market.todayBuyQuantity);
+    const archivedSellQuantity = positiveInteger(market.todaySellQuantity);
+    const buyQuantity = isYesterday ? archivedBuyQuantity : 0;
+    const sellQuantity = isYesterday ? archivedSellQuantity : 0;
     const baseline = SYSTEM_PRICE_LIQUIDITY_BASELINE;
     const imbalance = (buyQuantity - sellQuantity) / (buyQuantity + sellQuantity + 2 * baseline);
     const rawBps = Math.round(imbalance * SYSTEM_PRICE_K_BPS);
@@ -331,8 +334,8 @@ export function createSystemMarketRuntime({
     appendMarketDailyHistory(market, {
       dateKey: String(market.priceDateKey || yesterdayKey),
       price: market.officialPrice,
-      buyQuantity,
-      sellQuantity,
+      buyQuantity: archivedBuyQuantity,
+      sellQuantity: archivedSellQuantity,
     });
     market.previousDayBuyQuantity = buyQuantity;
     market.previousDaySellQuantity = sellQuantity;
