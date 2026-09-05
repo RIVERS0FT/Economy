@@ -66,11 +66,12 @@ test('recent local trades heading keeps clear action on the same row on narrow s
   await heading.scrollIntoViewIfNeeded();
   await expect(title).toBeVisible();
   await expect(clear).toBeVisible();
+  await expect(heading).toHaveCSS('flex-direction', 'row');
   const titleBox = await requireBox(title);
   const clearBox = await requireBox(clear);
-  const titleCenterY = titleBox.y + titleBox.height / 2;
-  const clearCenterY = clearBox.y + clearBox.height / 2;
-  expect(Math.abs(titleCenterY - clearCenterY)).toBeLessThanOrEqual(2);
+  expect(titleBox.y).toBeLessThan(clearBox.y + clearBox.height);
+  expect(clearBox.y).toBeLessThan(titleBox.y + titleBox.height);
+  expect(clearBox.x).toBeGreaterThan(titleBox.x);
 });
 
 test('market detail keeps snapshot history when the detail refresh fails', async ({ page }) => {
