@@ -187,18 +187,27 @@ test('trace steady transient map Viz and GPU draw internals', async ({ page, bro
       const node = nodeId ? (await cdp.send('DOM.describeNode', { nodeId })).node : null;
       owners.push({ name, selector, backendNodeId: node?.backendNodeId ?? null });
     }
-    const { categories: availableCategories } = await cdp.send('Tracing.getCategories');
-    const categories = [...new Set([
+    // Explicit bounded categories: picture/display-item/quad dumps can overwhelm
+    // the trace buffers during the first vector-to-raster transition.
+    const categories = [
       'devtools.timeline', 'disabled-by-default-devtools.timeline',
-      'disabled-by-default-devtools.timeline.frame', 'disabled-by-default-devtools.timeline.layers',
-      'blink.user_timing', 'cc', 'gpu', 'viz',
-      ...availableCategories.filter((category) => (
-        /(viz|gpu|skia|cc)/iu.test(category)
-        && !/(memory-infra|capture|video|webrtc)/iu.test(category)
-      )),
-    ])];
+      'blink.user_timing', 'cc', 'gpu', 'viz', 'disabled-by-default-skia',
+    ];
+    const browserCdp = await browser.newBrowserCDPSession();
+    let gpu: unknown;
+    try {
+      const info = await browserCdp.send('SystemInfo.getInfo');
+      gpu = {
+        featureStatus: info.gpu.featureStatus,
+        renderer: info.gpu.auxAttributes?.glRenderer ?? null,
+      };
+    } catch (error) {
+      gpu = { unavailable: String(error) };
+    } finally {
+      await browserCdp.detach();
+    }
     const environment = {
-      categories,
+      categories, gpu,
       browserVersion: browser.version(),
       commit: process.env.GITHUB_SHA ?? null,
       runner: process.env.RUNNER_OS ?? null,
@@ -209,6 +218,7 @@ test('trace steady transient map Viz and GPU draw internals', async ({ page, bro
       traceConfig: {
         recordMode: 'recordAsMuchAsPossible',
         includedCategories: categories,
+        traceBufferSizeInKb: 32768,
       },
       transferMode: 'ReportEvents',
     });
@@ -268,9 +278,10 @@ test('trace steady transient map Viz and GPU draw internals', async ({ page, bro
     };
     // Preserve raw events even if subsequent marker/consistency assertions fail.
     await testInfo.attach('map-camera-chrome-trace.json', {
-      body: Buffer.from(JSON.stringify({ traceEvents: events, metadata: environment })),
+      body: Buffer.from(JSON.stringify({ traceEvents: events, metadata: { ...environment, completion, phases } })),
       contentType: 'application/json',
     });
+    expect(completion.dataLossOccurred, 'Chrome trace buffer must retain every frame marker').not.toBe(true);
     const summary = {
       environment, completion, owners, layerOwners: [...ownerByLayer],
       accounting: 'X-event overlap with input-to-RAF windows; union per stage; stage/thread values are not additive frame or GPU durations',
