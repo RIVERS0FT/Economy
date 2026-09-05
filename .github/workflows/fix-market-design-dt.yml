@@ -1,0 +1,52 @@
+name: Fix market design and validate DT
+
+on:
+  push:
+    branches:
+      - codex/daily-market-freeze-timeout-fix
+    paths:
+      - .github/workflows/fix-market-design-dt.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Restore non-legend chart text rule
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/MARKET_CHART_LAYOUT_DESIGN.md')
+          text = path.read_text(encoding='utf-8')
+          marker = '- 行情图不显示主动买入／主动卖出方向图例；成交量柱仍按日净主动方向使用成功色／危险色／中性色，具体买入、卖出和净主动量只在 Tooltip 中读取。'
+          addition = marker + '\n- 横纵轴刻度、桌面日期轴标题和移动分区标题使用 `--color-text-secondary`，不得以过低对比度的 muted 文本承担主要读数。'
+          if marker not in text:
+              raise SystemExit('30-day no-legend rule not found')
+          if '`--color-text-secondary`' not in text:
+              text = text.replace(marker, addition, 1)
+          path.write_text(text.rstrip('\n') + '\n', encoding='utf-8')
+          PY
+      - name: Validate full DT with the fix
+        run: |
+          npm ci
+          npm run validate:dt
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/fix-market-design-dt.yml
+      - name: Check diff
+        run: git diff --check
+      - name: Commit validated fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "恢复行情坐标文字设计约束"
+          git push origin HEAD:codex/daily-market-freeze-timeout-fix
