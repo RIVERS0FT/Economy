@@ -13,6 +13,8 @@
 
 .facility-auto-operation__header > strong {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
