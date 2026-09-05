@@ -21,6 +21,7 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
       'onlineAutoSellPolicies',
       'onlineAutoBuyManagedOrderIds',
       'onlineAutoSellManagedOrderIds',
+      'inventoryFreezeSources',
       'inventory',
       'frozenInventory',
     ]),
