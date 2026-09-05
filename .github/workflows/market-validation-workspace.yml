@@ -15,13 +15,13 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: Apply exact-reference selection and actual scroll fixture corrections
+      - name: Repair stale chart inverse coordinates after a mobile Sheet move
         run: |
           set -euo pipefail
-          python3 .maintenance/market-finalize.py
+          python3 .maintenance/market-coordinate-fix.py
           git diff --check
           git add src docs tests scripts
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix: preserve exact IT file references and real mobile scroll owner'
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix: refresh moved chart coordinates before touch tooltip display'
           git push origin HEAD:refs/heads/work/market-floating-validation-20260906
       - uses: actions/setup-node@v4
         with:
@@ -29,13 +29,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: bash scripts/prepare-playwright-chromium.sh
-      - name: Diagnose touch coordinates and validate selector regressions
+      - name: Validate actual touch, stationary updates and floating layout
         run: |
           set -o pipefail
           npm run generate:local-preview
           npx tsc --noEmit
           node --experimental-strip-types --test tests/dt/ci-direct-reference-selection.test.ts
-          npm run test:browser -- tests/browser/market-floating-debug.spec.ts tests/browser/market-chart-pointer.spec.ts --workers=2 --reporter=list 2>&1 | tee market-floating.log
+          npm run test:browser -- tests/browser/market-floating-debug.spec.ts tests/browser/market-chart-pointer.spec.ts tests/browser/commodity-freeze-details.spec.ts tests/browser/market-tooltip-persistence.spec.ts --workers=3 --reporter=list 2>&1 | tee market-floating.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
