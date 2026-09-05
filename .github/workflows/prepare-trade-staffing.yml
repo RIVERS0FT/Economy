@@ -1,0 +1,66 @@
+name: Prepare trade confirmation and commercial staffing
+on:
+  push:
+    branches: [codex/trade-confirmation-commercial-staffing]
+    paths:
+      - .github/workflows/prepare-trade-staffing.yml
+      - .github/apply-trade-staffing.py
+      - .github/document-trade-staffing.py
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/trade-confirmation-commercial-staffing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Apply reviewed source and design changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -q 'inFlightWrites' src/api/idempotentGameWriteFetch.ts; then
+            python3 .github/apply-trade-staffing.py
+            python3 .github/document-trade-staffing.py
+          fi
+          node scripts/normalize-repository-text.mjs
+          git add src server shared tests docs scripts
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: confirm commodity writes and lock staffed commercial cycles'
+            git push origin HEAD:codex/trade-confirmation-commercial-staffing
+          fi
+      - run: npm ci
+      - name: Type checking and direct regressions
+        run: |
+          npm run generate:local-preview
+          npm run typecheck
+          node --test tests/dt/game-write-confirmation.test.ts tests/dt/commercial-staffing.test.ts tests/dt/commercial-auto-operation.test.ts server/test/commercial-staffing.test.js server/test/commercial-buildings.test.js server/test/commercial-auto-operation.test.js server/test/market-scheduler-admission.test.js
+      - name: Full development validation
+        if: always()
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run validate:dt > /tmp/trade-staffing-dt.log 2>&1 || { tail -n 180 /tmp/trade-staffing-dt.log; exit 1; }
+          tail -n 25 /tmp/trade-staffing-dt.log
+      - name: Full domain integration validation
+        if: always()
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:it > /tmp/trade-staffing-it.log 2>&1 || { tail -n 220 /tmp/trade-staffing-it.log; exit 1; }
+          tail -n 20 /tmp/trade-staffing-it.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: trade-staffing-diagnostics
+          path: /tmp/trade-staffing-*.log
+          retention-days: 1
