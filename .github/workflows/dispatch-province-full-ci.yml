@@ -1,24 +1,59 @@
-name: Invoke full regional tab verification
+name: Apply reviewed page-contract selection correction
 on:
   push:
     branches: [codex/validate-province-tabs-full]
     paths: [.github/workflows/dispatch-province-full-ci.yml]
 permissions:
   contents: write
-  actions: write
 jobs:
-  dispatch:
+  apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
-      - name: Publish reviewed integration and invoke the unchanged full CI workflow
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/split-province-building-tabs
+          fetch-depth: 0
+      - name: Correct ambiguous test selection without changing gates
+        shell: bash
         run: |
           set -euo pipefail
-          target=codex/split-province-building-tabs
-          actual=$(gh api repos/RIVERS0FT/Economy/git/ref/heads/$target --jq '.object.sha')
-          test "$actual" = dbe2d0d9d53318ec669abc33379d32f18920fb9b
-          gh api repos/RIVERS0FT/Economy/git/commits/0148d68b175483f2039df73ffa37682b77a60962 --jq '.parents[].sha'
-          gh api --method PATCH repos/RIVERS0FT/Economy/git/refs/heads/$target -f sha=0148d68b175483f2039df73ffa37682b77a60962 -F force=false
-          gh workflow run ci.yml --repo RIVERS0FT/Economy --ref "$target"
+          test "$(git rev-parse HEAD)" = 0148d68b175483f2039df73ffa37682b77a60962
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/select-ci-tests.mjs')
+          text = p.read_text()
+          before = '  const fullTrigger = findFullTrigger(executableChanges);'
+          assert text.count(before) == 1
+          after = '''  // Page source contracts describe UI structure, not the gameplay contract domain.
+            // Their filename alone cannot select a meaningful server coverage loading graph.
+            const ambiguousPageContract = executableChanges.find((path) => /^server\\/test\\/.*-page-contract\\.test\\.js$/.test(path));
+            const fullTrigger = findFullTrigger(executableChanges) ?? ambiguousPageContract;'''
+          after = '\n'.join(line[2:] if line.startswith('    ') else line for line in after.splitlines())
+          text = text.replace(before, after)
+          before_reason = '    plan.reasons.push(`high-risk:${fullTrigger}`);'
+          assert text.count(before_reason) == 1
+          text = text.replace(before_reason, '''    plan.reasons.push(fullTrigger === ambiguousPageContract
+                ? `ambiguous-page-contract:${fullTrigger}`
+                : `high-risk:${fullTrigger}`);''')
+          p.write_text(text)
+          p = Path('docs/CI_EXECUTION_DESIGN.md')
+          text = p.read_text()
+          anchor = '## 3. 代码覆盖率门禁'
+          assert text.count(anchor) == 1
+          text = text.replace(anchor, '''### 2.4 页面源码契约的选测歧义
+          
+          直接修改 `server/test/*-page-contract.test.js` 时，文件名中的 `contract` 表示页面源码契约，不足以证明业务合同模块受影响。选择器必须在按文件名推导领域之前保守回退完整 DT、IT 与 ST-browser，并记录 `ambiguous-page-contract` 原因；不得只加载业务合同测试来构造无关的 IT 覆盖率分母。完整模式继续执行全部正式测试和原有覆盖率门槛，不排除源码、不缩减断言。普通业务合同源码与测试继续沿用原领域选择，文档中出现同名词语不触发此规则。
+          
+          当 PR 对应的检查处于 `action_required` 或未执行状态时，必须解决该 PR 的执行前提并取得 Ruleset 接受的真实 `build`。独立手动验证成功不能被描述为该 PR 已通过；不得补写成功状态替代实际检查。
+          
+          ## 3. 代码覆盖率门禁''')
+          p.write_text(text)
+          PY
+          node scripts/normalize-repository-text.mjs
+          git diff --check
+          git add scripts/select-ci-tests.mjs docs/CI_EXECUTION_DESIGN.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: use complete validation for ambiguous page source contracts'
+          git push origin HEAD:codex/split-province-building-tabs
