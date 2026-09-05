@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { formatCurrency } from '../../utils/formatters';
 import type { MarketHistoryBucket } from '../../utils/marketHistory';
 import { formatMarketAxisTime, MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';
 import { EconomyChart } from './EconomyChart';
@@ -48,7 +49,8 @@ const compactUnits = [
 const MARKET_AXIS_POINTER_LINE_STYLE = {
   color: chartColor.secondary,
   width: 1,
-  type: 'dashed' as const,
+  type: [4, 4],
+  cap: 'butt' as const,
   opacity: 0.82,
 };
 
@@ -367,24 +369,72 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   const chartInstanceRef = useRef<EChartsType | null>(null);
   const pointerInsideRef = useRef(false);
   const hoveredBucketIndexRef = useRef<number | null>(null);
-  const bucketCountRef = useRef(safeBuckets.length);
+  const activePointerRef = useRef<{ x: number; y: number; touch: boolean } | null>(null);
   const restoreFrameRef = useRef<number | null>(null);
-  bucketCountRef.current = safeBuckets.length;
+  const interactionRef = useRef({ geometry, plotWidth, safeBuckets, windowStart });
+  interactionRef.current = { geometry, plotWidth, safeBuckets, windowStart };
+
+  const hideActiveTooltip = useCallback(() => {
+    pointerInsideRef.current = false;
+    hoveredBucketIndexRef.current = null;
+    activePointerRef.current = null;
+    if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
+    restoreFrameRef.current = null;
+    const chart = chartInstanceRef.current;
+    if (chart && !chart.isDisposed()) {
+      chart.dispatchAction({ type: 'updateAxisPointer', currTrigger: 'leave' });
+      chart.dispatchAction({ type: 'hideTip' });
+    }
+    if (ref.current) {
+      delete ref.current.dataset.activeBucketIndex;
+      delete ref.current.dataset.activeAxisValue;
+      delete ref.current.dataset.pricePointerX;
+      delete ref.current.dataset.volumePointerX;
+    }
+  }, [ref]);
 
   const scheduleActiveTooltip = useCallback((chartInstance: EChartsType | null = chartInstanceRef.current) => {
     if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
     restoreFrameRef.current = null;
-    if (!chartInstance || !pointerInsideRef.current || hoveredBucketIndexRef.current === null) return;
+    if (!chartInstance || !pointerInsideRef.current || !activePointerRef.current) return;
     restoreFrameRef.current = requestAnimationFrame(() => {
       restoreFrameRef.current = null;
-      if (!pointerInsideRef.current || hoveredBucketIndexRef.current === null) return;
-      const dataIndex = Math.min(
-        Math.max(0, hoveredBucketIndexRef.current),
-        Math.max(0, bucketCountRef.current - 1),
-      );
-      chartInstance.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex });
+      const pointer = activePointerRef.current;
+      const element = ref.current;
+      if (!pointerInsideRef.current || !pointer || !element || chartInstance.isDisposed()) return;
+      const current = interactionRef.current;
+      const bounds = element.getBoundingClientRect();
+      const pointerX = pointer.x - bounds.left;
+      const pointerY = pointer.y - bounds.top;
+      if (pointerX < current.geometry.left || pointerX > current.geometry.width - current.geometry.right
+        || pointerY < current.geometry.top || pointerY > current.geometry.volumeBottom) {
+        hideActiveTooltip();
+        return;
+      }
+      const ratio = Math.min(1, Math.max(0, (pointerX - current.geometry.left) / current.plotWidth));
+      const dataIndex = resolveMarketBucketIndex(current.windowStart + ratio * MARKET_WINDOW_MS,
+        current.windowStart, current.safeBuckets.length, MARKET_BUCKET_MS);
+      hoveredBucketIndexRef.current = dataIndex;
+      const axisValue = current.safeBuckets[dataIndex].startAt + MARKET_BUCKET_MS / 2;
+      // One manual action drives both linked axes and the sole tooltip. Native
+      // mouse/click handlers are disabled, so neither Grid can race this selection.
+      const axisIndex = pointerY >= current.geometry.volumeTop ? 1 : 0;
+      const top = axisIndex === 0 ? current.geometry.top : current.geometry.volumeTop;
+      const bottom = axisIndex === 0 ? current.geometry.priceBottom : current.geometry.volumeBottom;
+      // Trigger inside the hovered Grid rather than at the series' y-value: a
+      // price at the min/max boundary must not hide the tooltip after refresh.
+      chartInstance.dispatchAction({
+        type: 'updateAxisPointer',
+        x: Number(chartInstance.convertToPixel({ xAxisIndex: axisIndex }, axisValue)),
+        y: Math.max(top + 1, Math.min(bottom - 1, pointerY)),
+        axesInfo: [{ axisDim: 'x', axisIndex, value: axisValue }],
+      });
+      element.dataset.activeBucketIndex = String(dataIndex);
+      element.dataset.activeAxisValue = String(axisValue);
+      element.dataset.pricePointerX = String(chartInstance.convertToPixel({ xAxisIndex: 0 }, axisValue));
+      element.dataset.volumePointerX = String(chartInstance.convertToPixel({ xAxisIndex: 1 }, axisValue));
     });
-  }, []);
+  }, [hideActiveTooltip, ref]);
 
   const handleChartReady = useCallback((chartInstance: EChartsType) => {
     chartInstanceRef.current = chartInstance;
@@ -396,56 +446,66 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   }, [scheduleActiveTooltip]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const pointerX = event.clientX - bounds.left;
-    const pointerY = event.clientY - bounds.top;
-    const plotRight = geometry.width - geometry.right;
-    const insideDataArea = pointerX >= geometry.left
-      && pointerX <= plotRight
-      && pointerY >= geometry.top
-      && pointerY <= geometry.volumeBottom;
-    if (!insideDataArea) {
-      pointerInsideRef.current = false;
-      hoveredBucketIndexRef.current = null;
-      if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
-      restoreFrameRef.current = null;
-      chartInstanceRef.current?.dispatchAction({ type: 'hideTip' });
-      return;
-    }
+    activePointerRef.current = { x: event.clientX, y: event.clientY, touch: event.pointerType === 'touch' || event.pointerType === 'pen' };
     pointerInsideRef.current = true;
-    const ratio = Math.min(1, Math.max(0, (pointerX - geometry.left) / plotWidth));
-    hoveredBucketIndexRef.current = Math.min(safeBuckets.length - 1, Math.floor(ratio * safeBuckets.length));
     scheduleActiveTooltip();
-  }, [geometry.left, geometry.right, geometry.top, geometry.volumeBottom, geometry.width, plotWidth, safeBuckets.length, scheduleActiveTooltip]);
+  }, [scheduleActiveTooltip]);
 
-  const handlePointerLeave = useCallback(() => {
-    pointerInsideRef.current = false;
-    hoveredBucketIndexRef.current = null;
-    if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
-    restoreFrameRef.current = null;
-    chartInstanceRef.current?.dispatchAction({ type: 'hideTip' });
-  }, []);
+  const handlePointerLeave = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    // Touch emits pointerleave when a finger lifts. Keep the selected day until
+    // the next tap, outside interaction, scrolling, cancellation or Escape.
+    if (event.pointerType !== 'mouse' && activePointerRef.current?.touch) return;
+    hideActiveTooltip();
+  }, [hideActiveTooltip]);
 
-  useEffect(() => () => {
-    if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
-    chartInstanceRef.current = null;
-  }, []);
+  useEffect(() => {
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !ref.current?.contains(event.target)) hideActiveTooltip();
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !pointerInsideRef.current) return;
+      hideActiveTooltip();
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const scroll = (event: Event) => {
+      if (event.target instanceof Node && ref.current && event.target.contains(ref.current)) hideActiveTooltip();
+    };
+    const focusOutside = (event: FocusEvent) => {
+      if (event.target instanceof Node && !ref.current?.contains(event.target)) hideActiveTooltip();
+    };
+    document.addEventListener('focusin', focusOutside, true);
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('keydown', escape, true);
+    document.addEventListener('scroll', scroll, true);
+    return () => {
+      document.removeEventListener('focusin', focusOutside, true);
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('keydown', escape, true);
+      document.removeEventListener('scroll', scroll, true);
+      if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
+      chartInstanceRef.current = null;
+    };
+  }, [hideActiveTooltip, ref]);
 
   const option = useMemo<EChartsCoreOption>(() => ({
     animation: false,
     aria: { enabled: true, description: '近三十天价格折线和成交量柱状图。蓝色为价格，成交量柱按当日净主动方向着色。' },
     grid: [
-      { id: 'market-price-grid', left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
-      { id: 'market-volume-grid', left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
+      { id: 'market-price-grid', outerBoundsMode: 'none', left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
+      { id: 'market-volume-grid', outerBoundsMode: 'none', left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
     ],
-    axisPointer: { link: [{ xAxisIndex: [0, 1] }] },
+    axisPointer: { triggerOn: 'none', animation: false, link: [{ xAxisIndex: [0, 1] }] },
     tooltip: {
       ...commonTooltip,
       trigger: 'axis',
-      triggerOn: 'mousemove|click',
+      triggerOn: 'none',
+      transitionDuration: 0,
+      hideDelay: 0,
       axisPointer: {
         type: 'line',
         snap: true,
+        animation: false,
         triggerEmphasis: false,
         lineStyle: MARKET_AXIS_POINTER_LINE_STYLE,
       },
@@ -457,7 +517,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         if (!bucket) return '';
         const sign = bucket.netVolume > 0 ? '+' : '';
         return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', timeZone: 'Asia/Shanghai' }))}</strong>`
-          + `<div><small>价格</small> ${escapeChartHtml(formatIntegerPriceTick(bucket.price))}</div>`
+          + `<div><small>价格</small> ${escapeChartHtml(formatCurrency(bucket.price))}</div>`
           + `<div><small>总成交量</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.volume))}</div>`
           + `<div><small>主动买入</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.buyVolume))}</div>`
           + `<div><small>主动卖出</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.sellVolume))}</div>`
@@ -467,15 +527,18 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     },
     xAxis: [
       {
-        id: 'market-price-time-axis', type: 'value', gridIndex: 0, min: windowStart, max: windowEnd, interval: axisInterval,
+        id: 'market-price-time-axis', type: 'value', gridIndex: 0, containShape: false, boundaryGap: [0, 0], min: windowStart, max: windowEnd, interval: axisInterval,
         axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false },
-        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: MARKET_AXIS_POINTER_LINE_STYLE },
+        // Cartesian y extents run bottom-to-top. Continue the lower segment's
+        // phase at the shared boundary rather than restarting the upper dash.
+        axisPointer: { show: true, snap: true, animation: false, label: { show: false },
+          lineStyle: { ...MARKET_AXIS_POINTER_LINE_STYLE, dashOffset: volumeHeight % 8 } },
         splitLine: { show: true, lineStyle: { color: chartColor.border } },
       },
       {
-        id: 'market-volume-time-axis', type: 'value', gridIndex: 1, min: windowStart, max: windowEnd, interval: axisInterval,
+        id: 'market-volume-time-axis', type: 'value', gridIndex: 1, containShape: false, boundaryGap: [0, 0], min: windowStart, max: windowEnd, interval: axisInterval,
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
-        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: MARKET_AXIS_POINTER_LINE_STYLE },
+        axisPointer: { show: true, snap: true, animation: false, label: { show: false }, lineStyle: MARKET_AXIS_POINTER_LINE_STYLE },
         axisLabel: {
           color: chartColor.secondary,
           fontSize: Math.max(11, rootFontSize * 0.75),
@@ -542,7 +605,9 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       role="img"
       aria-label="近 30 天价格、成交量与主动买卖方向趋势图"
       onPointerMove={handlePointerMove}
+      onPointerDown={handlePointerMove}
       onPointerLeave={handlePointerLeave}
+      onPointerCancel={hideActiveTooltip}
       data-chart-variant={variant}
       data-axis-left={geometry.left.toFixed(2)}
       data-axis-right={geometry.right.toFixed(2)}
@@ -562,6 +627,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       data-axis-pointer-linked="true"
       data-hover-emphasis-disabled="true"
       data-tooltip-persistence="true"
+      data-tooltip-trigger="pointer"
       data-shared-boundary-label-owner="price"
       data-price-min-label={priceBoundaryLabel}
       data-volume-max-label={volumeBoundaryLabel}
@@ -579,10 +645,11 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         className="market-history-echart"
         style={{ height: geometry.canvasHeight }}
         ariaLabel="近 30 天价格、成交量与主动买卖方向趋势图"
-        accessibleSummary={safeBuckets.map((bucket) => `${formatMarketAxisTime(bucket.startAt)}价格${formatIntegerPriceTick(bucket.price)}成交量${formatCompactVolumeTick(bucket.volume)}`).join('；')}
+        accessibleSummary={safeBuckets.map((bucket) => `${formatMarketAxisTime(bucket.startAt)}价格${formatCurrency(bucket.price)}成交量${formatCompactVolumeTick(bucket.volume)}`).join('；')}
         updateMode="merge"
         onChartReady={handleChartReady}
         onOptionApplied={restoreActiveTooltip}
+        onResize={restoreActiveTooltip}
       />
       <div
         className="market-chart-price-volume-divider"

@@ -79,7 +79,11 @@ for (const text of [
   "name: '价格', type: 'line'",
   "name: '成交量', type: 'bar'",
   'grid: [', 'xAxisIndex: 0', 'xAxisIndex: 1',
-  'axisPointer: { link: [{ xAxisIndex: [0, 1] }] }',
+  "axisPointer: { triggerOn: 'none', animation: false, link: [{ xAxisIndex: [0, 1] }] }",
+  'dashOffset: volumeHeight % 8', 'type: [4, 4]',
+  'onPointerDown={handlePointerMove}', 'onPointerCancel={hideActiveTooltip}',
+  'onResize={restoreActiveTooltip}', 'formatCurrency(bucket.price)',
+  "type: 'updateAxisPointer', currTrigger: 'leave'",
   'triggerEmphasis: false', 'emphasis: STABLE_TOOLTIP_EMPHASIS',
   'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)',
   'const priceVolumeGap = 0', 'const volumeTop = priceBottom + priceVolumeGap',
@@ -114,7 +118,9 @@ for (const text of [
   "id: 'market-price-series'", "id: 'market-volume-series'",
   'updateMode="merge"', 'onChartReady={handleChartReady}', 'onOptionApplied={restoreActiveTooltip}',
   'const scheduleActiveTooltip = useCallback', 'scheduleActiveTooltip();',
-  "type: 'showTip'", "type: 'hideTip'", 'data-tooltip-persistence="true"',
+  "type: 'updateAxisPointer'",
+  "outerBoundsMode: 'none'", 'containShape: false, boundaryGap: [0, 0]',
+  "axesInfo: [{ axisDim: 'x', axisIndex, value: axisValue }]", "type: 'hideTip'", 'data-tooltip-persistence="true"',
   'className="market-chart-price-volume-divider"',
   'className="market-chart-section-label"',
   '<div className="market-chart-x-axis-title">日期</div>',
@@ -155,7 +161,7 @@ for (const text of ['LineChart', 'BarChart', 'PieChart', 'AxisPointerComponent',
   assert.ok(registry.includes(text), `ECharts 模块注册缺少: ${text}`);
 }
 
-for (const text of ['buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? [])', '<PriceSparkline buckets={marketBuckets} variant="full" />']) {
+for (const text of ['buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? [])', '<PriceSparkline key={detailInteractionKey} buckets={marketBuckets} variant="full" />']) {
   assert.ok(marketPage.includes(text), `MarketPage 缺少: ${text}`);
 }
 for (const text of ['countMarketHistoryPointsInWindow', 'summarizeMarketFlow', 'className="chart-footer"', '最近成交估值', '主动买卖均衡／方向未知']) {
@@ -235,7 +241,7 @@ for (const text of [
 for (const text of [
   '市场行情图几何、交互与可读性唯一专项基线', 'ECharts SVG', '零间距连续双 Grid',
   '统一悬浮交互', '`axisPointer.link`', '`axisValue`',
-  '第一次有效 `pointermove`', '主动驱动同一分段的 Tooltip',
+  '第一次有效 `pointermove`', '行情外层 Pointer 事件是唯一主动触发入口',
   '动态时间间隔', '真实像素高度和根字号动态计算',
   '额外空白最少的区间', '`3～6`', '`0～10`',
   '`--color-info`', '`--color-success`', '`--color-text-secondary`',
@@ -246,7 +252,7 @@ for (const text of [
   '容器宽度不大于 `720px` 或使用 compact 变体时不渲染可见“日期”标题',
   '水平小标题', '最长可见标签估算宽度',
   '`tests/browser/market-chart-readability.spec.ts`',
-  '普通 `5s` 状态轮询', '无关 React 重渲染', 'Option 应用后恢复',
+  '普通 `5s` 状态轮询', '无关 React 重渲染', 'Option 应用／resize 后',
   '至少 `6.5s`', '`alwaysShowContent`', '超长 `hideDelay`',
   '价格区与成交量区合计数据绘图区的 `22%`',
   '不得由业务 CSS 再用固定比例覆盖组件计算结果',

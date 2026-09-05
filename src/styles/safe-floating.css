@@ -88,3 +88,14 @@
   font-size: var(--font-size-sm);
   line-height: 1.3;
 }
+
+/* One ordinary, bounded host above the mobile Sheet; never a new Portal root. */
+.workspace-dialog-layer > .workspace-tooltip-layer {
+  z-index: 100;
+}
+
+.safe-tooltip[data-interactive='true'] {
+  pointer-events: auto !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
