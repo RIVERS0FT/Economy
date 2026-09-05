@@ -227,7 +227,7 @@ assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, qua
 for (const text of [
   '商品地区详情最上方固定为商品图标与四项交易摘要：今日价格、今日成交量、可用库存和冻结库存',
   '近 30 天按日成交趋势',
-    '市场行情图几何继续以 `MARKET_CHART_LAYOUT_DESIGN.md` 为准',
+  '市场行情图几何继续以 `MARKET_CHART_LAYOUT_DESIGN.md` 为准',
   '24h 成交量',
   '浏览器本地成交记录',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
@@ -242,7 +242,7 @@ for (const text of [
   '成交量轴目标刻度不得低于 3 个', '非零中间刻度',
   'full 变体任意支持断点下成交量绘图区实际屏幕高度不得低于 `68px`',
   '最小可见高度 `2px`',
-  '容器宽度不大于 `720px` 或使用 compact 变体时不渲染可见“时间”标题',
+  '容器宽度不大于 `720px` 或使用 compact 变体时不渲染可见“日期”标题',
   '水平小标题', '最长可见标签估算宽度',
   '`tests/browser/market-chart-readability.spec.ts`',
   '普通 `5s` 状态轮询', '无关 React 重渲染', 'Option 应用后恢复',
@@ -264,4 +264,4 @@ for (const text of [
   assert.ok(orderBookDesign.includes(text), `即时市场设计文档缺少: ${text}`);
 }
 
-console.log('Market ECharts verification passed: distinct price semantics, minimal-padding integer scales, readable volume labels, mobile axis layout, linked persistent hover and zero-gap grids satisfy the design baseline.');
+console.log('Market ECharts verification passed: 30 daily buckets, readable volume labels, no direction legend, linked persistent hover and zero-gap grids satisfy the design baseline.');
