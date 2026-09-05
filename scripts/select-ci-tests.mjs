@@ -32,7 +32,7 @@ const DOMAIN_RULES = [
   { name: 'facility', source: /(?:facility|factory|building|production|recipe|industry)/i, candidate: /(?:facility|factory|building|production|recipe|industry)/i },
   { name: 'province', source: /(?:province|region|map)/i, candidate: /(?:province|region|map)/i },
   { name: 'shell', source: /(?:navigation|sidebar|outliner|tutorial|notification|mobile|shell|page-sheet|liquid-glass|chrome)/i, candidate: /(?:navigation|sidebar|outliner|tutorial|notification|mobile|shell|page-sheet|layout|application|liquid-glass|chrome)/i },
-  { name: 'auth', source: /(?:auth|registration|invite|invitation|ban|login)/i, candidate: /(?:auth|registration|invite|invitation|ban|login)/i },
+  { name: 'auth', source: /(?:\bauth(?:entication)?\b|\bregistration\b|\binvites?\b|\binvitations?\b|\bbans?\b|\blogin\b)/i, candidate: /(?:\bauth(?:entication)?\b|\bregistration\b|\binvites?\b|\binvitations?\b|\bbans?\b|\blogin\b)/i },
   { name: 'banking', source: /(?:bank|loan|deposit|cash-settlement)/i, candidate: /(?:bank|loan|deposit|cash-settlement)/i },
   { name: 'contract', source: /contract/i, candidate: /contract/i },
   { name: 'auction', source: /auction/i, candidate: /auction/i },
