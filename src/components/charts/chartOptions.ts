@@ -54,6 +54,29 @@ export function escapeChartHtml(value: unknown) {
     .replace(/'/g, '&#39;');
 }
 
+/** ECharts positions are chart-local even when the HTML node is appended to a shared host. */
+export function positionWorkspaceChartTooltip(point: number[], tooltip: HTMLElement, chart: HTMLElement): [number, number] {
+  const gap = 8;
+  const chartRect = chart.getBoundingClientRect();
+  const hostRect = tooltip.parentElement?.getBoundingClientRect() ?? chartRect;
+  const scaleX = chartRect.width / Math.max(1, chart.clientWidth) || 1;
+  const scaleY = chartRect.height / Math.max(1, chart.clientHeight) || 1;
+  const left = Math.max(0, (hostRect.left - chartRect.left) / scaleX) + gap;
+  const top = Math.max(0, (hostRect.top - chartRect.top) / scaleY) + gap;
+  const right = Math.min(chart.clientWidth, (hostRect.right - chartRect.left) / scaleX) - gap;
+  const bottom = Math.min(chart.clientHeight, (hostRect.bottom - chartRect.top) / scaleY) - gap;
+  tooltip.style.maxWidth = `${Math.max(1, right - left)}px`;
+  tooltip.style.maxHeight = `${Math.max(1, bottom - top)}px`;
+  tooltip.style.overflow = 'auto';
+  const width = tooltip.offsetWidth;
+  const height = tooltip.offsetHeight;
+  const preferredTop = point[1] + gap + height <= bottom ? point[1] + gap : point[1] - gap - height;
+  return [
+    Math.max(left, Math.min(point[0] + gap, right - width)),
+    Math.max(top, Math.min(preferredTop, bottom - height)),
+  ];
+}
+
 export const commonTooltip = {
   className: 'economy-chart-tooltip ui-tooltip-surface',
   textStyle: {
