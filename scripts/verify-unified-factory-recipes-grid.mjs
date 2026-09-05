@@ -189,7 +189,7 @@ for (const text of [
   'formatDuration(type.cycleMs)',
   '<FacilityGroupProgress group={group} type={type} now={now} />',
   'import { GameConcept }',
-  '<strong>title={<GameConcept concept="production-settlement" />}</strong>',
+  'title={<GameConcept concept="production-settlement" />}',
   '<GameConcept concept="production-input" />',
   '<GameConcept concept="production-output" />',
 ]) assert.equal(formula.includes(text), true, `生产公式缺少: ${text}`);

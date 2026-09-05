@@ -1,5 +1,5 @@
 /* Commercial content only: card, summary, switch and progress geometry are shared. */
-.commercial-building-artwork {
+:where(.commercial-building-artwork) {
   display: block;
   width: 100%;
   height: 100%;

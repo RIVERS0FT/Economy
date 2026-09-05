@@ -22,7 +22,7 @@ async function assertNoOverflow(page: Page) {
     (elements) => elements.map((element) => ({ scroll: element.scrollWidth, client: element.clientWidth })),
   );
   expect(widths.length).toBeGreaterThan(0);
-  for (const width of widths) expect(width.scroll, JSON.stringify(await page.locator('.global-buildings-page').evaluateAll((roots) => roots.flatMap((root) => Array.from(root.querySelectorAll('*')).filter((el) => el.getBoundingClientRect().right > root.getBoundingClientRect().right + 1).slice(0, 20).map((el) => ({ tag: el.tagName, cls: el.getAttribute('class'), width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right - root.getBoundingClientRect().right, scroll: el.scrollWidth, client: el.clientWidth })))))).toBeLessThanOrEqual(width.client + 1);
+  for (const width of widths) expect(width.scroll).toBeLessThanOrEqual(width.client + 1);
 }
 async function openConvenienceDetail(page: Page) {
   await openRegional(page);

@@ -120,7 +120,9 @@ if (failures.length === 0) {
     '--ui-interactive-active-transform: none;',
   ]) requireText('src/styles/research-page.css', text);
   requireText('src/pages/BuildingsPage.tsx', 'onSelect={() => selectFacilityEntry(entry.type.id)}');
-  requireText('src/pages/BuildingsPage.tsx', 'className="facility-cluster-detail-shell facility-cluster-detail-page"');
+  requireText('src/components/buildings/BuildingDetailPage.tsx', 'facility-cluster-detail-shell facility-cluster-detail-page');
+  requireText('src/pages/BuildingsPage.tsx', '<BuildingDetailPage');
+  requireText('src/pages/CommercePage.tsx', '<BuildingDetailPage');
   requireText('tests/browser/buildings-ledger-layout.spec.ts', 'factory card opens second-level detail without changing header height');
   requireText(mobileDetailPath, 'returnFocusRef = returnFocusRef;');
   requireText(mobileSheetHostPath, 'previousDetail.controllerRef.current.returnFocusRef.current?.focus({ preventScroll: true })');

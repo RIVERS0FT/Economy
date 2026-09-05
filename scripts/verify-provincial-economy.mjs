@@ -492,7 +492,7 @@ for (const text of [
 ]) assert.ok(networkDesign.includes(text), `运输几何 DESIGN 缺少: ${text}`);
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 for (const text of [
-  '州级上下文页（无导航按钮）', '概览｜市场｜商业｜工业｜仓库', '中文州全名作为唯一州面名称',
+  '州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名作为唯一州面名称',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 
 const navigation = read('src/config/navigation.ts');

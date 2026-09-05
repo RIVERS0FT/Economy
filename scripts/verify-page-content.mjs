@@ -52,17 +52,17 @@ for (const text of [
   '| 市场 | `market` | `GlobalMarketPage` |',
   '| 建筑 | `buildings` | `GlobalBuildingsPage` |',
   '一级导航中的“市场”和“建筑”固定进入全局视图',
-  '建筑固定采用“工厂目录 → 工厂地区列表 → 地区工厂详情”的工厂优先钻取',
+  '建筑固定采用“建筑目录 → 建筑地区列表 → 地区建筑详情”的类型优先钻取',
   '一级建筑页不再提供独立“地区建筑”卡片或直接地区入口',
-  '默认态保持正式工厂目录顺序',
-  '表头允许按工厂名称、平均利润和拥有数量',
-  '一级建筑只提供工厂类型全局总览与工厂优先地区钻取',
+  '默认态保持正式建筑目录顺序',
+  '表头允许按建筑名称、单座／单厂利润和拥有数量',
+  '一级建筑只提供建筑类型全局总览与类型优先地区钻取',
   '图标式快捷生产设置',
-  '`ProvincePage` 内的市场、商业与工业分区仍始终是地图所打开当前州的本地视图',
+  '`ProvincePage` 内的市场与建筑分区始终是地图所打开当前州的本地视图',
   '概览始终显示官方常住人口',
   '市场提供商品目录、今日官方价格、真实成交行情和当日价即时交易写操作',
-  '商业、工业与仓库直接显示本地经营内容',
-  '一级市场商品的地区行情列表与一级建筑工厂的地区列表覆盖连续 48 州',
+  '建筑与仓库直接显示本地经营内容',
+  '一级市场商品的地区行情列表与一级建筑类型的地区列表覆盖连续 48 州',
   '邀请卡与礼品码兑换唯一归属商店',
   '战略地图镜头、缩放、重置和平移边界唯一遵循 `STRATEGIC_MAP_RENDERING_DESIGN.md`',
   '地图不得提供独立的放大、缩小或重置功能面板',
@@ -151,7 +151,7 @@ for (const text of [
 
 for (const text of [
   '<EmbeddedMarketPage model={model} embedded />',
-  '<EmbeddedCommercePage',
+  '<EmbeddedBuildingsPage',
   '<EmbeddedBuildingsPage',
   'onDetailFacilityChange={handleFacilityDetailChange}',
   "import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';",
@@ -218,7 +218,7 @@ for (const [path, expected] of [
     'className="global-facility-catalog-header"',
     'className="entity-list-rows global-facility-catalog-list"',
     'className="entity-list-row global-facility-catalog-row"',
-    'onClick={() => openGlobalFacility(row.facilityTypeId)}',
+    "row.kind === 'commercial' ? openGlobalCommercial(row.buildingTypeId) : openGlobalFacility(row.buildingTypeId)",
     'data-quick-production="product"',
     'data-quick-production="method"',
     '<FacilityProductionProductSelect',
@@ -350,7 +350,7 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商�
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '连续 48 州从玩家首次建档起全部可直接经营');
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '任一州都可直接进行商品即时交易');
 requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '连续 48 州均直接显示本地库存内容');
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商业、工业与仓库直接显示本地经营内容');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑与仓库直接显示本地经营内容');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品列表字段名使用独立表头');
