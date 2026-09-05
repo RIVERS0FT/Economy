@@ -36,7 +36,8 @@ test('market chart keeps price, volume and mobile axis semantics readable', asyn
 
   await expect(chart.locator('.market-chart-section-label')).toHaveCount(2);
   await expect(chart.locator('.market-chart-x-axis-title')).toHaveCount(0);
-  await expect(chart.locator('.market-chart-legend')).toBeVisible();
+  await expect(chart.locator('.market-chart-legend')).toHaveCount(0);
+  await expect(chart.locator('.market-chart-footer')).toHaveCount(0);
 
   const cssColors = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement);
