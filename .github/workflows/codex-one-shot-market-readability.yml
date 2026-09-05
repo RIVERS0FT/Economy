@@ -1,0 +1,54 @@
+name: Codex one-shot market readability fix
+
+on:
+  push:
+    branches:
+      - codex/daily-market-freeze-timeout-fix
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == '应用动态成交量刻度回归修复'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/daily-market-freeze-timeout-fix
+          fetch-depth: 0
+      - name: Patch dynamic volume-label regression
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_one(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one target, found {text.count(old)}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_one(
+              'tests/browser/market-chart-readability.spec.ts',
+              "  const visibleSvgLabels = await chart.locator('.economy-chart__canvas svg text').allTextContents();\n  expect(visibleSvgLabels).toContain('2');",
+              "  const visibleSvgLabels = await chart.locator('.economy-chart__canvas svg text').allTextContents();\n  const maxVolumeTick = Math.max(...state.volumeTicks);\n  const visibleIntermediateVolumeTick = state.volumeTicks.find((value) => value > 0 && value < maxVolumeTick) ?? null;\n  expect(visibleIntermediateVolumeTick).not.toBeNull();\n  expect(visibleSvgLabels).toContain(String(visibleIntermediateVolumeTick));",
+          )
+          replace_one(
+              'scripts/verify-market-chart.mjs',
+              "  \"chart.locator('.economy-chart__canvas svg text')\", \"toContain('2')\",",
+              "  \"chart.locator('.economy-chart__canvas svg text')\", 'maxVolumeTick', 'visibleIntermediateVolumeTick',\n  'toContain(String(visibleIntermediateVolumeTick))',",
+          )
+          Path('.github/workflows/codex-one-shot-market-readability.yml').unlink()
+          PY
+          git diff --check
+          git status --short
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修复动态成交量刻度浏览器回归"
+          git push origin HEAD:codex/daily-market-freeze-timeout-fix
