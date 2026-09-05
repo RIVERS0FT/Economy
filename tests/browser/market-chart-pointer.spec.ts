@@ -11,14 +11,25 @@ async function point(chart: Locator, ratio: number, volume = false) {
 async function pointerLines(chart: Locator) {
   return chart.locator('svg [stroke-dasharray]').evaluateAll((elements) => elements.map((el) => {
     const r = el.getBoundingClientRect();
-    return { x: r.x, y: r.y, width: r.width, height: r.height, offset: Number(el.getAttribute('stroke-dashoffset') || 0) };
+    const path = el instanceof SVGGeometryElement ? el : null;
+    const length = path?.getTotalLength() ?? r.height;
+    return { x: r.x, y: r.y, width: r.width, height: r.height, length,
+      startY: path?.getPointAtLength(0).y ?? 0, endY: path?.getPointAtLength(length).y ?? 0,
+      cycle: (el.getAttribute('stroke-dasharray') ?? '').split(/[\s,]+/).reduce((sum, value) => sum + Number(value), 0),
+      offset: Number(el.getAttribute('stroke-dashoffset') || 0) };
   }).filter((r) => r.width <= 2 && r.height >= 40).sort((a, b) => a.y - b.y));
 }
 async function expectPointers(chart: Locator) {
   await expect.poll(async () => (await pointerLines(chart)).length).toBe(2);
-  const lines = await pointerLines(chart);
-  expect(Math.abs(lines[0].x - lines[1].x)).toBeLessThanOrEqual(1);
-  expect(Math.abs(lines[0].y + lines[0].height - lines[1].y)).toBeLessThanOrEqual(1);
+  const [upper, lower] = await pointerLines(chart);
+  expect(Math.abs(upper.x - lower.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(upper.y + upper.height - lower.y)).toBeLessThanOrEqual(1);
+  expect(upper.startY).toBeGreaterThan(upper.endY);
+  expect(lower.startY).toBeGreaterThan(lower.endY);
+  expect(upper.cycle).toBe(8);
+  expect(lower.cycle).toBe(upper.cycle);
+  const phaseDifference = ((upper.offset - lower.offset - lower.length) % upper.cycle + upper.cycle) % upper.cycle;
+  expect(Math.min(phaseDifference, upper.cycle - phaseDifference), '上下原生路径在接缝处必须保持同一虚线相位').toBeLessThanOrEqual(1);
 }
 async function expectForegroundTooltip(page: Page) {
   const tooltip = page.locator('.economy-chart-tooltip');
@@ -27,8 +38,7 @@ async function expectForegroundTooltip(page: Page) {
   const geometry = await tooltip.evaluate((element) => {
     const el = element as HTMLElement; const r = el.getBoundingClientRect();
     const host = el.parentElement!; const safe = host.getBoundingClientRect();
-    // The normal tooltip intentionally ignores hit-testing. Temporarily probe only its
-    // actual node, never the host, to detect a tooltip painted underneath the Sheet.
+    // Probe only the actual normally non-interactive node, never its shared host.
     const previous = el.style.getPropertyValue('pointer-events');
     const priority = el.style.getPropertyPriority('pointer-events');
     el.style.setProperty('pointer-events', 'auto', 'important');
@@ -37,15 +47,17 @@ async function expectForegroundTooltip(page: Page) {
     if (previous) el.style.setProperty('pointer-events', previous, priority); else el.style.removeProperty('pointer-events');
     const status = document.querySelector('.asset-bar')!.getBoundingClientRect();
     return { inFront, host: host.dataset.workspaceTooltipLayer, hostEvents: getComputedStyle(host).pointerEvents,
-      top: r.top, bottom: r.bottom, left: r.left, right: r.right, safeTop: safe.top, safeBottom: safe.bottom,
+      top: r.top, bottom: r.bottom, left: r.left, right: r.right,
+      safeTop: safe.top, safeBottom: safe.bottom, safeLeft: safe.left, safeRight: safe.right,
       statusBottom: status.bottom, viewportWidth: window.innerWidth };
   });
   expect(geometry.inFront).toBe(true);
   expect(geometry.host).toBe('true');
   expect(geometry.hostEvents).toBe('none');
-  expect(geometry.top).toBeGreaterThanOrEqual(geometry.statusBottom);
-  expect(geometry.left).toBeGreaterThanOrEqual(0);
-  expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+  expect(geometry.top).toBeGreaterThanOrEqual(Math.max(geometry.statusBottom, geometry.safeTop) - 1);
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.safeBottom + 1);
+  expect(geometry.left).toBeGreaterThanOrEqual(Math.max(0, geometry.safeLeft) - 1);
+  expect(geometry.right).toBeLessThanOrEqual(Math.min(geometry.viewportWidth, geometry.safeRight) + 1);
 }
 
 for (const width of [320, 390, 960]) {
@@ -97,5 +109,42 @@ test.describe('touch market tooltip inside the actual mobile Sheet', () => {
     await page.locator('.market-detail-product-icon-card').tap();
     await expect(page.locator('.economy-chart-tooltip')).toBeHidden();
     await expect.poll(async () => (await pointerLines(chart)).length).toBe(0);
+  });
+
+  test('native horizontal touch moves the selected date while a vertical gesture scrolls and clears it', async ({ page, context }) => {
+    const errors: string[] = []; page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto('market-runtime-test.html?scenario=freeze-details');
+    const chart = page.locator('.market-history-chart.full');
+    await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+    await chart.scrollIntoViewIfNeeded();
+    const start = await point(chart, 0.2);
+    const end = await point(chart, 0.8);
+    await page.touchscreen.tap(start.x, start.y);
+    const initialDate = await page.locator('.economy-chart-tooltip strong').innerText();
+    const session = await context.newCDPSession(page);
+    const touch = (type: 'touchStart' | 'touchMove', x: number, y: number) => session.send('Input.dispatchTouchEvent', {
+      type, touchPoints: [{ x, y, id: 1, radiusX: 2, radiusY: 2 }],
+    });
+    try {
+      await touch('touchStart', start.x, start.y);
+      for (let step = 1; step <= 8; step += 1) {
+        await touch('touchMove', start.x + (end.x - start.x) * step / 8, start.y);
+      }
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await expectForegroundTooltip(page);
+      await expect(page.locator('.economy-chart-tooltip strong')).not.toHaveText(initialDate);
+      await expectPointers(chart);
+      const before = await chart.boundingBox();
+      await touch('touchStart', end.x, end.y);
+      for (let step = 1; step <= 8; step += 1) await touch('touchMove', end.x, end.y - step * 12);
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await expect(page.locator('.economy-chart-tooltip')).toBeHidden();
+      await expect.poll(async () => (await pointerLines(chart)).length).toBe(0);
+      await expect.poll(async () => Math.abs((await chart.boundingBox())!.y - before!.y)).toBeGreaterThan(4);
+      await expect(page.locator('[data-mobile-workspace-sheet-host="true"]')).toBeVisible();
+    } finally {
+      await session.detach();
+    }
+    expect(errors).toEqual([]);
   });
 });
