@@ -30,3 +30,18 @@ test('exact cross-layer file references still select IT while basename stems do 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+
+test('a same-stem non-reference cannot suppress full fallback for unclassified server code', () => {
+  const root = mkdtempSync(join(tmpdir(), 'economy-ci-fallback-'));
+  try {
+    for (const dir of ['server/src', 'server/test']) mkdirSync(join(root, dir), { recursive: true });
+    writeFileSync(join(root, 'server/src/widget.js'), 'export const value = 1;');
+    writeFileSync(join(root, 'server/test/unrelated.test.js'), "readFileSync('src/styles/widget.css');");
+    const plan = selectCiPlan(['server/src/widget.js'], { root });
+    assert.equal(plan.mode, 'full');
+    assert.ok(plan.reasons.includes('unclassified-source:server/src/widget.js'));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
