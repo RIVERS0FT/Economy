@@ -1,0 +1,28 @@
+name: Cycle inventory workspace
+on:
+  push:
+    branches: [work/cycle-frozen-inventory-20260905]
+    paths: [.github/workflows/cycle-inventory-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c00f39d5263913aa59af5e0e3bb77cfdeca90e8a
+          persist-credentials: false
+      - name: Export saved implementation and review baselines
+        run: |
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/economy-work.tar.gz"
+          git fetch --depth=1 origin 3bee700b9517ee0be0fb888cfc91d88bd187a950 bc16e2d38aa3a421ae3fd620ee37f3af6ceb5645
+          git archive --format=tar.gz 3bee700b9517ee0be0fb888cfc91d88bd187a950 > "$RUNNER_TEMP/economy-main.tar.gz"
+          git archive --format=tar.gz bc16e2d38aa3a421ae3fd620ee37f3af6ceb5645 > "$RUNNER_TEMP/economy-pr789.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cycle-inventory-resume-source
+          path: ${{ runner.temp }}/economy-*.tar.gz
+          retention-days: 1
+          compression-level: 0
