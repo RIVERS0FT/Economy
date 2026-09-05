@@ -120,7 +120,9 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 同一几何基线需要覆盖三个以上完整视口并且每个视口都会重新加载 runtime／preview fixture 时，必须在测试声明期按视口生成独立 Playwright test，使每个视口拥有独立默认单测预算；不得在单个 test 内循环多个完整 reload，也不得因此删减任何视口或几何断言。
 - `player-page-geometry.spec.ts` 的全页面承载宽度基线必须按“视口 × 页面”在测试声明期生成独立 test；市场图表的完整 runtime／根字号阶段也必须各自独立。跨宽度相对关系只能在单一 runtime 内通过真实 resize 与权威 `data-*` 状态轮询比较。
 - 交互激活态的浏览器门禁必须先等待权威 DOM 状态提交，再使用 `expect.poll` 条件轮询读取 computed style；不得用固定 sleep 猜测渲染提交时机，也不得通过删除颜色、边框或背景断言绕过视觉状态验证。
+- 有限时长的动画过渡态必须在触发操作前注册真实浏览器事件监听，在匹配元素和动画名称的 `animationstart` 等事件中保存当时的权威属性与相关 DOM 状态，再验证捕获证据及最终状态。`non-obvious reason`：连续跨进程断言可能超过真实动画窗口，事后轮询不能证明动画未发生。移动导航回场测试必须保留动画真实启动、启动时 `navigationReturning=true`、页面 Sheet 已退出、同一导航节点持续挂载、最终回场状态清除、可见性与真实输入检查；不得延长正式动画、人工派发动画事件、固定 sleep 或删除过渡态断言来规避竞态。
 - 每个 shard 的失败日志、Playwright report 与 test results 使用独立 Artifact 名称，避免并行 Job 互相覆盖；成功运行不长期上传测试 Artifact。
+- 必须供失败 Artifact 分析的原始 trace 与诊断报告，应先写入该 test／retry 独有的 `testInfo.outputPath(...)` 文件，再通过 `testInfo.attach` 的 `path` 关联。不能只提供内存 `body` 并假定当前 reporter 会为成功的诊断测试生成可上传文件。原始证据必须先于依赖它的完整性断言保存；继续使用既有 shard 失败上传与短期保留规则，不提交生成报告到源码，也不因此开启成功运行长期上传。
 - 透明 Top Layer、Portal、Popover 等共享浮层变更必须至少保留一个真实浏览器命中测试，证明浮层打开时无关底层控件仍可正常 click/hover/tap，而不能只检查 CSS 字符串或计算样式。
 - 使用正式 `SignedInShell`／工作区浮层的专用 runtime harness 必须加载与正式应用一致的共享安全浮层样式。`src/styles/frosted-glass-chrome.css` 是这些 harness 的唯一共享外壳聚合入口，并必须包含 `safe-floating.css`；不得在各测试 HTML 中复制 Tooltip Layer 的定位或 `pointer-events` 规则。
 
