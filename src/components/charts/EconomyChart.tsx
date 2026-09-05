@@ -6,7 +6,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { useWorkspaceTooltipLayer } from '../ui/WorkspaceFloatingLayer';
-import { initECharts, type EChartsCoreOption, type EChartsType } from './echartsCore';
+import { createTooltipCoordinateGuard, initECharts, type EChartsCoreOption, type EChartsType } from './echartsCore';
 import { resolveEChartsCssColors } from './resolveEChartsCssColors';
 
 let nextChartInstanceId = 1;
@@ -47,19 +47,21 @@ export interface EconomyChartSize {
   height: number;
 }
 
-function optionWithTooltipLayer(option: EChartsCoreOption, tooltipLayer: HTMLElement | null, container: HTMLElement) {
+function optionWithTooltipLayer(option: EChartsCoreOption, tooltipLayer: HTMLElement | null, container: HTMLElement, chartInstance: EChartsType) {
   if (!tooltipLayer || !option || typeof option !== 'object' || Array.isArray(option)) return option;
   const source = option as unknown as Record<string, unknown>;
   const tooltip = source.tooltip;
   if (!tooltip || typeof tooltip !== 'object' || Array.isArray(tooltip)) return option;
   const next = { ...source };
   const tooltipOption = tooltip as Record<string, unknown>;
+  const ensureLiveCoordinates = createTooltipCoordinateGuard(chartInstance, tooltipLayer);
   next.tooltip = {
     ...tooltipOption,
     appendTo: tooltipLayer,
     appendToBody: false,
     position: tooltipOption.position ?? ((point: number[], _params: unknown, node: HTMLElement, _rect: unknown,
       size: { contentSize: number[] }) => {
+      ensureLiveCoordinates();
       const safe = tooltipLayer.getBoundingClientRect();
       const chart = container.getBoundingClientRect();
       const maxWidth = Math.max(1, Math.min(chart.width, safe.width) - 16);
@@ -98,7 +100,7 @@ function applyChartOption(
     tooltipLayer = container.closest('.signed-in-shell')
       ?.querySelector<HTMLElement>('[data-workspace-tooltip-layer="true"]') ?? null;
   }
-  chart.setOption(optionWithTooltipLayer(resolvedOption, tooltipLayer, container), {
+  chart.setOption(optionWithTooltipLayer(resolvedOption, tooltipLayer, container, chart), {
     notMerge: updateMode !== 'merge',
     lazyUpdate,
   });
