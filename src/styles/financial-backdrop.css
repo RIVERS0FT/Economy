@@ -121,7 +121,9 @@ html[data-app-surface="admin"] .application-content-root {
   object-fit: cover;
   object-position: 50% 48%;
   transform: scale(1.012);
-  will-change: filter;
+  /* The photograph is static. A filter promotion hint keeps a full-screen
+   * filtered render pass alive during unrelated map compositor updates. */
+  will-change: auto;
 }
 
 html[data-app-backdrop="auth"] .application-image-layer img,
