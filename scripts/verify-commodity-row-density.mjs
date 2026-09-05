@@ -11,7 +11,6 @@ function requireText(source, text, label) {
 const commodityCss = read('src/styles/market-commodity-row.css');
 const design = read('docs/UI_DESIGN_SYSTEM.md');
 const browserSpec = read('tests/browser/commodity-row-density.spec.ts');
-const marketRuntimeSpec = read('tests/browser/market-runtime.spec.ts');
 
 for (const token of [
   '.entity-list-row:is(.market-commodity-row, .global-market-goods-row)',
@@ -41,14 +40,13 @@ for (const token of [
   "name: '查看小麦详情'",
   "'.global-market-goods-row__artwork'",
   "'.market-commodity-row__artwork'",
-  "expect(compactRegional).toEqual(compactGlobal);",
+  "'50px': { slot: [36, 36], artwork: [32, 32] }",
+  "'46px': { slot: [32, 32], artwork: [28, 28] }",
+  "'44px': { slot: [30, 30], artwork: [26, 26] }",
   "expect(compactGlobal.minHeight).toBe('44px');",
+  'expect(compactGlobal.slot).toEqual([30, 30]);',
+  'expect(compactGlobal.artwork).toEqual([26, 26]);',
+  'expect(compactRegional).toEqual(compactGlobal);',
 ]) requireText(browserSpec, token, 'commodity row density browser coverage');
-
-for (const token of [
-  'compactCatalog ? [32, 32] : [36, 36]',
-  'compactCatalog ? [28, 28] : [32, 32]',
-  ')).toEqual([32, 28]);',
-]) requireText(marketRuntimeSpec, token, 'commodity artwork regression coverage');
 
 console.log('commodity row density verification passed');
