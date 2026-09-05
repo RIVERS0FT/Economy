@@ -2,6 +2,7 @@ import {
   createFactoryAutoOperationClientState,
   createFactoryAutoTradeExecutionClientState,
 } from './factory-auto-operation.js';
+import { createInventoryFreezeClientState } from './inventory-freezes.js';
 import { createOnlineAutoBuyPolicyClientState } from './online-auto-buy-policy.js';
 import { createOnlineAutoSellPolicyClientState } from './online-auto-sell-policy.js';
 
@@ -39,5 +40,6 @@ export function createWarehouseSummaryReadOnly(player) {
     onlineAutoBuyManagedOrderIds: buyState.onlineAutoBuyManagedOrderIds,
     onlineAutoSellManagedOrderIds: sellState.onlineAutoSellManagedOrderIds,
     ...createFactoryAutoOperationClientState(player),
+    ...createInventoryFreezeClientState(player),
   };
 }
