@@ -40,8 +40,8 @@ jobs:
         with:
           node-version: 24.4.0
           cache: npm
-      - name: Install pinned dependencies
-        run: npm ci
+      - name: Install pinned dependencies and generate the local preview
+        run: npm ci && npm run generate:local-preview
       - name: Typecheck and related architecture checks
         shell: bash
         run: |
