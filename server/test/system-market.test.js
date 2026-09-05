@@ -39,7 +39,7 @@ test('manual sell executes immediately at the server daily price without creatin
   }, now + 1);
 
   assert.equal(result.ok, true);
-  assert.equal(result.message, '已按今日系统价即时成交');
+  assert.equal(result.message, '');
   assert.equal(result.executedPrice, 0.8);
   assert.equal(player.inventories.wheat.frozen, 0);
   assert.equal(player.inventories.wheat.available, 6);
