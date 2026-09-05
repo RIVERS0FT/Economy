@@ -11,6 +11,16 @@ export class GameWriteUnconfirmedError extends Error {
   }
 }
 
+export class GameOperationUnconfirmedError extends Error {
+  readonly code = 'OPERATION_RESULT_UNCONFIRMED';
+  readonly cause: unknown;
+  constructor(cause?: unknown) {
+    super('前一次操作尚未确认，请稍后再次操作以确认原结果。');
+    this.name = 'GameOperationUnconfirmedError';
+    this.cause = cause;
+  }
+}
+
 export interface ConfirmedWriteResponse {
   response: Response;
   payload: unknown;
