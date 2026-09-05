@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/prepare-trade-staffing.yml
       - .github/review-trade-staffing.py
+      - .github/correct-trade-staffing.py
 permissions:
   contents: write
 defaults:
@@ -26,14 +27,14 @@ jobs:
       - name: Apply reviewed regression corrections
         run: |
           python3 .github/review-trade-staffing.py
-          if [ -f .github/correct-trade-staffing.py ]; then python3 .github/correct-trade-staffing.py; fi
+          python3 .github/correct-trade-staffing.py
           node scripts/normalize-repository-text.mjs
           git add src server shared tests docs scripts runtime-test.html
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if ! git diff --cached --quiet; then
-            git commit -m 'test: retain trade safety and commercial staffing regression contracts'
+            git commit -m 'fix: preserve transaction context and shared verification owners'
             git push origin HEAD:codex/trade-confirmation-commercial-staffing
           fi
       - run: npm ci
@@ -66,11 +67,12 @@ jobs:
       - name: Full domain integration validation
         if: always()
         run: npm run test:it > /tmp/trade-staffing-it.log 2>&1 || { tail -n 100 /tmp/trade-staffing-it.log; exit 1; }
+      - name: Prepare Chromium executable
+        if: always()
+        run: bash scripts/prepare-playwright-chromium.sh
       - name: Trade and building browser acceptance
         if: always()
-        run: |
-          bash scripts/prepare-playwright-chromium.sh
-          npx playwright test tests/browser/trade-confirmation.spec.ts tests/browser/commercial-staffing.spec.ts tests/browser/commercial-buildings-layout.spec.ts tests/browser/unified-buildings.spec.ts --workers=4 --reporter=line > /tmp/trade-staffing-browser.log 2>&1 || { tail -n 160 /tmp/trade-staffing-browser.log; exit 1; }
+        run: npx playwright test tests/browser/trade-confirmation.spec.ts tests/browser/commercial-staffing.spec.ts tests/browser/commercial-buildings-layout.spec.ts tests/browser/unified-buildings.spec.ts --workers=4 --retries=0 --reporter=line > /tmp/trade-staffing-browser.log 2>&1 || { tail -n 160 /tmp/trade-staffing-browser.log; exit 1; }
       - name: Publish bounded review diagnostics
         if: always()
         run: |
