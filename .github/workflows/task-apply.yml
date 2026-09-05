@@ -20,6 +20,13 @@ jobs:
           fetch-depth: 0
       - name: Apply patch
         run: python3 scripts/__apply_task_patch.py
+      - name: Normalize edited text endings
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/MARKET_CHART_LAYOUT_DESIGN.md')
+          path.write_text(path.read_text(encoding='utf-8').rstrip('\n') + '\n', encoding='utf-8')
+          PY
       - name: Remove temporary patch machinery
         run: rm -f scripts/__apply_task_patch.py .github/workflows/task-apply.yml
       - name: Check patch
