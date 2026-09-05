@@ -310,14 +310,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   const isWrite = Boolean(init?.method && init.method !== 'GET' && init.method !== 'HEAD');
   let manualCommodity = false;
-      if (isWrite && path === '/orders' && typeof init?.body === 'string') {
-        try {
-          const body = JSON.parse(init.body);
-          manualCommodity = body?.assetKind === 'commodity' && !body.execution
-            && (body.side === 'buy' || body.side === 'sell');
-        } catch { /* Let the server reject an invalid request body. */ }
-      }
-      if (isWrite) installIdempotentGameWriteFetch();
+if (isWrite && path === '/orders' && typeof init?.body === 'string') {
+  try {
+    const body = JSON.parse(init.body);
+    manualCommodity = body?.assetKind === 'commodity' && !body.execution
+      && (body.side === 'buy' || body.side === 'sell');
+  } catch { /* Let the server reject an invalid request body. */ }
+}
+if (isWrite) installIdempotentGameWriteFetch();
   const timedSignal = isWrite ? null : createTimedSignal(init?.signal, DEFAULT_READ_TIMEOUT_MS);
   try {
     const response = await fetch(`${GAME_API_BASE}${path}`, {
