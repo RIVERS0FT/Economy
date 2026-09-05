@@ -1,0 +1,32 @@
+name: Map raster frame diagnostics
+on:
+  push:
+    branches: [fix/map-raster-frame-budget-20260906]
+    paths: [.github/workflows/map-raster-frame-diagnostics.yml]
+permissions:
+  contents: read
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Prepare formal Playwright browser
+        run: bash scripts/prepare-playwright-chromium.sh
+      - name: Profile steady transient Camera
+        run: npx playwright test tests/browser/map-camera-frame-diagnostics.spec.ts --grep "trace steady transient map Viz and GPU draw internals" --workers=1
+      - name: Reproduce fixed-budget gate
+        continue-on-error: true
+        run: npx playwright test tests/browser/map-zoom-transient.spec.ts --grep "transient raster frames stay close to the same-browser empty-frame budget" --workers=1
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-raster-frame-diagnostics
+          path: test-results
+          retention-days: 2
