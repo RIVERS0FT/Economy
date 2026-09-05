@@ -49,8 +49,8 @@ export function captureProductionOutputBaseline(world, userId) {
   ]));
 }
 
-function thawProductionGuarantee(player, group) {
-  const due = dueProductionCycles(group, group.settleThrough);
+function thawProductionGuarantee(player, group, now) {
+  const due = dueProductionCycles(group, now);
   if (due < 1) return;
   const usage = productionResourceUsage(group, due);
   for (const input of group.recipe?.inputs || []) {
@@ -74,7 +74,7 @@ export function prepareProductionInputsForPlayer(world, userId, now = Date.now()
 
   const groups = dueRunningGroups(world, userId, now);
   for (const group of groups) {
-    thawProductionGuarantee(player, group);
+    thawProductionGuarantee(player, group, now);
     const due = dueProductionCycles(group, now);
     const usage = productionResourceUsage(group, due);
     for (const input of group.recipe?.inputs || []) {
