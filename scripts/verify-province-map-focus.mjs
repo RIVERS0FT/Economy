@@ -21,7 +21,9 @@ const mapSource = read('src/components/provinces/UsMainlandMap.tsx');
 const styleSource = read('src/styles/province-map.css');
 const renderingSource = read('src/styles/strategic-map-rendering.css');
 const designSource = read('docs/STRATEGIC_MAP_RENDERING_DESIGN.md');
+const uiDesignSource = read('docs/UI_DESIGN_SYSTEM.md');
 const browserSource = read('tests/browser/province-map-focus.spec.ts');
+const mapBrowserSource = read('tests/browser/province-map.spec.ts');
 
 requireText(
   mapSource,
@@ -113,6 +115,21 @@ rejectText(
   'onPointerMove={(event) => setHoveredProvinceId',
   'province visual hover must not be driven by pointer-move React state',
 );
+requireText(
+  styleSource,
+  'font-family: "Source Han Serif SC", "思源宋体", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", STSong, SimSun, serif;',
+  'province map labels must use the Source Han Serif SC-first serif stack',
+);
+requireText(
+  styleSource,
+  'font-weight: 600;',
+  'province map labels must retain Source Han Serif SemiBold weight 600',
+);
+rejectText(
+  styleSource,
+  'Playfair Display',
+  'province map labels must not fall back to the retired Playfair map font',
+);
 
 requireText(
   designSource,
@@ -139,6 +156,16 @@ requireText(
   '`province-map-focus.spec.ts`',
   'authoritative strategic map design must register the browser regression',
 );
+requireText(
+  uiDesignSource,
+  '思源宋体 SemiBold（600）',
+  'authoritative UI design must record Source Han Serif SemiBold as the strategic map label font',
+);
+requireText(
+  uiDesignSource,
+  '不得恢复 Playfair Display／Georgia',
+  'authoritative UI design must prohibit restoring the retired Playfair/Georgia map font stack',
+);
 
 requireText(
   browserSource,
@@ -159,6 +186,21 @@ requireText(
   browserSource,
   "data-map-camera-mode', 'svg-viewbox'",
   'province focus regression must confirm focus changes do not replace the SVG viewBox camera',
+);
+requireText(
+  mapBrowserSource,
+  "expect(viewportFontFamily).toContain('Source Han Serif SC');",
+  'province map browser regression must assert the Source Han Serif SC-first font stack',
+);
+requireText(
+  mapBrowserSource,
+  "expect(viewportFontFamily).not.toContain('Playfair Display');",
+  'province map browser regression must reject the retired Playfair font',
+);
+requireText(
+  mapBrowserSource,
+  "expect(labelFont.weight).toBe('600');",
+  'province map browser regression must assert SemiBold weight 600',
 );
 
 console.log('province map focus verification passed');
