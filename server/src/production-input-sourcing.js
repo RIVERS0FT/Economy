@@ -1,8 +1,10 @@
-import { applyImmediateCommodityBuy, FACILITY_TYPE_CATALOG } from './domain.js';
-import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+import { commoditySystemPriceFor } from './domain.js';
+import { FACILITY_TYPE_CATALOG } from './industry-catalog.js';
 import { createProductionSettlementBasis } from './production-settlement.js';
-import { normalizeProvinceId, provinceScopedKey, splitProvinceScopedKey } from './provinces.js';
+import { normalizeProvinceId, provinceScopedKey } from './provinces.js';
 import { dueProductionCycles, productionResourceUsage } from '../../shared/production-settlement.js';
+import { thawInventoryFreeze } from './inventory-freezes.js';
+import { reconcileProvinceBuildingFreezes, runCycleAutoOperation } from './cycle-auto-operation.js';
 import {
   allocateDailySupplyReservesForSupplier,
   consumeDailySupplyForBuyer,
@@ -25,88 +27,18 @@ function activeRecipe(type, recipeId) {
     || null;
 }
 
-function externalSellOrders(world, userId, productId, provinceId) {
-  const selectedProvinceId = normalizeProvinceId(provinceId);
-  return (world.orders || [])
-    .map((order, index) => ({ order, index }))
-    .filter(({ order }) => (
-      isOpenOrder(order)
-      && orderKind(order) === 'commodity'
-      && orderAssetId(order) === String(productId)
-      && normalizeProvinceId(order.provinceId) === selectedProvinceId
-      && order.side === 'sell'
-      && Number(order.remaining || 0) > 0
-      && !(order.ownerType === 'player' && Number(order.ownerId) === Number(userId))
-      && Number(order.price || 0) > 0
-    ))
-    .sort((left, right) => Number(left.order.price) - Number(right.order.price)
-      || Number(left.order.createdAt || 0) - Number(right.order.createdAt || 0)
-      || left.index - right.index);
-}
-
-function marginalMarketPrice(world, userId, productId, provinceId, quantity) {
-  let remaining = Math.max(1, nonNegativeInteger(quantity));
-  let price = Number.POSITIVE_INFINITY;
-  for (const { order } of externalSellOrders(world, userId, productId, provinceId)) {
-    const take = Math.min(remaining, nonNegativeInteger(order.remaining));
-    if (take <= 0) continue;
-    price = Number(order.price);
-    remaining -= take;
-    if (remaining <= 0) return price;
-  }
-  return Number.POSITIVE_INFINITY;
-}
-
-function aggregateProductionDemand(world, userId, now) {
+function dueRunningGroups(world, userId, now) {
   const basis = createProductionSettlementBasis(world, userId, now);
-  const demands = new Map();
-  const add = (key, quantity) => {
-    const amount = nonNegativeInteger(quantity);
-    if (amount <= 0) return;
-    demands.set(key, Math.min(Number.MAX_SAFE_INTEGER, (demands.get(key) || 0) + amount));
-  };
-
-  for (const group of basis.groups || []) {
-    if (!group.enabled) continue;
-    if (group.status === 'running') {
-      const due = dueProductionCycles(group, now);
-      if (due <= 0) continue;
-      const usage = productionResourceUsage(group, due);
-      for (const [key, quantity] of Object.entries(usage.inputs || {})) add(key, Number(quantity));
-      continue;
-    }
-    if (group.status !== 'error') continue;
-    const count = nonNegativeInteger(group.productionAvailableCount);
-    if (count <= 0) continue;
-    for (const input of group.recipe?.inputs || []) add(input.inventoryKey, nonNegativeInteger(input.quantity) * count);
-  }
-  return demands;
+  return (basis.groups || []).filter((group) => (
+    group.enabled
+    && group.status === 'running'
+    && dueProductionCycles(group, now) > 0
+  ));
 }
 
 export function productionInputSourcingRequired(world, userId, now = Date.now()) {
   if (!world?.players?.[String(userId)]) return false;
-  return aggregateProductionDemand(world, userId, now).size > 0;
-}
-
-function buyMarketShortage(world, userId, productId, provinceId, shortage, now) {
-  const amount = nonNegativeInteger(shortage);
-  if (amount <= 0) return 0;
-  const orders = externalSellOrders(world, userId, productId, provinceId);
-  let depth = 0;
-  let cap = 0;
-  for (const { order } of orders) {
-    depth += nonNegativeInteger(order.remaining);
-    cap = Number(order.price || cap);
-    if (depth >= amount) break;
-  }
-  if (depth < amount || !(cap > 0)) return 0;
-  const purchase = applyImmediateCommodityBuy(world, { id: Number(userId) }, {
-    productId,
-    provinceId,
-    quantity: amount,
-    price: cap,
-  }, now);
-  return purchase?.ok ? amount : 0;
+  return dueRunningGroups(world, userId, now).length > 0;
 }
 
 export function captureProductionOutputBaseline(world, userId) {
@@ -117,31 +49,60 @@ export function captureProductionOutputBaseline(world, userId) {
   ]));
 }
 
+function thawProductionGuarantee(player, group) {
+  const due = dueProductionCycles(group, group.settleThrough);
+  if (due < 1) return;
+  const usage = productionResourceUsage(group, due);
+  for (const input of group.recipe?.inputs || []) {
+    const required = nonNegativeInteger(usage.inputs?.[input.inventoryKey]);
+    if (required < 1) continue;
+    thawInventoryFreeze(player, {
+      kind: 'production',
+      provinceId: group.provinceId,
+      productId: input.productId,
+      sourceId: group.facilityTypeId,
+      sourceLabel: FACILITY_TYPES.get(group.facilityTypeId)?.name || group.facilityTypeId,
+    }, required);
+  }
+}
+
 export function prepareProductionInputsForPlayer(world, userId, now = Date.now()) {
   const player = world.players?.[String(userId)];
-  if (!player) return captureProductionOutputBaseline(world, userId);
+  const baseline = captureProductionOutputBaseline(world, userId);
+  if (!player) return baseline;
   processDailySupplyContracts(world, now);
-  const demands = aggregateProductionDemand(world, userId, now);
-  for (const [inventoryKey, required] of demands) {
-    const { provinceId, assetId: productId } = splitProvinceScopedKey(inventoryKey);
-    const marketPrice = marginalMarketPrice(world, userId, productId, provinceId, required);
-    consumeDailySupplyForBuyer(world, userId, provinceId, productId, required, marketPrice, now);
-    const inventory = player.inventories?.[provinceScopedKey(provinceId, productId)];
-    const available = nonNegativeInteger(inventory?.available);
-    if (available >= required) continue;
-    buyMarketShortage(world, userId, productId, provinceId, required - available, now);
+
+  const groups = dueRunningGroups(world, userId, now);
+  for (const group of groups) {
+    thawProductionGuarantee(player, group);
+    const due = dueProductionCycles(group, now);
+    const usage = productionResourceUsage(group, due);
+    for (const input of group.recipe?.inputs || []) {
+      const required = nonNegativeInteger(usage.inputs?.[input.inventoryKey]);
+      if (required < 1) continue;
+      const inventory = player.inventories?.[provinceScopedKey(group.provinceId, input.productId)];
+      const available = nonNegativeInteger(inventory?.available);
+      const shortage = Math.max(0, required - available);
+      if (shortage < 1) continue;
+      const officialPrice = commoditySystemPriceFor(world, input.productId, group.provinceId, now);
+      consumeDailySupplyForBuyer(world, userId, group.provinceId, input.productId, shortage, officialPrice, now);
+    }
   }
-  return captureProductionOutputBaseline(world, userId);
+  return baseline;
 }
 
 export function finalizeProductionOutputContracts(world, userId, baseline, now = Date.now()) {
   const player = world.players?.[String(userId)];
   if (!player || !(baseline instanceof Map)) return 0;
   let produced = 0;
+  const touchedProvinces = new Set();
+  const completedByProvince = new Map();
+
   for (const group of player.facilityGroups || []) {
     const provinceId = normalizeProvinceId(group.provinceId);
     const facilityTypeId = String(group.facilityTypeId || '');
     const key = `${provinceId}:${facilityTypeId}`;
+    if (baseline.has(key)) touchedProvinces.add(provinceId);
     const before = nonNegativeInteger(baseline.get(key));
     const after = nonNegativeInteger(group.lifetimeOutput);
     const delta = Math.max(0, after - before);
@@ -152,7 +113,16 @@ export function finalizeProductionOutputContracts(world, userId, baseline, now =
     if (!productId) continue;
     recordDailyProductProduction(player, provinceId, productId, delta, now);
     allocateDailySupplyReservesForSupplier(world, userId, provinceId, productId, now);
+    const completed = completedByProvince.get(provinceId) || [];
+    completed.push({ kind: 'production', sourceId: facilityTypeId });
+    completedByProvince.set(provinceId, completed);
     produced += delta;
+  }
+
+  for (const provinceId of touchedProvinces) {
+    const completed = completedByProvince.get(provinceId) || [];
+    if (completed.length > 0) runCycleAutoOperation(world, userId, provinceId, completed, now);
+    else reconcileProvinceBuildingFreezes(world, userId, provinceId);
   }
   return produced;
 }
