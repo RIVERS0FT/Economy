@@ -6,148 +6,388 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 13209.493308
+ℹ duration_ms 17305.069588
 
 
 ## dt
+-------------------------------------------------------------
+Ran 10 tests in 0.002s
 
-> economy@0.4.0 validate:dt
-> node scripts/verify-contract-renewal-economic-events.mjs && npm run verify:provincial-economy && npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run test:coverage:dt && tsc && vite build
+OK
 
-Legacy contract renewal compatibility and strategic economic event verification passed.
+> economy@0.4.0 server:check
+> node scripts/check-server-syntax.mjs
 
-> economy@0.4.0 verify:provincial-economy
-> node scripts/verify-provincial-economy.mjs && node scripts/verify-commercial-buildings.mjs
+服务器语法检查通过，共检查 98 个文件。
 
-Strategic map pruned 10m topology verified: 1030765 bytes
-Strategic map pruned 110m topology verified: 16996 bytes
-node:internal/modules/run_main:107
-    triggerUncaughtException(
-    ^
+> economy@0.4.0 test:coverage:dt
+> node scripts/run-code-coverage.mjs dt
 
-AssertionError [ERR_ASSERTION]: 州级页面设计权威缺少: 概览｜市场｜商业｜工业｜仓库
-    at file:///home/runner/work/Economy/Economy/scripts/verify-provincial-economy.mjs:496:11
-    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
-    at async node:internal/modules/esm/loader:647:26
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
-  generatedMessage: false,
-  code: 'ERR_ASSERTION',
-  actual: false,
-  expected: true,
-  operator: '==',
-  diff: 'simple'
-}
+ECONOMY_COVERAGE_PHASE=dt
+ECONOMY_COVERAGE_MODE=explicit
+ECONOMY_COVERAGE_TESTS=tests/dt/client-runtime-logic.test.ts,tests/dt/commercial-auto-operation.test.ts,tests/dt/commercial-presentation.test.ts,tests/dt/project-governance.test.ts
+ECONOMY_COVERAGE_THRESHOLDS=lines:95,functions:95,branches:90
+✔ asset allocation normalizes invalid values and preserves a 100 percent integer total (6.156403ms)
+✔ virtual list range handles empty, clipped and boundary-aligned viewports (2.083229ms)
+✔ revision gate accepts only monotonic integer authority revisions (0.303216ms)
+✔ adaptive polling normalizes configured values and prioritizes background and idle modes (0.315298ms)
+✔ deployment acceptance infrastructure stays out of the gameplay facility CI domain (47.19939ms)
+✔ immediate facility intent lifecycle handles acknowledgement, reconciliation, rejection and subscriptions (0.547693ms)
+✔ commercial policies reject coercion and invalid coverage (4.682832ms)
+✔ default commercial policy does not mutate a legacy group (0.413852ms)
+✔ running settlement ignores current price, count and catalog changes (1.297021ms)
+✔ legacy invested cycle cannot fabricate missing locked detail (0.232414ms)
+✔ stopped preview uses full count and only real official prices (5.737982ms)
+✔ commercial page locations retain distinct hosts and identities (0.48202ms)
+✔ commercial per-building profit does not accidentally use group count (1.508787ms)
+✔ commercial progress uses locked server timestamps and waits at completion (1.400234ms)
+✔ stopped, invalid and missing commercial cycles never fabricate progress (0.228056ms)
+✔ document wording, section names, and advisory size do not gate changes (7.510802ms)
+✔ document structural error remains blocking: missing (1.466728ms)
+✔ document structural error remains blocking: empty (1.347736ms)
+✔ document structural error remains blocking: unregistered (1.334151ms)
+✔ document structural error remains blocking: duplicate (1.333579ms)
+✔ document structural error remains blocking: broken-link (1.088542ms)
+✔ document structural error remains blocking: missing-registry (1.091658ms)
+✔ document structural error remains blocking: empty-owner (1.027198ms)
+✔ links ignore fenced examples and external URLs but resolve local fragments (1.375668ms)
+✔ domain-named and source-directory documentation has only document DT (2.290145ms)
+✔ mixed changes infer executable impact without domain or source expansion from docs (8.236236ms)
+✔ shared infrastructure, selector changes, unknown source, and explicit full stay full (0.973868ms)
+✔ actual aggregate gate: success/success/true/success (4.505681ms)
+✔ actual aggregate gate: success/success/false/skipped (3.18707ms)
+✔ actual aggregate gate: failure/success/false/skipped (3.204372ms)
+✔ actual aggregate gate: success/cancelled/false/skipped (2.934458ms)
+✔ actual aggregate gate: success/success/true/failure (2.862174ms)
+✔ actual aggregate gate: success/success/true/skipped (2.945419ms)
+✔ actual aggregate gate: success/success/true/cancelled (2.867804ms)
+✔ actual aggregate gate: success/success/false/cancelled (2.848378ms)
+✔ actual aggregate gate: success/success//skipped (3.105017ms)
+✔ actual artifact verification: valid (20.504172ms)
+✔ actual artifact verification: wrong-source (10.233666ms)
+✔ actual artifact verification: wrong-digest (12.90888ms)
+✔ actual artifact verification: missing-digest (9.818658ms)
+✔ actual artifact verification: missing-archive (10.448655ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 461.204139
+ℹ start of coverage report
+ℹ ----------------------------------------------------------------------------
+ℹ file                        | line % | branch % | funcs % | uncovered lines
+ℹ ----------------------------------------------------------------------------
+ℹ src                         |        |          |         | 
+ℹ  app                        |        |          |         | 
+ℹ   adaptivePolling.js        | 100.00 |   100.00 |  100.00 | 
+ℹ   immediateCommandIntent.ts | 100.00 |   100.00 |  100.00 | 
+ℹ   revisionGate.js           | 100.00 |   100.00 |  100.00 | 
+ℹ  utils                      |        |          |         | 
+ℹ   assetAllocation.ts        | 100.00 |   100.00 |  100.00 | 
+ℹ   virtualListRange.ts       | 100.00 |   100.00 |  100.00 | 
+ℹ ----------------------------------------------------------------------------
+ℹ all files                   | 100.00 |   100.00 |  100.00 | 
+ℹ ----------------------------------------------------------------------------
+ℹ end of coverage report
+vite v8.1.4 building client environment for production...
+[2K
+transforming...✓ 909 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                           1.76 kB │ gzip:   0.71 kB
+dist/assets/paper-Dhpjvp13.png                           14.61 kB
+dist/assets/milk-BZ89-PBJ.png                            15.16 kB
+dist/assets/industrial-fuel-mJKvlfod.png                 15.68 kB
+dist/assets/fish-BkLzRtc3.png                            18.24 kB
+dist/assets/lumber-jTwRKpnz.png                          19.04 kB
+dist/assets/wheat-Py7F5aZk.png                           19.10 kB
+dist/assets/crude-oil-D5fXhDkm.png                       19.81 kB
+dist/assets/veterinary-medicine-V7_AroJ5.png             20.26 kB
+dist/assets/furniture-B_O95T8r.png                       21.54 kB
+dist/assets/eggs-M2Ke4BJa.png                            21.77 kB
+dist/assets/industrial-chemicals-gAh6d_L5.png            22.02 kB
+dist/assets/prepared-meal-BSVV5IRZ.png                   22.25 kB
+dist/assets/cotton-BFGEWtRo.png                          22.39 kB
+dist/assets/electronics-B1AzwVTp.png                     22.57 kB
+dist/assets/steel-ja_AKxng.png                           22.61 kB
+dist/assets/fruit-DzunQqse.png                           22.68 kB
+dist/assets/machinery-CPpDYJCl.png                       22.85 kB
+dist/assets/appliance-7j9zSwcx.png                       23.12 kB
+dist/assets/beverage-BWYIJ-IM.png                        23.19 kB
+dist/assets/sugarcane-DnbW8Zi1.png                       23.35 kB
+dist/assets/timber-CSAsUa4w.png                          23.69 kB
+dist/assets/clothing-fL-XUgWR.png                        23.70 kB
+dist/assets/sugar-DnhiGbD3.png                           24.21 kB
+dist/assets/flour--zM2MwAn.png                           24.49 kB
+dist/assets/meat-DOWDyjGe.png                            24.53 kB
+dist/assets/tractor-Dg4-Lmoa.png                         24.77 kB
+dist/assets/copper-D-LZTten.png                          24.81 kB
+dist/assets/copper-ore-D9u22zN7.png                      25.28 kB
+dist/assets/textile-BjlGGNpO.png                         25.48 kB
+dist/assets/tools-T6lWQVTV.png                           25.70 kB
+dist/assets/food-lWqo76Hp.png                            25.70 kB
+dist/assets/ore-CZheHWbG.png                             25.76 kB
+dist/assets/plastic-CXnITTYk.png                         25.86 kB
+dist/assets/rice-BMCW7IaA.png                            26.37 kB
+dist/assets/wool-CuAjSyHQ.png                            26.71 kB
+dist/assets/fertilizer-BFGwC0hm.png                      26.77 kB
+dist/assets/pulp-BvqS2r44.png                            27.17 kB
+dist/assets/feed-DLinkRlg.png                            27.28 kB
+dist/assets/oil-field-0LTJTl1V.png                      167.28 kB
+dist/assets/machine-factory-kRJTAJV7.png                175.83 kB
+dist/assets/garment-factory-CAJO0wb1.png                180.12 kB
+dist/assets/refinery-uzDMmDHj.png                       180.94 kB
+dist/assets/food-factory-COlKRuvO.png                   181.06 kB
+dist/assets/fertilizer-factory-Bpk_4VGT.png             181.20 kB
+dist/assets/tractor-factory-CVhVHNG1.png                181.48 kB
+dist/assets/electronics-factory-Dfbxvq-8.png            181.53 kB
+dist/assets/beverage-factory-D65ytS__.png               182.70 kB
+dist/assets/sawmill-tI9u0ive.png                        182.70 kB
+dist/assets/pulp-mill-Drzv3t-6.png                      182.91 kB
+dist/assets/steelworks-BRlNZmvq.png                     183.86 kB
+dist/assets/ranch-DLrlPTnO.png                          184.45 kB
+dist/assets/orchard-CpwzG1vV.png                        184.75 kB
+dist/assets/logging-camp-CC7-nrTE.png                   186.49 kB
+dist/assets/tool-workshop-DMuxwrg3.png                  186.99 kB
+dist/assets/feed-factory-C7FfGPMS.png                   188.21 kB
+dist/assets/appliance-factory-BSWBL7-K.png              188.40 kB
+dist/assets/paper-mill-Cs_lmtFb.png                     188.49 kB
+dist/assets/farm-NLyyGaSr.png                           188.82 kB
+dist/assets/textile-mill-BxEX9WG1.png                   188.91 kB
+dist/assets/furniture-factory-DrL-3WEY.png              189.77 kB
+dist/assets/fishery-7e-Kilg-.png                        189.98 kB
+dist/assets/mill-OvsUUPqK.png                           190.33 kB
+dist/assets/veterinary-medicine-factory-BBWfUt0M.png    193.28 kB
+dist/assets/mine-Umn5-a4m.png                           197.43 kB
+dist/assets/facility-build-select-BrJForK5.css            1.74 kB │ gzip:   0.52 kB
+dist/assets/AuctionPage-xb21jIVz.css                      2.03 kB │ gzip:   0.75 kB
+dist/assets/GameApp-DfYic8ZO.css                          2.51 kB │ gzip:   0.76 kB
+dist/assets/CommercePage-ih4zRwvi.css                     2.70 kB │ gzip:   0.80 kB
+dist/assets/entity-list-header-BdtlbVMJ.css               3.89 kB │ gzip:   1.05 kB
+dist/assets/ProductionFacilityDetail--nIhErG7.css         5.11 kB │ gzip:   1.14 kB
+dist/assets/MarketCommodityRow-Dhdxvaef.css               6.21 kB │ gzip:   1.22 kB
+dist/assets/ContractPage-D1mLe1Qe.css                     7.62 kB │ gzip:   1.52 kB
+dist/assets/global-operation-pages-CO3U5YDv.css          15.12 kB │ gzip:   2.36 kB
+dist/assets/index-QhtZ_QQe.css                          396.31 kB │ gzip:  59.70 kB
+dist/assets/leaderboardTypes-DBZtlLr9.js                  0.08 kB │ gzip:   0.09 kB
+dist/assets/MapPage-DJXXkSB-.js                           0.20 kB │ gzip:   0.21 kB
+dist/assets/types-BfhSbXRE.js                             0.22 kB │ gzip:   0.16 kB
+dist/assets/FacilityRecipeProfitContext-BY5pVE0T.js       0.28 kB │ gzip:   0.21 kB
+dist/assets/ProductArtwork-BZscQsZQ.js                    0.39 kB │ gzip:   0.27 kB
+dist/assets/LiveServerTime-BdcAqWxd.js                    0.42 kB │ gzip:   0.28 kB
+dist/assets/assetAllocation-C-VZBF9w.js                   0.46 kB │ gzip:   0.30 kB
+dist/assets/FacilityIcons-NQhRoggt.js                     0.57 kB │ gzip:   0.37 kB
+dist/assets/facilityResearchAccess-D7m4vxSL.js            0.57 kB │ gzip:   0.32 kB
+dist/assets/navigation-CfJWHUgM.js                        0.69 kB │ gzip:   0.33 kB
+dist/assets/RegionalEntityPageTitle-CT-9SxY9.js           0.93 kB │ gzip:   0.47 kB
+dist/assets/useNow-Cua40QfE.js                            0.96 kB │ gzip:   0.52 kB
+dist/assets/defaultOrderPrice-BNrXTWLu.js                 0.96 kB │ gzip:   0.50 kB
+dist/assets/jsx-runtime-DUAcabCT.js                       1.06 kB │ gzip:   0.60 kB
+dist/assets/EntityListHeader-Cl9CX9Dc.js                  1.22 kB │ gzip:   0.57 kB
+dist/assets/RegionalBuildingsPage-hNN-9JXD.js             1.95 kB │ gzip:   0.88 kB
+dist/assets/types-DvSeGemU.js                             2.14 kB │ gzip:   1.03 kB
+dist/assets/TransportRouteDraftContext-BeKTr1Dp.js        2.48 kB │ gzip:   1.13 kB
+dist/assets/MarketCommodityRow-X44zW-iQ.js                2.49 kB │ gzip:   1.07 kB
+dist/assets/PlayerAvatar-DmnB88l3.js                      2.58 kB │ gzip:   1.44 kB
+dist/assets/useVirtualWindow-CWCjYLH9.js                  2.59 kB │ gzip:   1.16 kB
+dist/assets/navigationBadges-4DjKTrfi.js                  3.09 kB │ gzip:   1.26 kB
+dist/assets/OverviewPage-D9VtUQVq.js                      5.60 kB │ gzip:   2.08 kB
+dist/assets/LeaderboardPage-DMsPP4z5.js                   5.71 kB │ gzip:   2.37 kB
+dist/assets/SettingsPage-_PRTK04y.js                      6.65 kB │ gzip:   2.83 kB
+dist/assets/BuildingsPage-DwMtr_Fg.js                     8.81 kB │ gzip:   3.95 kB
+dist/assets/autoSellStorage-BGCE6dtJ.js                   9.77 kB │ gzip:   3.85 kB
+dist/assets/ProductIcons-BoggYkaW.js                     10.32 kB │ gzip:   2.68 kB
+dist/assets/GemShopPage-l6rPWQ5P.js                      10.39 kB │ gzip:   3.73 kB
+dist/assets/GlobalMarketPage-Orymqqxo.js                 11.59 kB │ gzip:   3.65 kB
+dist/assets/MobileWorkspaceSheetHost-CRfbiQ6V.js         12.65 kB │ gzip:   4.02 kB
+dist/assets/TransportPage-jmqNm8fc.js                    13.26 kB │ gzip:   4.01 kB
+dist/assets/ProvincePage-elTBHPmv.js                     18.15 kB │ gzip:   6.07 kB
+dist/assets/AuctionPage-BWp4bkt1.js                      18.19 kB │ gzip:   6.25 kB
+dist/assets/CommercePage-Disxj0bQ.js                     21.68 kB │ gzip:   8.13 kB
+dist/assets/GlobalBuildingsPage-CURWR7XP.js              24.38 kB │ gzip:   6.58 kB
+dist/assets/ResearchPage-DnxVlsEc.js                     24.73 kB │ gzip:   8.48 kB
+dist/assets/BankPage-CjWZJjwl.js                         25.77 kB │ gzip:   7.80 kB
+dist/assets/SignedInShell-CNm6P3uF.js                    28.95 kB │ gzip:   9.85 kB
+dist/assets/MarketPage-PeEpKqxk.js                       31.89 kB │ gzip:  10.94 kB
+dist/assets/ProductionFacilityDetail-DjcE4kaV.js         37.88 kB │ gzip:  11.77 kB
+dist/assets/ContractPage-VkBWFPFl.js                     53.71 kB │ gzip:  13.66 kB
+dist/assets/AdminApp-CH_tu2-u.js                         83.18 kB │ gzip:  22.79 kB
+dist/assets/index-Cz95WoEO.js                           265.75 kB │ gzip:  84.08 kB
+dist/assets/chartOptions-CIS_MZAn.js                    552.83 kB │ gzip: 188.94 kB
+dist/assets/GameApp-BQ-U-vKN.js                       4,822.29 kB │ gzip: 926.06 kB
 
-Node.js v24.20.0
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/productionSettlement.ts:10:26 ]
+    │
+ 10 │     return (BigInt(whole) * 1000000n + BigInt(fraction.padEnd(6, "0").slice(0, 6))).toString();
+    │                             ────┬───  
+    │                                 ╰───── 
+────╯
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+   ╭─[ src/utils/formatters.ts:2:27 ]
+   │
+ 2 │ const PRICE_TICK_MICROS = 10000n;
+   │                           ───┬──  
+   │                              ╰──── 
+───╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/formatters.ts:43:40 ]
+    │
+ 43 │     const absoluteRemainder = remainder < 0n ? -remainder : remainder;
+    │                                           ─┬  
+    │                                            ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/formatters.ts:44:38 ]
+    │
+ 44 │     const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS ? quotient : quotient + (micros >= 0n ? 1n : -1n);
+    │                                         ─┬  
+    │                                          ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/formatters.ts:44:96 ]
+    │
+ 44 │     const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS ? quotient : quotient + (micros >= 0n ? 1n : -1n);
+    │                                                                                                   ─┬  
+    │                                                                                                    ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/formatters.ts:44:101 ]
+    │
+ 44 │     const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS ? quotient : quotient + (micros >= 0n ? 1n : -1n);
+    │                                                                                                        ─┬  
+    │                                                                                                         ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/formatters.ts:44:107 ]
+    │
+ 44 │     const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS ? quotient : quotient + (micros >= 0n ? 1n : -1n);
+    │                                                                                                              ─┬  
+    │                                                                                                               ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ shared/production-settlement.js:24:10 ]
+    │
+ 24 │        return 0n;
+    │               ─┬  
+    │                ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ shared/production-settlement.js:52:25 ]
+    │
+ 52 │     if (count <= 0) return 0n;
+    │                            ─┬  
+    │                             ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ shared/production-settlement.js:58:26 ]
+    │
+ 58 │     const arithmetic = n * (2n * BigInt(first) + BigInt(risingCount - 1) * BigInt(step)) / 2n;
+    │                             ─┬  
+    │                              ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ shared/production-settlement.js:58:89 ]
+    │
+ 58 │     const arithmetic = n * (2n * BigInt(first) + BigInt(risingCount - 1) * BigInt(step)) / 2n;
+    │                                                                                            ─┬  
+    │                                                                                             ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ shared/production-settlement.js:71:20 ]
+    │
+ 71 │          effectiveUnits: 0n,
+    │                          ─┬  
+    │                           ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+     ╭─[ shared/production-settlement.js:126:49 ]
+     │
+ 126 │        if (quantity > (available.inventories[key] || 0n)) return false;
+     │                                                      ─┬  
+     │                                                       ╰── 
+─────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+   ╭─[ src/utils/moneyDraft.ts:2:27 ]
+   │
+ 2 │ const PRICE_TICK_MICROS = 10000n;
+   │                           ───┬──  
+   │                              ╰──── 
+───╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/moneyDraft.ts:21:39 ]
+    │
+ 21 │     const magnitude = BigInt(match[2]) * 100n + BigInt(fraction.padEnd(2, "0") || "0");
+    │                                          ──┬─  
+    │                                            ╰─── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/moneyDraft.ts:33:40 ]
+    │
+ 33 │     const absoluteRemainder = remainder < 0n ? -remainder : remainder;
+    │                                           ─┬  
+    │                                            ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/moneyDraft.ts:34:38 ]
+    │
+ 34 │     const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS ? quotient : quotient + (micros >= 0n ? 1n : -1n);
+    │                                         ─┬  
+    │                                          ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/moneyDraft.ts:34:96 ]
+    │
+ 34 │     const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS ? quotient : quotient + (micros >= 0n ? 1n : -1n);
+    │                                                                                                   ─┬  
+    │                                                                                                    ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/moneyDraft.ts:34:101 ]
+    │
+ 34 │     const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS ? quotient : quotient + (micros >= 0n ? 1n : -1n);
+    │                                                                                                        ─┬  
+    │                                                                                                         ╰── 
+────╯
+
+[TOLERATED_TRANSFORM] Big integer literals are not available in the configured target environment.
+    ╭─[ src/utils/moneyDraft.ts:34:107 ]
+    │
+ 34 │     const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS ? quotient : quotient + (micros >= 0n ? 1n : -1n);
+    │                                                                                                              ─┬  
+    │                                                                                                               ╰── 
+────╯
+
+✓ built in 1.52s
 
 
 ## contracts
-
-FAILED:  node --experimental-strip-types scripts/verify-runtime-architecture.mjs  
-  运行时架构验证失败:
-- ProvincePage.tsx 必须动态导入地区页面 ./BuildingsPage
-
-
-FAILED:  node scripts/verify-page-content.mjs  
-  页面内容与职责验证失败:
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 建筑固定采用“工厂目录 → 工厂地区列表 → 地区工厂详情”的工厂优先钻取
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 默认态保持正式工厂目录顺序
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 表头允许按工厂名称、平均利润和拥有数量
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: `ProvincePage` 内的市场、商业与工业分区仍始终是地图所打开当前州的本地视图
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 商业、工业与仓库直接显示本地经营内容
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 一级市场商品的地区行情列表与一级建筑工厂的地区列表覆盖连续 48 州
-- src/pages/ProvincePage.tsx 缺少: <EmbeddedCommercePage
-- src/pages/GlobalBuildingsPage.tsx 缺少: onClick={() => openGlobalFacility(row.facilityTypeId)}
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 商业、工业与仓库直接显示本地经营内容
-
-
-FAILED:  node scripts/verify-ui-architecture-runner.mjs  
- 共享 UI、唯一开关、导航完全不透明状态色、独立工厂 SVG 与统一商品图标验证通过。
-downward prerequisite research DAG, three-state icon-and-name technology nodes, edge-to-edge desktop canvas, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, shared workspace card with transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed
-地区实体标题导航验证通过：商品、商业建筑与工厂详情共享两行地区标题与可点击地区名，统一通过受限页面栈 push 到对应地区概览并保留原详情返回路径，40px 标题轨道紧凑例外与浏览器回归均已锁定。
- 工厂目录扁平列表验证失败:
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 目录表头固定显示“建筑｜利润｜拥有”
-
-
-FAILED:  npm run verify:product-artwork  
- 
-> economy@0.4.0 verify:product-artwork
-> npm run generate:product-artwork && node scripts/verify-product-artwork.mjs
-
-
-> economy@0.4.0 generate:product-artwork
-> node scripts/generate-product-artwork-thumbnails.mjs
-
-商品运行时缩略图生成完成：38 种 128×128 RGBA PNG，总计 850.3 KiB，更新 38 个文件。
- 商品图片视觉与资源验证失败:
-- 生产公式必须使用 ProductArtwork PNG 且不得渲染商品 SVG
-
-
-FAILED:  node scripts/verify-interaction-modality.mjs  
-  全局输入方式与共享交互状态验证失败：
-- src/pages/BuildingsPage.tsx 缺少: className="facility-cluster-detail-shell facility-cluster-detail-page"
-
-
-FAILED:  node scripts/verify-unified-factory-recipes-grid.mjs  
-  node:internal/modules/run_main:107
-    triggerUncaughtException(
-    ^
-
-AssertionError [ERR_ASSERTION]: 生产公式缺少: <strong>title={<GameConcept concept="production-settlement" />}</strong>
-
-false !== true
-
-    at file:///home/runner/work/Economy/Economy/scripts/verify-unified-factory-recipes-grid.mjs:195:11
-    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
-    at async node:internal/modules/esm/loader:647:26
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
-  generatedMessage: false,
-  code: 'ERR_ASSERTION',
-  actual: false,
-  expected: true,
-  operator: 'strictEqual',
-  diff: 'simple'
-}
-
-Node.js v24.20.0
-
-
-FAILED:  node scripts/verify-facility-groups.mjs  
-  工厂三态、生产公式、自动恢复与统一开关验证失败:
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: facility-formula-top
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: facility-formula-input-side
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: facility-formula-meta
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: facility-formula-progress
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: facility-formula-meta-icon
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: CycleIcon
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: CreditsIcon
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: WarehouseIcon
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: role="group"
-- src/components/facilities/FacilityProductionFormula.tsx 缺少: aria-label={description}
-
-
-FAILED: node scripts/verify-provincial-economy.mjs  
- Strategic map pruned 10m topology verified: 1030765 bytes
-Strategic map pruned 110m topology verified: 16996 bytes
- node:internal/modules/run_main:107
-    triggerUncaughtException(
-    ^
-
-AssertionError [ERR_ASSERTION]: 州级页面设计权威缺少: 概览｜市场｜商业｜工业｜仓库
-    at file:///home/runner/work/Economy/Economy/scripts/verify-provincial-economy.mjs:496:11
-    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
-    at async node:internal/modules/esm/loader:647:26
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
-  generatedMessage: false,
-  code: 'ERR_ASSERTION',
-  actual: false,
-  expected: true,
-  operator: '==',
-  diff: 'simple'
-}
-
-Node.js v24.20.0
-
 
 
 ## browser
@@ -155,9 +395,9 @@ Node.js v24.20.0
 Running 31 tests using 4 workers
 
 [1/31] [chromium] › tests/browser/buildings-ledger-layout.spec.ts:71:1 › factory card opens second-level detail without changing header height
-[2/31] [chromium] › tests/browser/buildings-ledger-layout.spec.ts:16:1 › regional buildings shows build first and three factory cards per row
-[3/31] [chromium] › tests/browser/buildings-ledger-layout.spec.ts:119:1 › mobile factory cards remain three columns without horizontal clipping
-[4/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 320px
+[2/31] [chromium] › tests/browser/buildings-ledger-layout.spec.ts:119:1 › mobile factory cards remain three columns without horizontal clipping
+[3/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 320px
+[4/31] [chromium] › tests/browser/buildings-ledger-layout.spec.ts:16:1 › regional buildings shows build first and three factory cards per row
 
 
 
@@ -173,9 +413,9 @@ Running 31 tests using 4 workers
 
 
 
+
+
 [8/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:70:1 › commercial cards show per-building profit and details show server-locked totals
-
-
 
 
 
@@ -183,15 +423,18 @@ Running 31 tests using 4 workers
 [9/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:87:1 › commercial switch prevents repeated requests and preserves an invested cycle after stop
 
 
+
+
+
 [10/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial network failure leaves the authoritative switch intact
 [11/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial server failure leaves the authoritative switch intact
 [12/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:133:1 › commercial countdown waits for the server and does not settle or restart locally
 
+
 [13/31] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:147:1 › commercial empty state and long names remain usable at 320px
 
-
-
 [14/31] [chromium] › tests/browser/production-methods.spec.ts:4:3 › factory production methods › renders compact selectors and switches the active recipe immediately
+
 [15/31] [chromium] › tests/browser/production-methods.spec.ts:138:5 › factory production methods › keeps mobile production controls and settlement in one non-overlapping page detail flow at 320px
 [16/31] [chromium] › tests/browser/production-methods.spec.ts:138:5 › factory production methods › keeps mobile production controls and settlement in one non-overlapping page detail flow at 360px
 
@@ -203,12 +446,13 @@ Running 31 tests using 4 workers
 
 
 
+
+
+
 [17/31] [chromium] › tests/browser/production-methods.spec.ts:138:5 › factory production methods › keeps mobile production controls and settlement in one non-overlapping page detail flow at 390px
-
 [18/31] [chromium] › tests/browser/production-methods.spec.ts:138:5 › factory production methods › keeps mobile production controls and settlement in one non-overlapping page detail flow at 430px
-[19/31] [chromium] › tests/browser/province-map.spec.ts:30:1 › persistent strategy map uses one static SVG world for 48 states and Chinese labels
-[20/31] [chromium] › tests/browser/production-methods.spec.ts:138:5 › factory production methods › keeps mobile production controls and settlement in one non-overlapping page detail flow at 720px
-
+[19/31] [chromium] › tests/browser/production-methods.spec.ts:138:5 › factory production methods › keeps mobile production controls and settlement in one non-overlapping page detail flow at 720px
+[20/31] [chromium] › tests/browser/province-map.spec.ts:30:1 › persistent strategy map uses one static SVG world for 48 states and Chinese labels
 
 
 
@@ -221,155 +465,32 @@ Running 31 tests using 4 workers
 
 [21/31] [chromium] › tests/browser/province-map.spec.ts:111:1 › state selection opens local context without resetting the static camera
 
-
 [22/31] [chromium] › tests/browser/province-map.spec.ts:158:1 › mobile static map keeps labels, touch gestures and hidden tooltip behavior
 [23/31] [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 320px
 
-[24/31] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 320px
 
+[24/31] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 320px
 
 
 
 [25/31] [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 1440px
 
 [26/31] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 1440px
-[27/31] (retries) [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 320px (retry #1)
+[27/31] [chromium] › tests/browser/unified-buildings.spec.ts:85:1 › global commerce restores its region, detail and filtered catalog
 
 
 
 
 
-[28/31] [chromium] › tests/browser/unified-buildings.spec.ts:85:1 › global commerce restores its region, detail and filtered catalog
 
-[29/31] (retries) [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 1440px (retry #1)
-
-
+[28/31] [chromium] › tests/browser/unified-buildings.spec.ts:105:1 › commercial automatic operation is independent and prevents duplicate requests
+[29/31] [chromium] › tests/browser/unified-buildings.spec.ts:133:1 › failed commercial policy save preserves the authoritative setting
 
 
-[30/31] [chromium] › tests/browser/unified-buildings.spec.ts:105:1 › commercial automatic operation is independent and prevents duplicate requests
-  1) [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 320px 
-
-    Error: [{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":302,"right":4.796875,"scroll":302,"client":302},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":302,"right":4.796875,"scroll":302,"client":302},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":302,"right":4.796875,"scroll":302,"client":302},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0}]
-
-    expect(received).toBeLessThanOrEqual(expected)
-
-    Expected: <= 303
-    Received:    307
-
-      23 |   );
-      24 |   expect(widths.length).toBeGreaterThan(0);
-    > 25 |   for (const width of widths) expect(width.scroll, JSON.stringify(await page.locator('.global-buildings-page').evaluateAll((roots) => roots.flatMap((root) => Array.from(root.querySelectorAll('*')).filter((el) => el.getBoundingClientRect().right > root.getBoundingClientRect().right + 1).slice(0, 20).map((el) => ({ tag: el.tagName, cls: el.getAttribute('class'), width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right - root.getBoundingClientRect().right, scroll: el.scrollWidth, client: el.clientWidth })))))).toBeLessThanOrEqual(width.client + 1);
-         |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          ^
-      26 | }
-      27 | async function openConvenienceDetail(page: Page) {
-      28 |   await openRegional(page);
-        at assertNoOverflow (/home/runner/work/Economy/Economy/tests/browser/unified-buildings.spec.ts:25:538)
-        at /home/runner/work/Economy/Economy/tests/browser/unified-buildings.spec.ts:45:5
-
-    Error Context: test-results/unified-buildings-global-c-eebb8-oth-building-kinds-at-320px-chromium/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-global-c-eebb8-oth-building-kinds-at-320px-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-global-c-eebb8-oth-building-kinds-at-320px-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: [{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":302,"right":4.796875,"scroll":302,"client":302},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":302,"right":4.796875,"scroll":302,"client":302},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":302,"right":4.796875,"scroll":302,"client":302},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0},{"tag":"path","cls":null,"width":302,"right":4.796875,"scroll":0,"client":0}]
-
-    expect(received).toBeLessThanOrEqual(expected)
-
-    Expected: <= 303
-    Received:    307
-
-      23 |   );
-      24 |   expect(widths.length).toBeGreaterThan(0);
-    > 25 |   for (const width of widths) expect(width.scroll, JSON.stringify(await page.locator('.global-buildings-page').evaluateAll((roots) => roots.flatMap((root) => Array.from(root.querySelectorAll('*')).filter((el) => el.getBoundingClientRect().right > root.getBoundingClientRect().right + 1).slice(0, 20).map((el) => ({ tag: el.tagName, cls: el.getAttribute('class'), width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right - root.getBoundingClientRect().right, scroll: el.scrollWidth, client: el.clientWidth })))))).toBeLessThanOrEqual(width.client + 1);
-         |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          ^
-      26 | }
-      27 | async function openConvenienceDetail(page: Page) {
-      28 |   await openRegional(page);
-        at assertNoOverflow (/home/runner/work/Economy/Economy/tests/browser/unified-buildings.spec.ts:25:538)
-        at /home/runner/work/Economy/Economy/tests/browser/unified-buildings.spec.ts:45:5
-
-    Error Context: test-results/unified-buildings-global-c-eebb8-oth-building-kinds-at-320px-chromium-retry1/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-global-c-eebb8-oth-building-kinds-at-320px-chromium-retry1/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-global-c-eebb8-oth-building-kinds-at-320px-chromium-retry1/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
+[30/31] [chromium] › tests/browser/unified-buildings.spec.ts:142:1 › commercial goods open the same local product and return without trading
 
 
-[31/31] [chromium] › tests/browser/unified-buildings.spec.ts:133:1 › failed commercial policy save preserves the authoritative setting
-
-[32/31] [chromium] › tests/browser/unified-buildings.spec.ts:142:1 › commercial goods open the same local product and return without trading
-
-  2) [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 1440px 
-
-    Error: [{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":384,"right":6.390625,"scroll":384,"client":384},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":384,"right":6.390625,"scroll":384,"client":384},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":384,"right":6.390625,"scroll":384,"client":384},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0}]
-
-    expect(received).toBeLessThanOrEqual(expected)
-
-    Expected: <= 385
-    Received:    390
-
-      23 |   );
-      24 |   expect(widths.length).toBeGreaterThan(0);
-    > 25 |   for (const width of widths) expect(width.scroll, JSON.stringify(await page.locator('.global-buildings-page').evaluateAll((roots) => roots.flatMap((root) => Array.from(root.querySelectorAll('*')).filter((el) => el.getBoundingClientRect().right > root.getBoundingClientRect().right + 1).slice(0, 20).map((el) => ({ tag: el.tagName, cls: el.getAttribute('class'), width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right - root.getBoundingClientRect().right, scroll: el.scrollWidth, client: el.clientWidth })))))).toBeLessThanOrEqual(width.client + 1);
-         |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          ^
-      26 | }
-      27 | async function openConvenienceDetail(page: Page) {
-      28 |   await openRegional(page);
-        at assertNoOverflow (/home/runner/work/Economy/Economy/tests/browser/unified-buildings.spec.ts:25:538)
-        at /home/runner/work/Economy/Economy/tests/browser/unified-buildings.spec.ts:45:5
-
-    Error Context: test-results/unified-buildings-global-c-c9bab-th-building-kinds-at-1440px-chromium/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-global-c-c9bab-th-building-kinds-at-1440px-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-global-c-c9bab-th-building-kinds-at-1440px-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: [{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":384,"right":6.390625,"scroll":384,"client":384},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":384,"right":6.390625,"scroll":384,"client":384},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"svg","cls":"commercial-building-artwork global-facility-catalog-row__artwork","width":384,"right":6.390625,"scroll":384,"client":384},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0},{"tag":"path","cls":null,"width":384,"right":6.390625,"scroll":0,"client":0}]
-
-    expect(received).toBeLessThanOrEqual(expected)
-
-    Expected: <= 385
-    Received:    390
-
-      23 |   );
-      24 |   expect(widths.length).toBeGreaterThan(0);
-    > 25 |   for (const width of widths) expect(width.scroll, JSON.stringify(await page.locator('.global-buildings-page').evaluateAll((roots) => roots.flatMap((root) => Array.from(root.querySelectorAll('*')).filter((el) => el.getBoundingClientRect().right > root.getBoundingClientRect().right + 1).slice(0, 20).map((el) => ({ tag: el.tagName, cls: el.getAttribute('class'), width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right - root.getBoundingClientRect().right, scroll: el.scrollWidth, client: el.clientWidth })))))).toBeLessThanOrEqual(width.client + 1);
-         |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          ^
-      26 | }
-      27 | async function openConvenienceDetail(page: Page) {
-      28 |   await openRegional(page);
-        at assertNoOverflow (/home/runner/work/Economy/Economy/tests/browser/unified-buildings.spec.ts:25:538)
-        at /home/runner/work/Economy/Economy/tests/browser/unified-buildings.spec.ts:45:5
-
-    Error Context: test-results/unified-buildings-global-c-c9bab-th-building-kinds-at-1440px-chromium-retry1/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-global-c-c9bab-th-building-kinds-at-1440px-chromium-retry1/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-global-c-c9bab-th-building-kinds-at-1440px-chromium-retry1/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-
-[33/31] [chromium] › tests/browser/unified-buildings.spec.ts:155:1 › legacy unknown settlement detail stays unknown and empty commerce retains construction
+[31/31] [chromium] › tests/browser/unified-buildings.spec.ts:155:1 › legacy unknown settlement detail stays unknown and empty commerce retains construction
 
 
 
@@ -379,7 +500,5 @@ Running 31 tests using 4 workers
 
 
 
-  2 failed
-    [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 320px 
-    [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 1440px 
-  29 passed (1.9m)
+
+  31 passed (2.2m)
