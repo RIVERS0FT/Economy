@@ -48,6 +48,8 @@ async function expectForegroundTooltip(page: Page) {
       statusBottom: status.bottom, viewportWidth: window.innerWidth };
   });
   expect(geometry.inFront, JSON.stringify(geometry)).toBe(true);
+  expect(geometry.top).toBeGreaterThanOrEqual(geometry.safeTop);
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.safeBottom + 1);
   expect(geometry.host).toBe('true');
   expect(geometry.hostEvents).toBe('none');
   expect(geometry.top).toBeGreaterThanOrEqual(geometry.statusBottom);

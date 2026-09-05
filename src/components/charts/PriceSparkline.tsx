@@ -3,7 +3,7 @@ import type { MarketHistoryBucket } from '../../utils/marketHistory';
 import { formatMarketAxisTime, MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';
 import { formatCurrency } from '../../utils/formatters';
 import { EconomyChart } from './EconomyChart';
-import type { EChartsCoreOption, EChartsType } from './echartsCore';
+import { syncEChartsTooltipCoordinates, type EChartsCoreOption, type EChartsType } from './echartsCore';
 import { STABLE_TOOLTIP_EMPHASIS, chartColor, commonTooltip, escapeChartHtml } from './chartOptions';
 import {
   chooseMarketPriceTickCount,
@@ -395,6 +395,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       if (chartInstance.isDisposed() || !pointerInsideRef.current || pointerRatioRef.current === null) return;
       const dataIndex = Math.min(bucketCountRef.current - 1,
         Math.floor(pointerRatioRef.current * bucketCountRef.current));
+      syncEChartsTooltipCoordinates(chartInstance);
       const metrics = interactionGeometryRef.current;
       const value = metrics.windowStart + (dataIndex + 0.5) * MARKET_BUCKET_MS;
       const x = Number(chartInstance.convertToPixel({ xAxisIndex: 0 }, value));
