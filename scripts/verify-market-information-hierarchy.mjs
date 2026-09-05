@@ -102,7 +102,7 @@ for (const token of [
 ]) requireText(marketAccountCss, token, 'local trade heading single row');
 forbidText(marketAccountCss, 'flex-direction: column;', 'local trade heading single row');
 for (const token of [
-  '.page-content {\n  --radius-card: var(--radius-sm);',
+  '.page-content {\n  --radius-card: var(--radius-sm);\n  --radius-control: var(--radius-sm);',
   '.page-content button,\n.page-content .ui-button {\n  border-radius: var(--radius-sm);',
 ]) requireText(designSystem, token, 'page content small radius');
 for (const token of [
