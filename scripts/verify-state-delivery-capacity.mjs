@@ -241,7 +241,7 @@ requireText('server/src/app.js', [
   "url.searchParams.get('revision')",
   'store.getStateSnapshot(user, knownRevision)',
   'createPartitionedStateDelivery(',
-  'createPartitionedActionDelivery(actionResponse, knownPartitions)',
+  'createPartitionedActionDelivery(actionResponse, knownPartitions, actionDeliveryNow)',
   "request.headers['x-economy-state-revisions']",
 ]);
 
