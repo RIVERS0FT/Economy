@@ -14,7 +14,7 @@ async function pointFor(chart: Locator, index: number, volume: boolean) {
 
 async function inspectPointer(page: Page) {
   return page.evaluate(async () => {
-    const { getEChartsInstanceByDom } = await import('/src/components/charts/echartsCore.ts');
+    const { getEChartsInstanceByDom } = await import('/economy/src/components/charts/echartsCore.ts');
     const canvas = document.querySelector('.market-history-echart .economy-chart__canvas') as HTMLElement;
     const chart = getEChartsInstanceByDom(canvas)!;
     const option = chart.getOption() as any;
@@ -74,7 +74,7 @@ for (const { width, scale, touch } of [
     test('one painted tooltip, one day and continuous linked pointers in both grids', async ({ page }) => {
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
-      await page.goto('/market-runtime-test.html?scenario=freeze-details&fractional=1');
+      await page.goto('market-runtime-test.html?scenario=freeze-details&fractional=1');
       await page.evaluate((fontScale) => { document.documentElement.style.fontSize = `${16 * fontScale}px`; }, scale);
       const chart = page.locator('.market-history-chart.full');
       await expect(chart.locator('.market-history-echart')).toHaveAttribute('data-echarts-ready', 'true');
@@ -124,7 +124,7 @@ for (const { width, scale, touch } of [
 test.describe('mobile tooltip lifetime', () => {
   test.use({ viewport: { width: 390, height: 960 }, hasTouch: true, isMobile: true });
   test('tap persists through polling and real option updates, cancellation and context reset leave no pointer', async ({ page }) => {
-    await page.goto('/market-runtime-test.html?scenario=freeze-details&fractional=1');
+    await page.goto('market-runtime-test.html?scenario=freeze-details&fractional=1');
     const chart = page.locator('.market-history-chart.full');
     await expect(chart.locator('.market-history-echart')).toHaveAttribute('data-echarts-ready', 'true');
     await expect(page.getByText('正在加载当前市场行情…')).toHaveCount(0);

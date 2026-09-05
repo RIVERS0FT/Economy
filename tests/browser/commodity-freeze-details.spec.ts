@@ -49,7 +49,7 @@ for (const { width, scale, touch } of [
       const writes: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       page.on('request', (request) => { if (request.method() === 'POST') writes.push(request.url()); });
-      await page.goto('/market-runtime-test.html?scenario=freeze-details');
+      await page.goto('market-runtime-test.html?scenario=freeze-details');
       await page.evaluate((fontScale) => { document.documentElement.style.fontSize = `${16 * fontScale}px`; }, scale);
       await page.evaluate(() => document.fonts.ready);
       const trigger = page.getByRole('button', { name: '查看冻结库存 320 的来源明细' });
@@ -116,7 +116,7 @@ for (const { width, scale, touch } of [
 
 test('mouse preview bridges into the tooltip, outside click and context switches close it', async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 900 });
-  await page.goto('/market-runtime-test.html?scenario=freeze-details');
+  await page.goto('market-runtime-test.html?scenario=freeze-details');
   const trigger = page.getByRole('button', { name: '查看冻结库存 320 的来源明细' });
   const tooltip = frozenTooltip(page);
   await trigger.hover();
@@ -144,7 +144,7 @@ test('mouse preview bridges into the tooltip, outside click and context switches
 
 test('long source names scroll only within the floating details', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
-  await page.goto('/market-runtime-test.html?scenario=freeze-long');
+  await page.goto('market-runtime-test.html?scenario=freeze-long');
   await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; });
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('.market-history-echart')).toHaveAttribute('data-echarts-ready', 'true');
@@ -168,7 +168,7 @@ test('long source names scroll only within the floating details', async ({ page 
 for (const [scenario, text] of [['freeze-unknown', '冻结来源明细暂不可用'], ['active', '暂无冻结']]) {
   test(`floating details handle ${scenario}`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 900 });
-    await page.goto(`/market-runtime-test.html?scenario=${scenario}`);
+    await page.goto(`market-runtime-test.html?scenario=${scenario}`);
     await page.locator('.commodity-freeze-disclosure__trigger').click();
     await expect(frozenTooltip(page)).toContainText(text);
     await expect(page.locator('.commodity-freeze-disclosure__expanded')).toHaveCount(0);
