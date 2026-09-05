@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { runCommercialBuildingAction } from '../api/commercial';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
@@ -10,77 +10,17 @@ import {
   PageLayout,
   PagePanel,
   Panel,
-  StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 
-interface CommercialInputDefinition {
-  productId: string;
-  quantity: number;
-}
-
-interface CommercialBuildingTypeDefinition {
-  id: string;
-  name: string;
-  description: string;
-  buildCost: number;
-  cycleMs: number;
-  operatingCost: number;
-  profitPerCycle: number;
-  consumptionInputs: CommercialInputDefinition[];
-  systemValue: number;
-}
-
-type CommercialStatus = 'running' | 'stopped' | 'error';
-type CommercialStatusReason = 'manual' | 'insufficient_funds' | 'insufficient_input';
-
-interface CommercialBuildingGroup {
-  commercialTypeId: string;
-  provinceId: string;
-  count: number;
-  participatingCount: number;
-  enabled: boolean;
-  status: CommercialStatus;
-  statusReason?: CommercialStatusReason;
-  cycleStartedAt?: number;
-  cycleCompletesAt?: number;
-  pendingRevenue?: number;
-  pendingProfit?: number;
-  pendingGoodsConsumed?: number;
-  lifetimeRevenue: number;
-  lifetimeProfit: number;
-  lifetimeGoodsConsumed: number;
-}
-
-interface CommercialStateFields {
-  saveEpoch?: number;
-  commercialBuildingTypes?: CommercialBuildingTypeDefinition[];
-  commercialBuildingGroups?: CommercialBuildingGroup[];
-}
-
-const STATUS_LABELS: Record<CommercialStatus, string> = {
-  running: '营业中',
-  stopped: '已停止',
-  error: '经营异常',
-};
-
-const STATUS_REASON_LABELS: Record<CommercialStatusReason, string> = {
-  manual: '手动停止',
-  insufficient_funds: '运营资金不足',
-  insufficient_input: '消费商品不足',
-};
-
-function statusTone(status: CommercialStatus) {
-  if (status === 'running') return 'success' as const;
-  if (status === 'error') return 'danger' as const;
-  return 'neutral' as const;
-}
-
-function profitPerMinute(type: CommercialBuildingTypeDefinition, count = 1) {
-  if (type.cycleMs <= 0) return 0;
-  return type.profitPerCycle * count * 60_000 / type.cycleMs;
-}
+import { BuildingClusterCard } from '../components/buildings/BuildingClusterCard';
+import { CommercialBuildingArtwork } from '../components/commercial/CommercialBuildingArtwork';
+import { CommercialBuildingDetail } from '../components/commercial/CommercialBuildingDetail';
+import { CompactCurrency } from '../components/ui/CompactNumber';
+import type { CommercialStateFields } from '../types/commercial';
+import { commercialProfitPerMinute as profitPerMinute, commercialStatusLabel } from '../utils/commercialPresentation';
+import '../styles/commercial-buildings.css';
 
 export function CommercePage({
   model,
@@ -102,6 +42,8 @@ export function CommercePage({
   const [buildQuantity, setBuildQuantity] = useState(1);
   const [internalDetailTypeId, setInternalDetailTypeId] = useState('');
   const [pendingAction, setPendingAction] = useState('');
+  const pendingActionRef = useRef(false);
+  const [actionError, setActionError] = useState('');
   const activeDetailTypeId = onDetailCommercialTypeChange
     ? detailCommercialTypeId ?? ''
     : internalDetailTypeId;
@@ -114,10 +56,6 @@ export function CommercePage({
   const typeById = useMemo(
     () => new Map(types.map((type) => [type.id, type])),
     [types],
-  );
-  const productNameById = useMemo(
-    () => new Map(game.products.map((product) => [product.id, product.name])),
-    [game.products],
   );
   const selectedBuildType = typeById.get(selectedBuildTypeId) ?? types[0];
   const selectedGroup = provinceGroups.find((group) => group.commercialTypeId === activeDetailTypeId);
@@ -139,14 +77,18 @@ export function CommercePage({
     else setInternalDetailTypeId('');
   };
 
+  useEffect(() => { setActionError(''); }, [activeDetailTypeId, model.selectedProvinceId]);
+
   const execute = async (
     key: string,
     operation: 'build' | 'start' | 'stop',
     commercialTypeId: string,
     quantity?: number,
   ) => {
-    if (pendingAction) return;
+    if (pendingActionRef.current) return;
+    pendingActionRef.current = true;
     setPendingAction(key);
+    setActionError('');
     try {
       const result = await runCommercialBuildingAction(Number(game.saveEpoch || 0), {
         operation,
@@ -154,8 +96,12 @@ export function CommercePage({
         commercialTypeId,
         quantity,
       });
+      if (!result.ok) setActionError(result.message);
       await model.showResult(result);
+    } catch {
+      setActionError('商业建筑操作未能完成确认，请刷新状态后重试。');
     } finally {
+      pendingActionRef.current = false;
       setPendingAction('');
     }
   };
@@ -221,26 +167,17 @@ export function CommercePage({
         {provinceGroups.map((group) => {
           const type = typeById.get(group.commercialTypeId);
           if (!type) return null;
+          const profit = profitPerMinute(type);
           return (
-            <PagePanel
-              className="production-surface facility-card facility-group-card commercial-building-card"
-              key={group.commercialTypeId}
-            >
-              <WidgetHeading
-                title={type.name}
-                action={<StatusTag tone={statusTone(group.status)}>{STATUS_LABELS[group.status]}</StatusTag>}
-              />
-              <DataList>
-                <DataRow label="拥有数量" value={`${formatNumber(group.count)} 座`} />
-                <DataRow label="稳定利润" value={`${formatCurrency(profitPerMinute(type, group.count))} / 分钟`} />
-                <DataRow
-                  label="经营状态"
-                  value={group.statusReason ? STATUS_REASON_LABELS[group.statusReason] : STATUS_LABELS[group.status]}
-                  tone={group.status === 'error' ? 'danger' : 'neutral'}
-                />
-              </DataList>
-              <Button block variant="secondary" onClick={() => selectDetail(type.id)}>查看经营详情</Button>
-            </PagePanel>
+            <BuildingClusterCard key={group.commercialTypeId} className="commercial-building-card"
+              name={type.name} status={group.status} count={group.count}
+              artwork={<CommercialBuildingArtwork commercialTypeId={type.id} className="facility-cluster-icon" />}
+              profitValue={<CompactCurrency value={profit} />}
+              profitTone={profit > 0 ? 'positive' : 'neutral'}
+              profitTitle={`${type.name}单座稳定利润／分钟；不含集群数量倍数`}
+              ariaLabel={`${type.name}，数量 ${formatNumber(group.count)}，${commercialStatusLabel(group)}，单座稳定利润每分钟：${formatCurrency(profit)}`}
+              onSelect={() => selectDetail(type.id)}
+            />
           );
         })}
       </div>
@@ -253,77 +190,27 @@ export function CommercePage({
   const detail = selectedGroup && selectedDetailType ? (
     <div className="facility-cluster-detail-shell facility-cluster-detail-page commercial-cluster-detail-page">
       <PagePanel className="production-surface facility-card facility-group-card facility-cluster-detail-card commercial-building-detail-card">
-        <WidgetHeading
-          title="经营状态"
-          action={<StatusTag tone={statusTone(selectedGroup.status)}>{STATUS_LABELS[selectedGroup.status]}</StatusTag>}
-        />
-        <DataList>
-          <DataRow label="建筑数量" value={`${formatNumber(selectedGroup.count)} 座`} />
-          <DataRow label="当前营业" value={`${formatNumber(selectedGroup.participatingCount)} 座`} />
-          <DataRow
-            label="稳定利润 / 周期"
-            value={formatCurrency(selectedDetailType.profitPerCycle * selectedGroup.count)}
-          />
-          <DataRow
-            label="稳定利润 / 分钟"
-            value={formatCurrency(profitPerMinute(selectedDetailType, selectedGroup.count))}
-          />
-          <DataRow label="运营成本 / 周期" value={formatCurrency(selectedDetailType.operatingCost * selectedGroup.count)} />
-          {selectedGroup.cycleCompletesAt && selectedGroup.status === 'running' ? (
-            <DataRow
-              label="本周期剩余"
-              value={`${formatNumber(Math.ceil(Math.max(0, selectedGroup.cycleCompletesAt - game.lastProcessedAt) / 1000))} 秒`}
-            />
-          ) : null}
-        </DataList>
-
-        <WidgetHeading title="商品消耗" />
-        <DataList>
-          {selectedDetailType.consumptionInputs.map((input) => {
-            const required = input.quantity * selectedGroup.count;
-            const available = game.inventories[input.productId]?.available ?? 0;
-            return (
-              <DataRow
-                key={input.productId}
-                label={productNameById.get(input.productId) ?? input.productId}
-                value={`${formatNumber(required)} / 周期 · 本地库存 ${formatNumber(available)}`}
-                tone={available >= required ? 'neutral' : 'danger'}
-              />
-            );
-          })}
-        </DataList>
-
-        <WidgetHeading title="累计经营" />
-        <DataList>
-          <DataRow label="累计营业收入" value={formatCurrency(selectedGroup.lifetimeRevenue)} />
-          <DataRow label="累计稳定利润" value={formatCurrency(selectedGroup.lifetimeProfit)} />
-          <DataRow label="累计消费商品" value={`${formatNumber(selectedGroup.lifetimeGoodsConsumed)} 件`} />
-        </DataList>
-
-        <Button
-          block
-          disabled={Boolean(pendingAction)}
-          onClick={() => void execute(
-            `${selectedGroup.enabled ? 'stop' : 'start'}:${selectedGroup.commercialTypeId}`,
-            selectedGroup.enabled ? 'stop' : 'start',
-            selectedGroup.commercialTypeId,
+        <CommercialBuildingDetail group={selectedGroup} type={selectedDetailType}
+          products={game.products} inventories={game.inventories} now={game.lastProcessedAt}
+          pending={Boolean(pendingAction)}
+          onToggle={(enabled) => void execute(
+            `${enabled ? 'start' : 'stop'}:${selectedGroup.commercialTypeId}`,
+            enabled ? 'start' : 'stop', selectedGroup.commercialTypeId,
           )}
-        >
-          {selectedGroup.enabled ? '停止营业' : '开始营业'}
-        </Button>
-        <small className="ui-helper-text">
-          每个营业周期在开始时按当日官方价锁定被消费商品价值，并叠加固定运营成本和固定商业利润；因此商品价格变化不会改变本周期的固定净利润。
-        </small>
+        />
       </PagePanel>
     </div>
   ) : null;
 
-  const content = selectedGroup && selectedDetailType ? detail : (
-    <div className="regional-buildings-management commercial-buildings-management">
-      {buildCard}
-      {buildingList}
-    </div>
-  );
+  const content = <>
+    {actionError ? <p className="commercial-action-error" role="alert">{actionError}</p> : null}
+    {selectedGroup && selectedDetailType ? detail : (
+      <div className="regional-buildings-management commercial-buildings-management">
+        {buildCard}
+        {buildingList}
+      </div>
+    )}
+  </>;
 
   if (embedded) return content;
 
