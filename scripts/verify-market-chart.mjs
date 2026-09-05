@@ -186,7 +186,7 @@ for (const text of [
   'market zero-gap grids give the shared boundary label to the price axis only at ${viewport.label}',
   'market zero-gap grids keep the shared boundary label on the price axis at 125% root font', 'expect.poll',
   'data-echarts-ready', 'sharedBoundaryLabelOwner', 'volumeMaxLabelVisible',
-  'priceMinMatches', 'volumeMaxMatches', '共享边界只能存在一项纵轴刻度',
+  'priceMinMatches', 'boundaryLabels', '共享边界只能存在一项纵轴刻度',
   "document.documentElement.style.fontSize = '20px'",
 ]) assert.ok(boundaryLabelSpec.includes(text), `行情图共享边界刻度回归缺少: ${text}`);
 assert.ok(!boundaryLabelSpec.includes('test.setTimeout('), '行情图共享边界刻度回归不得扩大 Playwright 单测超时');
