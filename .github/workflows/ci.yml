@@ -2,9 +2,6 @@ name: Economy CI
 
 on:
   pull_request:
-  push:
-    branches-ignore:
-      - main
   workflow_dispatch:
 
 concurrency:
@@ -15,60 +12,6 @@ permissions:
   contents: read
 
 jobs:
-  verify-head-ci-registration:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-    steps:
-      - name: Verify head push CI registration
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          import time
-          import urllib.request
-
-          token = os.environ['GH_TOKEN']
-          head_sha = os.environ['HEAD_SHA']
-          repository = os.environ['REPOSITORY']
-          headers = {
-              'Accept': 'application/vnd.github+json',
-              'Authorization': f'Bearer {token}',
-              'X-GitHub-Api-Version': '2022-11-28',
-          }
-
-          runs = []
-          for _ in range(12):
-              url = f'https://api.github.com/repos/{repository}/actions/runs?head_sha={head_sha}&event=push&per_page=20'
-              request = urllib.request.Request(url, headers=headers)
-              with urllib.request.urlopen(request) as response:
-                  runs = json.load(response).get('workflow_runs', [])
-              if runs:
-                  break
-              time.sleep(5)
-
-          print(json.dumps({
-              'head_sha': head_sha,
-              'push_runs': [
-                  {
-                      'id': run['id'],
-                      'run_number': run['run_number'],
-                      'status': run['status'],
-                      'conclusion': run['conclusion'],
-                  }
-                  for run in runs
-              ],
-          }, ensure_ascii=False, indent=2))
-          if not runs:
-              raise SystemExit('No push workflow run found for the pull request head SHA')
-          PY
-
   dt:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -101,30 +44,22 @@ jobs:
           changed_files="$RUNNER_TEMP/economy-changed-files.txt"
           plan_file="$RUNNER_TEMP/economy-ci-plan.json"
 
+          scope_args=()
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             : > "$changed_files"
-            node scripts/select-ci-tests.mjs plan \
-              --changed-files-file "$changed_files" \
-              --plan-file "$plan_file" \
-              --github-output "$GITHUB_OUTPUT" \
-              --full
+            scope_args+=(--full)
           elif [ "$EVENT_NAME" = "pull_request" ]; then
             git diff --check "$PR_BASE_SHA" "$PR_HEAD_SHA"
             git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" > "$changed_files"
-            node scripts/select-ci-tests.mjs plan \
-              --changed-files-file "$changed_files" \
-              --plan-file "$plan_file" \
-              --github-output "$GITHUB_OUTPUT"
           else
-            git fetch --no-tags origin main:refs/remotes/origin/main
-            BASE_SHA="$(git merge-base origin/main "$GITHUB_SHA")"
-            git diff --check "$BASE_SHA" "$GITHUB_SHA"
-            git diff --name-only "$BASE_SHA" "$GITHUB_SHA" > "$changed_files"
-            node scripts/select-ci-tests.mjs plan \
-              --changed-files-file "$changed_files" \
-              --plan-file "$plan_file" \
-              --github-output "$GITHUB_OUTPUT"
+            echo "Unsupported CI event: $EVENT_NAME" >&2
+            exit 1
           fi
+          node scripts/select-ci-tests.mjs plan \
+            --changed-files-file "$changed_files" \
+            --plan-file "$plan_file" \
+            --github-output "$GITHUB_OUTPUT" \
+            "${scope_args[@]}"
 
           echo "ECONOMY_CI_CHANGED_FILES"
           cat "$changed_files"
@@ -275,14 +210,12 @@ jobs:
 
   build:
     if: always()
-    needs: [verify-head-ci-registration, dt, it, browser-test]
+    needs: [dt, it, browser-test]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate DT IT ST quality gate
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          REGISTRATION_RESULT: ${{ needs.verify-head-ci-registration.result }}
           DT_RESULT: ${{ needs.dt.result }}
           IT_RESULT: ${{ needs.it.result }}
           BROWSER_REQUIRED: ${{ needs.dt.outputs.browser }}
@@ -291,23 +224,13 @@ jobs:
           set -euo pipefail
           test "$DT_RESULT" = "success"
           test "$IT_RESULT" = "success"
-
-          if [ "$BROWSER_REQUIRED" = "true" ]; then
-            test "$BROWSER_RESULT" = "success"
-          else
-            case "$BROWSER_RESULT" in
-              skipped|success) ;;
-              *) echo "Unexpected browser result: $BROWSER_RESULT" >&2; exit 1 ;;
-            esac
-          fi
-
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            test "$REGISTRATION_RESULT" = "success"
-          else
-            case "$REGISTRATION_RESULT" in
-              skipped|success) ;;
-              *) echo "Unexpected head registration result: $REGISTRATION_RESULT" >&2; exit 1 ;;
-            esac
-          fi
-
+          case "$BROWSER_REQUIRED" in
+            true) test "$BROWSER_RESULT" = "success" ;;
+            false)
+              case "$BROWSER_RESULT" in
+                skipped|success) ;;
+                *) echo "Unexpected browser result: $BROWSER_RESULT" >&2; exit 1 ;;
+              esac ;;
+            *) echo "Missing or invalid browser requirement: $BROWSER_REQUIRED" >&2; exit 1 ;;
+          esac
           echo "ECONOMY_QUALITY_GATE_OK dt=$DT_RESULT it=$IT_RESULT browser=$BROWSER_RESULT"
