@@ -47,16 +47,37 @@ export interface EconomyChartSize {
   height: number;
 }
 
-function optionWithTooltipLayer(option: EChartsCoreOption, tooltipLayer: HTMLElement | null) {
+function optionWithTooltipLayer(option: EChartsCoreOption, tooltipLayer: HTMLElement | null, container: HTMLElement) {
   if (!tooltipLayer || !option || typeof option !== 'object' || Array.isArray(option)) return option;
   const source = option as unknown as Record<string, unknown>;
   const tooltip = source.tooltip;
   if (!tooltip || typeof tooltip !== 'object' || Array.isArray(tooltip)) return option;
   const next = { ...source };
+  const tooltipOption = tooltip as Record<string, unknown>;
   next.tooltip = {
-    ...(tooltip as Record<string, unknown>),
+    ...tooltipOption,
     appendTo: tooltipLayer,
     appendToBody: false,
+    position: tooltipOption.position ?? ((point: number[], _params: unknown, node: HTMLElement, _rect: unknown,
+      size: { contentSize: number[] }) => {
+      const safe = tooltipLayer.getBoundingClientRect();
+      const chart = container.getBoundingClientRect();
+      const maxWidth = Math.max(1, Math.min(chart.width, safe.width) - 16);
+      const maxHeight = Math.max(1, Math.min(chart.height, safe.height) - 16);
+      node.style.maxWidth = `${maxWidth}px`;
+      node.style.maxHeight = `${maxHeight}px`;
+      node.style.overflow = 'auto';
+      const width = Math.min(size.contentSize[0], maxWidth);
+      const height = Math.min(size.contentSize[1], maxHeight);
+      const left = Math.max(8, safe.left - chart.left + 8);
+      const top = Math.max(8, safe.top - chart.top + 8);
+      const right = Math.min(chart.width, safe.right - chart.left) - width - 8;
+      const bottom = Math.min(chart.height, safe.bottom - chart.top) - height - 8;
+      return [
+        Math.max(left, Math.min(point[0] + 12, Math.max(left, right))),
+        Math.max(top, Math.min(point[1] + 12, Math.max(top, bottom))),
+      ];
+    }),
   };
   return next as unknown as EChartsCoreOption;
 }
@@ -70,14 +91,14 @@ function applyChartOption(
   tooltipLayer: HTMLElement | null,
 ) {
   const resolvedOption = resolveEChartsCssColors(option, container);
-  // Callback refs publish the shared host through React context one render after the
-  // host DOM itself exists. ECharts fixes the HTML tooltip parent when TooltipHTMLContent
-  // is first constructed, so the first setOption must synchronously recover that host.
+  // Callback refs publish the shared host one render after its DOM exists.
+  // Recover it before the first setOption fixes the library-owned tooltip parent,
+  // including charts rendered through the existing mobile dialog Portal.
   if (!tooltipLayer?.isConnected) {
-    tooltipLayer = container.closest('.workspace')
+    tooltipLayer = container.closest('.signed-in-shell')
       ?.querySelector<HTMLElement>('[data-workspace-tooltip-layer="true"]') ?? null;
   }
-  chart.setOption(optionWithTooltipLayer(resolvedOption, tooltipLayer), {
+  chart.setOption(optionWithTooltipLayer(resolvedOption, tooltipLayer, container), {
     notMerge: updateMode !== 'merge',
     lazyUpdate,
   });
@@ -116,7 +137,7 @@ export function EconomyChart({
   onResize?: (chart: EChartsType, size: EconomyChartSize) => void;
   onClick?: (event: EconomyChartClickEvent) => void;
   onCanvasClick?: (event: EconomyChartCanvasClickEvent, chart: EChartsType) => void;
-  onDoubleClick?: (event: EconomyChartDoubleClickEvent, chart: EChartsType) => void;
+  onDoubleClick?: (event: EconomyChartDoubleClickEvent) => void;
 }) {
   const tooltipLayer = useWorkspaceTooltipLayer();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -181,7 +202,7 @@ export function EconomyChart({
       onCanvasClickRef.current?.(event as EconomyChartCanvasClickEvent, chart);
     };
     const handleDoubleClick = (event: unknown) => {
-      onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent, chart);
+      onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent);
     };
     chart.on('click', handleClick);
     chart.getZr().on('click', handleCanvasClick);

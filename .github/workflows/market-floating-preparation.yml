@@ -1,0 +1,58 @@
+name: Prepare market floating fix (branch only)
+
+on:
+  push:
+    branches:
+      - fix/market-floating-20260906
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-floating-preparation
+  cancel-in-progress: true
+
+jobs:
+  prepare-and-test:
+    if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/fix/market-floating-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply bounded source and design edits on the repair branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/fix/market-floating-20260906
+          python3 .github/market-floating-preparation.py
+          git diff --check
+          git diff --stat
+          git add -u
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'fix: synchronize floating detail design and real-shell regression fixtures'
+            git push origin HEAD:refs/heads/fix/market-floating-20260906
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Typecheck and related architecture checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          node scripts/verify-game-shell-layout.mjs
+          node scripts/verify-form-controls.mjs
+          node scripts/verify-echarts-adoption.mjs
+          node --experimental-strip-types scripts/verify-market-chart.mjs
+          node scripts/verify-document-authority.mjs
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
+      - name: Exercise frozen details, linked pointers and tooltip lifetime
+        run: npm run test:browser -- tests/browser/commodity-freeze-details.spec.ts tests/browser/market-pointer-interaction.spec.ts tests/browser/market-tooltip-persistence.spec.ts tests/browser/shell-floating-safe-zone.spec.ts
