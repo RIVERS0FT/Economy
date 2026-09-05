@@ -7,6 +7,7 @@ const forbidText = (source, text, message) => { if (source.includes(text)) failu
 
 const daily = read('server/src/daily-supply-contracts.js');
 const sourcing = read('server/src/production-input-sourcing.js');
+const cycleAuto = read('server/src/cycle-auto-operation.js');
 const unified = read('server/src/unified-contracts.js');
 const audit = read('server/src/contract-audit-store.js');
 const runtime = read('server/src/runtime-store.js');
@@ -42,13 +43,15 @@ for (const token of [
 ]) requireText(daily, token, `每日商品合同运行层缺少：${token}`);
 
 for (const token of [
-  'marginalMarketPrice',
+  'commoditySystemPriceFor',
   'consumeDailySupplyForBuyer',
-  'applyImmediateCommodityBuy',
-  'splitProvinceScopedKey',
+  'thawProductionGuarantee',
   'prepareProductionInputsForPlayer',
   'finalizeProductionOutputContracts',
-]) requireText(sourcing, token, `生产输入择源缺少：${token}`);
+  'runCycleAutoOperation',
+]) requireText(sourcing, token, `生产输入择源/周期结算缺少：${token}`);
+forbidText(sourcing, 'applyImmediateCommodityBuy', '生产结算前不得直接从官方市场自动采购。');
+requireText(cycleAuto, "execution: 'cycle-auto-operation'", '官方市场自动采购必须只在建筑周期完成后的统一自动经营结算中执行。');
 
 for (const token of [
   'termDays',
@@ -61,7 +64,7 @@ for (const token of [
 for (const token of ['prepareProductionInputsForPlayer', 'finalizeProductionOutputContracts', 'applyProductionContractAction']) {
   requireText(runtime, token, `运行时未接入合同生产链：${token}`);
 }
-requireText(reservations, 'dailySupplyContractAvailableHold', '统一商品自动卖出必须计入各地区每日供应合同预留。');
+requireText(reservations, 'dailySupplyContractAvailableHold', '供应合同可用保留兼容计算必须保持。');
 
 for (const token of ['dailyMaxQuantity?: number', 'durationDays?: number | null', 'prioritySupply?: SupplyPriorityCondition', 'termDays?: number', 'periodDays?: number']) {
   requireText(types, token, `客户端合同类型缺少：${token}`);
@@ -88,7 +91,7 @@ for (const token of ['合同简要', '采购合同', '供应合同', '今日采�
 requireText(productDetail, 'setContractMarketIntent(product.id, model.selectedProvinceId)', '地区商品详情合同跳转必须携带 provinceId + productId。');
 
 for (const [source, token, message] of [
-  [industry, '有效采购合同固定价严格低于当日 `officialPrice` 时可以优先使用合同额度；否则先使用本地仓库。本地库存不足时才按同地区当日官方价即时采购缺口', '产业权威设计必须锁定“低价合同 → 本地仓库 → 当日官方价即时采购”的生产输入来源顺序。'],
+  [industry, '有效采购合同固定价严格低于当日 `officialPrice` 时可以优先使用合同额度', '产业权威设计必须保留低价合同优先于自动市场采购。'],
   [industry, '最低当日产量 + 最低合同固定价', '产业权威设计必须锁定供应优先条件。'],
   [warehouse, '每日最大供应量', '仓库权威设计必须锁定每日额度合同。'],
   [warehouse, '合同简要', '仓库权威设计必须锁定商品详情合同摘要。'],
@@ -124,4 +127,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('地区化每日商品合同验证通过：按地区固定价、每日额度、合同时间按天、生产择价来源、优先供应条件、商品详情摘要与跳转均已锁定。');
+console.log('地区化每日商品合同验证通过：按地区固定价、每日额度、合同时间按天；生产到期先使用正式合同，官方市场自动采购只在周期完成后执行。');
