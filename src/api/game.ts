@@ -1,4 +1,5 @@
 import { installIdempotentGameWriteFetch } from './idempotentGameWriteFetch';
+import { assertGameWriteSession, captureGameWriteSession, endGameWriteSession, GameWriteSessionChangedError } from './gameWriteSession';
 import { GameWriteUnconfirmedError, isUnconfirmedWriteStatus, WRITE_RESULT_UNCONFIRMED, WRITE_RESULT_UNCONFIRMED_MESSAGE } from './gameWriteConfirmation';
 import type { AssetKind, EconomyState, MarketDetail, OrderSide, TransportModeId, TransportTripType } from '../types';
 import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
@@ -51,6 +52,11 @@ function markPageSaveEpochStale(message = PAGE_SAVE_EPOCH_STALE_MESSAGE) {
 
 function validatePageSaveEpoch(state: EconomyState) {
   const userId = Number(state.userId);
+  const session = captureGameWriteSession();
+  if (session.userId !== null && session.userId !== userId) {
+    endGameWriteSession();
+    throw new GameWriteSessionChangedError();
+  }
   const saveEpoch = Number(state.saveEpoch);
   if (!Number.isSafeInteger(userId) || userId < 1) {
     throw new StateDeliveryIntegrityError('服务器未返回有效的玩家身份');
@@ -300,6 +306,7 @@ function createTimedSignal(source: AbortSignal | null | undefined, timeoutMs: nu
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const requestSession = captureGameWriteSession();
   const headers = new Headers(init?.headers);
   if (init?.body) headers.set('Content-Type', 'application/json');
   if (init?.method && init.method !== 'GET') {
@@ -326,6 +333,7 @@ if (isWrite) installIdempotentGameWriteFetch();
       headers,
       signal: timedSignal?.signal ?? init?.signal,
     });
+    assertGameWriteSession(requestSession);
     if (!response.ok) {
       let message = '游戏服务器请求失败';
       let code = '';
@@ -344,6 +352,7 @@ if (isWrite) installIdempotentGameWriteFetch();
       throw new GameApiError(response.status, message, code);
     }
     const payload = await response.json() as unknown;
+    assertGameWriteSession(requestSession);
     if ((path === '/state' || path.startsWith('/state?')) && isStateDeliveryPayload(payload)) {
       acceptServerNow(payload.serverNow);
       const accepted = stateDeliveryCache.accept(payload);
@@ -374,7 +383,9 @@ async function postAction(path: string, body: Record<string, unknown> = {}) {
   // Manual commodity prices are server-owned. Omit volatile preview fields so a
   // pending intent stays identical across polls, price rollover and page reload.
   if (manualCommodity) { delete requestBody.price; delete requestBody.productionSettlement; }
-  const claim = manualCommodity ? null : pendingProductionSettlement;
+  const directControl = /^\/facilities\/[^/]+\/(start|stop|pause)$/.test(path);
+  if (directControl) delete requestBody.productionSettlement;
+  const claim = manualCommodity || directControl ? null : pendingProductionSettlement;
   const payload = claim ? { ...requestBody, productionSettlement: claim } : requestBody;
   try {
     const response = await request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(payload) });

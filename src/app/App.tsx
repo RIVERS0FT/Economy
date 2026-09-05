@@ -16,6 +16,7 @@ import type {
 import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';
 import type { AuthUser } from '../types';
 import { LoginPage } from './LoginPage';
+import { endGameWriteSession } from '../api/gameWriteSession';
 import '../styles/invitations.css';
 
 const initialAdminPath = window.location.pathname.replace(/\/+$/, '') === '/economy/admin';
@@ -127,6 +128,7 @@ function AuthenticatedApp() {
     : 'normal';
   const inviteCode = invitationCodeFromLocation();
   const handleSignedOut = useCallback(() => {
+    endGameWriteSession();
     setUser(null);
     setSession(null);
     setSessionError('');

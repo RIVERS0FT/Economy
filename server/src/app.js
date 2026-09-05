@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { assertGameWriteIdentity } from './game-write-identity.js';
 import { getStableAdminSummary } from './admin-summary.js';
 import { createAdminServerStatus } from './server-status.js';
 import { authenticateRequest, authenticationCacheMaxAgeForRequest } from './auth.js';
@@ -203,6 +204,9 @@ const server = createServer(async (request, response) => {
     const user = await authenticateRequest(request, {
       maxCacheAgeMs: authenticationCacheMaxAgeForRequest(method, path),
     });
+    if (user && method !== 'GET' && method !== 'HEAD' && path.startsWith('/api/game/')) {
+      assertGameWriteIdentity(user, request.headers['x-economy-user-id']);
+    }
     if (!user) {
       sendError(response, 401, '请先登录');
       return;

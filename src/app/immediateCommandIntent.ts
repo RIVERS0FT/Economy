@@ -100,3 +100,9 @@ export function subscribeFacilityEnabledIntent(
     if (existing.size === 0) listeners.delete(key);
   };
 }
+
+export function resetFacilityEnabledIntents() {
+  const keys = [...facilityEnabledIntents.keys()];
+  facilityEnabledIntents.clear();
+  for (const key of keys) emit(key);
+}

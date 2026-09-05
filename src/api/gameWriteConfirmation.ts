@@ -22,6 +22,7 @@ interface WriteAttemptOptions {
   validateSuccess?: (payload: unknown) => boolean;
   onConfirming?: () => void;
   preserveTransportError?: boolean;
+  sessionSignal?: AbortSignal;
 }
 
 export function isConfirmedActionResult(payload: unknown): boolean {
@@ -44,7 +45,10 @@ async function completeAttempt(nativeFetch: typeof fetch, input: RequestInfo | U
     controller.abort();
     rejectAbort(new DOMException('Game write confirmation interrupted', 'AbortError'));
   };
+  const abortSession = () => { controller.abort(); rejectAbort(options.sessionSignal?.reason ?? new Error('Game write session changed')); };
   const timeout = options.timeoutMs === null ? null : globalThis.setTimeout(abort, options.timeoutMs);
+  options.sessionSignal?.addEventListener('abort', abortSession, { once: true });
+  if (options.sessionSignal?.aborted) abortSession();
   options.signal?.addEventListener('abort', abort, { once: true });
   if (options.signal?.aborted) abort();
   try {
@@ -73,6 +77,7 @@ async function completeAttempt(nativeFetch: typeof fetch, input: RequestInfo | U
   } finally {
     if (timeout !== null) globalThis.clearTimeout(timeout);
     options.signal?.removeEventListener('abort', abort);
+    options.sessionSignal?.removeEventListener('abort', abortSession);
   }
 }
 
@@ -82,12 +87,14 @@ export async function fetchConfirmedGameWrite(nativeFetch: typeof fetch, input: 
   if (options.signal?.aborted) throw new DOMException('Game write was cancelled before sending', 'AbortError');
   let lastFailure: unknown;
   for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1) {
+    if (options.sessionSignal?.aborted) throw options.sessionSignal.reason;
     try {
       return await completeAttempt(nativeFetch, input, init, {
         ...options,
         signal: attemptIndex === 0 ? options.signal : undefined,
       });
     } catch (reason) {
+      if (options.sessionSignal?.aborted) throw options.sessionSignal.reason;
       lastFailure = reason;
       const name = reason && typeof reason === 'object' && 'name' in reason ? reason.name : '';
       if (!(reason instanceof TypeError) && name !== 'AbortError' && name !== 'SyntaxError') throw reason;

@@ -78,7 +78,7 @@ test('commercial auto operation recovers after missing local goods are restored'
   const { world, player } = setup();
   const type = typeFor('clothing-store');
   assert.equal(applyCommercialBuildingAction(world, user, {
-    operation: 'build', provinceId: california, commercialTypeId: type.id,
+    operation: 'build', provinceId: california, commercialTypeId: type.id, quantity: 1,
   }, now + 1).ok, true);
   assert.equal(applyCommercialBuildingAction(world, user, {
     operation: 'start', provinceId: california, commercialTypeId: type.id,
@@ -102,7 +102,7 @@ test('commercial building never consumes inventory from another province', () =>
   inventoryForProvince(player, 'beverage', california).available = 100;
 
   assert.equal(applyCommercialBuildingAction(world, user, {
-    operation: 'build', provinceId: alabama, commercialTypeId: type.id,
+    operation: 'build', provinceId: alabama, commercialTypeId: type.id, quantity: 1,
   }, now + 1).ok, true);
   assert.equal(applyCommercialBuildingAction(world, user, {
     operation: 'start', provinceId: alabama, commercialTypeId: type.id,
@@ -121,7 +121,7 @@ test('stopping during an invested cycle keeps the locked settlement but prevents
   const type = typeFor('clothing-store');
   inventoryForProvince(player, 'clothing', california).available = 2;
   applyCommercialBuildingAction(world, user, {
-    operation: 'build', provinceId: california, commercialTypeId: type.id,
+    operation: 'build', provinceId: california, commercialTypeId: type.id, quantity: 1,
   }, now + 1);
   applyCommercialBuildingAction(world, user, {
     operation: 'start', provinceId: california, commercialTypeId: type.id,
