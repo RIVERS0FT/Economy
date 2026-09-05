@@ -313,7 +313,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
 }
 
 function isReferenceCandidateForSource(root, sourcePath, ...candidateGroups) {
-  return candidateGroups.flat().some((candidate) => candidateReferencesAnyChangedFile(root, candidate, [sourcePath]));
+  return candidateGroups.flat().some((candidate) => candidateReferencesAnyChangedFile(root, candidate, [sourcePath], !isServerSource(sourcePath)));
 }
 
 const runCommand = ({ command, args }) => {

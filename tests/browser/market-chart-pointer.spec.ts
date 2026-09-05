@@ -95,7 +95,8 @@ test.describe('touch market tooltip inside the actual mobile Sheet', () => {
     const text = await page.locator('.economy-chart-tooltip').innerText();
     await page.evaluate(() => window.__updateFreezeFixture?.());
     await page.waitForTimeout(6_500);
-    await expect(page.locator('.economy-chart-tooltip')).toHaveText(text);
+    await expect(page.locator('.economy-chart-tooltip')).toHaveText(text, { useInnerText: true });
+    await expectForegroundTooltip(page);
     await expectPointers(chart);
     await page.keyboard.press('Escape');
     await expect(page.locator('.economy-chart-tooltip')).toBeHidden();
