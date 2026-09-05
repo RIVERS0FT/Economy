@@ -53,31 +53,39 @@ test('links ignore fenced examples and external URLs but resolve local fragments
   assert.ok(checkDocumentation(root).failures.length > 0);
 });
 
-test('domain-named documentation has only document DT and no business dependencies', (t) => {
+const documentationPaths = ['docs/MARKET_DESIGN.md', 'docs/PRODUCTION_DESIGN.md', 'docs/MAP_DESIGN.md', 'server/README.md', 'src/README.md', 'shared/README.md', 'server/shared/README.md', '.github/workflows/README.md', 'AGENTS.md'];
+test('domain-named and source-directory documentation has only document DT', (t) => {
   const { root, put } = fixture(t);
   put('scripts/verify-market.mjs', "// docs/MARKET_DESIGN.md\n");
   put('server/test/market.test.js', '// market');
   put('tests/browser/market.spec.ts', '// docs/MARKET_DESIGN.md');
-  for (const path of ['docs/MARKET_DESIGN.md', 'docs/PRODUCTION_DESIGN.md', 'docs/MAP_DESIGN.md', 'server/README.md', 'AGENTS.md']) {
+  for (const path of documentationPaths) {
     const plan = selectCiPlan([path], { root });
-    assert.equal(plan.mode, 'targeted');
-    assert.equal(plan.needsDependencies, false);
-    assert.deepEqual(plan.it.tests, []);
-    assert.equal(plan.browser.mode, 'none');
-    assert.deepEqual(plan.dt.commands.map((item) => item.args), [['run', 'verify:repository-text-format'], ['scripts/verify-document-authority.mjs']]);
+    assert.equal(plan.mode, 'targeted', path);
+    assert.equal(plan.needsDependencies, false, path);
+    assert.deepEqual(plan.it.tests, [], path);
+    assert.equal(plan.browser.mode, 'none', path);
+    assert.deepEqual(plan.dt.commands.map((item) => item.args), [['run', 'verify:repository-text-format'], ['scripts/verify-document-authority.mjs']], path);
   }
 });
-test('mixed changes infer executable impact without domain expansion from docs', (t) => {
+test('mixed changes infer executable impact without domain or source expansion from docs', (t) => {
   const { root, put } = fixture(t);
   put('server/test/banking.test.js', '// banking');
   put('server/test/market.test.js', '// market');
   put('tests/browser/bank.spec.ts', '// banking');
   put('tests/browser/market.spec.ts', '// docs/MARKET_DESIGN.md');
   const code = selectCiPlan(['server/src/banking.js'], { root });
-  const mixed = selectCiPlan(['server/src/banking.js', 'docs/MARKET_DESIGN.md'], { root });
-  assert.deepEqual(mixed.it, code.it);
-  assert.deepEqual(mixed.browser, code.browser);
-  assert.ok(mixed.it.tests.includes('server/test/banking.test.js'));
+  assert.equal(code.mode, 'targeted');
+  assert.ok(code.it.tests.includes('server/test/banking.test.js'));
+  for (const path of documentationPaths) {
+    const mixed = selectCiPlan(['server/src/banking.js', path], { root });
+    assert.equal(mixed.mode, code.mode, path);
+    assert.equal(mixed.needsDependencies, code.needsDependencies, path);
+    assert.deepEqual(mixed.it, code.it, path);
+    assert.deepEqual(mixed.browser, code.browser, path);
+    const executableCommands = mixed.dt.commands.filter((item) => item.args[0] !== 'scripts/verify-document-authority.mjs');
+    assert.deepEqual(executableCommands, code.dt.commands, path);
+  }
 });
 test('shared infrastructure, selector changes, unknown source, and explicit full stay full', (t) => {
   const { root } = fixture(t);
