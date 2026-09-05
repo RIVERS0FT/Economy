@@ -1,0 +1,61 @@
+name: Finalize regional tab source
+on:
+  push:
+    branches: [codex/regional-building-tabs-fixup]
+    paths: [.github/workflows/finalize-regional-tabs.yml]
+permissions:
+  contents: write
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/regional-building-tabs-fixup
+      - name: Correct final navigation rules and add missing-catalog regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          s = p.read_text()
+          old = '“工业”只替换地区 `buildings` 分区的玩家可见名称，建筑分区继续使用 `buildings`，旧商业分区兼容映射到建筑'
+          assert old in s
+          s = s.replace(old, '商业使用 `commerce`、工业使用 `buildings`，两类建设与列表由固定类别适配器承载，地区不提供建筑分类筛选')
+          p.write_text(s)
+          p = Path('tests/browser/runtime-harness.tsx')
+          s = p.read_text()
+          old = 'lastProcessedAt: fixtureNow, commercialBuildingTypes: types,'
+          assert old in s
+          s = s.replace(old, "lastProcessedAt: fixtureNow, commercialBuildingTypes: scenario === 'missing-commercial-catalog' ? [] : types,")
+          p.write_text(s)
+          p = Path('tests/browser/regional-building-tabs.spec.ts')
+          s = p.read_text()
+          s += '''
+          test('missing commercial catalog remains stable and does not block the industrial tab', async ({ page }) => {
+            const errors: string[] = [];
+            page.on('pageerror', (error) => errors.push(error.message));
+            page.on('console', (message) => { if (message.text().includes('Maximum update depth')) errors.push(message.text()); });
+            await openRegion(page, 'missing-commercial-catalog');
+            await tab(page, '商业').click();
+            await expect(page.getByText('服务器尚未返回商业建筑目录。', { exact: true })).toBeVisible();
+            await expect(page.locator('.building-type-filter')).toHaveCount(0);
+            await tab(page, '工业').click();
+            await expect(cards(page)).toHaveCount(1);
+            await expect(page.locator('.production-build-card')).toBeVisible();
+            expect(errors).toEqual([]);
+          });
+          '''
+          p.write_text(s)
+          Path('.github/workflows/finalize-regional-tabs.yml').unlink()
+          PY
+          git add -A
+          node scripts/normalize-repository-text.mjs
+          git add -A
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: finalize regional navigation rules and stable empty drafts'
+          git push origin HEAD:codex/regional-building-tabs-fixup

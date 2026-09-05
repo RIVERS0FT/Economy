@@ -60,11 +60,19 @@ test('persistent strategy map uses one static SVG world for 48 states and Chines
   await expect(page.locator('.strategic-province-inspector')).toHaveCount(0);
   await expect(page.getByLabel('地图图例')).toHaveCount(0);
 
+  const bundledMapFont = await page.evaluate(async () => {
+    await document.fonts.load('600 24px "Economy Map Serif"', '加利福尼亚得克萨斯华盛顿佛罗里达纽约');
+    const face = [...document.fonts].find((candidate) => candidate.family === 'Economy Map Serif' && candidate.weight === '600');
+    return face ? { family: face.family, weight: face.weight, status: face.status } : null;
+  });
+  expect(bundledMapFont).toEqual({ family: 'Economy Map Serif', weight: '600', status: 'loaded' });
+
   const viewportFontFamily = await canvas.evaluate((node) => getComputedStyle(node).fontFamily);
   const labelFont = await map.locator('.province-map-label').first().evaluate((node) => ({
     family: getComputedStyle(node).fontFamily,
     weight: getComputedStyle(node).fontWeight,
   }));
+  expect(viewportFontFamily.split(',')[0]).toContain('Economy Map Serif');
   expect(viewportFontFamily).toContain('Source Han Serif SC');
   expect(viewportFontFamily).not.toContain('Playfair Display');
   expect(viewportFontFamily.toLowerCase()).toContain('serif');

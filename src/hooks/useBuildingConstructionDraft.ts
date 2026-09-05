@@ -18,7 +18,9 @@ export function useBuildingConstructionDraft(scope: string): BuildingConstructio
   const [selection, setSelection] = useState(() => ({ scope, value: drafts.get(scope) ?? EMPTY_DRAFT }));
   const value = selection.scope === scope ? selection.value : drafts.get(scope) ?? EMPTY_DRAFT;
   const update = useCallback((patch: Partial<ConstructionSelection>) => {
-    const next = { ...(drafts.get(scope) ?? EMPTY_DRAFT), ...patch };
+    const previous = drafts.get(scope) ?? EMPTY_DRAFT;
+    const next = { ...previous, ...patch };
+    if (next.typeId === previous.typeId && next.quantity === previous.quantity) return;
     drafts.set(scope, next);
     setSelection({ scope, value: next });
   }, [scope]);
