@@ -125,6 +125,7 @@ for (const text of [
   "id: 'market-price-grid'", "id: 'market-volume-grid'",
   "id: 'market-price-series'", "id: 'market-volume-series'",
   'updateMode="merge"', 'onChartReady={handleChartReady}', 'onOptionApplied={restoreActiveTooltip}',
+  'const scheduleActiveTooltip = useCallback', 'scheduleActiveTooltip();',
   "type: 'showTip'", "type: 'hideTip'", 'data-tooltip-persistence="true"',
   'className="market-chart-price-volume-divider"',
   'className="market-chart-section-label"',
@@ -210,6 +211,8 @@ for (const text of [
   'market chart uses one linked hover state and keeps the price line protected',
   "data-axis-pointer-linked", "data-hover-emphasis-disabled", 'priceHoverText',
   'priceTicks', 'volumeTicks', 'ECharts SVG is not ready', 'market-chart-footer',
+  "new PointerEvent('pointermove'", 'market detail keeps snapshot history when the detail refresh fails',
+  'recent local trades heading keeps clear action on the same row on narrow screens',
 ]) assert.ok(runtimeSpec.includes(text), `市场运行时回归缺少: ${text}`);
 for (const text of [
   'market tooltip survives idle rerenders and real option updates until the pointer leaves',
@@ -237,6 +240,7 @@ for (const text of [
 for (const text of [
   '市场行情图几何、交互与可读性唯一专项基线', 'ECharts SVG', '零间距连续双 Grid',
   '统一悬浮交互', '`axisPointer.link`', '`axisValue`',
+  '第一次有效 `pointermove`', '主动驱动同一分段的 Tooltip',
   '动态时间间隔', '真实像素高度和根字号动态计算',
   '额外空白最少的区间', '`3～6`', '`0～10`',
   '`--color-info`', '`--color-success`', '`--color-text-secondary`',
