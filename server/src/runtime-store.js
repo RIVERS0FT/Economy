@@ -275,7 +275,7 @@ export class EconomyStore extends CoreEconomyStore {
     const actor = String(options?.actor || '');
     if (!actor.startsWith('system:')) {
       const barrier = this.ensureScheduledProcessingBarrier();
-      if (barrier) return measureRequestPhase('schedulerBarrierWaitMs', () => barrier).then(() => this.enqueueAuthoritativeWrite(options, callback));
+      if (barrier) return measureRequestPhase('schedulerBarrierWaitMs', () => barrier).then(() => this.authoritativeWriteExecutor.submit(options, callback));
     }
     return this.authoritativeWriteExecutor.submit(options, callback);
   }

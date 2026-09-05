@@ -604,3 +604,7 @@ Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号
 - 人口运行映射：`population-demographics.js`；人口经济内部版本固定为 7；五档状态只重新分配食品／家庭与类别份额；人口消费不得发行普通货币。
 
 商业自动经营策略与可选周期锁定明细随 `commercialBuildingGroups` 交付到 `player.production`，目录保持 `catalog` 归属。新增可选字段不改变状态版本或旧周期金额。设置复用现有 `commercialBuilding` 幂等动作的 `auto-operation` 操作，服务器校验玩家、本州集群所有权及策略。真实采购仍经既有在线交易事务，禁止新增后台扫描；旧在途周期缺失明细不按当前目录、价格或数量追填。业务规则引用 `COMMERCIAL_BUILDINGS_DESIGN.md`，保障策略引用 `WAREHOUSE_EXPANSION_DESIGN.md`。
+
+用户写入在入队时先等待当时已到期的世界调度 barrier；成功后必须直接进入同一权威串行写执行器，不能递归追赶新一轮到期调度而导致用户请求永久饥饿。barrier 失败仍阻止经济动作；调度、用户写、事务提交及幂等回执保持原串行和原子边界。沿用 `schedulerBarrierWaitMs` 和写执行阶段计时诊断等待，不能通过绕过到期经济处理或提前返回成功降低表面耗时。
+
+商业满员率基线、余数、周期存在标记和可选锁定经营量随既有 `commercialBuildingGroups` 保存并归属 `player.production`，不把实时投影写入读请求缓存。零收入周期必须进入既有商业截止时间计算，不新增轮询或另一条结算链路。迁移、经营量和锁定语义唯一引用 `COMMERCIAL_BUILDINGS_DESIGN.md`。

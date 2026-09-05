@@ -472,7 +472,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     } catch (reason) {
       finish();
       if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
-      return { ok: false, message: messageFromError(reason) };
+      return { ok: false, message: messageFromError(reason), code: reason instanceof GameApiError ? reason.code : undefined };
     }
   }, [handleUnauthorized, selectedProvinceId, syncConfirmedAction]);
 

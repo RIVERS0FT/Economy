@@ -275,7 +275,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     return [{ kind: 'commercial' as const, buildingTypeId: type.id, catalogIndex: game.facilityTypes.length + index,
       name: type.name, totalCount, averageProfit, profitTone: globalProfitTone(averageProfit),
       profitValue: formatCurrency(averageProfit), profitAccessibleValue: accessibleProfit(averageProfit),
-      profitDetail: '单座稳定利润／分钟；不含集群数量倍数', quickProduction: null }];
+      profitDetail: '单座满员额定利润／分钟；不含集群数量倍数', quickProduction: null }];
   }), [game.commercialBuildingTypes, game.commercialBuildingGroups, game.facilityTypes.length, provinces]);
   const allBuildingRows = useMemo(() => [...facilityRows, ...commercialRows], [facilityRows, commercialRows]);
   const selectedCommercialType = game.commercialBuildingTypes?.find((type) => type.id === selectedCommercialTypeId);
@@ -715,7 +715,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                         type="button"
                         className="global-facility-catalog-row__open"
                         data-ui-interactive="surface"
-                        aria-label={`打开${row.name}${row.kind === 'commercial' ? '地区商业建筑' : '地区工厂'}，拥有 ${formatNumber(row.totalCount)} 座，${row.kind === 'commercial' ? '单座稳定利润' : '跨州单厂平均利润'}每分钟：${row.profitAccessibleValue}`}
+                        aria-label={`打开${row.name}${row.kind === 'commercial' ? '地区商业建筑' : '地区工厂'}，拥有 ${formatNumber(row.totalCount)} 座，${row.kind === 'commercial' ? '单座满员额定利润' : '跨州单厂平均利润'}每分钟：${row.profitAccessibleValue}`}
                         title={row.profitDetail}
                         onClick={() => row.kind === 'commercial' ? openGlobalCommercial(row.buildingTypeId) : openGlobalFacility(row.buildingTypeId)}
                       >

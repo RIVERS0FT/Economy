@@ -1,3 +1,5 @@
+import { CommercialStaffingSummary } from './CommercialStaffingSummary';
+import { projectCommercialStaffingRate } from '../../../shared/commercial-staffing.js';
 import type { ProductDefinition, ProductInventory } from '../../types';
 import type { CommercialAutoOperationPolicy, CommercialBuildingGroup, CommercialBuildingTypeDefinition } from '../../types/commercial';
 import { commercialAutoOperationPolicyFor } from '../../../shared/commercial-auto-operation.js';
@@ -49,10 +51,12 @@ export function CommercialBuildingDetail({ group, type, products, inventories, m
   onAutoOperationChange: (policy: CommercialAutoOperationPolicy) => void;
   onOpenProductMarket: (productId: string) => void;
 }) {
+  const liveNow = useNow(now);
+  const staffingRate = projectCommercialStaffingRate(group, liveNow);
   const profit = commercialProfitPerMinute(type);
   const tone = group.status === 'running' ? 'success' : group.status === 'error' ? 'danger' : 'neutral';
   const policy = commercialAutoOperationPolicyFor(group);
-  const settlement = commercialSettlementPresentation(group, type, markets);
+  const settlement = commercialSettlementPresentation(group, type, markets, liveNow);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
   const nextRequirements = Object.fromEntries(type.consumptionInputs.map((input) => [input.productId, input.quantity * group.count]));
   const money = (value: number | null) => value === null ? '—' : <CompactCurrency value={value} />;
@@ -72,9 +76,10 @@ export function CommercialBuildingDetail({ group, type, products, inventories, m
               <span>本周期营业 <strong><CompactNumber value={group.participatingCount} /></strong></span>
             </div>
             <section className={`facility-average-profit${profit > 0 ? ' is-positive' : ''}`} aria-label={`${type.name}单座稳定利润每分钟`}>
-              <div className="facility-average-profit__copy"><strong>单座稳定利润／分钟</strong></div>
+              <div className="facility-average-profit__copy"><strong>单座满员额定利润／分钟</strong></div>
               <div className="facility-average-profit__value"><CurrencyAmount sign={profit > 0 ? '+' : undefined}>{formatCurrency(profit)}</CurrencyAmount></div>
             </section>
+            <CommercialStaffingSummary group={group} name={type.name} now={now} />
             {group.status === 'error' ? <small className="commercial-action-error" role="status">{group.statusReason ? COMMERCIAL_REASON_LABELS[group.statusReason] : commercialStatusLabel(group)}；条件恢复后自动续营。</small> : null}
             {!group.enabled && group.status === 'running' ? <small className="ui-helper-text">已停止后续营业，本周期仍按锁定结果完成结算。</small> : null}
           </div>}
@@ -102,16 +107,19 @@ export function CommercialBuildingDetail({ group, type, products, inventories, m
         </div>}
         cycleMs={settlement.locked && typeof group.cycleStartedAt === 'number' && typeof group.cycleCompletesAt === 'number' && group.cycleCompletesAt > group.cycleStartedAt ? group.cycleCompletesAt - group.cycleStartedAt : type.cycleMs} operatingCost={settlement.operatingCost} progress={<CommercialCycleProgress group={group} now={now} />}>
         <DataList>
+          <DataRow label={settlement.locked ? '本周期等效营业数量' : '预计等效营业数量'}
+            value={settlement.effectiveCount === null ? '—' : <CompactNumber value={settlement.effectiveCount} />} />
           <DataRow label={settlement.label} value={money(settlement.revenue)} />
           <DataRow label={settlement.locked ? '本周期锁定商品价值' : '预计商品价值'} value={money(settlement.inputValue)} />
           <DataRow label={settlement.locked ? '本周期已付运营成本' : '预计运营成本'} value={money(settlement.operatingCost)} />
           <DataRow label={settlement.locked ? '本周期锁定利润' : '预计稳定利润'} value={money(settlement.profit)} />
         </DataList>
-        {!settlement.locked ? <small className="ui-helper-text">下一周期按全部建筑和当前州官方价预估，实际投入与收入由服务器开始营业时锁定。</small> : null}
+        {!settlement.locked ? <small className="ui-helper-text">下一周期按当前满员率、整数等效经营量和当前州官方价预估，实际投入与收入由服务器开始营业时锁定。</small> : null}
       </BuildingSettlementPanel>
       <section className="mobile-detail-section commercial-earnings" aria-label="经营收益">
         <WidgetHeading title="经营收益" />
         <DataList>
+          <DataRow label="当前满员率预计利润／分钟" value={money(staffingRate === null ? null : profit * group.count * staffingRate / 10_000)} />
           <DataRow label="集群额定利润／分钟" value={<CompactCurrency value={commercialProfitPerMinute(type, group.count)} />} />
           <DataRow label="集群额定利润／周期" value={<CompactCurrency value={type.profitPerCycle * group.count} />} />
         </DataList>

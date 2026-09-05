@@ -9,7 +9,7 @@ const type: CommercialBuildingTypeDefinition = { id: 'convenience-store', name: 
   cycleMs: 300_000, operatingCost: 1.5, profitPerCycle: 2.5, systemValue: 120,
   consumptionInputs: [{ productId: 'food', quantity: 1 }, { productId: 'beverage', quantity: 1 }] };
 const group: CommercialBuildingGroup = { commercialTypeId: type.id, provinceId: '110000', count: 3, participatingCount: 2,
-  enabled: true, status: 'running', pendingRevenue: 101.25, pendingProfit: 5, pendingOperatingCost: 3,
+  enabled: true, status: 'running', staffingRateBps: 10000, staffingUpdatedAt: 0, staffingBatchCarryBps: 0, pendingRevenue: 101.25, pendingProfit: 5, pendingOperatingCost: 3,
   pendingInputValue: 93.25, pendingInputs: [{ productId: 'food', quantity: 2 }, { productId: 'beverage', quantity: 2 }],
   lifetimeRevenue: 200, lifetimeProfit: 25, lifetimeGoodsConsumed: 40 };
 

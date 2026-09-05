@@ -1,3 +1,5 @@
+import { installIdempotentGameWriteFetch } from '../../src/api/idempotentGameWriteFetch';
+import { TradeConfirmationHarness } from './TradeConfirmationHarness';
 import { GlobalBuildingsPage } from '../../src/pages/GlobalBuildingsPage';
 import { GlobalMarketPage } from '../../src/pages/GlobalMarketPage';
 import { CommercePage } from '../../src/pages/CommercePage';
@@ -146,7 +148,7 @@ const activeTutorial: GameTutorialController = {
   statusLabel: '进行中 · 步骤 1/9',
 };
 
-document.documentElement.dataset.appSurface = ['overview', 'map', 'commerce', 'unified-buildings', 'regional-buildings', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = ['overview', 'map', 'commerce', 'trade-confirmation', 'unified-buildings', 'regional-buildings', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -1816,12 +1818,15 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
   const [groups, setGroups] = useState<CommercialBuildingGroup[]>(() => {
     if (scenario === 'empty') return [];
     const current: CommercialBuildingGroup[] = types.map((type, index) => ({
-      commercialTypeId: type.id, provinceId: '110000', count: scenario === 'commercial-long' ? 1_234_567 : 3,
+      commercialTypeId: type.id, provinceId: '110000',
+      staffingRateBps: 10000, staffingUpdatedAt: fixtureNow, staffingBatchCarryBps: 0, count: scenario === 'commercial-long' ? 1_234_567 : 3,
       participatingCount: index === 0 ? 2 : 0, enabled: index !== 1,
       status: index === 0 ? 'running' : index === 1 ? 'stopped' : 'error',
       statusReason: index > 1 ? 'insufficient_input' : undefined,
       cycleStartedAt: index === 0 ? fixtureNow - 180_000 : undefined,
       cycleCompletesAt: index === 0 ? fixtureNow + 120_000 : undefined,
+      pendingEffectiveCount: index === 0 ? 2 : undefined,
+      pendingStaffingRateBps: index === 0 ? 10000 : undefined,
       pendingRevenue: index === 0 ? 101.25 : undefined,
       pendingProfit: index === 0 ? 5 : undefined,
       pendingGoodsConsumed: index === 0 ? 4 : undefined,
@@ -1883,7 +1888,15 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
   return <GameShell model={model}><FacilityRecipeProfitMarketsProvider markets={model.game.markets}>{page}</FacilityRecipeProfitMarketsProvider></GameShell>;
 }
 
-const runtimeView = view === 'unified-buildings' ? <CommerceHarness scope="global" />
+function TradeConfirmationRuntime() {
+  const [tab, setTab] = useState<TabId>('market');
+  const base = useMemo(() => buildOverviewModel(tab, setTab), [tab]);
+  return <TradeConfirmationHarness base={base} />;
+}
+
+Object.assign(window, { __installGameWriteCoordinator: installIdempotentGameWriteFetch });
+
+const runtimeView = view === 'trade-confirmation' ? <TradeConfirmationRuntime /> : view === 'unified-buildings' ? <CommerceHarness scope="global" />
   : view === 'regional-buildings' ? <CommerceHarness scope="regional" /> : view === 'commerce' ? <CommerceHarness /> : view === 'overview'
     ? <OverviewHarness />
     : view === 'map'

@@ -37,10 +37,12 @@
 
 地区已拥有商业建筑与工业建筑共用 `BuildingClusterCard` 纯展示组件和本文的选择卡几何、状态颜色、整卡按钮、键盘焦点与二级详情规则；商业不得复制第二套网格、卡片、遮罩或响应式断点。商业与工业详情统一使用 `BuildingDetailPage`，共用 `MobileDetailSummary`、状态胶囊、紧凑开关、利润展示区和线性周期轨道，不创建独立滚动根或专用 Sheet。开关和状态区沿用工业摘要同一行的几何。
 
-商业卡片与详情字段归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，插画与共享组件边界归 `UI_DESIGN_SYSTEM.md`，营业意图、周期锁定与消费规则归 `COMMERCIAL_BUILDINGS_DESIGN.md`；视觉共用不得带入工业满员率、配方或资产资格。
+商业卡片与详情字段归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，插画与共享组件边界归 `UI_DESIGN_SYSTEM.md`，营业意图、周期锁定与消费规则归 `COMMERCIAL_BUILDINGS_DESIGN.md`；视觉共用不得带入工业产能算法、配方或资产资格；商业满员率采用独立商业经营规则。
 
 `tests/browser/commercial-buildings-layout.spec.ts` 对照工业基线验证 320px 起的三列比例、整卡和键盘导航、摘要与开关高度、长名称与大数量、异常与停止状态、权威周期和请求失败行为。
 
 两类详情的自动经营与结算分别共用 `BuildingAutoOperationSection` 和 `BuildingSettlementPanel`；地区商业与工业分区分别展示对应类别网格，两者沿用本文同一套三列 4:5 规则，不因入口拆分复制几何。商业收入替代工业产出槽的内容，不另设结算几何。
 
 自动经营标题与开关的垂直中心对齐，正常宽度下不得分行；状态摘要的营业开关仍按本文原胶囊几何排列。该规则由共享自动经营组件同时覆盖工业与商业。
+
+工业与商业满员率轨道共用 `BuildingStaffingProgress` 的结构、填充、文字与可访问进度属性；领域适配器提供百分比、方向和解释，公共组件不计算经营量。缺失商业权威基线时显示待同步且不提供伪造的百分比。营业周期轨道继续独立放在结算面板内。

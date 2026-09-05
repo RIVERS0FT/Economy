@@ -133,5 +133,13 @@ test('offline commercial world advancement does not invoke automatic purchases',
   processCommercialWorld(world, now + 86_400_000);
   assert.equal(player.credits, before);
   assert.equal(Number(market.todayBuyQuantity || 0), volume);
+  // Full decay can first enter a zero-output recovery cycle, without buying anything.
+  assert.equal(group.status, 'running');
+  assert.equal(group.pendingEffectiveCount, 0);
+  assert.equal(group.pendingRevenue, 0);
+  processCommercialWorld(world, group.cycleCompletesAt);
   assert.equal(group.status, 'error');
+  assert.equal(group.statusReason, 'insufficient_input');
+  assert.equal(player.credits, before);
+  assert.equal(Number(market.todayBuyQuantity || 0), volume);
 });
