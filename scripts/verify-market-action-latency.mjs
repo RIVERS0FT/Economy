@@ -80,6 +80,10 @@ for (const text of [
 ]) requireText(contractsApi, text);
 
 for (const text of [
+  "const compactManualCommodityOrder = route.action === 'placeOrder'",
+  "payload.assetKind === 'commodity'",
+  '!payload.execution',
+  'sendJson(response, 200, actionResponse);',
   "Object.defineProperty(actionResponse, 'stateSnapshot'",
   'value: store.getStateSnapshot(user, null, actionDeliveryNow)',
   'createPartitionedActionDelivery(actionResponse, knownPartitions, actionDeliveryNow)',

@@ -678,6 +678,14 @@ const server = createServer(async (request, response) => {
         });
       },
     );
+    const compactManualCommodityOrder = route.action === 'placeOrder'
+      && payload.assetKind === 'commodity'
+      && !payload.execution;
+    if (compactManualCommodityOrder) {
+      sendJson(response, 200, actionResponse);
+      return;
+    }
+
     const actionDeliveryNow = Date.now();
     Object.defineProperty(actionResponse, 'stateSnapshot', {
       configurable: true,
