@@ -55,4 +55,12 @@ jobs:
       - name: Prepare Chromium
         run: bash scripts/prepare-playwright-chromium.sh
       - name: Exercise frozen details, linked pointers and tooltip lifetime
-        run: npm run test:browser -- tests/browser/commodity-freeze-details.spec.ts tests/browser/market-pointer-interaction.spec.ts tests/browser/market-tooltip-persistence.spec.ts tests/browser/shell-floating-safe-zone.spec.ts
+        run: npm run test:browser -- tests/browser/commodity-freeze-details.spec.ts tests/browser/market-pointer-interaction.spec.ts tests/browser/market-tooltip-persistence.spec.ts tests/browser/shell-floating-safe-zone.spec.ts --workers=2 --max-failures=1 --retries=0 --reporter=list
+      - name: Preserve branch-only browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-floating-preflight
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 3
