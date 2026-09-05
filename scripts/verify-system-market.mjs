@@ -14,6 +14,7 @@ const systemMarket = read('server/src/system-market.js');
 const balancedMarket = read('server/src/balanced-market.js');
 const domain = read('server/src/domain.js');
 const catalog = read('server/src/market-demand/catalog.js');
+const cycleAutoOperation = read('server/src/cycle-auto-operation.js');
 const autoBuy = read('server/src/online-auto-buy.js');
 const autoSell = read('server/src/online-auto-sell.js');
 const procurement = read('server/src/facility-auto-procure.js');
@@ -33,7 +34,6 @@ for (const token of [
   '基础价的 50%～300%',
   '`priceDateKey` 是每日调价幂等键',
   '`world.systemMarketAudit`',
-  '自动采购和自动出售继续由玩家策略决定是否执行，但不再维护 managed-order ID',
   '建厂一键购料不再读取真实卖盘深度',
   '价格输入框、价格加减按钮、卖 5～卖 1／买 1～买 5',
 ]) requireText(design, token, `商品即时市场权威设计缺少规则：${token}`);
@@ -56,10 +56,19 @@ forbidText(domain, "return { ok: true, message: '订单已进入订单簿' }", '
 requireText(catalog, 'SYSTEM_PRICE_CYCLE_MS = 24 * 60 * 60 * 1000', '系统价格常量必须按日表达。');
 requireText(catalog, 'SYSTEM_PRICE_K_BPS = 1000', '每日价格失衡响应必须固定为 1000 bps。');
 requireText(catalog, 'SYSTEM_PRICE_MAX_CHANGE_BPS = 500', '每日价格涨跌上限必须固定为 500 bps。');
-requireText(autoBuy, 'commoditySystemPriceFor', '自动采购必须读取今日官方系统价。');
-forbidText(autoBuy, 'managedOrder', '自动采购不得恢复托管挂单。');
-requireText(autoSell, 'commoditySystemPriceFor', '自动出售必须读取今日官方系统价。');
-forbidText(autoSell, 'managedOrder', '自动出售不得恢复托管挂单。');
+
+for (const token of [
+  'commoditySystemPriceFor(world, input.productId, descriptor.provinceId, now)',
+  'commoditySystemPriceFor(world, descriptor.output.productId, descriptor.provinceId, now)',
+  "execution: 'cycle-auto-operation'",
+  'applySettledCommodityOrder(world',
+  'sellAllAvailable',
+]) requireText(cycleAutoOperation, token, `周期自动经营必须使用当日官方系统价并即时结算：${token}`);
+requireText(autoBuy, '周期完成时由服务器统一结算', '旧自动采购入口必须退役为周期结算提示。');
+requireText(autoSell, '周期完成时由服务器统一结算', '旧自动出售入口必须退役为周期结算提示。');
+forbidText(autoBuy, 'applySettledCommodityOrder', '旧自动采购入口不得继续即时成交。');
+forbidText(autoSell, 'applySettledCommodityOrder', '旧自动出售入口不得继续即时成交。');
+
 requireText(procurement, 'quoteMissingAtDailyPrice', '建厂报价必须按今日系统价生成。');
 requireText(procurement, 'applyImmediateCommodityBuy', '建厂缺料必须即时购买。');
 forbidText(procurement, '继续挂在市场', '建厂购料不得留下剩余挂单。');
@@ -104,4 +113,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('每日系统价即时市场验证通过：玩家无挂单、北京时间零点调价、±5% 日变动、旧冻结释放、自动经营与建厂购料均使用当日服务器价格。');
+console.log('每日系统价即时市场验证通过：玩家无挂单、北京时间零点调价、±5% 日变动、旧冻结释放；建筑自动采购/出售仅在周期完成后按当日官方价结算。');
