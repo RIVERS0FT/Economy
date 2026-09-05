@@ -73,7 +73,7 @@ for (const text of [
   'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.sell',
   'commoditySystemPriceFor(world, productId, provinceId, now)',
   'officialPrice < policy.price',
-  'productionReservedQuantitiesForPlayer',
+  'buildingReservedQuantitiesForPlayer',
   'contractAvailableHoldForOnlineTrade',
   'applySettledCommodityOrder(world, user',
   "execution: 'online-auto-sell'",
@@ -164,7 +164,7 @@ for (const text of [
 
 for (const text of [
   '地区商品详情不再渲染“自动经营执行”卡或逐商品执行摘要',
-  '工厂详情是自动经营策略与执行解释的唯一玩家界面',
+  '工业和商业详情是各自自动经营策略与执行解释的唯一玩家界面',
   'inputCoverageCycles: 1 | 2 | 3 | 5',
   '自动经营 = 开启',
   '原料保障 = 2 个生产周期',
@@ -190,6 +190,9 @@ for (const text of [
 ]) forbidText('server/test/online-auto-sell.test.js', text);
 forbidText('server/test/online-auto-buy.test.js', 'applyOnlineAutoTradePolicyAction(world, alice');
 forbidText('server/src/runtime-action-executor.js', 'factoryAutoOperationRebuild');
+
+requireText('server/src/building-input-reservations.js', 'productionReservedQuantitiesForPlayer(world, userId, provinceId)');
+requireText('server/src/building-input-reservations.js', 'commercialInputReservations');
 
 if (failures.length) {
   console.error('工厂自动经营防回退检查失败：');

@@ -35,10 +35,10 @@ for (const facility of FACILITY_TYPE_CATALOG) {
   }
 }
 
-const page = read('src/pages/BuildingsPage.tsx');
+const page = (read('src/pages/BuildingsPage.tsx') + '\n' + read('src/components/buildings/BuildingDetailPage.tsx'));
 const provincePage = read('src/pages/ProvincePage.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
-const formula = read('src/components/facilities/FacilityProductionFormula.tsx');
+const formula = (read('src/components/facilities/FacilityProductionFormula.tsx') + '\n' + read('src/components/buildings/BuildingSettlementPanel.tsx') + '\n' + read('src/components/buildings/BuildingSettlementProducts.tsx'));
 const controls = read('src/components/facilities/FacilityProductionConfigControls.tsx');
 const baseCss = read('src/styles/facility-group-card-grid.css');
 const surfaceCss = read('src/styles/production-surface.css');
@@ -77,9 +77,9 @@ for (const text of [
   'className="facility-cluster-selector-region"',
   'orderedFacilityGroups.map((entry) => (',
   'onSelect={() => selectFacilityEntry(entry.type.id)}',
-  'className="facility-cluster-detail-shell facility-cluster-detail-page"',
+  'facility-cluster-detail-shell facility-cluster-detail-page',
   '<FacilityClusterDetailContent',
-  'className="production-surface facility-card facility-group-card facility-cluster-detail-card"',
+  'production-surface facility-card facility-group-card facility-cluster-detail-card',
   'products={game.products}',
   'inventories={game.inventories}',
   'now={now}',
@@ -189,7 +189,7 @@ for (const text of [
   'formatDuration(type.cycleMs)',
   '<FacilityGroupProgress group={group} type={type} now={now} />',
   'import { GameConcept }',
-  '<strong><GameConcept concept="production-settlement" /></strong>',
+  '<strong>title={<GameConcept concept="production-settlement" />}</strong>',
   '<GameConcept concept="production-input" />',
   '<GameConcept concept="production-output" />',
 ]) assert.equal(formula.includes(text), true, `生产公式缺少: ${text}`);

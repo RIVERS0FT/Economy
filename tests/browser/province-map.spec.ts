@@ -136,12 +136,12 @@ test('state selection opens local context without resetting the static camera', 
   const tabs = page.getByRole('tablist', { name: '科罗拉多页面分区' });
   await expect(tabs.getByRole('tab', { name: '概览', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(tabs.getByRole('tab', { name: '市场', exact: true })).toBeVisible();
-  await expect(tabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();
-  await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();
+  await expect(tabs.getByRole('tab', { name: '商业', exact: true })).toHaveCount(0);
+  await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toBeVisible();
   await expect(tabs.getByRole('tab', { name: '仓库', exact: true })).toBeVisible();
 
-  await tabs.getByRole('tab', { name: '工业', exact: true }).click();
-  await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await tabs.getByRole('tab', { name: '建筑', exact: true }).click();
+  await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.production-build-card')).toBeVisible();
   await expect(page.locator('.facility-cluster-selector-list')).toBeVisible();
   await expect(page.locator('.buildings-summary-panel')).toHaveCount(0);

@@ -658,3 +658,11 @@
     --global-facility-region-row-gap: 1px;
   }
 }
+
+/* Commercial rows have no industrial quick-control track. */
+.global-facility-catalog-row[data-building-kind='commercial'] .global-facility-catalog-row__open {
+  grid-row: 1 / -1;
+}
+.entity-list-row.global-facility-region-row[data-building-kind='commercial'] {
+  grid-template-rows: minmax(44px, auto);
+}

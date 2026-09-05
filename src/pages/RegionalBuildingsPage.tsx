@@ -1,6 +1,7 @@
+import { useBuildingTypeFilter } from '../hooks/useBuildingTypeFilter';
 import { useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
-import { BuildingTypeFilter, type BuildingKindFilter } from '../components/buildings/BuildingTypeFilter';
+import { BuildingTypeFilter } from '../components/buildings/BuildingTypeFilter';
 import { PageLayout } from '../components/ui/layout';
 import { BuildingsPage } from './BuildingsPage';
 import { CommercePage } from './CommercePage';
@@ -15,7 +16,7 @@ export function RegionalBuildingsPage({ model, embedded = false, detailFacilityT
   onDetailFacilityChange?: (id: string | null) => void;
   onDetailCommercialTypeChange?: (id: string | null) => void;
 }) {
-  const [filter, setFilter] = useState<BuildingKindFilter>('all');
+  const [filter, setFilter] = useBuildingTypeFilter(`${model.game.userId}:province:${model.selectedProvinceId}`);
   const [localIndustrialId, setLocalIndustrialId] = useState<string | null>(null);
   const [localCommercialId, setLocalCommercialId] = useState<string | null>(null);
   const industrialId = onDetailFacilityChange ? detailFacilityTypeId : localIndustrialId;

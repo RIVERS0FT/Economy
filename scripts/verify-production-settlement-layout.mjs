@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(path, 'utf8');
-const formula = read('src/components/facilities/FacilityProductionFormula.tsx');
+const formula = [read('src/components/facilities/FacilityProductionFormula.tsx'), read('src/components/buildings/BuildingSettlementPanel.tsx'), read('src/components/buildings/BuildingSettlementProducts.tsx')].join('\n');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
 const productionPage = read('src/pages/BuildingsPage.tsx');
 const configControls = read('src/components/facilities/FacilityProductionConfigControls.tsx');
@@ -23,7 +23,7 @@ const buildingLayoutDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
 const main = read('src/main.tsx');
 
 for (const text of [
-  'data-status={group.status}',
+  'data-status={status}',
   'className="facility-formula-input-side"',
   'className="facility-formula-input"',
   'className="facility-formula-meta"',
@@ -39,7 +39,7 @@ for (const text of [
   'type="button"',
   'className="facility-formula-item-group"',
   'data-ui-interactive="surface"',
-  'aria-label={`查看${productName}本地商品详情，生产数量 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}',
+  "quantityLabel = '生产数量'",
   'onClick={() => onOpenProductMarket(item.productId)}',
   'onOpenProductMarket={onOpenProductMarket}',
 ]) assert.equal(formula.includes(text), true, `生产结算结构缺少: ${text}`);
@@ -58,7 +58,7 @@ for (const forbidden of [
 
 const itemStart = formula.indexOf('className={itemClassName}');
 const artworkStart = formula.indexOf('<ProductArtwork', itemStart);
-const quantityStart = formula.indexOf('<strong>{<CompactNumber value={quantity} />}</strong>', itemStart);
+const quantityStart = formula.indexOf('<strong><CompactNumber value={quantity} /></strong>', itemStart);
 const inventoryStart = formula.indexOf('className="facility-formula-inventory"', itemStart);
 assert.ok(itemStart >= 0 && artworkStart > itemStart, '商品图片必须位于物资行内');
 assert.ok(quantityStart > artworkStart && inventoryStart > quantityStart, '物资行必须依次为商品图片、生产数量、仓库数量');

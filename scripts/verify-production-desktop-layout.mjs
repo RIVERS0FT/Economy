@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(path, 'utf8');
 const main = read('src/main.tsx');
 const shell = read('src/styles/game-shell-layout.css');
-const page = read('src/pages/BuildingsPage.tsx');
+const page = (read('src/pages/BuildingsPage.tsx') + '\n' + read('src/components/buildings/BuildingDetailPage.tsx'));
 const provincePage = read('src/pages/ProvincePage.tsx');
 const production = read('src/styles/facility-group-card-grid.css');
 const productionSurface = read('src/styles/production-surface.css');
@@ -71,7 +71,7 @@ for (const text of [
   'className="facility-cluster-selector-region"',
   'orderedFacilityGroups.map((entry) => (',
   'onSelect={() => selectFacilityEntry(entry.type.id)}',
-  'className="facility-cluster-detail-shell facility-cluster-detail-page"',
+  'facility-cluster-detail-shell facility-cluster-detail-page',
   '<FacilityClusterDetailContent',
 ]) assert.equal(page.includes(text), true, `地区建筑实现缺少: ${text}`);
 assert.equal(page.indexOf('{buildCard}') < page.indexOf('{facilityList}'), true, '建设新工厂必须位于工厂卡片列表之前');

@@ -1,4 +1,5 @@
-import { BuildingTypeFilter, type BuildingKindFilter } from '../components/buildings/BuildingTypeFilter';
+import { useBuildingTypeFilter } from '../hooks/useBuildingTypeFilter';
+import { BuildingTypeFilter } from '../components/buildings/BuildingTypeFilter';
 import { CommercialBuildingArtwork } from '../components/commercial/CommercialBuildingArtwork';
 import { commercialProfitPerMinute } from '../utils/commercialPresentation';
 import { GlobalCommercialBuildingPage } from './GlobalCommercialBuildingPage';
@@ -92,7 +93,7 @@ function productionMethodGroupForType(type: FacilityTypeDefinition) {
 
 
 export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
-  const [buildingFilter, setBuildingFilter] = useState<BuildingKindFilter>('all');
+  const [buildingFilter, setBuildingFilter] = useBuildingTypeFilter(`${model.game.userId}:global`);
   const [selectedCommercialTypeId, setSelectedCommercialTypeId] = useState<string | null>(null);
   const [selectedGlobalFacilityTypeId, setSelectedGlobalFacilityTypeId] = useState<string | null>(null);
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
@@ -714,7 +715,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                         type="button"
                         className="global-facility-catalog-row__open"
                         data-ui-interactive="surface"
-                        aria-label={`打开${row.name}${row.kind === 'commercial' ? '地区商业建筑' : '地区工厂'}，拥有 ${formatNumber(row.totalCount)} 座，跨州单厂平均利润每分钟：${row.profitAccessibleValue}`}
+                        aria-label={`打开${row.name}${row.kind === 'commercial' ? '地区商业建筑' : '地区工厂'}，拥有 ${formatNumber(row.totalCount)} 座，${row.kind === 'commercial' ? '单座稳定利润' : '跨州单厂平均利润'}每分钟：${row.profitAccessibleValue}`}
                         title={row.profitDetail}
                         onClick={() => row.kind === 'commercial' ? openGlobalCommercial(row.buildingTypeId) : openGlobalFacility(row.buildingTypeId)}
                       >
@@ -780,7 +781,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                 ))}
               </ul>
             </>
-          ) : <Panel className="empty-state">当前还没有已建成工厂。</Panel>}
+          ) : <Panel className="empty-state">没有符合当前筛选条件的建筑。</Panel>}
         </section>
       </div>
     </PageLayout>

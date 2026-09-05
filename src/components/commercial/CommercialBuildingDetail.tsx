@@ -92,7 +92,7 @@ export function CommercialBuildingDetail({ group, type, products, inventories, m
       </BuildingAutoOperationSection>
       <BuildingSettlementPanel className="commercial-settlement" title={<GameConcept concept="commercial-settlement">经营结算</GameConcept>}
         status={group.status} description={`${type.name}经营结算，${settlement.locked ? '本周期锁定结果' : '下一周期预计结果'}，参与 ${settlement.count} 座，${settlement.label} ${settlement.revenue === null ? '待确认' : formatCurrency(settlement.revenue)}`}
-        inputLabel={settlement.locked ? '已投入商品' : '消费商品'} outputLabel={settlement.label}
+        inputLabel={settlement.locked ? '已投入商品' : '消费商品'} outputLabel={settlement.locked ? '锁定收入' : '预计收入'}
         inputs={settlement.inputs ? <BuildingSettlementProducts items={settlement.inputs} productNames={productNames}
           inventories={inventories} multiplier={1} groupClassName="facility-formula-input-group commercial-consumption-list"
           itemClassName="facility-formula-input-item" quantityLabel="营业消耗" requiredForNextCycle={nextRequirements}
@@ -100,7 +100,7 @@ export function CommercialBuildingDetail({ group, type, products, inventories, m
         outputs={<div className="facility-formula-output-group commercial-settlement-revenue">
           <div className="facility-formula-output-item"><CreditsIcon className="facility-formula-meta-icon" /><strong>{money(settlement.revenue)}</strong></div>
         </div>}
-        cycleMs={type.cycleMs} operatingCost={settlement.operatingCost} progress={<CommercialCycleProgress group={group} now={now} />}>
+        cycleMs={settlement.locked && typeof group.cycleStartedAt === 'number' && typeof group.cycleCompletesAt === 'number' && group.cycleCompletesAt > group.cycleStartedAt ? group.cycleCompletesAt - group.cycleStartedAt : type.cycleMs} operatingCost={settlement.operatingCost} progress={<CommercialCycleProgress group={group} now={now} />}>
         <DataList>
           <DataRow label={settlement.label} value={money(settlement.revenue)} />
           <DataRow label={settlement.locked ? '本周期锁定商品价值' : '预计商品价值'} value={money(settlement.inputValue)} />

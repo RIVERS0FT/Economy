@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import type { CommercialBuildingTypeDefinition } from '../types/commercial';
-import { commercialProfitPerMinute, commercialStatusLabel } from '../utils/commercialPresentation';
+import { COMMERCIAL_STATUS_LABELS, commercialProfitPerMinute, commercialStatusLabel } from '../utils/commercialPresentation';
 import { CommercePage } from './CommercePage';
 import { ChevronIcon } from '../components/icons/GameIcons';
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
@@ -63,7 +63,7 @@ export function GlobalCommercialBuildingPage({ model, type, activeProvinceId, on
                 <span className="global-facility-region-row__identity"><strong>{region.name}</strong></span>
                 <strong className="entity-list-value global-facility-region-row__profit is-positive" title="单座稳定利润／分钟"><CompactCurrency value={profit} /></strong>
                 <strong className="global-facility-region-row__metric"><CompactNumber value={group.count} /></strong>
-                <strong className="global-facility-region-row__status">{commercialStatusLabel(group)}</strong>
+                <strong className="global-facility-region-row__status" title={commercialStatusLabel(group)}>{COMMERCIAL_STATUS_LABELS[group.status]}</strong>
                 <span className="global-facility-region-row__chevron" aria-hidden="true"><ChevronIcon direction="right" /></span>
               </button>
             </div>

@@ -606,3 +606,7 @@ Playwright 必须验证 `1684×931`、`1280×900`、`900×1000`、`390×844` 和
 ### 玩家头像
 
 玩家头像统一由 `PlayerAvatar` 渲染；状态栏左侧玩家头像与排行榜玩家列固定复用 `PlayerAvatar`。头像盒必须始终保持 `1:1` 正方形；服务器实际资源固定为 64×64 WebP。加载失败或旧玩家尚未设置头像时使用玩家名称首字符作为本地回退，不请求大图。设置页选择原图后必须先在浏览器本地居中裁成正方形、缩放至 64×64 并压缩，再上传最终缩略图；原图不得发送到服务器。状态栏、设置页和排行榜不得各自实现第二套头像加载逻辑。
+
+### 共享建筑组件边界
+
+工业与商业通过 `BuildingDetailPage` 共用真实页面承载、标题和返回，业务适配器只提供内容与操作，不复制第二套页面壳。`BuildingAutoOperationSection` 共用同一行的“自动经营”和开关及反馈区；`BuildingSettlementPanel` 共用投入／结果、周期成本带和进度结构，`BuildingSettlementProducts` 共用商品插画、数量、本地库存及同州商品导航。公共组件不计算利润、不执行采购、不转换业务类型。`BuildingTypeFilter` 复用商品筛选的原生 disclosure、按钮、选中状态和样式，不新增独立筛选外观。页面字段归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，局部几何归 `PRODUCTION_PILL_ALIGNMENT_DESIGN.md`。

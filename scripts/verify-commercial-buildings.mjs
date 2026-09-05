@@ -15,7 +15,7 @@ const assetChart = read('src/components/charts/AssetAllocationChart.tsx');
 const overview = read('src/pages/OverviewPage.tsx');
 const province = read('src/pages/ProvincePage.tsx');
 const provinceCss = read('src/styles/province-page.css');
-const commerce = read('src/pages/CommercePage.tsx');
+const commerce = read('src/pages/CommercePage.tsx') + read('src/components/buildings/BuildingDetailPage.tsx');
 const navigation = read('src/navigation/playerPageStack.ts');
 const design = read('docs/COMMERCIAL_BUILDINGS_DESIGN.md');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
@@ -64,10 +64,10 @@ assert.ok(assetChart.includes("{ name: '建筑'"), '资产配置图必须把工�
 assert.ok(overview.includes('label="商业建筑估值"'), '概览资产摘要必须显示商业建筑估值');
 
 const marketIndex = province.indexOf("{ id: 'market', label: '市场' }");
-const commerceIndex = province.indexOf("{ id: 'commerce', label: '商业' }");
-const industryIndex = province.indexOf("{ id: 'buildings', label: '工业' }");
-assert.ok(marketIndex >= 0 && commerceIndex > marketIndex && industryIndex > commerceIndex, '地区页必须保持市场 / 商业 / 工业顺序');
-assert.ok(provinceCss.includes('grid-template-columns: repeat(5, minmax(0, 1fr));'), '地区五分区必须使用五个等宽列');
+const buildingsIndex = province.indexOf("{ id: 'buildings', label: '建筑' }");
+assert.ok(marketIndex >= 0 && buildingsIndex > marketIndex, '地区导航必须保持市场 / 建筑顺序');
+assert.equal(province.includes("{ id: 'commerce', label: '商业' }"), false, '商业不再使用独立分区');
+assert.ok(provinceCss.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'), '地区四分区必须等宽');
 assert.ok(navigation.includes("'overview' | 'market' | 'commerce' | 'buildings' | 'warehouse'"));
 assert.ok(navigation.includes("type: 'regional-commercial'"));
 
@@ -86,9 +86,9 @@ for (const token of [
   '不是市场成交',
 ]) assert.ok(design.includes(token), `商业权威设计缺少: ${token}`);
 for (const token of [
-  '概览｜市场｜商业｜工业｜仓库',
-  '技术 section ID 不迁移',
-  '`CommercePage`',
+  '概览｜市场｜建筑｜仓库',
+  '统一建筑目录',
+  '商业建筑卡片与详情',
 ]) assert.ok(pageDesign.includes(token), `地区页面权威设计缺少商业分区规则: ${token}`);
 assert.ok(
   productionAlignmentDesign.includes('地区子导航的名称与顺序以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为唯一权威'),
@@ -97,3 +97,10 @@ assert.ok(
 assert.ok(docsIndex.includes('`COMMERCIAL_BUILDINGS_DESIGN.md`'), '设计索引必须登记商业建筑权威文档');
 
 console.log('commercial buildings verification passed');
+
+for (const path of ['src/pages/GlobalBuildingsPage.tsx', 'src/pages/RegionalBuildingsPage.tsx']) {
+  assert.ok(read(path).includes('<BuildingTypeFilter'));
+  assert.ok(read(path).includes('commercialBuildingGroups'));
+}
+const buildingFilter = read('src/components/buildings/BuildingTypeFilter.tsx');
+for (const token of ['global-market-filter-disclosure', 'global-market-filter-button', '全部', '商业建筑', '工业建筑', 'aria-pressed']) assert.ok(buildingFilter.includes(token));
