@@ -204,7 +204,7 @@ requireText('server/src/app.js', [
   "path === '/api/game/facility-build-quote'",
   "const compactManualCommodityOrder = route.action === 'placeOrder'",
   "payload.assetKind === 'commodity'",
-  "sendJson(response, 200, actionResponse);",
+  "commandRevision: actionResponse.revision",
   "Object.defineProperty(actionResponse, 'stateSnapshot'",
   'value: store.getStateSnapshot(user, null, actionDeliveryNow)',
   'createPartitionedActionDelivery(actionResponse, knownPartitions, actionDeliveryNow)',

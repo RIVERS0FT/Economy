@@ -682,7 +682,10 @@ const server = createServer(async (request, response) => {
       && payload.assetKind === 'commodity'
       && !payload.execution;
     if (compactManualCommodityOrder) {
-      sendJson(response, 200, actionResponse);
+      sendJson(response, 200, {
+        ...actionResponse,
+        commandRevision: actionResponse.revision,
+      });
       return;
     }
 

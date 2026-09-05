@@ -83,7 +83,7 @@ for (const text of [
   "const compactManualCommodityOrder = route.action === 'placeOrder'",
   "payload.assetKind === 'commodity'",
   '!payload.execution',
-  'sendJson(response, 200, actionResponse);',
+  'commandRevision: actionResponse.revision',
   "Object.defineProperty(actionResponse, 'stateSnapshot'",
   'value: store.getStateSnapshot(user, null, actionDeliveryNow)',
   'createPartitionedActionDelivery(actionResponse, knownPartitions, actionDeliveryNow)',
