@@ -49,5 +49,8 @@ test('market chart keeps price, volume and mobile axis semantics readable', asyn
   expect(cssColors.info).not.toBe(cssColors.success);
 
   const visibleSvgLabels = await chart.locator('.economy-chart__canvas svg text').allTextContents();
-  expect(visibleSvgLabels).toContain('2');
+  const maxVolumeTick = Math.max(...state.volumeTicks);
+  const visibleIntermediateVolumeTick = state.volumeTicks.find((value) => value > 0 && value < maxVolumeTick) ?? null;
+  expect(visibleIntermediateVolumeTick).not.toBeNull();
+  expect(visibleSvgLabels).toContain(String(visibleIntermediateVolumeTick));
 });

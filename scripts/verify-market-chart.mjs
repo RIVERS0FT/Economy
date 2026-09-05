@@ -199,7 +199,8 @@ for (const text of [
   'not.toContain(0)', 'toBeGreaterThanOrEqual(3)', 'toBeGreaterThanOrEqual(68)',
   "chart.locator('.market-chart-section-label')", "chart.locator('.market-chart-x-axis-title')",
   "root.getPropertyValue('--color-info')", "root.getPropertyValue('--color-success')",
-  "chart.locator('.economy-chart__canvas svg text')", "toContain('2')",
+  "chart.locator('.economy-chart__canvas svg text')", 'maxVolumeTick', 'visibleIntermediateVolumeTick',
+  'toContain(String(visibleIntermediateVolumeTick))',
 ]) assert.ok(readabilitySpec.includes(text), `行情图可读性浏览器回归缺少: ${text}`);
 for (const text of [
   'market chart uses one linked hover state and keeps the price line protected',
