@@ -302,7 +302,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 - 地图由 `StrategicWorkspace` 内唯一 `UsMainlandMap` 持有，不再使用 ECharts Geo/Map。精确使用 `us-atlas@3.0.1` 与 `topojson-client@3.1.0` 把州 TopoJSON 转为连续 48 州几何，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。地图在模块初始化时建立固定投影比例的静态 SVG 世界面；48 个州面 path 必须始终完整挂载，州面 path 的 `d` 在缩放和平移期间保持不变，不得按当前物理视口裁掉屏外州或在手势期间重新生成路径。根 `.application-map-layer` 仍只负责最终物理视口裁剪；州面放大后可以离开屏幕，但缩小时必须仅凭同一世界面的相机变换在手势 active 阶段立即重新进入。
 - 战略地图的世界上下文数据精度、大陆填充与描边、美国外边线合并、SVG Camera、州名布局、交互状态及渲染性能唯一遵循 `STRATEGIC_MAP_RENDERING_DESIGN.md`；本设计只拥有地图使用的通用颜色、字体、普通控件、Tooltip 材质和可访问性原语，不复制地图专属规则。
-- 中文州全名与州面必须复用通用字体和可访问性令牌；具体 SVG glyph 布局、相机同步和输入穿透规则由 `STRATEGIC_MAP_RENDERING_DESIGN.md` 定义。
+- 中文州全名继续复用通用可访问性与颜色令牌，但字体是战略地图的专用衬线例外：地图 viewport 固定使用 `"Playfair Display", Georgia, "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, SimSun, serif`，拉丁字形优先采用 Playfair Display／Georgia，中文逐级回退到 Noto Serif SC／思源宋体／系统宋体；不得恢复全局 Inter 无衬线继承，也不得依赖远程字体加载。该字体栈必须直接落在参与州名布局测量的地图 viewport 上，使 Canvas `measureText` 与真实 SVG glyph 继承同一计算字体；具体 SVG glyph 布局、相机同步和输入穿透规则由 `STRATEGIC_MAP_RENDERING_DESIGN.md` 定义。
 - 移动双指从州面、州界附近或地图空白起手必须等价。相机输入层在容器捕获阶段同时跟踪 Pointer 与 Touch 生命周期；一旦本轮出现两个及以上触点，从多点手势开始到最后触点释放后的 `420ms` 内，必须抑制合成 click、州面选择和空白双触重置。该窗口只负责输入仲裁，不得驱动、回滚或复制相机；窗口结束后的正常单指点击必须立即恢复。防回退必须记录多点序列数、当前触点数和被抑制 click 数，使真浏览器 CDP 双触可以验证州面内起手也不会误打开地区页。
 - 州面 hover、focus 和 selected 继续使用本设计的通用文字／边界颜色令牌，但其精确描边层级、滤镜限制和状态实现唯一由 `STRATEGIC_MAP_RENDERING_DESIGN.md` 定义。
 - 地区默认、当前、资产、工业、市场和异常语义继续使用区域填充、边界、文字、Tooltip 和五种镜头共同表达；默认州面、州界与州名分别读取 `--color-map-region-default`、`--color-map-region-border` 与 `--color-map-label`；`--color-map-region-locked` 只保留旧主题兼容，不得用于州级访问状态。当前地区由外部 `selectedProvinceId` 驱动 path 与标签选中属性；镜头状态只属于 `GameShell` 客户端视觉上下文，不写入服务器或更换地区。每个州面保留鼠标、触摸和键盘激活；单击后设置经营州并打开隐藏 `province` 上下文页。离开州级页立即清除地图视觉高亮，但保留经营州供后续业务写操作使用。
@@ -449,7 +449,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 - 把移动端标准输入高度降到 `48px` 以下、紧凑输入降到 `44px` 以下，或把移动端输入字号降到 `16px` 以下；
 - 在页面 CSS 中重新定义输入背景、边框、圆角、焦点、错误、只读、禁用、自动填充或文件选择器基础视觉；
 - 恢复英文眉题；
-- 把地图州名恢复为英文州缩写、ECharts 默认标签、固定屏幕字号、州外／引线标签，或让中文州全名标签不再完整落在州面内部、不随地图缩放和平移同步重算；
+- 把地图州名恢复为英文州缩写、ECharts 默认标签、固定屏幕字号、州外／引线标签、全局 Inter／无衬线继承，或让中文州全名标签不再完整落在州面内部、不随地图缩放和平移同步重算；
 - 把地图缩放恢复为 ECharts 根 SVG／州名根 SVG 的 CSS 矩阵缩放、恢复 settle 后 `layoutSize + layoutCenter` 二次提交或维护第二套持久相机；交互缩放必须在动画帧内通过同一 ECharts Map 的增量 `geoRoam` 推进正式相机，且动画帧不得调用 `setOption`、重新投影／重排 48 州标签；
 - 把匿名公共订单簿恢复为同价订单逐笔重复行、在聚合前先截取五笔，或使用原始 `quantity` 代替当前 `remaining`；
 - 合并我的订单、撤单入口、逐笔成交或手续费，或把客户端价格档位保存为服务器订单；
