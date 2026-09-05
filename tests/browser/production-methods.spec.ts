@@ -23,7 +23,7 @@ test.describe('factory production methods', () => {
     await expect(informationMain.locator('.facility-staffing-summary')).toBeVisible();
     await expect(informationMain).toContainText('运行中');
     await expect(informationMain).toContainText('冻结中');
-    await expect(informationMain).toContainText('冻结中');
+    await expect(informationMain).not.toContainText('抵押中');
     await expect(informationMain).toContainText('单厂平均利润／分钟');
     await expect(informationMain).toContainText('满员率');
     await expect(informationMain.locator('.facility-average-profit__copy small')).toHaveCount(0);

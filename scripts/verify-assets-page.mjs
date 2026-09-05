@@ -128,11 +128,11 @@ forbidText(componentPath, '商品和工厂按最近一次订单簿真实成交�
 requireText(designPath, '商品按各州当日官方系统价估值；工厂按最近一次真实产权成交价估值');
 requireText(designPath, '商业建筑按服务器目录 `systemValue` 估值');
 
+requireText(componentPath, 'Number(group.frozenCount || 0) + Number(group.mortgagedCount || 0) + Number(group.contractCollateralCount || 0)');
+
 if (failures.length) {
   console.error(`银行资产总览与本地资产变动删除验证失败：\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
 console.log('银行资产总览、商业建筑资产估值、资金管理与冻结融资布局、十二个正式页面与十一项可见导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。');
-
-requireText(componentPath, 'Number(group.frozenCount || 0) + Number(group.mortgagedCount || 0) + Number(group.contractCollateralCount || 0)');
