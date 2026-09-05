@@ -6,50 +6,50 @@
 
 
 ## focused
-✔ commercial auto settings are strict, owned and independent of running intent (20.663851ms)
-✔ legacy default and derived execution policy do not rewrite saved groups (8.139281ms)
-✔ commercial purchase fills only the local two-cycle shortfall once (7.450381ms)
-✔ commercial auto-purchase respects price caps, cash and operating intent (4.361468ms)
-✔ commercial inventory protection adds per-consumer demand and survives disabling procurement (4.457205ms)
-✔ commerce alone cannot create an automatic sale or return goods on stop (4.246412ms)
-✔ server locks all commercial settlement details across price, count and policy changes (7.342806ms)
-✔ offline commercial world advancement does not invoke automatic purchases (5.679688ms)
-✔ commercial building consumes local goods and settles a fixed locked profit without market volume (19.092281ms)
-✔ commercial auto operation recovers after missing local goods are restored (8.605161ms)
-✔ commercial building never consumes inventory from another province (7.014311ms)
-✔ stopping during an invested cycle keeps the locked settlement but prevents renewal (5.068761ms)
-✔ commercial cycle locks staffing, integer inputs, costs and profit at start (20.897445ms)
-✔ zero staffing enters a real recovery cycle and is included in the scheduler deadline (8.562264ms)
-✔ stopping a zero-output cycle cannot mint carry or restart its deadline (7.726929ms)
-✔ disabling procurement does not change staffing direction; stopping does (6.830964ms)
-✔ persistent shortage decays from one baseline instead of losing fractional time on every poll (19.143709ms)
-✔ legacy invested amounts survive migration and missing staffing does not retroactively decay (4.970672ms)
-✔ staffed operation remains local and does not write market volumes (6.17747ms)
-(node:2187) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+✔ commercial auto settings are strict, owned and independent of running intent (34.605516ms)
+✔ legacy default and derived execution policy do not rewrite saved groups (17.594755ms)
+✔ commercial purchase fills only the local two-cycle shortfall once (13.35403ms)
+✔ commercial auto-purchase respects price caps, cash and operating intent (13.53114ms)
+✔ commercial inventory protection adds per-consumer demand and survives disabling procurement (19.224731ms)
+✔ commerce alone cannot create an automatic sale or return goods on stop (17.682124ms)
+✔ server locks all commercial settlement details across price, count and policy changes (10.98831ms)
+✔ offline commercial world advancement does not invoke automatic purchases (6.705438ms)
+✔ commercial building consumes local goods and settles a fixed locked profit without market volume (29.310633ms)
+✔ commercial auto operation recovers after missing local goods are restored (11.477896ms)
+✔ commercial building never consumes inventory from another province (18.361328ms)
+✔ stopping during an invested cycle keeps the locked settlement but prevents renewal (9.115232ms)
+✔ commercial cycle locks staffing, integer inputs, costs and profit at start (22.898141ms)
+✔ zero staffing enters a real recovery cycle and is included in the scheduler deadline (9.863745ms)
+✔ stopping a zero-output cycle cannot mint carry or restart its deadline (8.509695ms)
+✔ disabling procurement does not change staffing direction; stopping does (6.441677ms)
+✔ persistent shortage decays from one baseline instead of losing fractional time on every poll (16.786727ms)
+✔ legacy invested amounts survive migration and missing staffing does not retroactively decay (11.395416ms)
+✔ staffed operation remains local and does not write market volumes (7.463528ms)
+(node:2410) ExperimentalWarning: SQLite is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
-✔ a user write joins the serial executor after its arrival barrier without recursively chasing later deadlines (10.465584ms)
-✔ a failed world barrier does not execute or acknowledge an economic write (4.574822ms)
-✔ buy confirmation after delayed admission mutates the real SQLite world once (117.62255ms)
-✔ sell confirmation after delayed admission mutates the real SQLite world once (61.816852ms)
-✔ commercial policies reject coercion and invalid coverage (1.232339ms)
-✔ default commercial policy does not mutate a legacy group (0.22005ms)
-✔ running settlement ignores current price, count and catalog changes (2.039888ms)
-✔ legacy invested cycle cannot fabricate missing locked detail (0.155036ms)
-✔ stopped preview uses full count and only real official prices (0.305207ms)
-✔ commercial page locations retain distinct hosts and identities (0.186907ms)
-✔ commercial staffing uses the authoritative baseline and remains read only (0.91084ms)
-✔ missing or invalid commercial authority never becomes a fabricated 100 percent (0.228517ms)
-✔ integer commercial capacity retains fractional work and supports safe large counts (0.797312ms)
-✔ zero-revenue recovery cycles are active, while absent legacy cycles are not (0.151551ms)
-✔ complete receipt is buffered and reusable after timeout cleanup (28.181438ms)
-✔ headers without a completed body hit the deadline and confirm the identical request (11.610205ms)
-✔ two missing receipts finish as unknown rather than claimed failure or success (18.189079ms)
-✔ unusable success receipt is confirmed before being accepted: {"result": (1.035269ms)
-✔ unusable success receipt is confirmed before being accepted: {} (0.561814ms)
-✔ unusable success receipt is confirmed before being accepted: {"result":{"ok":"true","message":"x"},"revision":1} (0.608302ms)
-✔ definitive business rejection and retryable status preserve their real HTTP results (2.011072ms)
-✔ confirmation has a fresh signal even if the first caller signal was aborted (1.705904ms)
-✔ a request already aborted before send is not retried into a new economic action (0.369572ms)
+✔ a user write joins the serial executor after its arrival barrier without recursively chasing later deadlines (13.7193ms)
+✔ a failed world barrier does not execute or acknowledge an economic write (6.756714ms)
+✔ buy confirmation after delayed admission mutates the real SQLite world once (187.548001ms)
+✔ sell confirmation after delayed admission mutates the real SQLite world once (78.234633ms)
+✔ commercial policies reject coercion and invalid coverage (3.152416ms)
+✔ default commercial policy does not mutate a legacy group (3.350174ms)
+✔ running settlement ignores current price, count and catalog changes (0.541487ms)
+✔ legacy invested cycle cannot fabricate missing locked detail (0.312352ms)
+✔ stopped preview uses full count and only real official prices (0.470996ms)
+✔ commercial page locations retain distinct hosts and identities (0.398461ms)
+✔ commercial staffing uses the authoritative baseline and remains read only (1.926234ms)
+✔ missing or invalid commercial authority never becomes a fabricated 100 percent (0.392991ms)
+✔ integer commercial capacity retains fractional work and supports safe large counts (1.489482ms)
+✔ zero-revenue recovery cycles are active, while absent legacy cycles are not (0.275031ms)
+✔ complete receipt is buffered and reusable after timeout cleanup (41.219517ms)
+✔ headers without a completed body hit the deadline and confirm the identical request (10.859719ms)
+✔ two missing receipts finish as unknown rather than claimed failure or success (10.851273ms)
+✔ unusable success receipt is confirmed before being accepted: {"result": (2.083848ms)
+✔ unusable success receipt is confirmed before being accepted: {} (1.540137ms)
+✔ unusable success receipt is confirmed before being accepted: {"result":{"ok":"true","message":"x"},"revision":1} (1.546277ms)
+✔ definitive business rejection and retryable status preserve their real HTTP results (3.691339ms)
+✔ confirmation has a fresh signal even if the first caller signal was aborted (1.024146ms)
+✔ a request already aborted before send is not retried into a new economic action (0.44083ms)
 ℹ tests 42
 ℹ suites 0
 ℹ pass 42
@@ -57,7 +57,7 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 503.550446
+ℹ duration_ms 805.096183
 
 
 ## dt
@@ -132,13 +132,13 @@ Fixed reusable stress-test account registry, strict slicing and secret boundary 
 > economy@0.4.0 test:stress
 > node --test tests/stress/stress-flow.test.mjs
 
-(node:2528) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(node:2779) ExperimentalWarning: SQLite is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
-✔ stress metrics calculate percentiles and enforce budgets (1.348795ms)
-✔ budgeted routes must provide server-local timing instead of client end-to-end timing (0.195572ms)
-✔ stress safety prevents production writes and unsafe targets (0.46611ms)
-✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (5192.028041ms)
-✔ isolated transaction mix exercises state, orders, facilities, recipes, builds and research (8116.738239ms)
+✔ stress metrics calculate percentiles and enforce budgets (1.872274ms)
+✔ budgeted routes must provide server-local timing instead of client end-to-end timing (0.279169ms)
+✔ stress safety prevents production writes and unsafe targets (0.683652ms)
+✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (4593.669294ms)
+✔ isolated transaction mix exercises state, orders, facilities, recipes, builds and research (7851.574183ms)
 ℹ tests 5
 ℹ suites 0
 ℹ pass 5
@@ -146,7 +146,7 @@ Fixed reusable stress-test account registry, strict slicing and secret boundary 
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 18220.333826
+ℹ duration_ms 17581.979437
 Nested custom/native scroll ownership, shared signed-in page scroll, Strategic Outliner vertical boundary release, regional factory page flow and boundary release verification passed.
 宝石、邀请与封禁验证通过：同 IP 仅上报异常，账号封禁只由管理员执行，邀请防刷与审计边界保持。
 Daily check-in verification passed.
@@ -236,51 +236,26 @@ facility unlock select verification passed
 > node scripts/verify-production-config-visual.mjs
 
 生产配置视觉验证通过：生产产物与作业制度使用 UMG 风格 Auto 槽连续左排；候选能够完整容纳时按真实内容高度展开，必要时在安全矩形内平移，不产生内部纵向滚动。
-市场即时交易数量控件验证通过：商品成交价只读取服务器当日价，连续 48 州均可交易，玩家仅调整数量，价格输入与五档盘口不得恢复。
-合同页布局验证通过：默认工作台、四视图、主从详情、方向筛选与既有合同对象卡/审计兼容保持当前规则。
-Contract audit and compact history verification passed.
-六类合同方向、资产锁定、现行工作区入口与权威设计验证通过
-地区化每日商品合同验证通过：按地区固定价、每日额度、合同时间按天、生产择价来源、优先供应条件、商品详情摘要与跳转均已锁定。
-货币 SVG 验证通过：50 处可见金额统一使用 CreditsIcon，通知边界兼容旧字符串，玩家端源码无字符货币符号。
-移动触摸反馈验证通过：触摸输入不产生粘滞交互视觉，键盘 focus-visible 保留；原生 tap highlight 的实现和图表触控回归由对应 CSS 与图表 DESIGN 锁定。
-全局输入方式验证通过；当前遗留未约束 hover 15 条，新增条目为 0。
-Shared virtual windowing, single two-axis record viewport and boundary scroll chaining verification passed.
-统一尺寸、玩家页面滚动条空闲自动隐藏、共享登录后页面滚动、共享移动详情安全边缘、鼠标与触控策略、市场列表无横向主滚动和单一双轴虚拟成交表验证通过。
-概览验证通过：共享外壳折叠、桌面战略追踪器、移动同一 Outliner 教程、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。
-产业目录验证通过：38 种商品、26 种工厂、全工厂具名作业制度、炼油工业耗材和 C2 3/6/9/10.5 利润梯度。
-生产方式验证通过：26 类工厂均使用四种具名制度与语义图标，旧制度只参与等参数存档迁移，共享制度定义、固定精度、研发校验、独立移动视口门禁与客户端版本 40 均已锁定。
-C1 投入品平衡验证通过：六种价格与上游批量产出、三级利润区间、同级差距和当前市场需求模型 20 均已锁定。
-统一工厂配方与地区卡片验证通过：目录顺序、三列 4:5 工厂卡、二级详情、无标题生产配置、游戏名词解释与共享移动基础设施均已锁定。
-
-> economy@0.4.0 verify:production-settlement
-> node scripts/verify-production-settlement-layout.mjs
-
-生产结算商品 PNG、无标题生产配置、插画右侧经营指标、本地商品详情导航、按钮圆角进度、资产入口同行与几何防回退验证通过。
-
-> economy@0.4.0 verify:production-lazy-settlement
-> node scripts/verify-production-lazy-settlement.mjs
-
-production lazy settlement architecture verified
-地区建筑验证通过：建设卡优先、三列 4:5 工厂卡、二级详情、正文分区导航、全玩家 40px 标题轨道与紧凑开关均已锁定。
-市场需求验证通过：模型 20 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并按州级 PCE 权重生成本地需求；共享撮合只服务服务器内部人口／储备模拟，玩家商品交易保持每日系统价即时成交。
-market reserve operations verification passed
-商品即时市场资产验证通过：玩家只按当日服务器价格即时交易；公开商品盘口为空；内部人口／储备档位兼容、商品／工厂主视觉、本地成交窗口化与管理员高增长列表继续受保护。
-地区即时商品市场验证失败：
-- 地区商品详情缺少即时成交结构: placeAssetOrder('commodity', assetId, orderSide, parsedQuantity, officialPrice)
-- 地区商品详情缺少即时成交结构: {orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`}
+市场即时交易数量控件验证失败:
+- src/pages/MarketPage.tsx 缺少: const total = officialPrice * effectiveQuantity;
 
 
 ## contracts
+
+FAILED node scripts/verify-market-order-entry-compact.mjs 
+ 市场即时交易数量控件验证失败:
+- src/pages/MarketPage.tsx 缺少: const total = officialPrice * effectiveQuantity;
+
+
+FAILED node --experimental-strip-types scripts/verify-market-assets.mjs 
+ 商品即时市场、内部档位兼容、主视觉、窗口化记录与管理功能验证失败:
+- src/pages/MarketPage.tsx 缺少: const total = officialPrice * effectiveQuantity;
+
 
 FAILED node scripts/verify-market-page-layout.mjs 
  地区即时商品市场验证失败：
 - 地区商品详情缺少即时成交结构: placeAssetOrder('commodity', assetId, orderSide, parsedQuantity, officialPrice)
 - 地区商品详情缺少即时成交结构: {orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`}
-
-
-FAILED node scripts/verify-authoritative-countdowns.mjs 
- 权威倒计时验证失败:
-- src/api/game.ts 缺少: DEFAULT_WRITE_TIMEOUT_MS = 12_000
 
 
 
@@ -292,340 +267,177 @@ FAILED node scripts/verify-authoritative-countdowns.mjs
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 11293.964009
+ℹ duration_ms 16825.209856
 
 
 ## browser
-════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
 
-    Error Context: test-results/unified-buildings-global-c-c9bab-th-building-kinds-at-1440px-chromium-retry1/error-context.md
+Running 30 tests using 4 workers
+
+[1/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 390px
+[2/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 720px
+[3/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 1440px
+[4/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 320px
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[5/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:70:1 › commercial cards show per-building profit and details show server-locked totals
+[6/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:87:1 › commercial switch prevents repeated requests and preserves an invested cycle after stop
+[7/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial network failure leaves the authoritative switch intact
+[8/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial server failure leaves the authoritative switch intact
+
+
+[9/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:133:1 › commercial countdown waits for the server and does not settle or restart locally
+
+[10/30] [chromium] › tests/browser/commercial-buildings-layout.spec.ts:147:1 › commercial empty state and long names remain usable at 320px
+
+[11/30] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 320px
+[12/30] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 390px
+
+
+[13/30] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 720px
+
+
+
+
+[14/30] [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 1440px
+
+
+
+[15/30] [chromium] › tests/browser/commercial-staffing.spec.ts:47:1 › staffing changes never overwrite an invested commercial cycle or claim local settlement
+
+
+
+
+[16/30] [chromium] › tests/browser/commercial-staffing.spec.ts:65:1 › missing staffing is unknown and does not fabricate full efficiency or locked details
+
+
+[17/30] [chromium] › tests/browser/trade-confirmation.spec.ts:28:1 › concurrent identical writes share one HTTP attempt and each receives its own readable receipt
+
+
+[18/30] [chromium] › tests/browser/trade-confirmation.spec.ts:43:1 › two lost receipts retain one key across reload and successful confirmation releases it
+[19/30] [chromium] › tests/browser/trade-confirmation.spec.ts:63:1 › HTTP success with a broken receipt does not release the original transaction key
+
+
+[20/30] [chromium] › tests/browser/trade-confirmation.spec.ts:76:3 › buy controls freeze pending parameters and confirm even after funds or inventory change
+  1) [chromium] › tests/browser/trade-confirmation.spec.ts:28:1 › concurrent identical writes share one HTTP attempt and each receives its own readable receipt 
+
+    Error: page.evaluate: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:1420/src/api/idempotentGameWriteFetch.ts
+
+       6 | async function bootCoordinator(page: Page) {
+       7 |   await page.goto('runtime-test.html?view=commerce&scenario=activity');
+    >  8 |   await page.evaluate(async () => {
+         |              ^
+       9 |     const path = '/src/api/idempotentGameWriteFetch.ts';
+      10 |     const module = await import(/* @vite-ignore */ path);
+      11 |     module.installIdempotentGameWriteFetch();
+        at bootCoordinator (/home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:8:14)
+        at /home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:33:3
+
+    Error Context: test-results/trade-confirmation-concurr-eaaab-es-its-own-readable-receipt-chromium/error-context.md
 
     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-global-c-c9bab-th-building-kinds-at-1440px-chromium-retry1/trace.zip
+    test-results/trade-confirmation-concurr-eaaab-es-its-own-readable-receipt-chromium/trace.zip
     Usage:
 
-        npx playwright show-trace test-results/unified-buildings-global-c-c9bab-th-building-kinds-at-1440px-chromium-retry1/trace.zip
+        npx playwright show-trace test-results/trade-confirmation-concurr-eaaab-es-its-own-readable-receipt-chromium/trace.zip
 
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
 
-[49/30] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 1440px
-[50/30] [chromium] › tests/browser/unified-buildings.spec.ts:90:1 › global commerce restores its region, detail and filtered catalog
-[51/30] [chromium] › tests/browser/unified-buildings.spec.ts:110:1 › commercial automatic operation is independent and prevents duplicate requests
-[52/30] [chromium] › tests/browser/unified-buildings.spec.ts:138:1 › failed commercial policy save preserves the authoritative setting
-[53/30] (retries) [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 1440px (retry #1)
-[54/30] (retries) [chromium] › tests/browser/unified-buildings.spec.ts:90:1 › global commerce restores its region, detail and filtered catalog (retry #1)
-[55/30] (retries) [chromium] › tests/browser/unified-buildings.spec.ts:110:1 › commercial automatic operation is independent and prevents duplicate requests (retry #1)
-[56/30] (retries) [chromium] › tests/browser/unified-buildings.spec.ts:138:1 › failed commercial policy save preserves the authoritative setting (retry #1)
-  25) [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 1440px 
+[21/30] [chromium] › tests/browser/trade-confirmation.spec.ts:76:3 › sell controls freeze pending parameters and confirm even after funds or inventory change
 
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
 
-    Error Context: test-results/unified-buildings-regional-fb643-ils-remain-usable-at-1440px-chromium/error-context.md
+
+  2) [chromium] › tests/browser/trade-confirmation.spec.ts:43:1 › two lost receipts retain one key across reload and successful confirmation releases it 
+
+    Error: page.evaluate: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:1420/src/api/idempotentGameWriteFetch.ts
+
+       6 | async function bootCoordinator(page: Page) {
+       7 |   await page.goto('runtime-test.html?view=commerce&scenario=activity');
+    >  8 |   await page.evaluate(async () => {
+         |              ^
+       9 |     const path = '/src/api/idempotentGameWriteFetch.ts';
+      10 |     const module = await import(/* @vite-ignore */ path);
+      11 |     module.installIdempotentGameWriteFetch();
+        at bootCoordinator (/home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:8:14)
+        at /home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:50:3
+
+    Error Context: test-results/trade-confirmation-two-los-52027-ul-confirmation-releases-it-chromium/error-context.md
 
     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-regional-fb643-ils-remain-usable-at-1440px-chromium/trace.zip
+    test-results/trade-confirmation-two-los-52027-ul-confirmation-releases-it-chromium/trace.zip
     Usage:
 
-        npx playwright show-trace test-results/unified-buildings-regional-fb643-ils-remain-usable-at-1440px-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-regional-fb643-ils-remain-usable-at-1440px-chromium-retry1/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-regional-fb643-ils-remain-usable-at-1440px-chromium-retry1/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-regional-fb643-ils-remain-usable-at-1440px-chromium-retry1/trace.zip
+        npx playwright show-trace test-results/trade-confirmation-two-los-52027-ul-confirmation-releases-it-chromium/trace.zip
 
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
 
-  26) [chromium] › tests/browser/unified-buildings.spec.ts:90:1 › global commerce restores its region, detail and filtered catalog 
+[22/30] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 320px
+  3) [chromium] › tests/browser/trade-confirmation.spec.ts:63:1 › HTTP success with a broken receipt does not release the original transaction key 
 
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
+    Error: page.evaluate: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:1420/src/api/idempotentGameWriteFetch.ts
 
-    Error Context: test-results/unified-buildings-global-c-dd581-detail-and-filtered-catalog-chromium/error-context.md
+       6 | async function bootCoordinator(page: Page) {
+       7 |   await page.goto('runtime-test.html?view=commerce&scenario=activity');
+    >  8 |   await page.evaluate(async () => {
+         |              ^
+       9 |     const path = '/src/api/idempotentGameWriteFetch.ts';
+      10 |     const module = await import(/* @vite-ignore */ path);
+      11 |     module.installIdempotentGameWriteFetch();
+        at bootCoordinator (/home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:8:14)
+        at /home/runner/work/Economy/Economy/tests/browser/trade-confirmation.spec.ts:70:3
 
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-global-c-dd581-detail-and-filtered-catalog-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-global-c-dd581-detail-and-filtered-catalog-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-global-c-dd581-detail-and-filtered-catalog-chromium-retry1/error-context.md
+    Error Context: test-results/trade-confirmation-HTTP-su-69df7-he-original-transaction-key-chromium/error-context.md
 
     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-global-c-dd581-detail-and-filtered-catalog-chromium-retry1/trace.zip
+    test-results/trade-confirmation-HTTP-su-69df7-he-original-transaction-key-chromium/trace.zip
     Usage:
 
-        npx playwright show-trace test-results/unified-buildings-global-c-dd581-detail-and-filtered-catalog-chromium-retry1/trace.zip
+        npx playwright show-trace test-results/trade-confirmation-HTTP-su-69df7-he-original-transaction-key-chromium/trace.zip
 
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
 
-  27) [chromium] › tests/browser/unified-buildings.spec.ts:110:1 › commercial automatic operation is independent and prevents duplicate requests 
+[23/30] [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 320px
+[24/30] [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 1440px
 
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-commerci-da9e5-prevents-duplicate-requests-chromium/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-commerci-da9e5-prevents-duplicate-requests-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-commerci-da9e5-prevents-duplicate-requests-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-commerci-da9e5-prevents-duplicate-requests-chromium-retry1/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-commerci-da9e5-prevents-duplicate-requests-chromium-retry1/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-commerci-da9e5-prevents-duplicate-requests-chromium-retry1/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
+[25/30] [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 1440px
 
 
-  28) [chromium] › tests/browser/unified-buildings.spec.ts:138:1 › failed commercial policy save preserves the authoritative setting 
-
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-failed-c-2521e-s-the-authoritative-setting-chromium/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-failed-c-2521e-s-the-authoritative-setting-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-failed-c-2521e-s-the-authoritative-setting-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-failed-c-2521e-s-the-authoritative-setting-chromium-retry1/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-failed-c-2521e-s-the-authoritative-setting-chromium-retry1/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-failed-c-2521e-s-the-authoritative-setting-chromium-retry1/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
 
 
-[57/30] [chromium] › tests/browser/unified-buildings.spec.ts:147:1 › commercial goods open the same local product and return without trading
-[58/30] [chromium] › tests/browser/unified-buildings.spec.ts:160:1 › legacy unknown settlement detail stays unknown and empty commerce retains construction
-[59/30] (retries) [chromium] › tests/browser/unified-buildings.spec.ts:147:1 › commercial goods open the same local product and return without trading (retry #1)
-  29) [chromium] › tests/browser/unified-buildings.spec.ts:147:1 › commercial goods open the same local product and return without trading 
-
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-commerci-4ce26--and-return-without-trading-chromium/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-commerci-4ce26--and-return-without-trading-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-commerci-4ce26--and-return-without-trading-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-commerci-4ce26--and-return-without-trading-chromium-retry1/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-commerci-4ce26--and-return-without-trading-chromium-retry1/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-commerci-4ce26--and-return-without-trading-chromium-retry1/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
 
 
-[60/30] (retries) [chromium] › tests/browser/unified-buildings.spec.ts:160:1 › legacy unknown settlement detail stays unknown and empty commerce retains construction (retry #1)
-  30) [chromium] › tests/browser/unified-buildings.spec.ts:160:1 › legacy unknown settlement detail stays unknown and empty commerce retains construction 
 
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-legacy-u-caae8-mmerce-retains-construction-chromium/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-legacy-u-caae8-mmerce-retains-construction-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-legacy-u-caae8-mmerce-retains-construction-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell
-    ╔════════════════════════════════════════════════════════════╗
-    ║ Looks like Playwright was just installed or updated.       ║
-    ║ Please run the following command to download new browsers: ║
-    ║                                                            ║
-    ║     npx playwright install                                 ║
-    ║                                                            ║
-    ║ <3 Playwright Team                                         ║
-    ╚════════════════════════════════════════════════════════════╝
-
-    Error Context: test-results/unified-buildings-legacy-u-caae8-mmerce-retains-construction-chromium-retry1/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/unified-buildings-legacy-u-caae8-mmerce-retains-construction-chromium-retry1/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/unified-buildings-legacy-u-caae8-mmerce-retains-construction-chromium-retry1/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
+[26/30] [chromium] › tests/browser/unified-buildings.spec.ts:90:1 › global commerce restores its region, detail and filtered catalog
+[27/30] [chromium] › tests/browser/unified-buildings.spec.ts:110:1 › commercial automatic operation is independent and prevents duplicate requests
+[28/30] [chromium] › tests/browser/unified-buildings.spec.ts:138:1 › failed commercial policy save preserves the authoritative setting
 
 
-  30 failed
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 320px 
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 390px 
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 720px 
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:24:3 › commercial cards and details reuse industrial geometry at 1440px 
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:70:1 › commercial cards show per-building profit and details show server-locked totals 
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:87:1 › commercial switch prevents repeated requests and preserves an invested cycle after stop 
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial network failure leaves the authoritative switch intact 
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:115:3 › commercial server failure leaves the authoritative switch intact 
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:133:1 › commercial countdown waits for the server and does not settle or restart locally 
-    [chromium] › tests/browser/commercial-buildings-layout.spec.ts:147:1 › commercial empty state and long names remain usable at 320px 
-    [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 320px 
-    [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 390px 
-    [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 720px 
-    [chromium] › tests/browser/commercial-staffing.spec.ts:15:3 › commercial staffing and cycle tracks remain distinct at 1440px 
-    [chromium] › tests/browser/commercial-staffing.spec.ts:47:1 › staffing changes never overwrite an invested commercial cycle or claim local settlement 
-    [chromium] › tests/browser/commercial-staffing.spec.ts:65:1 › missing staffing is unknown and does not fabricate full efficiency or locked details 
+
+
+[29/30] [chromium] › tests/browser/unified-buildings.spec.ts:147:1 › commercial goods open the same local product and return without trading
+
+
+
+[30/30] [chromium] › tests/browser/unified-buildings.spec.ts:160:1 › legacy unknown settlement detail stays unknown and empty commerce retains construction
+
+
+  3 failed
     [chromium] › tests/browser/trade-confirmation.spec.ts:28:1 › concurrent identical writes share one HTTP attempt and each receives its own readable receipt 
     [chromium] › tests/browser/trade-confirmation.spec.ts:43:1 › two lost receipts retain one key across reload and successful confirmation releases it 
     [chromium] › tests/browser/trade-confirmation.spec.ts:63:1 › HTTP success with a broken receipt does not release the original transaction key 
-    [chromium] › tests/browser/trade-confirmation.spec.ts:76:3 › buy controls freeze pending parameters and confirm even after funds or inventory change 
-    [chromium] › tests/browser/trade-confirmation.spec.ts:76:3 › sell controls freeze pending parameters and confirm even after funds or inventory change 
-    [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 320px 
-    [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 320px 
-    [chromium] › tests/browser/unified-buildings.spec.ts:34:3 › global catalog filters both building kinds at 1440px 
-    [chromium] › tests/browser/unified-buildings.spec.ts:52:3 › regional directory and both shared details remain usable at 1440px 
-    [chromium] › tests/browser/unified-buildings.spec.ts:90:1 › global commerce restores its region, detail and filtered catalog 
-    [chromium] › tests/browser/unified-buildings.spec.ts:110:1 › commercial automatic operation is independent and prevents duplicate requests 
-    [chromium] › tests/browser/unified-buildings.spec.ts:138:1 › failed commercial policy save preserves the authoritative setting 
-    [chromium] › tests/browser/unified-buildings.spec.ts:147:1 › commercial goods open the same local product and return without trading 
-    [chromium] › tests/browser/unified-buildings.spec.ts:160:1 › legacy unknown settlement detail stays unknown and empty commerce retains construction 
+  27 passed (2.6m)
