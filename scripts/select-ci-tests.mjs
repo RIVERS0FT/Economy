@@ -174,10 +174,15 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
     return plan;
   }
 
-  const fullTrigger = findFullTrigger(executableChanges);
+  // Page source contracts describe UI structure, not the gameplay contract domain.
+  // Their filename alone cannot select a meaningful server coverage loading graph.
+  const ambiguousPageContract = executableChanges.find((path) => /^server\/test\/.*-page-contract\.test\.js$/.test(path));
+  const fullTrigger = findFullTrigger(executableChanges) ?? ambiguousPageContract;
   if (fullTrigger) {
     plan.mode = 'full';
-    plan.reasons.push(`high-risk:${fullTrigger}`);
+    plan.reasons.push(fullTrigger === ambiguousPageContract
+      ? `ambiguous-page-contract:${fullTrigger}`
+      : `high-risk:${fullTrigger}`);
     plan.needsDependencies = true;
     plan.browser = { mode: 'all', tests: [] };
     return plan;
