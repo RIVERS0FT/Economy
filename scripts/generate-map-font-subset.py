@@ -6,6 +6,7 @@ Requires exactly:
 
 The source font is pinned to Adobe Source Han Serif 2.003R. This script is a
 maintenance tool only; production and CI never fetch the font at runtime.
+Re-run it only when province names, the pinned source, or generator versions change.
 """
 
 from __future__ import annotations
