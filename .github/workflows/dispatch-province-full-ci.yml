@@ -4,18 +4,21 @@ on:
     branches: [codex/validate-province-tabs-full]
     paths: [.github/workflows/dispatch-province-full-ci.yml]
 permissions:
-  contents: read
+  contents: write
   actions: write
 jobs:
   dispatch:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Verify target and dispatch the unchanged full CI workflow
+      - name: Publish reviewed integration and invoke the unchanged full CI workflow
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          actual=$(gh api repos/RIVERS0FT/Economy/git/ref/heads/codex/split-province-building-tabs --jq '.object.sha')
+          target=codex/split-province-building-tabs
+          actual=$(gh api repos/RIVERS0FT/Economy/git/ref/heads/$target --jq '.object.sha')
           test "$actual" = dbe2d0d9d53318ec669abc33379d32f18920fb9b
-          gh workflow run ci.yml --repo RIVERS0FT/Economy --ref codex/split-province-building-tabs
+          gh api repos/RIVERS0FT/Economy/git/commits/0148d68b175483f2039df73ffa37682b77a60962 --jq '.parents[].sha'
+          gh api --method PATCH repos/RIVERS0FT/Economy/git/refs/heads/$target -f sha=0148d68b175483f2039df73ffa37682b77a60962 -F force=false
+          gh workflow run ci.yml --repo RIVERS0FT/Economy --ref "$target"
