@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
 type TraceEvent = {
@@ -277,9 +278,10 @@ test('trace steady transient map Viz and GPU draw internals', async ({ page, bro
       return value;
     };
     // Preserve raw events even if subsequent marker/consistency assertions fail.
+    const rawTracePath = testInfo.outputPath('map-camera-chrome-trace.json');
+    await writeFile(rawTracePath, JSON.stringify({ traceEvents: events, metadata: { ...environment, completion, phases } }));
     await testInfo.attach('map-camera-chrome-trace.json', {
-      body: Buffer.from(JSON.stringify({ traceEvents: events, metadata: { ...environment, completion, phases } })),
-      contentType: 'application/json',
+      path: rawTracePath, contentType: 'application/json',
     });
     expect(completion.dataLossOccurred, 'Chrome trace buffer must retain every frame marker').not.toBe(true);
     const summary = {
@@ -295,8 +297,10 @@ test('trace steady transient map Viz and GPU draw internals', async ({ page, bro
         })),
       })),
     };
+    const analysisPath = testInfo.outputPath('map-camera-frame-analysis.json');
+    await writeFile(analysisPath, JSON.stringify(summary, null, 2));
     await testInfo.attach('map-camera-frame-analysis.json', {
-      body: Buffer.from(JSON.stringify(summary, null, 2)), contentType: 'application/json',
+      path: analysisPath, contentType: 'application/json',
     });
     for (const phase of summary.phases) {
       const sorted = phase.frames.map((frame) => frame.inputToRafMs).sort((a, b) => a - b);
