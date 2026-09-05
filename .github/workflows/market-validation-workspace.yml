@@ -15,33 +15,16 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: Apply reviewed scroll and layer verifier corrections
+      - name: Apply reviewed browser-evidence fixes on the diagnostic branch
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git merge --no-edit bf6ee7cb6c6ab3d1fd6e5c780ab920d4f8490916
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('src/styles/safe-floating.css')
-          s = p.read_text()
-          assert s.count('  overscroll-behavior: contain;\n') == 1
-          p.write_text(s.replace('  overscroll-behavior: contain;\n', ''))
-          p = Path('scripts/verify-game-shell-layout.mjs')
-          s = p.read_text()
-          for a, b in [
-              ("'floatingLayer.getBoundingClientRect()'", "'floatingLayer?.getBoundingClientRect()'"),
-              ('  .signed-in-shell__body {\n    position: relative;\n    z-index: 0;\n    order: 1;', '  .signed-in-shell__body {\n    position: relative;\n    z-index: auto;\n    order: 1;'),
-              ('  .workspace-floating-layer {\n    position: absolute;\n    z-index: 1;\n    order: 2;', '  .workspace-floating-layer {\n    position: absolute;\n    z-index: auto;\n    order: 2;'),
-          ]:
-              assert s.count(a) == 1, a
-              s = s.replace(a, b)
-          p.write_text(s)
-          PY
+          python3 .maintenance/market-refine.py
           git diff --check
-          git add src/styles/safe-floating.css scripts/verify-game-shell-layout.mjs
-          git commit -m 'fix: preserve scroll ownership and update mobile layer assertions'
+          git add src docs tests scripts
+          git commit -m 'fix: lock shared chart mapping and restore visible mobile tooltips'
           git push origin HEAD:refs/heads/work/market-floating-validation-20260906
       - uses: actions/setup-node@v4
         with:
@@ -49,7 +32,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: bash scripts/prepare-playwright-chromium.sh
-      - name: Validate targeted floating behavior and related shared tooltip regressions
+      - name: Validate real layouts, mapping and shared tooltip regressions
         shell: bash
         run: |
           set -o pipefail
@@ -57,7 +40,7 @@ jobs:
           npx tsc --noEmit
           node scripts/verify-scroll-ownership.mjs
           node scripts/verify-game-shell-layout.mjs
-          npm run test:browser -- tests/browser/commodity-freeze-details.spec.ts tests/browser/market-chart-pointer.spec.ts tests/browser/market-tooltip-persistence.spec.ts tests/browser/shell-floating-safe-zone.spec.ts tests/browser/notification-center.spec.ts tests/browser/auction-bid-history.spec.ts --workers=2 --reporter=list 2>&1 | tee market-floating.log
+          npm run test:browser -- tests/browser/commodity-freeze-details.spec.ts tests/browser/market-chart-pointer.spec.ts tests/browser/market-tooltip-persistence.spec.ts tests/browser/market-chart-safe-zone.spec.ts tests/browser/market-chart-height-stability.spec.ts tests/browser/shell-floating-safe-zone.spec.ts tests/browser/notification-center.spec.ts tests/browser/auction-bid-history.spec.ts --workers=3 --reporter=list 2>&1 | tee market-floating.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
