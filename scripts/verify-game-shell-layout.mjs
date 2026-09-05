@@ -422,13 +422,16 @@ check('tests/browser/admin-runtime.spec.ts', [
 check('tests/browser/game-three-layer.spec.ts', [
   'bodyIndex: shellChildren.indexOf(body)',
   'chromeIndex: shellChildren.indexOf(chromeOverlay)',
-  "expect(layout.bodyZ).toBe('0')",
+  "expect(layout.bodyZ).toBe('auto')",
   "expect(layout.mapZ).toBe('20')",
   "expect(layout.uiZ).toBe('30')",
   'expect(visual.mapContainsLensBar).toBe(true)',
   "expect(layout.pageZ).toBe('1')",
   "expect(layout.strategicChromeZ).toBe('auto')",
-  "expect(layout.floatingLayerZ).toBe('4')",
+  "expect(layout.floatingLayerZ).toBe('auto')",
+  "expect(layout.tooltipZ).toBe('3001')",
+  "expect(layout.tooltipEvents).toBe('none')",
+  'expect(layout.tooltipInsideFloatingLayer).toBe(true)',
 ]);
 check('tests/browser/shell-floating-safe-zone.spec.ts', [
   'market-runtime-test.html?scenario=active',
