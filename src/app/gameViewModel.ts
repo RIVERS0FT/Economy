@@ -18,6 +18,7 @@ import {
   type TransportRouteInput,
 } from '../api/game';
 import { logout } from '../api/auth';
+import { resetGameSession } from '../api/game';
 import { type TabId } from '../config/navigation';
 import type {
   AssetKind,
@@ -486,7 +487,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     }, 3_000);
   }
   async function showResult(actionResult: ActionResult | Promise<ActionResult>) { notify((await actionResult).message); }
-  async function signOut() { try { await logout(); } finally { resetGameStateDelivery(); onSignedOutRef.current(); } }
+  async function signOut() { try { await logout(); } finally { resetGameSession(); onSignedOutRef.current(); } }
 
   if (!game || !scopedGame || !derived) {
     if (loadError) return { status: 'error', message: loadError, retry: () => { setLoadError(''); setReloadVersion((current) => current + 1); } };

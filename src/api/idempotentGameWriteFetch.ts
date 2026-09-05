@@ -1,4 +1,5 @@
-import { fetchConfirmedGameWrite, isConfirmedActionResult, isUnconfirmedWriteStatus } from './gameWriteConfirmation';
+import { fetchConfirmedGameWrite, GameOperationUnconfirmedError, GameWriteUnconfirmedError, isConfirmedActionResult, isUnconfirmedWriteStatus } from './gameWriteConfirmation';
+import { assertGameWriteSession, captureGameWriteSession, endGameWriteSession, GameWriteSessionChangedError, isCurrentGameWriteSession, subscribeGameWriteSession } from './gameWriteSession';
 import { publishCommodityWriteProgress } from './commodityWriteProgress';
 import {
   acceptExternalStateDelivery,
@@ -7,6 +8,7 @@ import {
 import {
   acknowledgeFacilityEnabledIntent,
   rejectFacilityEnabledIntent,
+  resetFacilityEnabledIntents,
   setFacilityEnabledIntent,
 } from '../app/immediateCommandIntent';
 import { acceptServerNow } from '../utils/serverClock.js';
@@ -18,9 +20,18 @@ const PENDING_WRITE_TTL_MS = 24 * 60 * 60 * 1_000;
 const MAX_PENDING_WRITES = 128;
 const STORAGE_KEY = 'economy.pending-write-idempotency.v1';
 
+interface PendingControlRequest {
+  method: 'POST';
+  path: string;
+  body: string;
+  saveEpoch: string;
+}
+
 interface PendingWriteReservation {
   key: string;
   createdAt: number;
+  queueKey?: string;
+  controlRequest?: PendingControlRequest;
 }
 
 interface FacilityToggleIntent {
@@ -102,6 +113,10 @@ function hydratePendingWrites() {
       pendingWrites.set(fingerprint, {
         key: reservation.key,
         createdAt: Number(reservation.createdAt),
+        ...(typeof reservation.queueKey === 'string' ? { queueKey: reservation.queueKey } : {}),
+        ...(reservation.controlRequest?.method === 'POST' && typeof reservation.controlRequest.path === 'string'
+          && typeof reservation.controlRequest.body === 'string' && typeof reservation.controlRequest.saveEpoch === 'string'
+          ? { controlRequest: { method: 'POST', path: reservation.controlRequest.path, body: reservation.controlRequest.body, saveEpoch: reservation.controlRequest.saveEpoch } } : {}),
       });
     }
   } catch {
@@ -110,14 +125,17 @@ function hydratePendingWrites() {
   prunePendingWrites(Date.now());
 }
 
-function reserveWriteKey(fingerprint: string, proposedKey: string) {
+function reserveWriteKey(fingerprint: string, proposedKey: string, queueKey?: string, controlRequest?: PendingControlRequest) {
   hydratePendingWrites();
   const now = Date.now();
   prunePendingWrites(now);
   const existing = pendingWrites.get(fingerprint);
+  if (queueKey && [...pendingWrites.entries()].some(([key, entry]) => key !== fingerprint && entry.queueKey === queueKey)) {
+    throw new GameOperationUnconfirmedError();
+  }
   if (existing) return existing;
   if (pendingWrites.size >= MAX_PENDING_WRITES) throw new Error('待确认操作较多，请先确认已有操作。');
-  const reservation = { key: proposedKey, createdAt: now };
+  const reservation = { key: proposedKey, createdAt: now, ...(queueKey ? { queueKey } : {}), ...(controlRequest ? { controlRequest } : {}) };
   pendingWrites.set(fingerprint, reservation);
   prunePendingWrites(now);
   persistPendingWrites();
@@ -266,50 +284,105 @@ async function runSerializedDirectControl<T>(key: string | null, operation: () =
   }
 }
 
-export function installIdempotentGameWriteFetch() {
-  if (installed || typeof globalThis.fetch !== 'function') return;
-  installed = true;
-  const nativeFetch = globalThis.fetch.bind(globalThis);
-
-  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const method = requestMethod(input, init);
-    if (!isTargetGameWrite(input, method) || typeof init?.body !== 'string') {
-      return nativeFetch(input, init);
+export function createIdempotentGameWriteFetch(nativeFetch: typeof fetch): typeof fetch {
+  async function confirmPrecedingControl(queueKey: string, fingerprint: string, session: ReturnType<typeof captureGameWriteSession>) {
+    const preceding = [...pendingWrites.entries()].find(([key, entry]) => key !== fingerprint && entry.queueKey === queueKey);
+    if (!preceding) return;
+    const [previousFingerprint, reservation] = preceding;
+    const original = reservation.controlRequest;
+    if (!original || original.method !== 'POST') throw new GameOperationUnconfirmedError();
+    const owner = String(session.userId ?? 'unbound');
+    // Persist only control intent, never cookies or arbitrary headers. Revalidate the route, entity and fingerprint before replay.
+    let valid = false;
+    try {
+      const match = original.path.match(/^\/economy-api\/game\/facilities\/([^/?#]+)\/(start|stop|pause)(?:\?[^#]*)?$/);
+      const provinceId = JSON.parse(original.body)?.provinceId;
+      valid = Boolean(match && typeof provinceId === 'string'
+        && queueKey === owner + ':' + original.saveEpoch + ':' + provinceId + ':' + decodeURIComponent(match[1])
+        && previousFingerprint === owner + ':' + stableFingerprint([original.method, original.path, original.saveEpoch, original.body].join('\n')));
+    } catch { /* Corrupt reservations must not become a different command. */ }
+    if (!valid) throw new GameOperationUnconfirmedError();
+    const headers = new Headers({ 'Content-Type': 'application/json', 'Idempotency-Key': reservation.key,
+      'X-Economy-Save-Epoch': original.saveEpoch });
+    if (session.userId !== null) headers.set('X-Economy-User-Id', String(session.userId));
+    attachKnownStateRevisions(original.path, headers);
+    let receipt;
+    try {
+      receipt = await fetchConfirmedGameWrite(nativeFetch, original.path, {
+        method: original.method, body: original.body, credentials: 'include', headers,
+      }, { timeoutMs: WRITE_ATTEMPT_TIMEOUT_MS, sessionSignal: session.signal, validateSuccess: isConfirmedActionResult });
+    } catch (reason) {
+      assertGameWriteSession(session);
+      throw new GameOperationUnconfirmedError(reason);
     }
+    assertGameWriteSession(session);
+    const { response, payload } = receipt;
+    if (payload && typeof payload === 'object' && 'code' in payload && payload.code === 'WRITE_SESSION_MISMATCH') {
+      endGameWriteSession();
+      throw new GameWriteSessionChangedError();
+    }
+    if (isUnconfirmedWriteStatus(response.status)) throw new GameOperationUnconfirmedError();
+    reconcileActionDelivery(response, payload);
+    releaseWriteKey(previousFingerprint, reservation.key);
+  }
 
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const method = requestMethod(input, init);
+    if (!isTargetGameWrite(input, method) || typeof init?.body !== 'string') return nativeFetch(input, init);
     const headers = new Headers(init.headers);
     const proposedKey = headers.get('Idempotency-Key');
     if (!proposedKey) return nativeFetch(input, init);
-    attachKnownStateRevisions(input, headers);
-
-    const fingerprint = stableFingerprint([
-      method,
-      canonicalRequestPath(input),
-      headers.get('X-Economy-Save-Epoch') || '',
-      init.body,
-    ].join('\n'));
+    const session = captureGameWriteSession();
+    if (session.userId !== null) headers.set('X-Economy-User-Id', String(session.userId));
+    const legacyFingerprint = stableFingerprint([method, canonicalRequestPath(input),
+      headers.get('X-Economy-Save-Epoch') || '', init.body].join('\n'));
+    const owner = String(session.userId ?? 'unbound');
+    const fingerprint = owner + ':' + legacyFingerprint;
+    const flightKey = String(session.generation) + ':' + fingerprint;
     const deduplicate = isManualCommodityWrite(input, init.body);
-    const existing = deduplicate ? inFlightWrites.get(fingerprint) : undefined;
-    if (existing) return (await existing).clone();
-    hydratePendingWrites();
-    const wasPending = pendingWrites.has(fingerprint);
-    const reservation = reserveWriteKey(fingerprint, proposedKey);
-    headers.set('Idempotency-Key', reservation.key);
+    const existing = deduplicate ? inFlightWrites.get(flightKey) : undefined;
+    if (existing) {
+      const response = await existing;
+      assertGameWriteSession(session);
+      return response.clone();
+    }
     const immediateIntent = facilityToggleIntent(input, init);
-    const isOrder = parsedRequestUrl(input).pathname === `${GAME_API_PATH_PREFIX}/orders`;
+    const queueKey = immediateIntent ? owner + ':' + (headers.get('X-Economy-Save-Epoch') || '') + ':' + immediateIntent.queueKey : undefined;
+    const isOrder = parsedRequestUrl(input).pathname === GAME_API_PATH_PREFIX + '/orders';
     const notify = (phase: Parameters<typeof publishCommodityWriteProgress>[1]) => {
-      if (isOrder) publishCommodityWriteProgress(init.body as string, phase);
+      if (isOrder && isCurrentGameWriteSession(session)) publishCommodityWriteProgress(init.body as string, phase);
     };
-    const operation = runSerializedDirectControl(immediateIntent?.queueKey ?? null, async () => {
-      notify(wasPending ? 'confirming' : 'submitting');
+    const operation = runSerializedDirectControl(queueKey ? String(session.generation) + ':' + queueKey : null, async () => {
       try {
+        assertGameWriteSession(session);
+        hydratePendingWrites();
+        prunePendingWrites(Date.now());
+        // Old unowned reservations cannot safely be assigned to whichever account logs in next.
+        if (pendingWrites.has(legacyFingerprint)) throw deduplicate ? new GameWriteUnconfirmedError() : new GameOperationUnconfirmedError();
+        if (queueKey) await confirmPrecedingControl(queueKey, fingerprint, session);
+        assertGameWriteSession(session);
+        const wasPending = pendingWrites.has(fingerprint);
+        // Reserve after the preceding control has confirmed and released its key.
+        // An unresolved different control blocks this queue rather than silently reordering commands.
+        const controlRequest: PendingControlRequest | undefined = immediateIntent && method === 'POST'
+          ? { method: 'POST', path: canonicalRequestPath(input), body: init.body as string, saveEpoch: headers.get('X-Economy-Save-Epoch') || '' } : undefined;
+        const reservation = reserveWriteKey(fingerprint, proposedKey, queueKey, controlRequest);
+        headers.set('Idempotency-Key', reservation.key);
+        attachKnownStateRevisions(input, headers);
+        notify(wasPending ? 'confirming' : 'submitting');
         const { response, payload } = await fetchConfirmedGameWrite(nativeFetch, input, { ...init, headers }, {
           timeoutMs: isSessionBootstrapWrite(input) ? null : WRITE_ATTEMPT_TIMEOUT_MS,
           signal: init.signal,
-          validateSuccess: isOrder ? isConfirmedActionResult : undefined,
+          sessionSignal: session.signal,
+          validateSuccess: isOrder || immediateIntent ? isConfirmedActionResult : undefined,
           onConfirming: () => notify('confirming'),
           preserveTransportError: !deduplicate,
         });
+        assertGameWriteSession(session);
+        if (payload && typeof payload === 'object' && 'code' in payload && payload.code === 'WRITE_SESSION_MISMATCH') {
+          endGameWriteSession();
+          throw new GameWriteSessionChangedError();
+        }
         const reconciliation = reconcileActionDelivery(response, payload);
         if (immediateIntent) {
           if (!response.ok || reconciliation.commandOk === false) {
@@ -325,14 +398,25 @@ export function installIdempotentGameWriteFetch() {
         } else notify('unconfirmed');
         return response;
       } catch (reason) {
-        // Even an unexpected failure after send cannot prove the transaction was cancelled.
         notify('unconfirmed');
-        if (immediateIntent) rejectFacilityEnabledIntent(immediateIntent.provinceId, immediateIntent.facilityTypeId, immediateIntent.sequence);
+        if (immediateIntent && isCurrentGameWriteSession(session)) {
+          rejectFacilityEnabledIntent(immediateIntent.provinceId, immediateIntent.facilityTypeId, immediateIntent.sequence);
+        }
         throw reason;
       }
     });
-    if (deduplicate) inFlightWrites.set(fingerprint, operation);
-    try { return (await operation).clone(); }
-    finally { if (inFlightWrites.get(fingerprint) === operation) inFlightWrites.delete(fingerprint); }
+    if (deduplicate) inFlightWrites.set(flightKey, operation);
+    try {
+      const response = await operation;
+      assertGameWriteSession(session);
+      return response.clone();
+    } finally { if (inFlightWrites.get(flightKey) === operation) inFlightWrites.delete(flightKey); }
   };
+}
+
+export function installIdempotentGameWriteFetch() {
+  if (installed || typeof globalThis.fetch !== 'function') return;
+  installed = true;
+  subscribeGameWriteSession(resetFacilityEnabledIntents);
+  globalThis.fetch = createIdempotentGameWriteFetch(globalThis.fetch.bind(globalThis));
 }

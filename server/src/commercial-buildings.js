@@ -7,6 +7,7 @@ import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import { PRODUCT_CATALOG } from './product-catalog.js';
 import {
   DEFAULT_PROVINCE_ID,
+  PROVINCE_CATALOG,
   inventoryForProvince,
   normalizeProvinceId,
   provinceScopedKey,
@@ -26,10 +27,7 @@ function result(ok, message) {
 }
 
 function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return null;
-  const normalized = Math.floor(number);
-  return normalized >= 1 && normalized <= max ? normalized : null;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 && value <= max ? value : null;
 }
 
 function normalizeNonNegativeMoney(value) {
@@ -306,7 +304,7 @@ function buildCommercialBuilding(world, userId, payload, now) {
   if (!player) return result(false, '玩家不存在');
   const type = typeFor(payload.commercialTypeId);
   if (!type) return result(false, '商业建筑类型不存在');
-  const quantity = normalizePositiveInteger(payload.quantity ?? 1, MAX_BUILD_QUANTITY);
+  const quantity = normalizePositiveInteger(payload.quantity, MAX_BUILD_QUANTITY);
   if (!quantity) return result(false, `建造数量必须为 1 到 ${MAX_BUILD_QUANTITY} 的整数`);
   const provinceId = normalizeProvinceId(payload.provinceId);
   const existingGroup = groupFor(player, type.id, provinceId, false, now);
@@ -377,6 +375,10 @@ function setCommercialAutoOperation(world, userId, payload, now) {
 }
 
 export function applyCommercialBuildingAction(world, user, payload = {}, now = Date.now()) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return result(false, '商业建筑参数无效');
+  if (typeof payload.provinceId !== 'string' || !PROVINCE_CATALOG.some((province) => province.id === payload.provinceId)) {
+    return result(false, '必须指定有效的商业建筑地区');
+  }
   const operation = String(payload.operation || '');
   const userId = Number(user.id);
   ensureCommercialPlayer(world.players?.[String(userId)] || {}, now);

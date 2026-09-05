@@ -62,7 +62,7 @@ for (const text of [
   'acceptExternalStateDelivery(payload);',
   'function isSessionBootstrapWrite(input',
   'timeoutMs: isSessionBootstrapWrite(input) ? null : WRITE_ATTEMPT_TIMEOUT_MS,',
-  'inFlightWrites.get(fingerprint)',
+  'inFlightWrites.get(flightKey)',
   'fetchConfirmedGameWrite(nativeFetch',
   'pendingWrites.set(fingerprint, reservation);',
 ]) requireText(writeCoordinator, text);

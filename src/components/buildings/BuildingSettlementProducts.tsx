@@ -5,7 +5,7 @@ import type { ProductInventory } from '../../types';
 import { formatNumber } from '../../utils/formatters';
 
 export function BuildingSettlementProducts({ items, productNames, inventories, multiplier, groupClassName,
-  itemClassName, onOpenProductMarket, quantityLabel = '生产数量', requiredForNextCycle }: {
+  itemClassName, onOpenProductMarket, quantityLabel = '生产数量', requiredForNextCycle, usableForNextCycle }: {
   items: { productId: string; quantity: number }[];
   productNames: Map<string, string>;
   inventories: Record<string, ProductInventory>;
@@ -15,6 +15,7 @@ export function BuildingSettlementProducts({ items, productNames, inventories, m
   onOpenProductMarket: (productId: string) => void;
   quantityLabel?: string;
   requiredForNextCycle?: Record<string, number>;
+  usableForNextCycle?: Record<string, number | null>;
 }) {
   return (
     <div className={groupClassName}>
@@ -22,7 +23,9 @@ export function BuildingSettlementProducts({ items, productNames, inventories, m
         const productName = productNames.get(item.productId) ?? item.productId;
         const quantity = item.quantity * multiplier;
         const warehouseQuantity = inventories[item.productId]?.available ?? 0;
-        const shortage = requiredForNextCycle !== undefined && warehouseQuantity < (requiredForNextCycle[item.productId] ?? 0);
+        const usableQuantity = usableForNextCycle === undefined ? warehouseQuantity : usableForNextCycle[item.productId];
+        const shortage = requiredForNextCycle !== undefined && usableQuantity != null
+          && usableQuantity < (requiredForNextCycle[item.productId] ?? 0);
         return (
           <button type="button" className="facility-formula-item-group" data-ui-interactive="surface"
             data-shortage={shortage || undefined} key={`${item.productId}-${index}`}

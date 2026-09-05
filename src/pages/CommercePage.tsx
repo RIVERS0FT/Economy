@@ -217,7 +217,8 @@ export function CommercePage({
       provinceName={model.selectedProvince?.name || '当前地区'} embedded={embedded} onBack={closeDetail}>
       {actionError ? <p className="commercial-action-error" role="alert">{actionError}</p> : null}
       <CommercialBuildingDetail group={selectedGroup} type={selectedDetailType}
-        products={game.products} inventories={game.inventories} markets={game.markets} now={game.lastProcessedAt}
+        products={game.products} inventories={game.inventories} inventoryFreezeDetails={game.inventoryFreezeDetails}
+        markets={game.markets} now={game.lastProcessedAt}
         pending={Boolean(pendingAction)} onOpenProductMarket={openProductDetail}
         onAutoOperationChange={(policy) => void execute('auto-operation', 'auto-operation', selectedGroup.commercialTypeId, undefined, policy)}
         onToggle={(enabled) => void execute(
