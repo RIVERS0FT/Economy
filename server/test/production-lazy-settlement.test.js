@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createProductionSettlementClaim, dueProductionCycles, projectProductionCycles } from '../../shared/production-settlement.js';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { migrateFacilityGroupWorld } from '../src/facility-groups.js';
+import { DEFAULT_PROVINCE_ID, provinceScopedKey } from '../src/provinces.js';
 import {
   applyProductionSettlementClaim,
   createProductionSettlementBasis,
@@ -33,6 +34,7 @@ function productionWorld() {
   const world = createWorld(now);
   const player = ensurePlayer(world, user, now);
   player.credits = 1_000;
+  player.factoryAutoOperationPolicies = { [provinceScopedKey(DEFAULT_PROVINCE_ID, 'farm')]: { enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } };
   player.facilityGroups = [farmGroup()];
   migrateFacilityGroupWorld(world, now);
   return { world, player };

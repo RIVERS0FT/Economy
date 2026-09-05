@@ -14,6 +14,11 @@ function group(typeId, count, overrides = {}) {
   return { facilityTypeId: typeId, count, participatingCount: 0, enabled: false, status: 'stopped', statusReason: 'manual', activeRecipeId: typeId === 'farm' ? 'wheat-crop' : `${typeId}-default`, lifetimeOutput: 0, ...overrides };
 }
 
+function disableFactoryAutoOperation(player, ...typeIds) {
+  player.factoryAutoOperationPolicies ||= {};
+  for (const typeId of typeIds) player.factoryAutoOperationPolicies[provinceScopedKey(DEFAULT_PROVINCE_ID, typeId)] = { enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' };
+}
+
 function unlockFacilityTestProvinces(player) {
   player.startingProvinceChosen = true;
   player.startingProvinceId = '110000';
@@ -61,6 +66,7 @@ test('rejected factory direct sell leaves running participation unchanged', () =
 test('production increments produced goods statistics', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  disableFactoryAutoOperation(player, 'farm');
   player.facilityGroups = [group('farm', 2, { enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now })];
   migrateFacilityGroupWorld(world, now);
   processFacilityGroupWorld(world, now + 20_000);
@@ -72,6 +78,7 @@ test('production increments produced goods statistics', () => {
 test('production wage multiplier changes population wages without changing production cost and only affects the next cycle', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  disableFactoryAutoOperation(player, 'farm');
   player.credits = 1_000;
   player.facilityGroups = [group('farm', 1, {
     enabled: true,
@@ -115,6 +122,7 @@ test('production wage multiplier changes population wages without changing produ
 test('electronics factory atomically consumes plastic and copper', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  disableFactoryAutoOperation(player, 'electronics-factory');
   player.credits = 100;
   player.inventories.plastic.available = 2;
   player.inventories.copper.available = 2;
@@ -233,6 +241,7 @@ test('manual stop disables automatic recovery', () => {
 test('running farm crop changes apply immediately with a staffing penalty and progress reset', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  disableFactoryAutoOperation(player, 'farm');
   player.credits = 1_000;
   player.facilityGroups = [group('farm', 2, {
     enabled: true,
@@ -302,6 +311,7 @@ test('legacy pending factory and recipe state migrates once into immediate parti
 test('legacy warehouse capacity errors are retired during migration', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  disableFactoryAutoOperation(player, 'farm');
   player.warehouseLevel = 9;
   player.inventoryCapacity = 500;
   player.inventories.wheat.available = 50_000;
@@ -357,6 +367,7 @@ test('legacy completed target plans migrate to a manual stop', () => {
 test('legacy running target plans become continuous production', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  disableFactoryAutoOperation(player, 'farm');
   player.credits = 100;
   player.facilityGroups = [group('farm', 1, {
     enabled: true,
@@ -430,6 +441,7 @@ test('stopped factory staffing decays linearly from its stored timestamp', () =>
 test('running factory settles each completed cycle at its completion staffing rate and carries fractional capacity', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  disableFactoryAutoOperation(player, 'farm');
   player.credits = 100;
   player.facilityGroups = [group('farm', 1, {
     enabled: true,
@@ -459,6 +471,7 @@ test('running factory settles each completed cycle at its completion staffing ra
 test('cycle completion rate can increase integer output beyond the cycle-start projection', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  disableFactoryAutoOperation(player, 'farm');
   player.credits = 100;
   player.facilityGroups = [group('farm', 4, {
     enabled: true,

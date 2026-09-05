@@ -7,7 +7,7 @@ import {
 } from '../src/commercial-buildings.js';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { migrateFacilityGroupWorld, processFacilityGroupWorld } from '../src/facility-groups.js';
-import { inventoryForProvince } from '../src/provinces.js';
+import { inventoryForProvince, provinceScopedKey } from '../src/provinces.js';
 
 const user = { id: 77102, email: 'commercial-facility@example.com', name: 'Independent operations' };
 const now = 1_800_000_000_000;
@@ -18,6 +18,7 @@ function setup() {
   const world = createWorld(now);
   const player = ensurePlayer(world, user, now);
   player.credits = 10_000;
+  player.factoryAutoOperationPolicies = { [provinceScopedKey(provinceId, 'farm')]: { enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } };
   player.facilityGroups = [{
     facilityTypeId: 'farm', provinceId, count: 2, participatingCount: 2,
     enabled: true, status: 'running', activeRecipeId: 'wheat-crop',
