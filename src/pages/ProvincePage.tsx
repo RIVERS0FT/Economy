@@ -44,7 +44,8 @@ interface ProvinceCommercialState {
 const PROVINCE_SECTIONS: Array<{ id: ProvinceSection; label: string }> = [
   { id: 'overview', label: '概览' },
   { id: 'market', label: '市场' },
-  { id: 'buildings', label: '建筑' },
+  { id: 'commerce', label: '商业' },
+  { id: 'buildings', label: '工业' },
   { id: 'warehouse', label: '仓库' },
 ];
 
@@ -131,7 +132,7 @@ function ProvinceSectionLoading() {
   );
 }
 
-export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
+function ProvincePageContent({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const pageNavigation = usePlayerPageNavigation();
   const commercialGame = model.game as typeof model.game & ProvinceCommercialState;
   const [fallbackSection, setFallbackSection] = useState<ProvinceSection>('overview');
@@ -143,11 +144,11 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     : false;
   const activeSection: ProvinceSection = pageNavigation
     ? locationMatchesProvince && location?.type === 'province'
-      ? location.section === 'commerce' ? 'buildings' : location.section
+      ? location.section
       : locationMatchesProvince && location?.type === 'regional-product' && location.host === 'province'
         ? 'market'
         : locationMatchesProvince && location?.type === 'regional-commercial' && location.host !== 'buildings'
-          ? 'buildings'
+          ? 'commerce'
           : locationMatchesProvince && location?.type === 'regional-facility' && location.host === 'province'
             ? 'buildings'
             : 'overview'
@@ -189,7 +190,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     ? (commercialGame.commercialBuildingTypes ?? []).find((type) => type.id === commercialDetailEntry.commercialTypeId)
     : undefined;
   const isFacilityDetail = activeSection === 'buildings' && Boolean(facilityDetailType);
-  const isCommercialDetail = activeSection === 'buildings' && Boolean(commercialDetailType);
+  const isCommercialDetail = activeSection === 'commerce' && Boolean(commercialDetailType);
   const marketDetailProductId = activeSection === 'market'
     ? stackedProductId ?? (
       model.marketViewMode === 'detail' && model.marketAssetKind === 'commodity'
@@ -305,7 +306,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     pageNavigation.replacePage({
       type: 'province',
       provinceId: model.selectedProvinceId,
-      section: 'buildings',
+      section: 'commerce',
     });
   };
 
@@ -377,9 +378,9 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       backAction={pageNavigation ? undefined : isMarketDetail
         ? { label: '返回商品列表', onClick: model.showMarketCatalog }
         : isCommercialDetail
-          ? { label: '返回建筑列表', onClick: () => setFallbackCommercialDetailTypeId(null) }
+          ? { label: '返回商业建筑列表', onClick: () => handleCommercialDetailChange(null) }
           : isFacilityDetail
-            ? { label: '返回建筑列表', onClick: () => setFallbackFacilityDetailTypeId(null) }
+            ? { label: '返回工业建筑列表', onClick: () => handleFacilityDetailChange(null) }
             : { label: '返回地图', onClick: () => model.setTab('map') }}
     >
       {!isEntityDetail ? sectionSwitch : null}
@@ -396,10 +397,11 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
             <EmbeddedMarketPage model={model} embedded />
           </Suspense>
         ) : null}
-        {activeSection === 'buildings' ? (
+        {activeSection === 'commerce' || activeSection === 'buildings' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
             <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
               <EmbeddedBuildingsPage
+                kind={activeSection === 'commerce' ? 'commercial' : 'industrial'}
                 model={model}
                 embedded
                 detailFacilityTypeId={facilityDetailTypeId ?? undefined}
@@ -420,4 +422,10 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       </section>
     </PageLayout>
   );
+}
+
+
+export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
+  const scope = `${model.game.userId}:${model.game.saveEpoch ?? 0}:${model.selectedProvinceId}`;
+  return <ProvincePageContent key={scope} model={model} />;
 }

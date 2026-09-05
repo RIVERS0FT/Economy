@@ -1833,6 +1833,7 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     return [...current, { ...current[0], provinceId: '120000', count: 7 }];
   });
   Object.assign(window, {
+    __setCommercialProvince: setProvinceId,
     __updateCommercialGroup: (commercialTypeId: string, patch: Partial<CommercialBuildingGroup>) => {
       setGroups((previous) => previous.map((group) => group.commercialTypeId === commercialTypeId && group.provinceId === provinceId ? { ...group, ...patch } : group));
     },
@@ -1866,7 +1867,7 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     startFacilityGroup: async () => ({ ok: true, message: '测试开工' }),
     stopFacilityGroup: async () => ({ ok: true, message: '测试停工' }),
     setFacilityRecipes: async () => ({ ok: true, message: '测试配置' }),
-    game: { ...base.game, credits: 10_000, lastProcessedAt: fixtureNow, commercialBuildingTypes: types,
+    game: { ...base.game, credits: 10_000, lastProcessedAt: fixtureNow, commercialBuildingTypes: scenario === 'missing-commercial-catalog' ? [] : types,
       commercialBuildingGroups: groups, products, markets, provinceMarkets: { '110000': markets, '120000': markets },
       facilityGroups: provinceFacilityGroups[provinceId as keyof typeof provinceFacilityGroups] ?? [], provinceFacilityGroups,
       inventories: provinceInventories[provinceId as keyof typeof provinceInventories] ?? {}, provinceInventories,
@@ -1876,6 +1877,9 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     : tab === 'buildings' ? <GlobalBuildingsPage model={model} />
       : tab === 'province' ? <ProvincePage model={model} />
         : tab === 'market' ? <GlobalMarketPage model={model} /> : <MapPage model={model} />;
+  if (scenario === 'no-navigation') {
+    return <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>{page}</FacilityRecipeProfitMarketsProvider>;
+  }
   return <GameShell model={model}><FacilityRecipeProfitMarketsProvider markets={model.game.markets}>{page}</FacilityRecipeProfitMarketsProvider></GameShell>;
 }
 
