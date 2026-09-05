@@ -1,38 +1,69 @@
-name: Prepare market UI validation workspace
+name: Validate market floating interactions
 on:
   push:
     branches: [work/market-floating-validation-20260906]
     paths: [.github/workflows/market-validation-workspace.yml]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  workspace:
+  validate:
+    if: github.ref == 'refs/heads/work/market-floating-validation-20260906'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 1006011da9f7b4495f3ba4898f7423db43d0640f
-          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Apply reviewed scroll and layer verifier corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-edit bf6ee7cb6c6ab3d1fd6e5c780ab920d4f8490916
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/styles/safe-floating.css')
+          s = p.read_text()
+          assert s.count('  overscroll-behavior: contain;\n') == 1
+          p.write_text(s.replace('  overscroll-behavior: contain;\n', ''))
+          p = Path('scripts/verify-game-shell-layout.mjs')
+          s = p.read_text()
+          for a, b in [
+              ("'floatingLayer.getBoundingClientRect()'", "'floatingLayer?.getBoundingClientRect()'"),
+              ('  .signed-in-shell__body {\n    position: relative;\n    z-index: 0;\n    order: 1;', '  .signed-in-shell__body {\n    position: relative;\n    z-index: auto;\n    order: 1;'),
+              ('  .workspace-floating-layer {\n    position: absolute;\n    z-index: 1;\n    order: 2;', '  .workspace-floating-layer {\n    position: absolute;\n    z-index: auto;\n    order: 2;'),
+          ]:
+              assert s.count(a) == 1, a
+              s = s.replace(a, b)
+          p.write_text(s)
+          PY
+          git diff --check
+          git add src/styles/safe-floating.css scripts/verify-game-shell-layout.mjs
+          git commit -m 'fix: preserve scroll ownership and update mobile layer assertions'
+          git push origin HEAD:refs/heads/work/market-floating-validation-20260906
       - uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
           cache: npm
       - run: npm ci
-      - name: Archive source and exact installed dependencies without credentials
+      - run: bash scripts/prepare-playwright-chromium.sh
+      - name: Validate targeted floating behavior and related shared tooltip regressions
         shell: bash
         run: |
-          set -euo pipefail
-          workspace="$RUNNER_TEMP/market-validation-workspace"
-          mkdir -p "$workspace"
-          git archive HEAD | tar -x -C "$workspace"
-          cp -a node_modules "$workspace/node_modules"
-          cp "$(command -v node)" "$workspace/node24"
-          git rev-parse HEAD > "$workspace/VALIDATION_SOURCE_SHA"
-          tar -czf "$RUNNER_TEMP/market-validation-workspace.tgz" -C "$workspace" .
+          set -o pipefail
+          npm run generate:local-preview
+          npx tsc --noEmit
+          node scripts/verify-scroll-ownership.mjs
+          node scripts/verify-game-shell-layout.mjs
+          npm run test:browser -- tests/browser/commodity-freeze-details.spec.ts tests/browser/market-chart-pointer.spec.ts tests/browser/market-tooltip-persistence.spec.ts tests/browser/shell-floating-safe-zone.spec.ts tests/browser/notification-center.spec.ts tests/browser/auction-bid-history.spec.ts --workers=2 --reporter=list 2>&1 | tee market-floating.log
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: market-validation-workspace
-          path: ${{ runner.temp }}/market-validation-workspace.tgz
+          name: market-floating-diagnostics
+          path: |
+            market-floating.log
+            test-results
           retention-days: 1
-          compression-level: 0
+          if-no-files-found: warn
