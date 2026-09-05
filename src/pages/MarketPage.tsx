@@ -503,7 +503,7 @@ export function MarketPage({
             <span><small>今日价格</small><strong><CurrencyAmount>{formatCurrency(officialPrice ?? selectedProduct.basePrice)}</CurrencyAmount></strong></span>
             <span><small>今日成交量</small><strong><CompactNumber value={todayVolume} /></strong></span>
             <span><small>可用库存</small><strong><CompactNumber value={selectedInventory.available} /></strong></span>
-            <CommodityFreezeDisclosure quantity={selectedInventory.frozen} entries={game.inventoryFreezeDetails?.[selectedProduct.id]} />
+            <CommodityFreezeDisclosure key={`${model.selectedProvinceId}:${selectedProduct.id}`} quantity={selectedInventory.frozen} entries={game.inventoryFreezeDetails?.[selectedProduct.id]} />
           </div>
         </div>
       ) : null}
@@ -514,7 +514,7 @@ export function MarketPage({
         >
           <div className="market-chart-card__content" aria-disabled={marketDetailUnavailable || undefined}>
             {marketDetailLoading && !selectedMarketDetail ? <small className="muted" role="status">正在加载当前市场行情…</small> : null}
-            {marketDetailUnavailable ? <div className="market-chart-card__unavailable" role="status">成交趋势图不可用</div> : <PriceSparkline buckets={marketBuckets} variant="full" />}
+            {marketDetailUnavailable ? <div className="market-chart-card__unavailable" role="status">成交趋势图不可用</div> : <PriceSparkline key={`${model.selectedProvinceId}:${activeAssetKind}:${assetId}`} buckets={marketBuckets} variant="full" />}
           </div>
         </Panel>
 

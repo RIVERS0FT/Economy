@@ -79,7 +79,9 @@ for (const text of [
   "name: '价格', type: 'line'",
   "name: '成交量', type: 'bar'",
   'grid: [', 'xAxisIndex: 0', 'xAxisIndex: 1',
-  'axisPointer: { link: [{ xAxisIndex: [0, 1] }] }',
+  "axisPointer: { link: [{ xAxisIndex: [0, 1] }], triggerOn: 'none', animation: false }",
+  'onPointerDown={handlePointerMove}', 'onPointerCancel={hideActiveTooltip}',
+  'onResize={restoreActiveTooltip}', 'dashOffset: priceHeight % 8', 'formatCurrency(bucket.price)',
   'triggerEmphasis: false', 'emphasis: STABLE_TOOLTIP_EMPHASIS',
   'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)',
   'const priceVolumeGap = 0', 'const volumeTop = priceBottom + priceVolumeGap',
@@ -155,7 +157,7 @@ for (const text of ['LineChart', 'BarChart', 'PieChart', 'AxisPointerComponent',
   assert.ok(registry.includes(text), `ECharts 模块注册缺少: ${text}`);
 }
 
-for (const text of ['buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? [])', '<PriceSparkline buckets={marketBuckets} variant="full" />']) {
+for (const text of ['buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? [])', '<PriceSparkline key={`${model.selectedProvinceId}:${activeAssetKind}:${assetId}`} buckets={marketBuckets} variant="full" />']) {
   assert.ok(marketPage.includes(text), `MarketPage 缺少: ${text}`);
 }
 for (const text of ['countMarketHistoryPointsInWindow', 'summarizeMarketFlow', 'className="chart-footer"', '最近成交估值', '主动买卖均衡／方向未知']) {

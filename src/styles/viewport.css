@@ -233,7 +233,7 @@ html[data-app-surface="admin"] body {
 
   .signed-in-shell__body {
     position: relative;
-    z-index: 0;
+    z-index: auto;
     order: 1;
     display: block;
   }
@@ -288,7 +288,7 @@ html[data-app-surface="admin"] body {
 
   .workspace-floating-layer {
     position: absolute;
-    z-index: 1;
+    z-index: auto;
     order: 2;
     top: calc(
       max(var(--mobile-chrome-block-inset), env(safe-area-inset-top))

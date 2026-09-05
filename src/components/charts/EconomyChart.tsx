@@ -74,7 +74,7 @@ function applyChartOption(
   // host DOM itself exists. ECharts fixes the HTML tooltip parent when TooltipHTMLContent
   // is first constructed, so the first setOption must synchronously recover that host.
   if (!tooltipLayer?.isConnected) {
-    tooltipLayer = container.closest('.workspace')
+    tooltipLayer = container.closest('.signed-in-shell')
       ?.querySelector<HTMLElement>('[data-workspace-tooltip-layer="true"]') ?? null;
   }
   chart.setOption(optionWithTooltipLayer(resolvedOption, tooltipLayer), {

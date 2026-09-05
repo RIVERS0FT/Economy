@@ -273,8 +273,8 @@ assert.doesNotMatch(styles, /backdrop-filter/);
 
 const viewportStyles = read('src/styles/viewport.css');
 assert.match(viewportStyles, /\.workspace-dialog-layer\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?z-index:\s*3000;/);
-assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.signed-in-shell__body\s*\{[\s\S]*?position:\s*relative;[\s\S]*?z-index:\s*0;[\s\S]*?order:\s*1;/);
-assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.workspace-floating-layer\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*1;[\s\S]*?order:\s*2;/);
+assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.signed-in-shell__body\s*\{[\s\S]*?position:\s*relative;[\s\S]*?z-index:\s*auto;[\s\S]*?order:\s*1;/);
+assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.workspace-floating-layer\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*auto;[\s\S]*?order:\s*2;/);
 
 const mobileStatusStyles = read('src/styles/mobile-status-layout.css');
 assert.match(mobileStatusStyles, /\.signed-in-shell__chrome\s*\{\s*z-index:\s*3001;/);

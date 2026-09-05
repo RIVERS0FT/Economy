@@ -37,6 +37,19 @@
   pointer-events: none !important;
 }
 
+/* Only opt-in disclosure content accepts input; the shared host remains transparent. */
+.safe-tooltip[data-interactive='true'] {
+  pointer-events: auto !important;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 720px) {
+  .workspace-tooltip-layer {
+    /* Above the root Sheet; the later Chrome sibling at the same level stays highest. */
+    z-index: 3001;
+  }
+}
+
 .province-map-static-tooltip[popover] {
   inset: auto;
   top: 0;

@@ -285,7 +285,9 @@ function MarketHarness() {
       frozenCredits: 0,
       gems: 0,
       inventories,
-      inventoryFreezeDetails: scenario === 'freeze-details' ? { wheat: [
+      inventoryFreezeDetails: scenario === 'freeze-long' ? { wheat: Array.from({ length: 80 }, (_, index) => ({
+        kind: 'contract', sourceId: `long-${index}`, label: `供货合同 ${index} · 跨地区长期原材料采购与供应来源明细`, quantity: index === 0 ? 4 + freezeExtra : 4,
+      })) } : scenario === 'freeze-details' ? { wheat: [
         { kind: 'production', sourceId: '110000:mill', label: '磨坊', quantity: 120 + freezeExtra },
         { kind: 'production', sourceId: '110000:feed-factory', label: '饲料厂', quantity: 80 },
         { kind: 'commercial', sourceId: '110000:fresh-market', label: '生鲜市场', quantity: 30 },
