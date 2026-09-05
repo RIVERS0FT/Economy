@@ -13,6 +13,7 @@
 
 .facility-auto-operation__header > strong {
   min-width: 0;
+  white-space: nowrap;
 }
 
 .facility-auto-operation__message {
