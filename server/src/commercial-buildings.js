@@ -1,5 +1,12 @@
 import { commercialExpansionStaffingRate, commercialStaffingCapacity, hasCommercialCycle, projectCommercialStaffingRate } from '../../shared/commercial-staffing.js';
-import { normalizeCommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
+import { commercialAutoOperationPolicyFor, normalizeCommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
+import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-catalog.js';
+import { runCycleAutoOperation } from './cycle-auto-operation.js';
+import {
+  consumeInventoryFreeze,
+  releaseInventoryFreezeSource,
+  sourceFrozenQuantity,
+} from './inventory-freezes.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import { PRODUCT_CATALOG } from './product-catalog.js';
 import {
@@ -9,96 +16,10 @@ import {
   provinceScopedKey,
 } from './provinces.js';
 
-const COMMERCIAL_CYCLE_MS = 5 * 60 * 1000;
 const MAX_BUILD_QUANTITY = 100;
 const MAX_CATCH_UP_CYCLES = 10_000;
 
-const rawCommercialTypes = [
-  {
-    id: 'convenience-store',
-    name: '便利店',
-    description: '消耗食品和饮料，提供基础社区零售服务。',
-    buildCost: 120,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 1.5,
-    profitPerCycle: 2.5,
-    consumptionInputs: [
-      { productId: 'food', quantity: 1 },
-      { productId: 'beverage', quantity: 1 },
-    ],
-    systemValue: 120,
-  },
-  {
-    id: 'fresh-market',
-    name: '生鲜超市',
-    description: '持续消耗水果、肉类和奶，形成农业与养殖业终端需求。',
-    buildCost: 180,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 2,
-    profitPerCycle: 3.2,
-    consumptionInputs: [
-      { productId: 'fruit', quantity: 2 },
-      { productId: 'meat', quantity: 1 },
-      { productId: 'milk', quantity: 1 },
-    ],
-    systemValue: 180,
-  },
-  {
-    id: 'restaurant',
-    name: '餐厅',
-    description: '消耗预制餐和饮料，提供稳定餐饮服务利润。',
-    buildCost: 250,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 3,
-    profitPerCycle: 4.5,
-    consumptionInputs: [
-      { productId: 'prepared-meal', quantity: 2 },
-      { productId: 'beverage', quantity: 1 },
-    ],
-    systemValue: 250,
-  },
-  {
-    id: 'clothing-store',
-    name: '服装店',
-    description: '消费服装商品，将纺织产业的终端商品转化为稳定商业利润。',
-    buildCost: 320,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 3.5,
-    profitPerCycle: 5,
-    consumptionInputs: [{ productId: 'clothing', quantity: 1 }],
-    systemValue: 320,
-  },
-  {
-    id: 'furniture-showroom',
-    name: '家具商场',
-    description: '消费家具商品，为木材加工产业提供稳定终端需求。',
-    buildCost: 420,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 4,
-    profitPerCycle: 6,
-    consumptionInputs: [{ productId: 'furniture', quantity: 1 }],
-    systemValue: 420,
-  },
-  {
-    id: 'appliance-store',
-    name: '家电卖场',
-    description: '消费家电和电子产品，作为高级制造业的商业终端。',
-    buildCost: 560,
-    cycleMs: COMMERCIAL_CYCLE_MS,
-    operatingCost: 5,
-    profitPerCycle: 8,
-    consumptionInputs: [
-      { productId: 'appliance', quantity: 1 },
-      { productId: 'electronics', quantity: 1 },
-    ],
-    systemValue: 560,
-  },
-];
-
-export const COMMERCIAL_BUILDING_TYPE_CATALOG = Object.freeze(rawCommercialTypes.map((type) => Object.freeze({
-  ...type,
-  consumptionInputs: Object.freeze(type.consumptionInputs.map((item) => Object.freeze({ ...item }))),
-})));
+export { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-catalog.js';
 
 const TYPE_BY_ID = new Map(COMMERCIAL_BUILDING_TYPE_CATALOG.map((type) => [type.id, type]));
 const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
@@ -127,6 +48,16 @@ function officialPriceFor(world, productId, provinceId) {
   const market = world.markets?.[provinceScopedKey(provinceId, productId)];
   const price = Number(market?.officialPrice ?? market?.lastPrice ?? PRODUCT_BY_ID.get(productId)?.basePrice ?? 0);
   return Number.isFinite(price) && price > 0 ? price : 0;
+}
+
+function commercialFreezeSpec(group, type, productId) {
+  return {
+    kind: 'commercial',
+    provinceId: group.provinceId,
+    productId,
+    sourceId: type.id,
+    sourceLabel: type.name,
+  };
 }
 
 function normalizeGroup(group, now = Date.now()) {
@@ -181,7 +112,6 @@ function normalizeGroup(group, now = Date.now()) {
   }
   if (!Number.isInteger(group.staffingRateBps) || group.staffingRateBps < 0 || group.staffingRateBps > 10_000
     || !Number.isFinite(group.staffingUpdatedAt) || group.staffingUpdatedAt < 0) {
-    // Establish the migration baseline now; never apply decay retroactively to old saves.
     group.staffingRateBps = 10_000;
     group.staffingUpdatedAt = Math.max(0, Number(now) || 0);
   }
@@ -263,6 +193,12 @@ function setBlocked(group, reason, now) {
   group.participatingCount = 0;
 }
 
+function availableIncludingOwnFreeze(player, group, type, input) {
+  const inventory = inventoryForProvince(player, input.productId, group.provinceId);
+  return Math.max(0, Number(inventory.available || 0))
+    + sourceFrozenQuantity(player, commercialFreezeSpec(group, type, input.productId));
+}
+
 function startCycle(world, player, group, type, startedAt) {
   if (!group.enabled || group.count < 1 || hasCommercialCycle(group)) return false;
   const participatingCount = group.count;
@@ -274,7 +210,7 @@ function startCycle(world, player, group, type, startedAt) {
     return false;
   }
   for (const input of requirements.inputs) {
-    if (inventoryForProvince(player, input.productId, group.provinceId).available < input.quantity) {
+    if (availableIncludingOwnFreeze(player, group, type, input) < input.quantity) {
       setBlocked(group, 'insufficient_input', startedAt);
       return false;
     }
@@ -296,8 +232,13 @@ function startCycle(world, player, group, type, startedAt) {
   );
   let goodsConsumed = 0;
   for (const input of requirements.inputs) {
-    const inventory = inventoryForProvince(player, input.productId, group.provinceId);
-    inventory.available -= input.quantity;
+    const spec = commercialFreezeSpec(group, type, input.productId);
+    const fromFreeze = consumeInventoryFreeze(player, spec, input.quantity);
+    const remaining = input.quantity - fromFreeze;
+    if (remaining > 0) {
+      const inventory = inventoryForProvince(player, input.productId, group.provinceId);
+      inventory.available -= remaining;
+    }
     goodsConsumed += input.quantity;
   }
 
@@ -358,6 +299,13 @@ function processGroup(world, player, group, now) {
     const completedAt = Number(group.cycleCompletesAt);
     settleCycle(player, group);
     cycles += 1;
+    if (group.enabled) {
+      runCycleAutoOperation(world, player.userId, group.provinceId, [
+        { kind: 'commercial', sourceId: type.id },
+      ], completedAt);
+    } else {
+      releaseInventoryFreezeSource(player, { kind: 'commercial', provinceId: group.provinceId, sourceId: type.id });
+    }
     if (!group.enabled || cycles >= MAX_CATCH_UP_CYCLES) break;
     if (!startCycle(world, player, group, type, completedAt)) break;
   }
@@ -421,7 +369,7 @@ function startCommercialBuilding(world, userId, payload, now) {
   }
   return result(
     true,
-    `${type.name}已开启自动营业，当前${group.statusReason === 'insufficient_funds' ? '运营资金不足' : '消费商品不足'}，条件满足后将自动恢复`,
+    `${type.name}已开启自动营业，当前${group.statusReason === 'insufficient_funds' ? '运营资金不足' : '消费商品不足'}；自动采购只在已有营业周期完成后执行`,
   );
 }
 
@@ -433,6 +381,7 @@ function stopCommercialBuilding(world, userId, payload, now) {
   processGroup(world, player, group, now);
   if (group.enabled) commitCommercialStaffing(group, now);
   group.enabled = false;
+  releaseInventoryFreezeSource(player, { kind: 'commercial', provinceId: group.provinceId, sourceId: type.id });
   if (hasCommercialCycle(group)) {
     return result(true, `${type.name}已关闭自动续营，当前已投入周期结算后停止`);
   }
@@ -450,7 +399,10 @@ function setCommercialAutoOperation(world, userId, payload, now) {
   const policy = normalizeCommercialAutoOperationPolicy(payload.policy);
   if (!policy) return result(false, '自动经营策略无效');
   group.autoOperationPolicy = policy;
-  return result(true, policy.enabled ? '商业自动经营策略已保存' : '商业自动经营已关闭');
+  if (!commercialAutoOperationPolicyFor(group).enabled) {
+    releaseInventoryFreezeSource(player, { kind: 'commercial', provinceId: group.provinceId, sourceId: type.id });
+  }
+  return result(true, policy.enabled ? '商业自动经营策略已保存，将在营业周期完成时执行' : '商业自动经营已关闭');
 }
 
 export function applyCommercialBuildingAction(world, user, payload = {}, now = Date.now()) {
