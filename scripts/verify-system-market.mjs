@@ -15,6 +15,7 @@ const balancedMarket = read('server/src/balanced-market.js');
 const domain = read('server/src/domain.js');
 const catalog = read('server/src/market-demand/catalog.js');
 const cycleAutoOperation = read('server/src/cycle-auto-operation.js');
+const autoOperationProfit = read('server/src/auto-operation-profit.js');
 const autoBuy = read('server/src/online-auto-buy.js');
 const autoSell = read('server/src/online-auto-sell.js');
 const procurement = read('server/src/facility-auto-procure.js');
@@ -58,12 +59,16 @@ requireText(catalog, 'SYSTEM_PRICE_K_BPS = 1000', '每日价格失衡响应必�
 requireText(catalog, 'SYSTEM_PRICE_MAX_CHANGE_BPS = 500', '每日价格涨跌上限必须固定为 500 bps。');
 
 for (const token of [
-  'commoditySystemPriceFor(world, input.productId, descriptor.provinceId, now)',
-  'commoditySystemPriceFor(world, descriptor.output.productId, descriptor.provinceId, now)',
+  'evaluateProductionCycleProfit',
+  'commoditySystemPriceFor(world, productId, descriptor.provinceId, now)',
   "execution: 'cycle-auto-operation'",
   'applySettledCommodityOrder(world',
   'sellAllAvailable',
 ]) requireText(cycleAutoOperation, token, `周期自动经营必须使用当日官方系统价并即时结算：${token}`);
+for (const token of [
+  'calculateCumulativeMarketSellFee',
+  'profitMicros > 0n',
+]) requireText(autoOperationProfit, token, `周期自动经营利润判断必须使用真实卖出费与严格正利润：${token}`);
 requireText(autoBuy, '周期完成时由服务器统一结算', '旧自动采购入口必须退役为周期结算提示。');
 requireText(autoSell, '周期完成时由服务器统一结算', '旧自动出售入口必须退役为周期结算提示。');
 forbidText(autoBuy, 'applySettledCommodityOrder', '旧自动采购入口不得继续即时成交。');
@@ -113,4 +118,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('每日系统价即时市场验证通过：玩家无挂单、北京时间零点调价、±5% 日变动、旧冻结释放；建筑自动采购/出售仅在周期完成后按当日官方价结算。');
+console.log('每日系统价即时市场验证通过：玩家无挂单、北京时间零点调价、±5% 日变动、旧冻结释放；建筑自动采购/出售仅在周期完成后按当日官方价与严格正利润结算。');
