@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/map-font-subset-bootstrap.yml'
       - 'scripts/finalize-map-font-subset.py'
+      - 'scripts/fix-map-font-finalizer-verifier.py'
 
 permissions:
   contents: write
@@ -30,7 +31,8 @@ jobs:
           python3 scripts/generate-map-font-subset.py
           git diff --exit-code -- src/assets/fonts/economy-map-serif-600.woff2 src/assets/fonts/economy-map-serif-600.manifest.json
           python3 scripts/finalize-map-font-subset.py
-          rm scripts/finalize-map-font-subset.py .github/workflows/map-font-subset-bootstrap.yml
+          python3 scripts/fix-map-font-finalizer-verifier.py
+          rm scripts/finalize-map-font-subset.py scripts/fix-map-font-finalizer-verifier.py .github/workflows/map-font-subset-bootstrap.yml
           node scripts/verify-province-map-focus.mjs
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
