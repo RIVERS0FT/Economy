@@ -15,16 +15,13 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: Apply reviewed browser-evidence fixes on the diagnostic branch
-        shell: bash
+      - name: Apply exact-reference selection and actual scroll fixture corrections
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          python3 .maintenance/market-refine.py
+          python3 .maintenance/market-finalize.py
           git diff --check
           git add src docs tests scripts
-          git commit -m 'fix: lock shared chart mapping and restore visible mobile tooltips'
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix: preserve exact IT file references and real mobile scroll owner'
           git push origin HEAD:refs/heads/work/market-floating-validation-20260906
       - uses: actions/setup-node@v4
         with:
@@ -32,15 +29,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: bash scripts/prepare-playwright-chromium.sh
-      - name: Validate real layouts, mapping and shared tooltip regressions
-        shell: bash
+      - name: Diagnose touch coordinates and validate selector regressions
         run: |
           set -o pipefail
           npm run generate:local-preview
           npx tsc --noEmit
-          node scripts/verify-scroll-ownership.mjs
-          node scripts/verify-game-shell-layout.mjs
-          npm run test:browser -- tests/browser/commodity-freeze-details.spec.ts tests/browser/market-chart-pointer.spec.ts tests/browser/market-tooltip-persistence.spec.ts tests/browser/market-chart-safe-zone.spec.ts tests/browser/market-chart-height-stability.spec.ts tests/browser/shell-floating-safe-zone.spec.ts tests/browser/notification-center.spec.ts tests/browser/auction-bid-history.spec.ts --workers=3 --reporter=list 2>&1 | tee market-floating.log
+          node --experimental-strip-types --test tests/dt/ci-direct-reference-selection.test.ts
+          npm run test:browser -- tests/browser/market-floating-debug.spec.ts tests/browser/market-chart-pointer.spec.ts --workers=2 --reporter=list 2>&1 | tee market-floating.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
