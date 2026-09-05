@@ -17,7 +17,3 @@ new = """        viewport: { width: innerWidth, height: innerHeight },
 if new not in s:
     assert s.count(old) == 1
     path.write_text(s.replace(old, new, 1))
-path = Path('.github/workflows/market-floating-preparation.yml')
-s = path.read_text()
-s = s.replace('tests/browser/commodity-freeze-details.spec.ts tests/browser/market-pointer-interaction.spec.ts tests/browser/market-tooltip-persistence.spec.ts tests/browser/shell-floating-safe-zone.spec.ts --workers=2 --max-failures=1', 'tests/browser/market-pointer-interaction.spec.ts tests/browser/market-tooltip-persistence.spec.ts --workers=2')
-path.write_text(s)
