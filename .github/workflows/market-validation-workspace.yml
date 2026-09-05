@@ -1,0 +1,38 @@
+name: Prepare market UI validation workspace
+on:
+  push:
+    branches: [work/market-floating-validation-20260906]
+    paths: [.github/workflows/market-validation-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 1006011da9f7b4495f3ba4898f7423db43d0640f
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Archive source and exact installed dependencies without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace="$RUNNER_TEMP/market-validation-workspace"
+          mkdir -p "$workspace"
+          git archive HEAD | tar -x -C "$workspace"
+          cp -a node_modules "$workspace/node_modules"
+          cp "$(command -v node)" "$workspace/node24"
+          git rev-parse HEAD > "$workspace/VALIDATION_SOURCE_SHA"
+          tar -czf "$RUNNER_TEMP/market-validation-workspace.tgz" -C "$workspace" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: market-validation-workspace
+          path: ${{ runner.temp }}/market-validation-workspace.tgz
+          retention-days: 1
+          compression-level: 0
