@@ -217,7 +217,6 @@ function currentShipmentPosition(shipment: ProvinceMapShipmentOverlay, now: numb
     remainingLoad: leg.remainingLoad,
   };
 }
-
 function ShipmentMarkerIcon({ mode }: { mode: TransportModeId }) {
   if (mode === 'air') {
     return <path className="province-map-shipment-icon" d="M -7 1 L 7 -3 L 2 2 L 1 6 L -1 6 L -2 2 Z" />;
@@ -274,6 +273,7 @@ export function UsMainlandMap({
   const cameraRef = useRef<ProvinceMapCameraController | null>(null);
   const rasterGenerationRef = useRef(0);
   const rasterRevisionRef = useRef(0);
+  const rasterRefreshPendingRef = useRef(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const labelRevisionRef = useRef(0);
   const [labels, setLabels] = useState<ProvinceMapLabelLayout[]>([]);
@@ -384,6 +384,11 @@ export function UsMainlandMap({
     const surface = cameraSurfaceRef.current;
     const canvas = rasterCanvasRef.current;
     if (!container || !surface || !canvas) return;
+    // A content update during input still invalidates an older decoder result.
+    // Remember the work instead of silently losing it until another prop update.
+    rasterRefreshPendingRef.current = true;
+    const generation = rasterGenerationRef.current + 1;
+    rasterGenerationRef.current = generation;
     if (container.dataset.mapZoomActive === 'true') return;
     if (Number(container.dataset.mapLabelCount || 0) !== provinceMapLabelSources.length) return;
     const svg = surface.querySelector<SVGSVGElement>('.province-map-world-svg');
@@ -392,8 +397,7 @@ export function UsMainlandMap({
     const viewportHeight = container.clientHeight;
     if (!svg || !preloadViewBox || !(viewportWidth > 0) || !(viewportHeight > 0)) return;
 
-    const generation = rasterGenerationRef.current + 1;
-    rasterGenerationRef.current = generation;
+    rasterRefreshPendingRef.current = false;
     container.dataset.mapRasterReady = 'false';
     container.dataset.mapRasterError = '';
     const rasterScale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
@@ -403,30 +407,39 @@ export function UsMainlandMap({
     container.dataset.mapRasterPixelSize = `${pixelWidth}x${pixelHeight}`;
 
     void createProvinceMapRasterSnapshot(svg, preloadViewBox, pixelWidth, pixelHeight).then((snapshot) => {
-      if (rasterGenerationRef.current !== generation) {
+      try {
+        if (rasterGenerationRef.current !== generation) return;
+        // Decoding is asynchronous: idle at request time does not mean idle now.
+        // Do not replace pixels or switch the active fallback to a different layer.
+        if (container.dataset.mapZoomActive === 'true') {
+          rasterRefreshPendingRef.current = true;
+          return;
+        }
+        const context = canvas.getContext('2d', { alpha: true });
+        if (!context) {
+          container.dataset.mapRasterReady = 'false';
+          container.dataset.mapRasterError = 'context-unavailable';
+          return;
+        }
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+        context.clearRect(0, 0, pixelWidth, pixelHeight);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(snapshot.image, 0, 0, pixelWidth, pixelHeight);
+        rasterRevisionRef.current += 1;
+        container.dataset.mapRasterRevision = String(rasterRevisionRef.current);
+        container.dataset.mapRasterReady = 'true';
+        container.dataset.mapRasterError = '';
+      } finally {
         snapshot.dispose();
-        return;
       }
-      const context = canvas.getContext('2d', { alpha: true });
-      if (!context) {
-        snapshot.dispose();
-        container.dataset.mapRasterReady = 'false';
-        container.dataset.mapRasterError = 'context-unavailable';
-        return;
-      }
-      canvas.width = pixelWidth;
-      canvas.height = pixelHeight;
-      context.clearRect(0, 0, pixelWidth, pixelHeight);
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = 'high';
-      context.drawImage(snapshot.image, 0, 0, pixelWidth, pixelHeight);
-      snapshot.dispose();
-      rasterRevisionRef.current += 1;
-      container.dataset.mapRasterRevision = String(rasterRevisionRef.current);
-      container.dataset.mapRasterReady = 'true';
-      container.dataset.mapRasterError = '';
     }).catch(() => {
       if (rasterGenerationRef.current !== generation) return;
+      if (container.dataset.mapZoomActive === 'true') {
+        rasterRefreshPendingRef.current = true;
+        return;
+      }
       container.dataset.mapRasterReady = 'false';
       container.dataset.mapRasterError = 'snapshot-failed';
     });
@@ -439,15 +452,31 @@ export function UsMainlandMap({
     cameraRef.current?.destroy();
     cameraRef.current = createProvinceMapCamera(container, surface, { focusBounds: provinceMapMainlandFocusBounds });
     updateViewportMetadata(container);
+    let idleRefreshFrame: number | null = null;
+    const queueIdleRefresh = () => {
+      if (idleRefreshFrame !== null) return;
+      idleRefreshFrame = requestAnimationFrame(() => {
+        idleRefreshFrame = null;
+        refreshRasterSnapshot();
+      });
+    };
+    // Observe only the existing active/idle boundary, never Camera frame writes.
+    const settleObserver = new MutationObserver(() => {
+      if (container.dataset.mapZoomActive !== 'true' && rasterRefreshPendingRef.current) queueIdleRefresh();
+    });
+    settleObserver.observe(container, { attributes: true, attributeFilter: ['data-map-zoom-active'] });
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
       updateViewportMetadata(container);
       cameraRef.current?.reset();
-      requestAnimationFrame(refreshRasterSnapshot);
+      queueIdleRefresh();
     });
     observer?.observe(container);
     return () => {
       observer?.disconnect();
+      settleObserver.disconnect();
+      if (idleRefreshFrame !== null) cancelAnimationFrame(idleRefreshFrame);
       rasterGenerationRef.current += 1;
+      rasterRefreshPendingRef.current = false;
       container.dataset.mapRasterReady = 'false';
       cameraRef.current?.destroy();
       cameraRef.current = null;
