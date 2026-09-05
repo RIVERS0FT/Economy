@@ -137,7 +137,7 @@ export function EconomyChart({
   onResize?: (chart: EChartsType, size: EconomyChartSize) => void;
   onClick?: (event: EconomyChartClickEvent) => void;
   onCanvasClick?: (event: EconomyChartCanvasClickEvent, chart: EChartsType) => void;
-  onDoubleClick?: (event: EconomyChartDoubleClickEvent) => void;
+  onDoubleClick?: (event: EconomyChartDoubleClickEvent, chart: EChartsType) => void;
 }) {
   const tooltipLayer = useWorkspaceTooltipLayer();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -202,7 +202,7 @@ export function EconomyChart({
       onCanvasClickRef.current?.(event as EconomyChartCanvasClickEvent, chart);
     };
     const handleDoubleClick = (event: unknown) => {
-      onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent);
+      onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent, chart);
     };
     chart.on('click', handleClick);
     chart.getZr().on('click', handleCanvasClick);

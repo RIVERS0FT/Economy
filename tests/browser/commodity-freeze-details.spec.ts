@@ -54,6 +54,7 @@ for (const { width, scale, touch } of [
       await page.evaluate(() => document.fonts.ready);
       const trigger = page.getByRole('button', { name: '查看冻结库存 320 的来源明细' });
       await expect(page.locator('.market-history-echart')).toHaveAttribute('data-echarts-ready', 'true');
+      await expect(page.getByText('正在加载当前市场行情…')).toHaveCount(0);
       await trigger.scrollIntoViewIfNeeded();
       await expect.poll(async () => (await trigger.boundingBox())?.height ?? 0).toBeGreaterThan(0);
       await expectAligned(page);

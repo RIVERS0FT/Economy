@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { formatCurrency } from '../../utils/formatters';
 import type { MarketHistoryBucket } from '../../utils/marketHistory';
 import { formatMarketAxisTime, MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';
-import { formatCurrency } from '../../utils/formatters';
 import { EconomyChart } from './EconomyChart';
 import type { EChartsCoreOption, EChartsType } from './echartsCore';
 import { STABLE_TOOLTIP_EMPHASIS, chartColor, commonTooltip, escapeChartHtml } from './chartOptions';

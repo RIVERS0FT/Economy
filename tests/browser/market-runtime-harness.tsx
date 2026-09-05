@@ -17,6 +17,8 @@ import '../../src/styles/globals.css';
 import '../../src/styles/charts.css';
 import '../../src/styles/desktop-sidebar.css';
 import '../../src/styles/viewport.css';
+import '../../src/styles/game-shell-layout.css';
+import '../../src/styles/safe-floating.css';
 import '../../src/styles/scrollbars.css';
 import '../../src/styles/card-system.css';
 import '../../src/styles/frosted-glass-chrome.css';
@@ -30,6 +32,7 @@ import '../../src/styles/warehouse-expansion.css';
 import '../../src/styles/unified-market-admin.css';
 import '../../src/styles/virtual-list.css';
 import '../../src/styles/market-page-polish.css';
+import '../../src/styles/market-detail-direct-flow.css';
 import '../../src/styles/product-artwork.css';
 import '../../src/styles/facility-artwork.css';
 import '../../src/styles/design-system.css';
@@ -44,6 +47,7 @@ const params = new URLSearchParams(window.location.search);
 const scenario = params.get('scenario') ?? 'active';
 const fixedNow = new Date(2026, 6, 18, 0, 30, 0).getTime();
 document.documentElement.dataset.appSurface = 'game';
+let chartRevision = 0;
 
 function marketDetailFixture(url: URL): MarketDetail | null {
   if (url.pathname !== '/economy-api/game/market-detail') return null;
@@ -121,11 +125,15 @@ function marketDetailFixture(url: URL): MarketDetail | null {
         bestBid: null,
         bestAsk: null,
       };
+  if (params.has('fractional') && assetKind === 'commodity') {
+    market.lastPrice = 16.03 + chartRevision / 100;
+    market.priceHistory = market.priceHistory.map((point) => ({ ...point, price: market.lastPrice }));
+  }
   return {
     provinceId,
     assetKind,
     assetId,
-    revision: `market-runtime:${provinceId}:${assetKind}:${assetId}`,
+    revision: `market-runtime:${provinceId}:${assetKind}:${assetId}:${chartRevision}`,
     market,
     orderBook: {
       asks: assetId === 'wheat'
@@ -180,6 +188,20 @@ function MarketHarness() {
   const [orderSide, setOrderSide] = useState<'buy' | 'sell'>(scenario === 'sell-empty' ? 'sell' : 'buy');
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(2);
+  const [selectedProvinceId, setSelectedProvinceId] = useState('110000');
+  const [saveEpoch, setSaveEpoch] = useState(0);
+  const [marketRevision, setMarketRevision] = useState(0);
+  useEffect(() => {
+    const changeContext = (event: Event) => {
+      const kind = (event as CustomEvent<{ kind: string }>).detail.kind;
+      if (kind === 'province') setSelectedProvinceId((value) => value === '110000' ? '120000' : '110000');
+      if (kind === 'asset') setMarketAssetId((value) => value === 'wheat' ? 'product-2' : 'wheat');
+      if (kind === 'save') setSaveEpoch((value) => value + 1);
+      if (kind === 'price') { chartRevision += 1; setMarketRevision(chartRevision); }
+    };
+    window.addEventListener('market-fixture-context', changeContext);
+    return () => window.removeEventListener('market-fixture-context', changeContext);
+  }, []);
 
   const model = useMemo(() => {
     const products = productNames.map((name, index) => ({
@@ -239,6 +261,7 @@ function MarketHarness() {
       product.id,
       {
         productId: product.id,
+        lastTradeAt: fixedNow + marketRevision,
         lastPrice: product.id === 'wheat' ? 12 : product.basePrice,
         lastTradePrice: product.id === 'wheat' ? 2 : null,
         officialPrice: product.id === 'wheat' ? 11 : product.basePrice,
@@ -276,6 +299,7 @@ function MarketHarness() {
       },
     ]));
     const game = {
+      saveEpoch,
       version: CURRENT_CLIENT_STATE_VERSION,
       lastProcessedAt: fixedNow,
       userId: 123,
@@ -285,7 +309,7 @@ function MarketHarness() {
       frozenCredits: 0,
       gems: 0,
       inventories,
-      inventoryFreezeDetails: scenario === 'freeze-details' ? { wheat: [
+      inventoryFreezeDetails: scenario === 'freeze-long' ? { wheat: Array.from({ length: 32 }, (_, index) => ({ kind: 'production', sourceId: `long-${index}`, label: `很长的商品冻结来源建筑名称用于验证完整换行与浮层内部滚动 ${index + 1}`, quantity: 10 + (index === 0 ? freezeExtra : 0) })) } : scenario === 'freeze-details' ? { wheat: [
         { kind: 'production', sourceId: '110000:mill', label: '磨坊', quantity: 120 + freezeExtra },
         { kind: 'production', sourceId: '110000:feed-factory', label: '饲料厂', quantity: 80 },
         { kind: 'commercial', sourceId: '110000:fresh-market', label: '生鲜市场', quantity: 30 },
@@ -370,9 +394,9 @@ function MarketHarness() {
       tab,
       setTab,
       notice: '',
-      selectedProvinceId: '110000',
-      selectedProvince: { id: '110000', name: '加利福尼亚州' },
-      setSelectedProvinceId: () => {},
+      selectedProvinceId,
+      selectedProvince: { id: selectedProvinceId, name: selectedProvinceId === '110000' ? '加利福尼亚州' : '得克萨斯州' },
+      setSelectedProvinceId,
       selectedFacilityTypeId: 'machine-factory',
       setSelectedFacilityTypeId: () => {},
       marketAssetKind,
@@ -409,6 +433,9 @@ function MarketHarness() {
     } as unknown as LoadedGameViewModel;
   }, [
     freezeExtra,
+    selectedProvinceId,
+    saveEpoch,
+    marketRevision,
     marketAssetId,
     marketAssetKind,
     marketViewMode,

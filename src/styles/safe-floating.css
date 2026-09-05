@@ -14,11 +14,6 @@
   pointer-events: none !important;
 }
 
-/* Still one bounded, ordinary DOM host inside an existing application layer. */
-.workspace-dialog-layer > .workspace-tooltip-layer {
-  z-index: 100;
-}
-
 .workspace-tooltip-layer > * {
   pointer-events: none;
 }
@@ -40,12 +35,6 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
   pointer-events: none !important;
-}
-
-.safe-tooltip[data-interactive='true'] {
-  pointer-events: auto !important;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
 }
 
 .province-map-static-tooltip[popover] {
@@ -98,4 +87,15 @@
 .game-concept-tooltip > strong {
   font-size: var(--font-size-sm);
   line-height: 1.3;
+}
+
+/* One ordinary, bounded host above the mobile Sheet; never a new Portal root. */
+.workspace-dialog-layer > .workspace-tooltip-layer {
+  z-index: 100;
+}
+
+.safe-tooltip[data-interactive='true'] {
+  pointer-events: auto !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }

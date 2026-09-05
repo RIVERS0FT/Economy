@@ -542,7 +542,7 @@ Playwright 必须验证 `1684×931`、`1280×900`、`900×1000`、`390×844` 和
 
 ## 登录后浮层安全区
 
-- 游戏端与管理员端普通 Tooltip 统一由 `SignedInShell` 在既有 `.workspace-floating-layer` 内提供唯一共享 Tooltip 宿主 `.workspace-tooltip-layer`。Tooltip Layer 只负责 DOM 归属与工作区安全几何；宿主必须保持普通 DOM 子层、`pointer-events: none`，不得给 `.workspace-tooltip-layer` 本身添加 `popover`、调用 `showPopover()` 或整体进入浏览器 Top Layer，也不得创建新的根级 Portal 或第五个全局层。普通非 Tooltip Popover、下拉菜单、上下文菜单、确认框和普通页面 Dialog 继续使用 `.workspace-floating-layer`，或由业务容器在自身边界内完成 `confine`。唯一根级 Mobile Workspace Sheet 和移动通知面板使用现有 `.workspace-dialog-layer`，但不得为它们建立第二个 Portal 根。
+- 游戏端与管理员端普通 Tooltip 统一由 `SignedInShell` 提供唯一共享宿主 `.workspace-tooltip-layer`，物理层级与安全矩形以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。宿主必须保持普通 DOM 子层、`pointer-events: none`，不得给宿主添加 `popover`、调用 `showPopover()` 或整体进入浏览器 Top Layer，也不得创建新的根级 Portal 或第五个全局层。普通非 Tooltip Popover、下拉菜单、上下文菜单、确认框和普通页面 Dialog 继续使用 `.workspace-floating-layer`，或由业务容器在自身边界内完成 `confine`；移动 Sheet 和通知仍使用现有 `.workspace-dialog-layer`。
 - 普通 Tooltip、Popover、菜单以及桌面通知面板等工作区安全浮层不得与桌面顶部状态栏／管理员工作栏、桌面侧栏、移动顶部状态栏或可见移动底栏相交。移动根 Sheet 是结构例外但不是 Chrome 覆盖例外：实体 Sheet 顶边必须低于移动状态栏，外部 backdrop 完全透明且不模糊 Chrome；底部导航在 Sheet 存在时由导航自身隐藏、`aria-hidden`、`inert` 并退出命中，而不是被 Sheet 视觉遮挡。
 - 移动通知面板是 Chrome 级例外：它复用同一个 `.workspace-dialog-layer` 的更高内部层级，覆盖根 Sheet但位于移动状态栏下方。状态栏始终位于 Sheet 与通知面板之上。面板不得新增 Portal 根、第五个全局层或额外毛玻璃宿主；面板外点击捕获层必须透明。
 - `SafeTooltip` 是普通 React Tooltip 的共享入口，其定位必须根据工作区浮层根计算、自动上下翻转、水平收敛并保留 `8px` 安全间距；`GameConcept` 只作为其语义化名词触发器。实际 `SafeTooltip` 与地图 Tooltip 节点分别使用浏览器 Popover Top Layer：各自 Portal 到唯一 `.workspace-tooltip-layer` 后，由自身 `popover="manual"` 和既有 `topLayer.ts` 生命周期进入／退出 Top Layer；宿主只提供 DOM 父级与安全矩形。ECharts Tooltip 由 `EconomyChart` 在 `setOption` 前统一设置 `appendTo` 为该宿主，同时继续复用 `commonTooltip` 的 `appendToBody: false` 与 `confine: true`，保持 ECharts 节点由库托管而不强行改造成 Popover。三类实际浮层节点都必须使用 `.ui-tooltip-surface`，材质唯一归属 `src/styles/frosted-glass-surfaces.css`，不得增加第二层玻璃包装。
@@ -625,6 +625,6 @@ Playwright 必须验证 `1684×931`、`1280×900`、`900×1000`、`390×844` 和
 
 ## 商品冻结来源披露
 
-冻结数量复用 `SafeTooltip` 的安全定位、工作区 Portal 与 hover／focus 内核，不建立业务自有全局浮层。移动点击及桌面点击在既有商品详情正文内展开来源列表，不创建第二个 Sheet、backdrop 或滚动根。列表按类型分组，来源名称可换行，数量保持整数右对齐，使用已有间距、边框和字体令牌。总数与明细来自同一玩家资产状态，不显示保障目标和缺口。
+冻结数量复用 `SafeTooltip` 的安全定位、唯一共享宿主与 hover／focus 内核；冻结明细始终脱离正文布局，不得插入摘要网格、预留明细空白、展开正文或创建第二个 Sheet、backdrop、全屏命中层及页面滚动锁。桌面悬浮／键盘聚焦预览，桌面点击／移动端轻点保持打开；首次点击必须兼容先聚焦后点击的事件顺序，移入浮层可以继续阅读，再次点击数值、点击外部、Escape 或商品／地区／玩家／存档上下文切换时关闭。Escape 只关闭当前明细，不继续关闭商品详情。只为该模式开放实际浮层节点的命中与内部滚动，共享透明宿主与其他普通提示仍不拦截事件；长明细必须在安全区内翻转、收敛并只滚动浮层内容。保留商品插画、摘要卡、四项指标顺序、桌面四列及移动两列；冻结触发器的行盒与普通数值一致，同排标题和数值基线分别对齐，不以偏移量补齐。打开、关闭和刷新明细前后，摘要、插画、图表与交易控件的位置和尺寸不变。列表按类型分组，来源名称可换行，数量保持整数右对齐，使用已有间距和字体令牌；总数与明细来自同一玩家资产状态，无冻结显示“暂无冻结”，明细缺失或合计不符显示“冻结来源明细暂不可用”，不显示保障目标和缺口。
 
 建筑自动经营只保留一个共享 `SwitchControl`，标题与开关保持同一行；不得再增加地区自动出售第二开关、常驻出售风险说明、逐商品限价、模式或自由库存字段。

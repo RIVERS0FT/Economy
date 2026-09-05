@@ -60,9 +60,11 @@ if (!(sharedShell.indexOf('className="mobile-page-overlay"') >= 0
   && sharedShell.indexOf('className="workspace-strategic-chrome"') < sharedShell.indexOf('className="workspace-floating-layer"'))) {
   failures.push('SignedInShell 工作区必须按页面、战略 Chrome、普通浮层顺序渲染');
 }
-if (!(sharedShell.indexOf('className="workspace-floating-layer"') >= 0
-  && sharedShell.indexOf('className="workspace-floating-layer"') < sharedShell.indexOf('className="workspace-tooltip-layer"'))) {
-  failures.push('共享 Tooltip 宿主必须作为工作区安全浮层的子层存在，不得创建第五个根级 Portal');
+const tooltipHostPattern = /className="workspace-dialog-layer"[\s\S]*?<div\s+ref=\{setTooltipLayer\}\s+className="workspace-tooltip-layer"/;
+if (!tooltipHostPattern.test(sharedShell)
+  || (sharedShell.match(/data-workspace-tooltip-layer="true"/g) ?? []).length !== 1
+  || !sharedShell.includes('floatingLayer.getBoundingClientRect()')) {
+  failures.push('唯一普通 Tooltip 宿主必须位于既有 Dialog 层，安全矩形仍来自工作区，不得新增根级 Portal');
 }
 forbid('src/components/shell/SignedInShell.tsx', [
   'workspaceBackground',
@@ -90,7 +92,7 @@ check('src/components/ui/SafeTooltip.tsx', [
   'createPortal', 'useWorkspaceFloatingLayer', 'useWorkspaceTooltipLayer', 'SAFE_FLOATING_GAP = 8',
   'supportsTopLayerPopover()', 'showTopLayerPopover(tooltip)', 'hideTopLayerPopover(tooltip)',
   "popover={topLayerActive ? 'manual' : undefined}", 'role="tooltip"',
-  'floatingLayer.getBoundingClientRect()', 'const portalTarget = tooltipLayer',
+  'floatingLayer?.getBoundingClientRect()', 'const portalTarget = tooltipLayer',
 ]);
 check('src/components/provinces/UsMainlandMap.tsx', [
   'useWorkspaceTooltipLayer()', 'supportsTopLayerPopover()',
