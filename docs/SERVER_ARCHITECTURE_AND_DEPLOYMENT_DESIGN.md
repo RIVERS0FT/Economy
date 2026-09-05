@@ -155,7 +155,7 @@ V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.strin
 
 浏览器发布六分区前必须校验 catalog 完整性；初始或增量 catalog 缺失必需字段时事务式拒绝该次发布，清空分区修订缓存并只允许一次无条件完整重拉，重拉失败进入受控中文状态同步错误。
 
-普通玩家权威动作的持久化幂等确认仍固定为 `{ result: { ok, message }, revision }`；动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认。HTTP 传输层在事务提交且权威写执行器释放串行写队列之后生成，从当前 committed world 为当前玩家生成一次权威状态交付，`commandRevision` 表示该命令实际提交时的世界修订号。客户端先把动作响应中的权威状态送入与 `GET state` 共用的缓存再结束 pending；正常成功路径不得为了取得同一动作结果再追加一次 `GET state`。 手动商品即时买卖是延迟敏感例外：事务与幂等确认提交成功后，HTTP 立即返回 `{ result, revision, commandRevision }` 精简确认，不等待提交后的全状态投影；客户端收到确认即结束交易 pending，再通过既有非阻塞 `GET state`／普通轮询恢复资金、库存与市场权威状态。该补拉失败不得把已经提交的成交改写为失败，也不得用新的幂等键重复成交。提交成功但本地增量验收失败时，补拉失败不得把已经提交成功的动作改写为失败，由非阻塞状态读取或后续轮询恢复。
+普通玩家权威动作的持久化幂等确认仍固定为 `{ result: { ok, message }, revision }`；动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认。HTTP 传输层在事务提交且权威写执行器释放串行写队列之后生成，从当前 committed world 为当前玩家生成一次权威状态交付，`commandRevision` 表示该命令实际提交时的世界修订号。客户端先把动作响应中的权威状态送入与 `GET state` 共用的缓存再结束 pending；正常成功路径不得为了取得同一动作结果再追加一次 `GET state`。 手动商品即时买卖是延迟敏感例外：事务与幂等确认提交成功后，HTTP 立即返回 `{ result, revision, commandRevision, serverNow }` 精简确认，不等待提交后的全状态投影；客户端收到确认即结束交易 pending，再通过既有非阻塞 `GET state`／普通轮询恢复资金、库存与市场权威状态。该补拉失败不得把已经提交的成交改写为失败，也不得用新的幂等键重复成交。提交成功但本地增量验收失败时，补拉失败不得把已经提交成功的动作改写为失败，由非阻塞状态读取或后续轮询恢复。
 
 具有明确目标且失败可恢复的直接控制允许维护独立于 authority 的客户端 Intent Overlay。Intent 只影响控件展示，不写入 `EconomyState` 或参与权威推导；快速连续目标按顺序发送且只允许一个请求在途，最新目标始终优先。
 

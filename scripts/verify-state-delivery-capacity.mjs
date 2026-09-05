@@ -205,6 +205,7 @@ requireText('server/src/app.js', [
   "const compactManualCommodityOrder = route.action === 'placeOrder'",
   "payload.assetKind === 'commodity'",
   "commandRevision: actionResponse.revision",
+  "serverNow: Date.now()",
   "Object.defineProperty(actionResponse, 'stateSnapshot'",
   'value: store.getStateSnapshot(user, null, actionDeliveryNow)',
   'createPartitionedActionDelivery(actionResponse, knownPartitions, actionDeliveryNow)',

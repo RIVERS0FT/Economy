@@ -685,6 +685,7 @@ const server = createServer(async (request, response) => {
       sendJson(response, 200, {
         ...actionResponse,
         commandRevision: actionResponse.revision,
+        serverNow: Date.now(),
       });
       return;
     }

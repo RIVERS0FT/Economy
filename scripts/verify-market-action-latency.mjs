@@ -84,6 +84,7 @@ for (const text of [
   "payload.assetKind === 'commodity'",
   '!payload.execution',
   'commandRevision: actionResponse.revision',
+  'serverNow: Date.now()',
   "Object.defineProperty(actionResponse, 'stateSnapshot'",
   'value: store.getStateSnapshot(user, null, actionDeliveryNow)',
   'createPartitionedActionDelivery(actionResponse, knownPartitions, actionDeliveryNow)',
