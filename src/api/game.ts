@@ -342,6 +342,7 @@ if (isWrite) installIdempotentGameWriteFetch();
         if (payload.message) message = payload.message;
         code = String(payload.code || '');
       } catch { /* preserve generic message */ }
+      assertGameWriteSession(requestSession);
       if (code === 'SAVE_EPOCH_MISMATCH') {
         markPageSaveEpochStale(message);
         throw new SaveEpochPageMismatchError(message);
