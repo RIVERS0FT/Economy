@@ -13,6 +13,7 @@ const FULL_TRIGGER_PATTERNS = [
   /^postcss\.config\./,
   /^\.github\/workflows\//,
   /^scripts\/select-ci-tests\.mjs$/,
+  /^scripts\/verify-document-authority\.mjs$/,
   /^scripts\/run-code-coverage\.mjs$/,
   /^scripts\/verify-deployment-pipeline\.mjs$/,
   /^scripts\/prepare-playwright-chromium\.sh$/,
@@ -115,7 +116,7 @@ const domainRuleMatchesPath = (rule, path) => (
   && rule.source.test(path)
 );
 const inferDomains = (changedFiles) => DOMAIN_RULES.filter((rule) => changedFiles.some((path) => domainRuleMatchesPath(rule, path)));
-const isDocumentationOnly = (path) => /^(?:docs\/.*\.md|README\.md|AGENTS\.md)$/.test(path);
+const isDocumentationOnly = (path) => /\.md$/i.test(path);
 const isFrontendSource = (path) => /^(?:src\/|index\.html$|all-pages-preview\.html$|.*-runtime-test\.html$)/.test(path);
 const isServerSource = (path) => /^server\/src\/.*\.js$/.test(path);
 const isVerificationScript = (path) => /^scripts\/verify-[^/]+\.mjs$/.test(path);
@@ -182,12 +183,20 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
 
   const commands = [];
   const seenCommands = new Set();
+  const documentationChanges = changedFiles.filter(isDocumentationOnly);
+  const executableChanges = changedFiles.filter((path) => !isDocumentationOnly(path));
+  addCommand(commands, seenCommands, 'npm', ['run', 'verify:repository-text-format']);
+  if (documentationChanges.length > 0) addCommand(commands, seenCommands, 'node', ['scripts/verify-document-authority.mjs']);
+
+  // Paths classify executable impact, not the meaning of prose. Changes to a
+  // contract still need implementation/tests or an explicitly requested full run.
+  if (executableChanges.length === 0) {
+    plan.dt.commands = commands;
+    plan.reasons.push('documentation-only');
+    return plan;
+  }
   addCommand(commands, seenCommands, 'node', ['scripts/verify-deployment-pipeline.mjs']);
   addCommand(commands, seenCommands, 'node', ['scripts/verify-runtime-reliability.mjs']);
-  addCommand(commands, seenCommands, 'npm', ['run', 'verify:repository-text-format']);
-
-  const documentationChanges = changedFiles.filter(isDocumentationOnly);
-  if (documentationChanges.length > 0) addCommand(commands, seenCommands, 'node', ['scripts/verify-document-authority.mjs']);
 
   const frontendChanges = changedFiles.filter(isFrontendSource);
   const dtTestChanges = changedFiles.filter(isDtTest);
@@ -218,7 +227,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   const dtTestCandidates = listFiles(root, 'tests/dt', isDtTest);
   const serverTestCandidates = listFiles(root, 'server/test', isServerTest);
   const browserCandidates = listFiles(root, 'tests/browser', isBrowserSpec);
-  const domains = inferDomains(changedFiles);
+  const domains = inferDomains(executableChanges);
 
   if (domains.some((rule) => rule.name === 'product-catalog')) {
     addCommand(commands, seenCommands, 'npm', ['run', 'generate:product-artwork']);
@@ -227,7 +236,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   if (domains.some((rule) => rule.name === 'facility')) addCommand(commands, seenCommands, 'npm', ['run', 'generate:facility-artwork']);
 
   const isDomainCandidate = (candidate) => domains.some((rule) => rule.candidate.test(candidate));
-  const isReferenceCandidate = (candidate) => candidateReferencesAnyChangedFile(root, candidate, changedFiles);
+  const isReferenceCandidate = (candidate) => candidateReferencesAnyChangedFile(root, candidate, executableChanges);
 
   for (const candidate of verifyCandidates) {
     if (isDomainCandidate(candidate) || isReferenceCandidate(candidate)) {

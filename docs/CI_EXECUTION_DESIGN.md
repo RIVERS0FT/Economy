@@ -2,9 +2,9 @@
 
 ## 1. 权威入口
 
-- `.github/workflows/ci.yml` 是 PR 与非 `main` push 的唯一 CI 工作流；`.github/workflows/deploy.yml` 是 `main` 自动部署与完整生产门禁。
+- `.github/workflows/ci.yml` 负责 PR 合入验证和手动完整验证；不为普通分支 push 默认重复执行同等 CI。`.github/workflows/deploy.yml` 负责 `main` 自动部署与完整生产门禁。
 - 改动文件影响范围唯一由 `scripts/select-ci-tests.mjs` 计算。DT、IT、ST 只消费同一份选择计划，不得各自复制第二套 changed-file 或领域选择规则。
-- `pull_request` 与非 `main` push 继续按各自真实 base/head 或 merge-base 计算改动，并保留 `verify-head-ci-registration` 对同一 PR head push CI 的只读登记校验。
+- `pull_request` 使用事件提供的真实 base/head 计算改动；`workflow_dispatch` 执行完整验证。合并依据实际检查结果，不要求另一条 push CI 的登记记录，也不对 required 工作流设置路径忽略。
 - GitHub Actions 中针对生产环境的手动诊断工作流只负责执行受控只读检查；生产 SQLite 的持久化、维护、备份、恢复与服务运行边界仍归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`。
 
 ## 2. DT、IT、ST 分层
@@ -34,7 +34,7 @@ ST 负责从完整系统或真实用户输入角度验证运行行为：
 - `tests/stress` 与正式压力场景属于 ST-performance；
 - `scripts/verify-production-deployment.sh` 的远端与公网检查属于 ST-production acceptance。
 
-PR 与分支只在选择器判定需要浏览器验证时执行 ST-browser；`main` 部署前始终执行完整 ST-browser。实际压力场景不要求每个普通 PR 执行，但其 harness、账户隔离和测试流必须继续受静态 verifier 保护。
+PR 只在选择器判定需要浏览器验证时执行 ST-browser；手动完整验证执行全部 ST-browser；`main` 部署前始终执行完整 ST-browser。实际压力场景不要求每个普通 PR 执行，但其 harness、账户隔离和测试流必须继续受静态 verifier 保护。
 
 ## 3. 代码覆盖率门禁
 
@@ -50,7 +50,7 @@ PR 与分支只在选择器判定需要浏览器验证时执行 ST-browser；`ma
 - `src/utils/assetAllocation.ts`；
 - `src/utils/virtualListRange.ts`。
 
-DT 最低覆盖率固定为：
+当前 DT 最低覆盖率为：
 
 - Lines ≥ 95%；
 - Functions ≥ 95%；
@@ -64,7 +64,7 @@ IT 覆盖已由选中服务器测试实际加载的 `server/src/**/*.js`、`serv
 
 IT 覆盖率执行器不得使用 `--test-coverage-include` 强制把未加载的服务器源码按零覆盖加入分母；targeted 与 full 都只统计本次 IT 实际加载的正式代码，并排除测试文件本身。关键模块是否具备 IT 基线继续由 `scripts/verify-code-coverage.mjs` 静态锁定，不能用扩大分母替代测试选择正确性。
 
-IT 最低覆盖率固定为：
+当前 IT 最低覆盖率为：
 
 - Lines ≥ 60%；
 - Functions ≥ 55%；
@@ -76,9 +76,9 @@ IT 最低覆盖率固定为：
 
 覆盖率结果以测试输出和失败日志为准。`coverage/`、`.nyc_output/` 或其他可再生成报告不得提交到 `main`；CI 失败时可以上传短期日志 Artifact，成功运行不长期保存覆盖率产物。
 
-## 4. PR 与分支执行拓扑
+## 4. PR 与手动执行拓扑
 
-PR／非 `main` push 的执行顺序固定为：
+PR 与手动 CI 当前按以下依赖执行：
 
 1. `dt` Job 计算一次 changed-file 计划并执行 DT；
 2. `it` Job 复用 `dt` 输出的同一计划并执行 IT；
@@ -91,11 +91,11 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 
 部署验收基础设施文件即使文件名包含 `production`，也只属于 CI／部署路径，不得因此归入 gameplay `facility` 域。`scripts/verify-production-deployment.sh`、正式域名验收专项 verifier 与其行为测试只通过直接文件／引用关系选择对应 DT；仅修改这些部署验收基础设施时不得凭文件名扩散到工厂 IT 或 ST-browser。选择器本身仍属于 high-risk full trigger，修改该边界时必须回退完整 DT、完整 IT 与完整 ST-browser。
 
-## 5. PR 与分支浏览器门禁
+## 5. 浏览器门禁与执行配置
 
-- 只要选择器要求浏览器验证，ST-browser 固定拆成四个独立 shard，使用 `fail-fast: false`，每个 shard 保留 20 分钟 Job 上限。
+- 当前 ST-browser 使用四个独立 shard、`fail-fast: false` 与每个 Job 20 分钟上限。分片数量、并发拓扑与合理超时是可据运行数据调整的配置，不是永久禁令；调整必须保持选中集合完整、分片分母一致、失败可诊断和总耗时有界。
 - `browser-test` 必须等待 DT 与 IT 成功，避免静态或事务失败后继续消耗浏览器运行器。
-- targeted 模式必须把选择器已经确定的同一组 Playwright spec 交给四个 shard，并通过 Playwright `--shard=N/4` 做确定性分配；不得为了缩短时间删除同领域基线、只跑首个 shard 或另建手工测试清单。
+- targeted 模式把同一组已选 Playwright spec 交给全部配置 shard，并通过 `--shard=N/总数` 确定性分配；不得漏跑分片、删除相关基线或另建手工测试清单。
 - full fallback 模式同样使用四分片覆盖完整 Playwright 集合，与 `main` 部署前的完整浏览器门禁保持同一执行模型。
 - targeted 浏览器 runner 通过 `ECONOMY_PLAYWRIGHT_SHARD=N/4` 控制 Playwright 分片；该变量只允许控制分片，不得改变选择器计划本身。
 
@@ -109,11 +109,13 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 部署完成后继续运行 ST-production acceptance，验证服务健康、正式域名、公网入口、账号／注册／游戏 API 与数据库只读完整性边界。
 - 正式域名的公网页面、健康 API 与游戏 API 必须继续通过真实 `game.riversoft.top` DNS 与 HTTPS 验证，不得使用 `--resolve`、`--connect-to` 或固定 Host/IP 绕过公网 DNS。仅当 `curl` 未获得任何 HTTP 状态（`000`，包括瞬时 DNS／传输失败）时允许最多 3 次、间隔 1 秒的有界重试，单次连接超时 2 秒、总耗时 3 秒；一旦正式域名返回非预期 HTTP 状态必须立即失败，不得重试掩盖应用／代理错误。该重试不得改变 `ECONOMY_DEPLOY_VERIFY_START` 后 45 秒真实健康检查门槛。
 
-部署 Job 不得在上传阶段再次串行执行完整 `npm run build` 或 Playwright，避免同一源码重复跑完整门禁并挤压部署超时预算。
+部署 build 在完整验证通过后打包其正式 `dist`，通过同一次工作流的短期 Artifact 交给 deploy。产物 ID、源码 SHA 和归档 SHA-256 由成功 build 的 Job 输出传递；deploy 在解包前校验源码 SHA 与独立传递的摘要，任何缺失或不匹配均失败。不得下载其他运行／仓库的产物，不依赖下载 Action 仅告警的摘要提示代替硬校验。按产物 ID 下载可在仅重跑失败 deploy 时复用原成功 build 的产物；产物过期则重新执行完整发布验证。
+
+部署 Job 不再重新生成美术／预览资源或执行 TypeScript、Vite、完整 build 或 Playwright；只消费已验证产物并保留原有服务器发布、生产安全边界与线上验收。短期产物不提交仓库。
 
 ## 7. 失败、运行时 Harness 与超时
 
-- 浏览器行为回归必须修复实际根因；不得通过提高 Job 超时、扩大 Playwright 单测超时、关闭 retry、降低断言或跳过 ST 门禁来掩盖失败。
+- 浏览器行为回归应根据证据修复根因；可以依据正常负载与运行数据调整合理超时，但不得用延时、吞错、降低断言或跳过必要测试来掩盖失败。同一失败且没有新证据时应报告阻塞，不盲目重跑。
 - 单个 Playwright test 不得把可独立重建状态的多个完整页面层级串成长链直到消耗默认单测超时。此类回归必须按独立用户阶段拆分为多个 test，并在每个 test 中从同一确定性 fixture 重建前置状态，同时保留原有断言。
 - 同一几何基线需要覆盖三个以上完整视口并且每个视口都会重新加载 runtime／preview fixture 时，必须在测试声明期按视口生成独立 Playwright test，使每个视口拥有独立默认单测预算；不得在单个 test 内循环多个完整 reload，也不得因此删减任何视口或几何断言。
 - `player-page-geometry.spec.ts` 的全页面承载宽度基线必须按“视口 × 页面”在测试声明期生成独立 test；市场图表的完整 runtime／根字号阶段也必须各自独立。跨宽度相对关系只能在单一 runtime 内通过真实 resize 与权威 `data-*` 状态轮询比较。
@@ -129,7 +131,7 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 只读诊断不得执行 `VACUUM`、`wal_checkpoint`、`PRAGMA optimize`、备份、附加数据库、DDL 或 DML，也不得停止、重启或改变生产服务；诊断前后数据库、WAL 与 SHM 必须保持不变。
 - 诊断不得上传数据库、WAL、SHM、备份或包含玩家明细的 Artifact；只允许把无身份的容量、空闲页、完整性和 SQLite 对象聚合结果写入 Job Summary。
 
-## 9. 防回退
+## 9. 必须保护的结果
 
 不得恢复以下行为：
 
@@ -140,7 +142,7 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 在 IT 覆盖率中恢复 `--test-coverage-include`，把 targeted 模式没有加载的服务器源码按零覆盖计入分母；
 - 把部署验收基础设施文件仅因名称含 `production` 重新归入 gameplay `facility` 域，进而无依据扩大到工厂 IT／ST-browser；选择器边界本身发生变化时不得取消 full fallback。
 - 把 selected/full 浏览器测试重新串行放回 DT 或 IT Job；
-- PR/分支需要浏览器验证时只使用单个 Job 执行全部选中测试，或用延长 20 分钟上限替代四分片；
+- 改变浏览器分片或超时配置时漏跑选中集合、失去有限失败边界，或以配置调整掩盖行为错误；
 - targeted shard 自行重新定义测试集合；
 - 把可独立重建 fixture 的多阶段页面回归重新合并成长链，或用提高 Playwright 单测超时替代阶段拆分；
 - 把三个以上需要完整 reload 的视口重新串进同一个 Playwright test，共享一份默认单测预算；
@@ -150,3 +152,13 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 把正式域名公网验收改成单次无重试 DNS 请求、把传输失败当成功，或用 `--resolve`／`--connect-to` 绕过真实 DNS；正式域名返回非预期 HTTP 状态时不得继续重试。
 - 把生产数据库诊断改成自动触发、可写连接、维护操作或服务控制入口；
 - 为诊断上传数据库文件、WAL/SHM、备份或玩家级明细 Artifact。
+
+## 10. 文档与验证职责
+
+Markdown 路径本身不表示业务源码变更。纯文档计划只执行仓库文本格式及文档结构／本地链接检查，不安装业务依赖，也不因文件名包含 market、production、map 等词或正文引用而扩散到 IT/ST。混合变更仍验证文档，但领域与引用推断仅使用非文档路径。选择器、文档验证器、共享协议、发布流程和无法分类的源码保持 full fallback。
+
+路径分类不能判断文字是否改变契约。业务语义、安全要求或接口契约改变时，应在同一变更中提供相应实现／行为测试；无法由路径体现的影响使用手动完整验证，不把文档计划当作语义审查豁免。
+
+文档验证不锁定自然语言措辞、章节标题、文档字节数或第二份手工清单；结构契约与职责路由见 `README.md`。覆盖率与业务安全断言保持现有门槛。本轮规则和 CI 基础设施修改必须运行完整回归，不能通过新的减负路径自我豁免。
+
+`tests/dt/project-governance.test.ts` 用临时文档目录、选择计划和实际工作流 shell 验证文案可改写、登记／链接错误仍失败、文档不扩大业务测试、必要检查失败不放行及错误部署产物不能解包；不使用固定设计句子代替行为断言。

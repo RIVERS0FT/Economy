@@ -1,76 +1,236 @@
-name: Prepare Economy governance change
+name: Economy CI
 
 on:
-  push:
-    branches:
-      - chore/project-rules-ci-cleanup
+  pull_request:
+  workflow_dispatch:
 
 concurrency:
-  group: prepare-economy-governance
+  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  prepare:
+  dt:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    outputs:
+      mode: ${{ steps.scope.outputs.mode }}
+      browser: ${{ steps.scope.outputs.browser }}
+      dependencies: ${{ steps.scope.outputs.dependencies }}
+      plan_json: ${{ steps.scope.outputs.plan_json }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
-      - name: Apply scoped changes
-        run: |
-          python3 .github/prepare-governance.py
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('.github/workflows/deploy.yml')
-          text = path.read_text()
-          anchor = '      - name: Download validated website\n'
-          assert text.count(anchor) == 1
-          path.write_text(text.replace(anchor, anchor + "        if: needs.build.outputs.artifact_id != ''\n"))
-          PY
-      - name: Validate governance behavior and patch
+          cache: npm
+
+      - name: Select changed-file CI scope
+        id: scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          git add -A
-          git diff --cached --check
-          node scripts/verify-document-authority.mjs
+          changed_files="$RUNNER_TEMP/economy-changed-files.txt"
+          plan_file="$RUNNER_TEMP/economy-ci-plan.json"
+
+          scope_args=()
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            : > "$changed_files"
+            scope_args+=(--full)
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            git diff --check "$PR_BASE_SHA" "$PR_HEAD_SHA"
+            git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" > "$changed_files"
+          else
+            echo "Unsupported CI event: $EVENT_NAME" >&2
+            exit 1
+          fi
+          node scripts/select-ci-tests.mjs plan \
+            --changed-files-file "$changed_files" \
+            --plan-file "$plan_file" \
+            --github-output "$GITHUB_OUTPUT" \
+            "${scope_args[@]}"
+
+          echo "ECONOMY_CI_CHANGED_FILES"
+          cat "$changed_files"
+          echo "ECONOMY_CI_PLAN"
+          cat "$plan_file"
+
+      - name: Install dependencies
+        if: steps.scope.outputs.dependencies == 'true'
+        run: npm ci
+
+      - name: Run full DT fallback
+        if: steps.scope.outputs.mode == 'full'
+        shell: bash
+        run: |
+          set -o pipefail
           node scripts/verify-deployment-pipeline.mjs
-          node --experimental-strip-types --test tests/dt/project-governance.test.ts
-          node scripts/verify-repository-text-format.mjs
-      - name: Store validated file objects for connector review
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('node:fs');
-            const cp = require('node:child_process');
-            const paths = cp.execFileSync('git', ['diff', '--cached', '--name-only', '-z'], {encoding: 'utf8'}).split('\0').filter(Boolean);
-            const {owner, repo} = context.repo;
-            const parent = await github.rest.git.getCommit({owner, repo, commit_sha: context.sha});
-            const entries = [];
-            for (const path of paths) {
-              let sha = null;
-              if (fs.existsSync(path)) {
-                const blob = await github.rest.git.createBlob({owner, repo, content: fs.readFileSync(path).toString('base64'), encoding: 'base64'});
-                sha = blob.data.sha;
-              }
-              entries.push({path, mode: '100644', type: 'blob', sha});
-            }
-            core.info('ECONOMY_PREPARED_TREE=' + JSON.stringify({parent: context.sha, base_tree: parent.data.tree.sha, entries}));
-            await core.summary.addHeading('Validated file objects').addCodeBlock(JSON.stringify(entries, null, 2)).write();
-      - name: Save review patch
-        if: always()
-        run: git diff 53a8561de91610829e8337db9896655fdb60ba27 --binary > "$RUNNER_TEMP/economy-governance.patch"
-      - name: Upload review patch
-        if: always()
+          npm run validate:dt 2>&1 | tee dt-test.log
+
+      - name: Run targeted DT
+        if: steps.scope.outputs.mode == 'targeted'
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/select-ci-tests.mjs run \
+            --plan-file "$RUNNER_TEMP/economy-ci-plan.json" \
+            --phase dt 2>&1 | tee dt-test.log
+
+      - name: Upload DT failure artifacts
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: economy-governance-review-${{ github.run_id }}
-          path: ${{ runner.temp }}/economy-governance.patch
-          retention-days: 1
+          name: economy-dt-failure
+          path: dt-test.log
+          if-no-files-found: warn
+          retention-days: 3
+
+  it:
+    needs: dt
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Restore CI plan
+        env:
+          PLAN_JSON: ${{ needs.dt.outputs.plan_json }}
+        run: printf '%s\n' "$PLAN_JSON" > "$RUNNER_TEMP/economy-ci-plan.json"
+
+      - name: Install dependencies
+        if: needs.dt.outputs.dependencies == 'true'
+        run: npm ci
+
+      - name: Run full IT fallback with coverage
+        if: needs.dt.outputs.mode == 'full'
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run validate:it 2>&1 | tee it-test.log
+
+      - name: Run targeted IT with coverage
+        if: needs.dt.outputs.mode == 'targeted'
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/select-ci-tests.mjs run \
+            --plan-file "$RUNNER_TEMP/economy-ci-plan.json" \
+            --phase it 2>&1 | tee it-test.log
+
+      - name: Upload IT failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-it-coverage-failure
+          path: it-test.log
+          if-no-files-found: warn
+          retention-days: 3
+
+  browser-test:
+    needs: [dt, it]
+    if: needs.dt.outputs.browser == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Restore CI plan
+        env:
+          PLAN_JSON: ${{ needs.dt.outputs.plan_json }}
+        run: printf '%s\n' "$PLAN_JSON" > "$RUNNER_TEMP/economy-ci-plan.json"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
+
+      - name: Test browser runtime full fallback
+        if: needs.dt.outputs.mode == 'full'
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:browser -- --shard=${{ matrix.shard }}/4 2>&1 | tee browser-test.log
+
+      - name: Test browser runtime selected changes
+        if: needs.dt.outputs.mode == 'targeted'
+        shell: bash
+        env:
+          ECONOMY_PLAYWRIGHT_SHARD: ${{ matrix.shard }}/4
+        run: |
+          set -o pipefail
+          node scripts/select-ci-tests.mjs run \
+            --plan-file "$RUNNER_TEMP/economy-ci-plan.json" \
+            --phase browser 2>&1 | tee browser-test.log
+
+      - name: Upload browser test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-browser-test-artifacts-${{ matrix.shard }}
+          path: |
+            browser-test.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
+
+  build:
+    if: always()
+    needs: [dt, it, browser-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate DT IT ST quality gate
+        shell: bash
+        env:
+          DT_RESULT: ${{ needs.dt.result }}
+          IT_RESULT: ${{ needs.it.result }}
+          BROWSER_REQUIRED: ${{ needs.dt.outputs.browser }}
+          BROWSER_RESULT: ${{ needs.browser-test.result }}
+        run: |
+          set -euo pipefail
+          test "$DT_RESULT" = "success"
+          test "$IT_RESULT" = "success"
+          case "$BROWSER_REQUIRED" in
+            true) test "$BROWSER_RESULT" = "success" ;;
+            false)
+              case "$BROWSER_RESULT" in
+                skipped|success) ;;
+                *) echo "Unexpected browser result: $BROWSER_RESULT" >&2; exit 1 ;;
+              esac ;;
+            *) echo "Missing or invalid browser requirement: $BROWSER_REQUIRED" >&2; exit 1 ;;
+          esac
+          echo "ECONOMY_QUALITY_GATE_OK dt=$DT_RESULT it=$IT_RESULT browser=$BROWSER_RESULT"

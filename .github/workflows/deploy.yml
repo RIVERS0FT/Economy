@@ -21,6 +21,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      artifact_id: ${{ steps.upload_dist.outputs.artifact-id }}
+      artifact_sha256: ${{ steps.package_dist.outputs.sha256 }}
+      source_sha: ${{ steps.package_dist.outputs.source_sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,6 +50,26 @@ jobs:
           set -euo pipefail
           node scripts/verify-deployment-pipeline.mjs
           npm run build
+
+      - name: Package validated website
+        id: package_dist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          tar -czf "$RUNNER_TEMP/economy-dist.tar.gz" -C dist .
+          echo "sha256=$(sha256sum "$RUNNER_TEMP/economy-dist.tar.gz" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload validated website
+        id: upload_dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-dist-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/economy-dist.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
       - name: Upload failed build validation log
         if: failure()
@@ -132,15 +156,30 @@ jobs:
           set -euo pipefail
           npm ci
 
-      - name: Build production artifact from validated source
+      - name: Download validated website
+        if: needs.build.outputs.artifact_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: ${{ runner.temp }}/economy-dist
+          merge-multiple: true
+
+      - name: Verify and unpack validated website
         id: build_artifact
+        shell: bash
+        env:
+          EXPECTED_SHA256: ${{ needs.build.outputs.artifact_sha256 }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
         run: |
           exec > >(tee /tmp/economy-build-artifact.log) 2>&1
           set -euo pipefail
-          npm run generate:artwork
-          npm run generate:local-preview
-          ./node_modules/.bin/tsc
-          ./node_modules/.bin/vite build
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          [[ "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          archive="$RUNNER_TEMP/economy-dist/economy-dist.tar.gz"
+          printf '%s  %s\n' "$EXPECTED_SHA256" "$archive" | sha256sum -c -
+          mkdir -p dist
+          tar -xzf "$archive" -C dist
+          test -s dist/index.html
 
       - name: Ensure rsync is available
         id: ensure_rsync
