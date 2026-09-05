@@ -1,0 +1,94 @@
+name: Validate delayed error isolation
+on:
+  push:
+    branches: [work/audit-error-response-20260906]
+    paths: [.github/workflows/audit-error-response.yml]
+permissions:
+  contents: write
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/work/audit-error-response-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Add error-path session guard and behavior test
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+          const path = 'src/api/game.ts';
+          const source = readFileSync(path, 'utf8');
+          const from = "      } catch { /* preserve generic message */ }\n      if (code === 'SAVE_EPOCH_MISMATCH') {";
+          if (source.split(from).length !== 2) throw new Error('Error branch changed');
+          writeFileSync(path, source.replace(from, "      } catch { /* preserve generic message */ }\n      assertGameWriteSession(requestSession);\n      if (code === 'SAVE_EPOCH_MISMATCH') {"));
+          const testPath = 'tests/browser/write-error-session.spec.ts';
+          if (existsSync(testPath)) throw new Error('Test already exists');
+          writeFileSync(testPath, `import { test, expect } from '@playwright/test';
+          
+          test('a delayed old-account error cannot mark the new account save epoch stale', async ({ page }) => {
+            await page.route('**/audit-error-harness', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Error session harness</title>' }));
+            await page.goto('audit-error-harness');
+            const result = await page.evaluate(async () => {
+              const sessionUrl = '/economy/src/api/gameWriteSession.ts';
+              const apiUrl = '/economy/src/api/game.ts';
+              const session = await import(sessionUrl);
+              const api = await import(apiUrl);
+              session.beginGameWriteSession(809);
+              let started!: () => void;
+              let release!: () => void;
+              const reading = new Promise<void>((resolve) => { started = resolve; });
+              const gate = new Promise<void>((resolve) => { release = resolve; });
+              window.fetch = async () => {
+                const response = Response.json({}, { status: 409 });
+                response.json = async () => { started(); await gate; return { code: 'SAVE_EPOCH_MISMATCH', message: 'old account epoch changed' }; };
+                return response;
+              };
+              const request = api.getGameState().then(() => 'incorrect-success', (error: { code: string }) => error.code);
+              await reading;
+              session.endGameWriteSession();
+              api.resetGameSession();
+              session.beginGameWriteSession(810);
+              release();
+              return { code: await request, stale: api.getPageSaveEpochErrorMessage() };
+            });
+            expect(result.code).toBe('WRITE_SESSION_CHANGED');
+            expect(result.stale).toBe('');
+          });
+          `.split('\n').map((line, index) => index === 0 ? line : line.replace(/^          /, '')).join('\n'));
+          NODE
+          git add src/api/game.ts tests/browser/write-error-session.spec.ts
+          git diff --cached --check
+      - name: Full build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build > "$RUNNER_TEMP/build.log" 2>&1 || { tail -150 "$RUNNER_TEMP/build.log"; exit 1; }
+          tail -8 "$RUNNER_TEMP/build.log"
+      - run: bash scripts/prepare-playwright-chromium.sh
+      - name: Browser regression
+        run: npm run test:browser -- tests/browser/write-error-session.spec.ts tests/browser/write-session-boundaries.spec.ts
+      - name: Commit only reviewed source and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/work/audit-error-response-20260906
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: reject stale error receipts before updating account state'
+          git push origin HEAD:refs/heads/work/audit-error-response-20260906
+          git rev-parse HEAD
+          git ls-tree HEAD src/api/game.ts tests/browser/write-error-session.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: audit-error-response-failure
+          path: ${{ runner.temp }}/build.log
+          retention-days: 3
