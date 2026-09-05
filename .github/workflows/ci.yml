@@ -25,7 +25,16 @@ jobs:
         with:
           node-version: 24.4.0
       - name: Apply scoped changes
-        run: python3 .github/prepare-governance.py
+        run: |
+          python3 .github/prepare-governance.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/deploy.yml')
+          text = path.read_text()
+          anchor = '      - name: Download validated website\n'
+          assert text.count(anchor) == 1
+          path.write_text(text.replace(anchor, anchor + "        if: needs.build.outputs.artifact_id != ''\n"))
+          PY
       - name: Validate governance behavior and patch
         run: |
           set -euo pipefail
@@ -35,7 +44,7 @@ jobs:
           node scripts/verify-deployment-pipeline.mjs
           node --experimental-strip-types --test tests/dt/project-governance.test.ts
           node scripts/verify-repository-text-format.mjs
-      - name: Create reviewable commit without updating any branch
+      - name: Store validated file objects for connector review
         uses: actions/github-script@v7
         with:
           script: |
@@ -44,13 +53,17 @@ jobs:
             const paths = cp.execFileSync('git', ['diff', '--cached', '--name-only', '-z'], {encoding: 'utf8'}).split('\0').filter(Boolean);
             const {owner, repo} = context.repo;
             const parent = await github.rest.git.getCommit({owner, repo, commit_sha: context.sha});
-            const entries = paths.map(path => fs.existsSync(path)
-              ? {path, mode: '100644', type: 'blob', content: fs.readFileSync(path, 'utf8')}
-              : {path, mode: '100644', type: 'blob', sha: null});
-            const tree = await github.rest.git.createTree({owner, repo, base_tree: parent.data.tree.sha, tree: entries});
-            const commit = await github.rest.git.createCommit({owner, repo, tree: tree.data.sha, parents: [context.sha], message: '清理项目规则、文档门禁与 CI 重复验证'});
-            core.info('ECONOMY_PREPARED_COMMIT=' + commit.data.sha);
-            await core.summary.addHeading('Prepared governance change').addRaw(commit.data.sha).addList(paths).write();
+            const entries = [];
+            for (const path of paths) {
+              let sha = null;
+              if (fs.existsSync(path)) {
+                const blob = await github.rest.git.createBlob({owner, repo, content: fs.readFileSync(path).toString('base64'), encoding: 'base64'});
+                sha = blob.data.sha;
+              }
+              entries.push({path, mode: '100644', type: 'blob', sha});
+            }
+            core.info('ECONOMY_PREPARED_TREE=' + JSON.stringify({parent: context.sha, base_tree: parent.data.tree.sha, entries}));
+            await core.summary.addHeading('Validated file objects').addCodeBlock(JSON.stringify(entries, null, 2)).write();
       - name: Save review patch
         if: always()
         run: git diff 53a8561de91610829e8337db9896655fdb60ba27 --binary > "$RUNNER_TEMP/economy-governance.patch"
