@@ -22,7 +22,7 @@ function setup(count = 3, commercialTypeId = 'convenience-store') {
   assert.equal(applyCommercialBuildingAction(world, user, { operation: 'build', provinceId, commercialTypeId, quantity: count }, now + 1).ok, true);
   const group = player.commercialBuildingGroups.find((item) => item.commercialTypeId === commercialTypeId);
   group.enabled = true;
-  for (const input of type.consumptionInputs) world.markets[provinceScopedKey(provinceId, input.productId)].officialPrice = 1;
+  for (const input of type.consumptionInputs) world.markets[provinceScopedKey(provinceId, input.productId)].officialPrice = 15;
   return { world, player, group, type };
 }
 function setPolicy(world, policy, owner = user, region = provinceId) {
@@ -59,10 +59,10 @@ test('commercial purchase fills only the local two-cycle shortfall once', () => 
   assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId }, now + 3).ok, true);
   assert.equal(inventoryForProvince(player, 'food', provinceId).available, 6);
   assert.equal(inventoryForProvince(player, 'food', other).available, 77);
-  assert.equal(player.credits, credits - 6);
+  assert.equal(player.credits, credits - 6 * market.officialPrice);
   assert.equal(market.todayBuyQuantity, volume + 6);
   assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId }, now + 4).ok, true);
-  assert.equal(player.credits, credits - 6);
+  assert.equal(player.credits, credits - 6 * market.officialPrice);
 });
 
 test('commercial auto-purchase respects price caps, cash and operating intent', () => {
@@ -72,8 +72,8 @@ test('commercial auto-purchase respects price caps, cash and operating intent', 
   world.markets[provinceScopedKey(provinceId, 'food')].officialPrice = 1_000_000;
   assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId }, now + 3).ok, true);
   assert.equal(inventory.available, 0);
-  world.markets[provinceScopedKey(provinceId, 'food')].officialPrice = 1;
-  player.credits = 2;
+  world.markets[provinceScopedKey(provinceId, 'food')].officialPrice = 15;
+  player.credits = 30;
   assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId }, now + 4).ok, true);
   assert.equal(inventory.available, 2);
   group.enabled = false;
