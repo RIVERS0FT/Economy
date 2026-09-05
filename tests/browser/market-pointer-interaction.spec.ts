@@ -52,6 +52,16 @@ async function expectActuallyPainted(tooltip: Locator) {
         tooltip: { x: box.x, y: box.y, width: box.width, height: box.height, css: element.style.cssText },
         safe: { x: safe.x, y: safe.y, width: safe.width, height: safe.height },
         viewport: { width: innerWidth, height: innerHeight },
+        coordinateNodes: [host, ...Array.from(document.querySelectorAll('.market-history-chart, .economy-chart, .economy-chart__canvas, .economy-chart__canvas > div'))].map((parent) => ({
+          tag: parent.tagName, cls: parent.className,
+          rect: parent.getBoundingClientRect().toJSON(), style: (parent as HTMLElement).style.cssText,
+          offsetTop: (parent as HTMLElement).offsetTop, offsetParent: (parent as HTMLElement).offsetParent?.className,
+          children: Array.from(parent.children).filter((child) => child.tagName === 'DIV').map((child) => ({
+            cls: child.className, rect: child.getBoundingClientRect().toJSON(), style: (child as HTMLElement).style.cssText,
+            offsetLeft: (child as HTMLElement).offsetLeft, offsetTop: (child as HTMLElement).offsetTop,
+            offsetParent: (child as HTMLElement).offsetParent?.className,
+          })),
+        })),
         front: front?.outerHTML.slice(0, 500),
         parents: [host, host.parentElement, host.parentElement?.parentElement].filter(Boolean).map((node) => ({
           className: node!.className, z: getComputedStyle(node!).zIndex,
