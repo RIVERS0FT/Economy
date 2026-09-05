@@ -163,6 +163,9 @@ test('long source names scroll only within the floating details', async ({ page 
   expect(await page.locator('.page-card-scroll').evaluateAll((nodes) => nodes.map((node) => node.scrollTop))).toEqual(scrollBefore);
   await expectGeometry(page, before);
   await expect(tooltip).toHaveAttribute('data-pinned', 'true');
+  await trigger.click();
+  await expect(tooltip).toHaveCount(0);
+  await expectGeometry(page, before);
 });
 
 for (const [scenario, text] of [['freeze-unknown', '冻结来源明细暂不可用'], ['active', '暂无冻结']]) {

@@ -104,7 +104,10 @@ export function SafeTooltip({
     const anchorRect = anchor.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
     const maxWidth = Math.max(1, layerRect.width - SAFE_FLOATING_GAP * 2);
-    const maxHeight = Math.max(1, layerRect.height - SAFE_FLOATING_GAP * 2);
+    const belowSpace = Math.max(0, layerRect.bottom - anchorRect.bottom - SAFE_FLOATING_GAP * 2);
+    const aboveSpace = Math.max(0, anchorRect.top - layerRect.top - SAFE_FLOATING_GAP * 2);
+    const maxHeight = Math.max(1, Math.min(layerRect.height - SAFE_FLOATING_GAP * 2,
+      interactive ? Math.max(belowSpace, aboveSpace) : Infinity));
     const tooltipWidth = Math.min(tooltipRect.width, maxWidth);
     const tooltipHeight = Math.min(tooltipRect.height, maxHeight);
     const originLeft = topLayerActive ? 0 : layerRect.left;
@@ -122,7 +125,7 @@ export function SafeTooltip({
     setPosition((current) => Object.keys(next).every((key) => (
       Math.abs(current[key as keyof FloatingPosition] - next[key as keyof FloatingPosition]) < 0.25
     )) ? current : next);
-  }, [floatingLayer, tooltipLayer, topLayerActive]);
+  }, [floatingLayer, tooltipLayer, topLayerActive, interactive]);
 
   useEffect(() => { if (disabled) close(); }, [disabled, close]);
   useEffect(() => cancelClose, [cancelClose]);

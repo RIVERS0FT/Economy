@@ -48,6 +48,17 @@ async function expectActuallyPainted(tooltip: Locator) {
     element.style.cssText = previous;
     return {
       painted,
+      diagnostic: {
+        tooltip: { x: box.x, y: box.y, width: box.width, height: box.height, css: element.style.cssText },
+        safe: { x: safe.x, y: safe.y, width: safe.width, height: safe.height },
+        viewport: { width: innerWidth, height: innerHeight },
+        front: front?.outerHTML.slice(0, 500),
+        parents: [host, host.parentElement, host.parentElement?.parentElement].filter(Boolean).map((node) => ({
+          className: node!.className, z: getComputedStyle(node!).zIndex,
+          position: getComputedStyle(node!).position, transform: getComputedStyle(node!).transform,
+          inert: (node as HTMLElement).inert,
+        })),
+      },
       safe: box.left >= safe.left + 7 && box.top >= safe.top + 7
         && box.right <= safe.right - 7 && box.bottom <= safe.bottom - 7,
       host: host.matches('[data-workspace-tooltip-layer="true"]'),
@@ -56,7 +67,7 @@ async function expectActuallyPainted(tooltip: Locator) {
       glass: getComputedStyle(element).backdropFilter,
     };
   });
-  expect(result.painted).toBe(true);
+  expect(result.painted, JSON.stringify(result.diagnostic)).toBe(true);
   expect(result.safe).toBe(true);
   expect(result.host).toBe(true);
   expect(result.ordinaryHost).toBe(true);

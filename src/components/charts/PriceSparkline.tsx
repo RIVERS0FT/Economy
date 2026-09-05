@@ -418,7 +418,17 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       const axisValue = current.safeBuckets[dataIndex].startAt + MARKET_BUCKET_MS / 2;
       // One manual action drives both linked axes and the sole tooltip. Native
       // mouse/click handlers are disabled, so neither Grid can race this selection.
-      chartInstance.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex });
+      const axisIndex = pointerY >= current.geometry.volumeTop ? 1 : 0;
+      const top = axisIndex === 0 ? current.geometry.top : current.geometry.volumeTop;
+      const bottom = axisIndex === 0 ? current.geometry.priceBottom : current.geometry.volumeBottom;
+      // Trigger inside the hovered Grid rather than at the series' y-value: a
+      // price at the min/max boundary must not hide the tooltip after refresh.
+      chartInstance.dispatchAction({
+        type: 'updateAxisPointer',
+        x: Number(chartInstance.convertToPixel({ xAxisIndex: axisIndex }, axisValue)),
+        y: Math.max(top + 1, Math.min(bottom - 1, pointerY)),
+        axesInfo: [{ axisDim: 'x', axisIndex, value: axisValue }],
+      });
       element.dataset.activeBucketIndex = String(dataIndex);
       element.dataset.activeAxisValue = String(axisValue);
       element.dataset.pricePointerX = String(chartInstance.convertToPixel({ xAxisIndex: 0 }, axisValue));
@@ -482,8 +492,8 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     animation: false,
     aria: { enabled: true, description: '近三十天价格折线和成交量柱状图。蓝色为价格，成交量柱按当日净主动方向着色。' },
     grid: [
-      { id: 'market-price-grid', left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
-      { id: 'market-volume-grid', left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
+      { id: 'market-price-grid', outerBoundsMode: 'none', left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
+      { id: 'market-volume-grid', outerBoundsMode: 'none', left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
     ],
     axisPointer: { triggerOn: 'none', animation: false, link: [{ xAxisIndex: [0, 1] }] },
     tooltip: {
@@ -517,7 +527,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     },
     xAxis: [
       {
-        id: 'market-price-time-axis', type: 'value', gridIndex: 0, min: windowStart, max: windowEnd, interval: axisInterval,
+        id: 'market-price-time-axis', type: 'value', gridIndex: 0, containShape: false, boundaryGap: [0, 0], min: windowStart, max: windowEnd, interval: axisInterval,
         axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false },
         // Cartesian y extents run bottom-to-top. Continue the lower segment's
         // phase at the shared boundary rather than restarting the upper dash.
@@ -526,7 +536,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         splitLine: { show: true, lineStyle: { color: chartColor.border } },
       },
       {
-        id: 'market-volume-time-axis', type: 'value', gridIndex: 1, min: windowStart, max: windowEnd, interval: axisInterval,
+        id: 'market-volume-time-axis', type: 'value', gridIndex: 1, containShape: false, boundaryGap: [0, 0], min: windowStart, max: windowEnd, interval: axisInterval,
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
         axisPointer: { show: true, snap: true, animation: false, label: { show: false }, lineStyle: MARKET_AXIS_POINTER_LINE_STYLE },
         axisLabel: {
