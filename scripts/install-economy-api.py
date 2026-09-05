@@ -9,12 +9,11 @@ import os
 import pwd
 import secrets
 import shutil
+import socket
 import sqlite3
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 SERVICE_NAME = "riversoft-economy-api.service"
@@ -28,10 +27,11 @@ SHARED_EMAIL_ENVIRONMENT_FILE = Path("/etc/riversoft-email.env")
 ENVIRONMENT_FILE = Path("/etc/riversoft-economy-api.env")
 MINIMUM_NODE = (22, 16, 0)
 COPY_CHUNK_BYTES = 1024 * 1024
-SERVICE_HEALTH_URL = "http://127.0.0.1:3002/health"
+SERVICE_LISTEN_HOST = "127.0.0.1"
+SERVICE_LISTEN_PORT = 3002
 SERVICE_READY_TIMEOUT_SECONDS = 45
 SERVICE_READY_POLL_SECONDS = 1.0
-SERVICE_HEALTH_REQUEST_TIMEOUT_SECONDS = 2.0
+SERVICE_LISTEN_CONNECT_TIMEOUT_SECONDS = 1.0
 
 
 def run(command: list[str], *, capture: bool = False) -> str:
@@ -164,15 +164,14 @@ def find_node(release_dir: Path) -> Path:
     )
 
 
-def api_health_ready() -> bool:
+def api_service_listening() -> bool:
     try:
-        request = urllib.request.Request(SERVICE_HEALTH_URL, method="GET")
-        with urllib.request.urlopen(
-            request,
-            timeout=SERVICE_HEALTH_REQUEST_TIMEOUT_SECONDS,
-        ) as response:
-            return 200 <= int(response.status) < 300
-    except (urllib.error.URLError, TimeoutError, OSError):
+        with socket.create_connection(
+            (SERVICE_LISTEN_HOST, SERVICE_LISTEN_PORT),
+            timeout=SERVICE_LISTEN_CONNECT_TIMEOUT_SECONDS,
+        ):
+            return True
+    except OSError:
         return False
 
 
@@ -201,24 +200,25 @@ def wait_for_service_ready() -> None:
             ["systemctl", "is-active", "--quiet", SERVICE_NAME],
             check=False,
         ).returncode == 0
-        if last_active and api_health_ready():
-            print(f"ECONOMY_API_SERVICE_READY attempts={attempt}")
+        if last_active and api_service_listening():
+            print(f"ECONOMY_API_SERVICE_LISTEN_READY attempts={attempt}")
             return
         print(
-            "ECONOMY_API_SERVICE_READY_RETRY "
+            "ECONOMY_API_SERVICE_LISTEN_RETRY "
             f"attempt={attempt} active={str(last_active).lower()}",
             file=sys.stderr,
         )
         time.sleep(SERVICE_READY_POLL_SECONDS)
 
     print(
-        "ECONOMY_API_SERVICE_READY_TIMEOUT "
+        "ECONOMY_API_SERVICE_LISTEN_TIMEOUT "
         f"seconds={SERVICE_READY_TIMEOUT_SECONDS} active={str(last_active).lower()}",
         file=sys.stderr,
     )
     print_service_diagnostics()
     raise RuntimeError(
-        f"{SERVICE_NAME} did not become healthy at {SERVICE_HEALTH_URL} "
+        f"{SERVICE_NAME} did not become active and listen on "
+        f"{SERVICE_LISTEN_HOST}:{SERVICE_LISTEN_PORT} "
         f"within {SERVICE_READY_TIMEOUT_SECONDS} seconds"
     )
 
