@@ -147,11 +147,15 @@ for (const text of [
 ]) requireText('.github/workflows/deploy.yml', text);
 
 for (const text of [
-  'SERVICE_HEALTH_URL = "http://127.0.0.1:3002/health"',
+  'SERVICE_LISTEN_HOST = "127.0.0.1"',
+  'SERVICE_LISTEN_PORT = 3002',
   'SERVICE_READY_TIMEOUT_SECONDS = 45',
+  'SERVICE_LISTEN_CONNECT_TIMEOUT_SECONDS = 1.0',
+  'def api_service_listening()',
+  'socket.create_connection(',
   'def wait_for_service_ready()',
-  'ECONOMY_API_SERVICE_READY_RETRY',
-  'ECONOMY_API_SERVICE_READY_TIMEOUT',
+  'ECONOMY_API_SERVICE_LISTEN_RETRY',
+  'ECONOMY_API_SERVICE_LISTEN_TIMEOUT',
   'ECONOMY_API_SERVICE_DIAGNOSTICS_BEGIN',
   '["systemctl", "status", SERVICE_NAME, "--no-pager", "--full"]',
   '["journalctl", "-u", SERVICE_NAME, "-n", "80", "--no-pager"]',
@@ -238,6 +242,8 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务器语法检查由 Node 枚举'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '浏览器 CDN'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务安装阶段只确认 `systemd active + 127.0.0.1:3002 TCP` 已监听'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '安装器不得用 HTTP `/health` 复制正式健康门禁'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '45 秒真实健康检查门槛保持不变'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'exact `location = /economy-api/health`'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
