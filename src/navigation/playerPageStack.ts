@@ -9,7 +9,8 @@ export type PlayerPageLocation =
   | { type: 'tab'; tab: Exclude<TabId, 'map'> }
   | { type: 'province'; provinceId: string; section: ProvinceSection }
   | { type: 'regional-product'; host: 'province' | 'market'; provinceId: string; productId: string }
-  | { type: 'regional-commercial'; provinceId: string; commercialTypeId: string }
+  | { type: 'regional-commercial'; host?: 'province' | 'buildings'; provinceId: string; commercialTypeId: string }
+  | { type: 'global-commercial'; commercialTypeId: string }
   | { type: 'regional-facility'; host: 'province' | 'buildings'; provinceId: string; facilityTypeId: string }
   | { type: 'global-market-product'; productId: string }
   | { type: 'global-building'; facilityTypeId: string }
@@ -22,7 +23,9 @@ export function playerPageLocationForTab(tab: TabId): PlayerPageLocation {
 export function tabForPlayerPageLocation(location: PlayerPageLocation): TabId {
   if (location.type === 'map') return 'map';
   if (location.type === 'tab') return location.tab;
-  if (location.type === 'province' || location.type === 'regional-commercial') return 'province';
+  if (location.type === 'province') return 'province';
+  if (location.type === 'regional-commercial') return location.host === 'buildings' ? 'buildings' : 'province';
+  if (location.type === 'global-commercial') return 'buildings';
   if (location.type === 'global-market-product') return 'market';
   if (location.type === 'global-building') return 'buildings';
   if (location.type === 'transport-route') return 'transport';
@@ -38,12 +41,13 @@ export function playerPageLocationKey(location: PlayerPageLocation) {
     return `regional-product:${location.host}:${location.provinceId}:${location.productId}`;
   }
   if (location.type === 'regional-commercial') {
-    return `regional-commercial:${location.provinceId}:${location.commercialTypeId}`;
+    return `regional-commercial:${location.host ?? 'province'}:${location.provinceId}:${location.commercialTypeId}`;
   }
   if (location.type === 'regional-facility') {
     return `regional-facility:${location.host}:${location.provinceId}:${location.facilityTypeId}`;
   }
   if (location.type === 'global-market-product') return `global-market-product:${location.productId}`;
+  if (location.type === 'global-commercial') return `global-commercial:${location.commercialTypeId}`;
   if (location.type === 'transport-route') return `transport-route:${location.routeId}`;
   return `global-building:${location.facilityTypeId}`;
 }

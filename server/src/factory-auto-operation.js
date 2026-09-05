@@ -1,3 +1,5 @@
+import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-buildings.js';
+import { commercialAutoOperationPolicyFor } from '../../shared/commercial-auto-operation.js';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 import { applyOnlineAutoTradePolicyAction } from './online-auto-trade-policy.js';
 import {
@@ -157,6 +159,20 @@ export function deriveFactoryAutoTradePolicies(player, provinceId) {
     }
   }
 
+  for (const group of player?.commercialBuildingGroups || []) {
+    if (!group.enabled || normalizeProvinceId(group.provinceId) !== selectedProvinceId) continue;
+    const type = COMMERCIAL_BUILDING_TYPE_CATALOG.find((candidate) => candidate.id === group.commercialTypeId);
+    const policy = commercialAutoOperationPolicyFor(group);
+    const count = nonNegativeInteger(group.count);
+    if (!type || !policy.enabled || count < 1) continue;
+    for (const input of type.consumptionInputs) {
+      const intent = ensureProductIntent(intents, input.productId);
+      intent.extraProtected += input.quantity * count * Math.max(0, policy.inputCoverageCycles - 1);
+      intent.buyEnabled = true;
+      intent.buyPrice = Math.max(intent.buyPrice, priceFor(input.productId, 'balanced', 'buy'));
+    }
+  }
+
   return Object.fromEntries(PRODUCT_CATALOG.map((product) => {
     const intent = intents[product.id] || {
       extraProtected: 0,
@@ -193,7 +209,7 @@ export function factoryAutoTradeExecutionPolicyFor(player, productId, provinceId
 export function createFactoryAutoTradeExecutionClientState(player) {
   const buyPolicies = {};
   const sellPolicies = {};
-  const provinceIds = new Set((player?.facilityGroups || []).map((group) => normalizeProvinceId(group?.provinceId)));
+  const provinceIds = new Set([...(player?.facilityGroups || []), ...(player?.commercialBuildingGroups || [])].map((group) => normalizeProvinceId(group?.provinceId)));
   for (const provinceId of provinceIds) {
     const policies = deriveFactoryAutoTradePolicies(player, provinceId);
     for (const [productId, policy] of Object.entries(policies)) {

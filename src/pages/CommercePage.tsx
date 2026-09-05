@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { runCommercialBuildingAction } from '../api/commercial';
+import { runCommercialBuildingAction, type CommercialBuildingOperation } from '../api/commercial';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
-import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
+import { BuildingDetailPage } from '../components/buildings/BuildingDetailPage';
+import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { SelectInput } from '../components/ui/FormControls';
 import {
   Button,
@@ -18,21 +19,24 @@ import { BuildingClusterCard } from '../components/buildings/BuildingClusterCard
 import { CommercialBuildingArtwork } from '../components/commercial/CommercialBuildingArtwork';
 import { CommercialBuildingDetail } from '../components/commercial/CommercialBuildingDetail';
 import { CompactCurrency } from '../components/ui/CompactNumber';
-import type { CommercialStateFields } from '../types/commercial';
+import type { CommercialStateFields, CommercialAutoOperationPolicy } from '../types/commercial';
 import { commercialProfitPerMinute as profitPerMinute, commercialStatusLabel } from '../utils/commercialPresentation';
 import '../styles/commercial-buildings.css';
 
 export function CommercePage({
   model,
   embedded = false,
+  renderPart,
   detailCommercialTypeId,
   onDetailCommercialTypeChange,
 }: {
   model: LoadedGameViewModel;
   embedded?: boolean;
+  renderPart?: 'build' | 'cards';
   detailCommercialTypeId?: string;
   onDetailCommercialTypeChange?: (commercialTypeId: string | null) => void;
 }) {
+  const navigation = usePlayerPageNavigation();
   const game = model.game as typeof model.game & CommercialStateFields;
   const types = game.commercialBuildingTypes ?? [];
   const provinceGroups = (game.commercialBuildingGroups ?? []).filter((group) => (
@@ -81,9 +85,10 @@ export function CommercePage({
 
   const execute = async (
     key: string,
-    operation: 'build' | 'start' | 'stop',
+    operation: CommercialBuildingOperation,
     commercialTypeId: string,
     quantity?: number,
+    policy?: CommercialAutoOperationPolicy,
   ) => {
     if (pendingActionRef.current) return;
     pendingActionRef.current = true;
@@ -95,6 +100,7 @@ export function CommercePage({
         provinceId: model.selectedProvinceId,
         commercialTypeId,
         quantity,
+        policy,
       });
       if (!result.ok) setActionError(result.message);
       await model.showResult(result);
@@ -107,6 +113,7 @@ export function CommercePage({
   };
 
   if (types.length === 0) {
+    if (renderPart === 'cards') return null;
     const empty = <Panel className="empty-state">服务器尚未返回商业建筑目录。</Panel>;
     return embedded ? empty : <PageLayout title="商业">{empty}</PageLayout>;
   }
@@ -161,15 +168,12 @@ export function CommercePage({
     </PagePanel>
   ) : null;
 
-  const buildingList = (
-    <section className="facility-cluster-selector-region commercial-cluster-selector-region" aria-label="商业建筑列表">
-      <div className="facility-cluster-selector-list commercial-cluster-selector-list">
-        {provinceGroups.map((group) => {
+  const buildingCards = provinceGroups.map((group) => {
           const type = typeById.get(group.commercialTypeId);
           if (!type) return null;
           const profit = profitPerMinute(type);
           return (
-            <BuildingClusterCard key={group.commercialTypeId} className="commercial-building-card"
+            <BuildingClusterCard kind="commercial" key={group.commercialTypeId} className="commercial-building-card"
               name={type.name} status={group.status} count={group.count}
               artwork={<CommercialBuildingArtwork commercialTypeId={type.id} className="facility-cluster-icon" />}
               profitValue={<CompactCurrency value={profit} />}
@@ -179,7 +183,12 @@ export function CommercePage({
               onSelect={() => selectDetail(type.id)}
             />
           );
-        })}
+        });
+
+  const buildingList = (
+    <section className="facility-cluster-selector-region commercial-cluster-selector-region" aria-label="商业建筑列表">
+      <div className="facility-cluster-selector-list commercial-cluster-selector-list">
+        {buildingCards}
       </div>
       {provinceGroups.length === 0 ? (
         <div className="empty-state tall">尚未拥有商业建筑。先建设第一座商业建筑。</div>
@@ -187,20 +196,34 @@ export function CommercePage({
     </section>
   );
 
+  const openProductDetail = (productId: string) => {
+    const current = navigation?.currentLocation;
+    if (navigation && current?.type === 'regional-commercial') {
+      navigation.pushPage({ type: 'regional-product', host: current.host === 'buildings' ? 'market' : 'province', provinceId: current.provinceId, productId });
+      return;
+    }
+    model.selectMarketAsset('commodity', productId);
+  };
+
   const detail = selectedGroup && selectedDetailType ? (
-    <div className="facility-cluster-detail-shell facility-cluster-detail-page commercial-cluster-detail-page">
-      <PagePanel className="production-surface facility-card facility-group-card facility-cluster-detail-card commercial-building-detail-card">
-        <CommercialBuildingDetail group={selectedGroup} type={selectedDetailType}
-          products={game.products} inventories={game.inventories} now={game.lastProcessedAt}
-          pending={Boolean(pendingAction)}
-          onToggle={(enabled) => void execute(
-            `${enabled ? 'start' : 'stop'}:${selectedGroup.commercialTypeId}`,
-            enabled ? 'start' : 'stop', selectedGroup.commercialTypeId,
-          )}
-        />
-      </PagePanel>
-    </div>
+    <BuildingDetailPage kind="commercial" name={selectedDetailType.name}
+      provinceName={model.selectedProvince?.name || '当前地区'} embedded={embedded} onBack={closeDetail}>
+      {actionError ? <p className="commercial-action-error" role="alert">{actionError}</p> : null}
+      <CommercialBuildingDetail group={selectedGroup} type={selectedDetailType}
+        products={game.products} inventories={game.inventories} markets={game.markets} now={game.lastProcessedAt}
+        pending={Boolean(pendingAction)} onOpenProductMarket={openProductDetail}
+        onAutoOperationChange={(policy) => void execute('auto-operation', 'auto-operation', selectedGroup.commercialTypeId, undefined, policy)}
+        onToggle={(enabled) => void execute(
+          `${enabled ? 'start' : 'stop'}:${selectedGroup.commercialTypeId}`,
+          enabled ? 'start' : 'stop', selectedGroup.commercialTypeId,
+        )}
+      />
+    </BuildingDetailPage>
   ) : null;
+
+  if (renderPart === 'build') return <>{actionError ? <p className="commercial-action-error" role="alert">{actionError}</p> : null}{buildCard}</>;
+  if (renderPart === 'cards') return <>{buildingCards}</>;
+  if (selectedGroup && selectedDetailType) return detail;
 
   const content = <>
     {actionError ? <p className="commercial-action-error" role="alert">{actionError}</p> : null}
@@ -213,22 +236,6 @@ export function CommercePage({
   </>;
 
   if (embedded) return content;
-
-  if (selectedGroup && selectedDetailType) {
-    return (
-      <PageLayout
-        title={(
-          <RegionalEntityPageTitle
-            entityName={selectedDetailType.name}
-            regionName={model.selectedProvince?.name || '加利福尼亚州'}
-          />
-        )}
-        backAction={{ label: '返回商业建筑列表', onClick: closeDetail }}
-      >
-        {content}
-      </PageLayout>
-    );
-  }
 
   return (
     <PageLayout title={`${model.selectedProvince?.name || '加利福尼亚州'}商业`}>

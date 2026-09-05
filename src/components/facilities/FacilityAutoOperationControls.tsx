@@ -10,7 +10,7 @@ import {
 import { announceFactoryAutoOperationSaved } from '../../game-guide/tutorialEvents';
 import type { FacilityGroup } from '../../types';
 import { GameConcept } from '../ui/GameConcept';
-import { SwitchControl } from '../ui/layout';
+import { BuildingAutoOperationSection } from '../buildings/BuildingAutoOperationSection';
 import '../../styles/factory-auto-operation.css';
 
 const DEFAULT_POLICY: FactoryAutoOperationPolicyInput = Object.freeze({
@@ -89,20 +89,10 @@ export function FacilityAutoOperationControls({
   };
 
   return (
-    <section className="facility-auto-operation mobile-detail-section" aria-label="自动经营">
-      <div className="facility-auto-operation__header">
-        <strong><GameConcept concept="factory-auto-operation">自动经营</GameConcept></strong>
-        <SwitchControl
-          checked={draft.enabled}
-          aria-label={draft.enabled ? '关闭自动经营' : '开启自动经营'}
-          disabled={group.count < 1 || saving}
-          onChange={(event) => updatePolicy({ ...draft, enabled: event.target.checked })}
-        />
-      </div>
-
+    <BuildingAutoOperationSection label={<GameConcept concept="factory-auto-operation">自动经营</GameConcept>}
+      enabled={draft.enabled} disabled={group.count < 1 || saving}
+      onChange={(enabled) => updatePolicy({ ...draft, enabled })} message={message}>
       {children({ policy: draft, saving, updatePolicy })}
-
-      {message ? <small className="facility-auto-operation__message" role="status">{message}</small> : null}
-    </section>
+    </BuildingAutoOperationSection>
   );
 }

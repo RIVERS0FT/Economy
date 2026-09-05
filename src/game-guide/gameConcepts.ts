@@ -11,6 +11,18 @@ export const GAME_CONCEPTS = {
     label: '产出',
     description: '工厂完成生产周期后写入当前地区本地仓库的商品；显示数量会随有效参与产能同步变化。',
   },
+  'commercial-auto-operation': {
+    label: '自动经营',
+    description: '营业开启时，按本州商业建筑数量和商品保障周期派生自动采购。沿用正式市场的当日官方价与价格阈值，不跨州取货，不出售商品。关闭自动经营不停止已开启的营业，也不取消已投入周期。',
+  },
+  'commercial-input-coverage': {
+    label: '商品保障',
+    description: '按下一周期全部商业建筑的消费需求，保障 1、2、3 或 5 个营业周期的本州库存。与工业原料和合同保留合并计算，不重复采购或形成额外冻结。',
+  },
+  'commercial-settlement': {
+    label: '经营结算',
+    description: '服务器在周期开始时锁定已投入商品、商品价值、运营成本和固定利润；完成后返还商品价值与运营成本并发放固定利润。运行中显示锁定值，未运行时仅显示下一周期预估。',
+  },
   'factory-auto-operation': {
     label: '自动经营',
     description: '开启后，系统会按本工厂当前生产配置与原料保障周期派生自动采购和出售；玩家不需要逐商品维护策略。',

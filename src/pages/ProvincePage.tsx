@@ -28,11 +28,8 @@ import { provinceEconomicLevelFor } from '../utils/provinceEconomicLevel';
 const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
   default: module.MarketPage,
 })));
-const EmbeddedCommercePage = lazy(() => import('./CommercePage').then((module) => ({
-  default: module.CommercePage,
-})));
-const EmbeddedBuildingsPage = lazy(() => import('./BuildingsPage').then((module) => ({
-  default: module.BuildingsPage,
+const EmbeddedBuildingsPage = lazy(() => import('./RegionalBuildingsPage').then((module) => ({
+  default: module.RegionalBuildingsPage,
 })));
 
 interface ProvinceCommercialState {
@@ -47,8 +44,7 @@ interface ProvinceCommercialState {
 const PROVINCE_SECTIONS: Array<{ id: ProvinceSection; label: string }> = [
   { id: 'overview', label: '概览' },
   { id: 'market', label: '市场' },
-  { id: 'commerce', label: '商业' },
-  { id: 'buildings', label: '工业' },
+  { id: 'buildings', label: '建筑' },
   { id: 'warehouse', label: '仓库' },
 ];
 
@@ -147,11 +143,11 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     : false;
   const activeSection: ProvinceSection = pageNavigation
     ? locationMatchesProvince && location?.type === 'province'
-      ? location.section
+      ? location.section === 'commerce' ? 'buildings' : location.section
       : locationMatchesProvince && location?.type === 'regional-product' && location.host === 'province'
         ? 'market'
-        : locationMatchesProvince && location?.type === 'regional-commercial'
-          ? 'commerce'
+        : locationMatchesProvince && location?.type === 'regional-commercial' && location.host !== 'buildings'
+          ? 'buildings'
           : locationMatchesProvince && location?.type === 'regional-facility' && location.host === 'province'
             ? 'buildings'
             : 'overview'
@@ -164,7 +160,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     : fallbackFacilityDetailTypeId;
   const commercialDetailTypeId = pageNavigation
     && locationMatchesProvince
-    && location?.type === 'regional-commercial'
+    && location?.type === 'regional-commercial' && location.host !== 'buildings'
     ? location.commercialTypeId
     : fallbackCommercialDetailTypeId;
   const stackedProductId = pageNavigation
@@ -193,7 +189,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     ? (commercialGame.commercialBuildingTypes ?? []).find((type) => type.id === commercialDetailEntry.commercialTypeId)
     : undefined;
   const isFacilityDetail = activeSection === 'buildings' && Boolean(facilityDetailType);
-  const isCommercialDetail = activeSection === 'commerce' && Boolean(commercialDetailType);
+  const isCommercialDetail = activeSection === 'buildings' && Boolean(commercialDetailType);
   const marketDetailProductId = activeSection === 'market'
     ? stackedProductId ?? (
       model.marketViewMode === 'detail' && model.marketAssetKind === 'commodity'
@@ -214,7 +210,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       && (
         current.type === 'province'
         || (current.type === 'regional-product' && current.host === 'province')
-        || current.type === 'regional-commercial'
+        || (current.type === 'regional-commercial' && current.host !== 'buildings')
         || (current.type === 'regional-facility' && current.host === 'province')
       );
     if (!validCurrentLocation) {
@@ -300,6 +296,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     if (commercialTypeId) {
       pageNavigation.pushPage({
         type: 'regional-commercial',
+        host: 'province',
         provinceId: model.selectedProvinceId,
         commercialTypeId,
       });
@@ -308,7 +305,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     pageNavigation.replacePage({
       type: 'province',
       provinceId: model.selectedProvinceId,
-      section: 'commerce',
+      section: 'buildings',
     });
   };
 
@@ -380,9 +377,9 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       backAction={pageNavigation ? undefined : isMarketDetail
         ? { label: '返回商品列表', onClick: model.showMarketCatalog }
         : isCommercialDetail
-          ? { label: '返回商业建筑列表', onClick: () => setFallbackCommercialDetailTypeId(null) }
+          ? { label: '返回建筑列表', onClick: () => setFallbackCommercialDetailTypeId(null) }
           : isFacilityDetail
-            ? { label: '返回工业建筑列表', onClick: () => setFallbackFacilityDetailTypeId(null) }
+            ? { label: '返回建筑列表', onClick: () => setFallbackFacilityDetailTypeId(null) }
             : { label: '返回地图', onClick: () => model.setTab('map') }}
     >
       {!isEntityDetail ? sectionSwitch : null}
@@ -399,16 +396,6 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
             <EmbeddedMarketPage model={model} embedded />
           </Suspense>
         ) : null}
-        {activeSection === 'commerce' ? (
-          <Suspense fallback={<ProvinceSectionLoading />}>
-            <EmbeddedCommercePage
-              model={model}
-              embedded
-              detailCommercialTypeId={commercialDetailTypeId ?? undefined}
-              onDetailCommercialTypeChange={handleCommercialDetailChange}
-            />
-          </Suspense>
-        ) : null}
         {activeSection === 'buildings' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
             <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
@@ -417,6 +404,8 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
                 embedded
                 detailFacilityTypeId={facilityDetailTypeId ?? undefined}
                 onDetailFacilityChange={handleFacilityDetailChange}
+                detailCommercialTypeId={commercialDetailTypeId ?? undefined}
+                onDetailCommercialTypeChange={handleCommercialDetailChange}
               />
             </FacilityRecipeProfitMarketsProvider>
           </Suspense>

@@ -4,7 +4,7 @@ import { CompactNumber } from '../ui/CompactNumber';
 /** Shared presentation only; callers retain their own economic state and actions. */
 export function BuildingClusterCard({
   name, status, count, artwork, profitValue, profitTone, profitTitle,
-  ariaLabel, onSelect, className = '',
+  ariaLabel, onSelect, className = '', kind = 'industrial',
 }: {
   name: string;
   status: string;
@@ -16,6 +16,7 @@ export function BuildingClusterCard({
   ariaLabel: string;
   onSelect: (trigger: HTMLButtonElement) => void;
   className?: string;
+  kind?: 'industrial' | 'commercial';
 }) {
   return (
     <button
@@ -23,6 +24,7 @@ export function BuildingClusterCard({
       className={`facility-cluster-selector-card ${className}`.trim()}
       data-ui-interactive="surface"
       data-status={status}
+      data-building-kind={kind}
       aria-label={ariaLabel}
       onClick={(event) => onSelect(event.currentTarget)}
     >

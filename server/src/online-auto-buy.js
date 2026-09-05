@@ -4,7 +4,7 @@ import {
   commoditySystemPriceFor,
 } from './domain.js';
 import { factoryAutoTradeExecutionPolicyFor } from './factory-auto-operation.js';
-import { productionReservedQuantitiesForPlayer } from './facility-groups.js';
+import { buildingReservedQuantitiesForPlayer } from './building-input-reservations.js';
 import { internalMoneyToMicros } from './money.js';
 import { contractAvailableHoldForOnlineTrade } from './online-auto-trade-reservations.js';
 import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
@@ -19,7 +19,7 @@ function positiveInteger(value) {
 function desiredQuantity(world, player, productId, policy, provinceId) {
   const inventory = inventoryForProvince(player, productId, provinceId);
   const productionReserved = positiveInteger(
-    productionReservedQuantitiesForPlayer(world, player.userId, provinceId)[productId],
+    buildingReservedQuantitiesForPlayer(world, player.userId, provinceId)[productId],
   );
   const contractHold = positiveInteger(
     contractAvailableHoldForOnlineTrade(world, player.userId, productId, provinceId),
@@ -52,7 +52,7 @@ export function applyOnlineAutoBuy(world, user, payload = {}, now = Date.now()) 
   const player = world.players?.[String(userId)];
   if (!player) return { ok: false, message: '玩家不存在' };
   const policy = factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.buy;
-  if (!policy?.enabled) return { ok: false, message: '当前工厂策略无需自动采购该商品' };
+  if (!policy?.enabled) return { ok: false, message: '当前建筑策略无需自动采购该商品' };
 
   const officialPrice = commoditySystemPriceFor(world, productId, provinceId, now);
   if (officialPrice > policy.maxPrice) {

@@ -1,3 +1,4 @@
+import { normalizeCommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import { PRODUCT_CATALOG } from './product-catalog.js';
 import {
@@ -136,6 +137,11 @@ function normalizeGroup(group, now = Date.now()) {
   group.count = Math.max(0, Math.floor(Number(group.count || 0)));
   group.participatingCount = Math.max(0, Math.min(group.count, Math.floor(Number(group.participatingCount || 0))));
   group.enabled = group.enabled === true;
+  if (group.autoOperationPolicy !== undefined) {
+    const policy = normalizeCommercialAutoOperationPolicy(group.autoOperationPolicy);
+    if (policy) group.autoOperationPolicy = policy;
+    else delete group.autoOperationPolicy;
+  }
   group.status = ['running', 'stopped', 'error'].includes(group.status)
     ? group.status
     : group.enabled ? 'error' : 'stopped';
@@ -159,6 +165,9 @@ function normalizeGroup(group, now = Date.now()) {
     delete group.pendingRevenue;
     delete group.pendingProfit;
     delete group.pendingGoodsConsumed;
+    delete group.pendingOperatingCost;
+    delete group.pendingInputValue;
+    delete group.pendingInputs;
     group.participatingCount = 0;
     if (!group.enabled) {
       group.status = 'stopped';
@@ -272,6 +281,9 @@ function startCycle(world, player, group, type, startedAt) {
   group.cycleStartedAt = startedAt;
   group.cycleCompletesAt = startedAt + type.cycleMs;
   group.pendingRevenue = revenue;
+  group.pendingOperatingCost = requirements.operatingCost;
+  group.pendingInputValue = roundInternalMoney(inputValue);
+  group.pendingInputs = requirements.inputs.map((input) => ({ ...input }));
   group.pendingProfit = requirements.profit;
   group.pendingGoodsConsumed = goodsConsumed;
   return true;
@@ -298,6 +310,9 @@ function settleCycle(player, group) {
   delete group.pendingRevenue;
   delete group.pendingProfit;
   delete group.pendingGoodsConsumed;
+  delete group.pendingOperatingCost;
+  delete group.pendingInputValue;
+  delete group.pendingInputs;
 }
 
 function processGroup(world, player, group, now) {
@@ -382,6 +397,17 @@ function stopCommercialBuilding(world, userId, payload, now) {
   return result(true, `${type.name}已停止营业`);
 }
 
+function setCommercialAutoOperation(world, userId, payload, now) {
+  const player = world.players?.[String(userId)];
+  const type = typeFor(payload.commercialTypeId);
+  const group = player && type ? groupFor(player, type.id, payload.provinceId, false, now) : null;
+  if (!group || group.count < 1) return result(false, '商业建筑集群不存在');
+  const policy = normalizeCommercialAutoOperationPolicy(payload.policy);
+  if (!policy) return result(false, '自动经营策略无效');
+  group.autoOperationPolicy = policy;
+  return result(true, policy.enabled ? '商业自动经营策略已保存' : '商业自动经营已关闭');
+}
+
 export function applyCommercialBuildingAction(world, user, payload = {}, now = Date.now()) {
   const operation = String(payload.operation || '');
   const userId = Number(user.id);
@@ -389,5 +415,6 @@ export function applyCommercialBuildingAction(world, user, payload = {}, now = D
   if (operation === 'build') return buildCommercialBuilding(world, userId, payload, now);
   if (operation === 'start') return startCommercialBuilding(world, userId, payload, now);
   if (operation === 'stop') return stopCommercialBuilding(world, userId, payload, now);
+  if (operation === 'auto-operation') return setCommercialAutoOperation(world, userId, payload, now);
   return result(false, '不支持的商业建筑操作');
 }

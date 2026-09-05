@@ -10,36 +10,17 @@
   color: var(--color-danger);
 }
 
-.commercial-consumption-list {
+.building-construction-sections {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-width: 0;
 }
 
-.commercial-consumption-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  padding-block: var(--space-2);
-  border-bottom: 1px solid var(--color-border);
+.commercial-settlement .facility-formula-item-group[data-shortage='true'] .facility-formula-inventory {
+  color: var(--color-danger);
 }
 
-.commercial-consumption-item > div {
-  display: grid;
+.commercial-settlement-revenue .facility-formula-output-item {
   min-width: 0;
-  gap: var(--space-1);
   overflow-wrap: anywhere;
-}
-
-.commercial-consumption-item > div > span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.commercial-consumption-artwork {
-  flex: 0 0 3rem;
-  width: 3rem;
-  height: 3rem;
 }
