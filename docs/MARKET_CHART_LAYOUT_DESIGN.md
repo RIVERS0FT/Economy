@@ -41,7 +41,7 @@
 - AxisPointer 必须关闭自动 Series emphasis，价格线和成交量柱也必须禁用 hover emphasis；悬浮前后价格折线的颜色、宽度与不透明度保持不变，不得隐藏或被面积层覆盖。价格折线必须保持高于自身面积填充的稳定渲染层级。
 - 当指针仍位于行情数据区时，普通 `5s` 状态轮询、无关 React 重渲染和尺寸未变化的页面更新不得清除当前 Tooltip 或 AxisPointer。
 - 真实日桶数据、30 天窗口或尺寸变化需要更新 ECharts Option 时，必须在 Option 应用／resize 后按当前指针横向位置重新计算日期并恢复同一个 Tooltip，不要求用户再次移动；普通无关重渲染不得更换 ECharts 实例。
-- 鼠标离开行情数据区、触摸取消、用户主动滚动承载页面、点击外部、Escape、商品／地区／玩家／存档上下文切换及页面卸载时隐藏 Tooltip，并同时清除上下指针、选中日期和尚未执行的显示帧，防止残留或关闭后闪回；Escape 不继续关闭下层详情。不得使用 `alwaysShowContent`、超长 `hideDelay` 或禁止正常离开隐藏掩盖更新重置。浮层物理层级归外壳设计，行情继续复用 `EconomyChart` 的唯一工作区宿主，不自建 Tooltip 或改造 ECharts 节点为 Popover。
+- 鼠标离开行情数据区、触摸取消、用户主动滚动承载页面、点击外部、焦点移至图表外部、Escape、商品／地区／玩家／存档上下文切换及页面卸载时隐藏 Tooltip，并同时清除上下指针、选中日期和尚未执行的显示帧，防止残留或关闭后闪回；Escape 不继续关闭下层详情。不得使用 `alwaysShowContent`、超长 `hideDelay` 或禁止正常离开隐藏掩盖更新重置。浮层物理层级归外壳设计，行情继续复用 `EconomyChart` 的唯一工作区宿主，不自建 Tooltip 或改造 ECharts 节点为 Popover。
 - Tooltip 持久性浏览器回归必须跨越正式轮询周期等待至少 `6.5s`，并验证真实 Option 更新后仍恢复到同一日桶。
 
 交互回归由 `tests/browser/market-pointer-interaction.spec.ts` 覆盖桌面与真实触摸的移动 Sheet：读取公开轴值和像素位置验证上下对齐，临时命中探测验证提示实际绘制在 Sheet 之上而非仅有可见 DOM，并验证唯一普通宿主、共享毛玻璃、安全区、125% 字号、轮询／真实 Option 更新、取消与上下文清理；冻结来源几何与长列表回归由 `tests/browser/commodity-freeze-details.spec.ts` 负责。

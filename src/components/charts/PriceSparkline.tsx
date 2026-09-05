@@ -461,10 +461,15 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     const scroll = (event: Event) => {
       if (event.target instanceof Node && ref.current && event.target.contains(ref.current)) hideActiveTooltip();
     };
+    const focusOutside = (event: FocusEvent) => {
+      if (event.target instanceof Node && !ref.current?.contains(event.target)) hideActiveTooltip();
+    };
+    document.addEventListener('focusin', focusOutside, true);
     document.addEventListener('pointerdown', outside, true);
     document.addEventListener('keydown', escape, true);
     document.addEventListener('scroll', scroll, true);
     return () => {
+      document.removeEventListener('focusin', focusOutside, true);
       document.removeEventListener('pointerdown', outside, true);
       document.removeEventListener('keydown', escape, true);
       document.removeEventListener('scroll', scroll, true);

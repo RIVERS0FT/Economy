@@ -146,6 +146,9 @@ test('long source names scroll only within the floating details', async ({ page 
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto('/market-runtime-test.html?scenario=freeze-long');
   await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; });
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('.market-history-echart')).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(page.getByText('正在加载当前市场行情…')).toHaveCount(0);
   const trigger = page.locator('.commodity-freeze-disclosure__trigger');
   await trigger.scrollIntoViewIfNeeded();
   const before = await geometry(page);
