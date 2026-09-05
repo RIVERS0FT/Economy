@@ -90,7 +90,7 @@ check('src/components/ui/SafeTooltip.tsx', [
   'createPortal', 'useWorkspaceFloatingLayer', 'useWorkspaceTooltipLayer', 'SAFE_FLOATING_GAP = 8',
   'supportsTopLayerPopover()', 'showTopLayerPopover(tooltip)', 'hideTopLayerPopover(tooltip)',
   "popover={topLayerActive ? 'manual' : undefined}", 'role="tooltip"',
-  'floatingLayer.getBoundingClientRect()', 'const portalTarget = tooltipLayer',
+  'floatingLayer?.getBoundingClientRect()', 'const portalTarget = tooltipLayer',
 ]);
 check('src/components/provinces/UsMainlandMap.tsx', [
   'useWorkspaceTooltipLayer()', 'supportsTopLayerPopover()',
@@ -333,7 +333,7 @@ check('src/styles/viewport.css', [
   'top: calc(', 'bottom: calc(', 'overflow: clip;',
   `  .signed-in-shell__body {
     position: relative;
-    z-index: 0;
+    z-index: auto;
     order: 1;`,
   `  .mobile-page-overlay {
     position: relative;
@@ -341,7 +341,7 @@ check('src/styles/viewport.css', [
     order: 1;`,
   `  .workspace-floating-layer {
     position: absolute;
-    z-index: 1;
+    z-index: auto;
     order: 2;`,
 ]);
 check('src/styles/mobile-detail-sheet.css', [
