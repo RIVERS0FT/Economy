@@ -20,7 +20,7 @@ body::before { display: none; }
   contain: paint;
 }
 
-/* The strategic map camera is SVG viewBox-driven; do not promote the full SVG world as a scaled texture. */
+/* Settled map rendering returns to the SVG viewBox and must not keep the full world permanently promoted. */
 .province-map-camera-surface {
   will-change: auto;
 }

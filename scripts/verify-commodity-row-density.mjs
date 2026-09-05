@@ -43,6 +43,8 @@ for (const token of [
   "'50px': { slot: [36, 36], artwork: [32, 32] }",
   "'46px': { slot: [32, 32], artwork: [28, 28] }",
   "'44px': { slot: [30, 30], artwork: [26, 26] }",
+  'expect(metrics.slot).toEqual(density.slot);',
+  'expect(metrics.artwork).toEqual(density.artwork);',
   "expect(compactGlobal.minHeight).toBe('44px');",
   'expect(compactGlobal.slot).toEqual([30, 30]);',
   'expect(compactGlobal.artwork).toEqual([26, 26]);',

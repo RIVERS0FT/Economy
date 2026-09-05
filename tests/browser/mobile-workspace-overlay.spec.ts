@@ -187,7 +187,24 @@ test.describe('mobile workspace overlay geometry', () => {
     await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
     await expect(navigation).toBeHidden();
     await expect(map).toBeVisible();
-    await navigation.evaluate((element) => { element.dataset.navigationInstanceProbe = 'stable'; });
+    await navigation.evaluate((element) => {
+      element.dataset.navigationInstanceProbe = 'stable';
+      element.dataset.testReturnAnimationStarted = 'false';
+      element.dataset.testReturnAnimationState = 'missing';
+      element.dataset.testReturnAnimationSheetPresent = 'unknown';
+      // Capture the real transient state before the click. Reading it only after
+      // several browser round trips can miss the completed 280ms animation.
+      const recordReturn = (event: AnimationEvent) => {
+        if (event.target !== element || event.animationName !== 'mobile-bottom-navigation-return') return;
+        element.dataset.testReturnAnimationStarted = 'true';
+        element.dataset.testReturnAnimationState = element.dataset.navigationReturning ?? 'missing';
+        element.dataset.testReturnAnimationSheetPresent = document.querySelector('.mobile-workspace-sheet-host')
+          ? 'true'
+          : 'false';
+        element.removeEventListener('animationstart', recordReturn);
+      };
+      element.addEventListener('animationstart', recordReturn);
+    });
 
     await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
     await expect(sheet).toHaveCount(0);
@@ -196,7 +213,9 @@ test.describe('mobile workspace overlay geometry', () => {
     await expect(status).toBeVisible();
     await expect(navigation).toHaveAttribute('data-navigation-instance-probe', 'stable');
     await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'false');
-    await expect(navigation).toHaveAttribute('data-navigation-returning', 'true');
+    await expect(navigation).toHaveAttribute('data-test-return-animation-started', 'true');
+    await expect(navigation).toHaveAttribute('data-test-return-animation-state', 'true');
+    await expect(navigation).toHaveAttribute('data-test-return-animation-sheet-present', 'false');
     await expect(navigation).toBeVisible();
 
     const navigationIsTopmost = await navigation.evaluate((element) => {

@@ -4,6 +4,7 @@ type BackdropVariant = 'auth' | 'game' | 'admin';
 
 type AtmosphereSnapshot = {
   imageFilter: string;
+  imageWillChange: string;
   atmosphereBackground: string;
   primaryGlow: string;
   secondaryGlow: string;
@@ -38,6 +39,7 @@ async function atmosphereSnapshot(page: Page, variant: BackdropVariant): Promise
     const token = (name: string) => atmosphereStyle.getPropertyValue(name).trim();
     return {
       imageFilter: getComputedStyle(image).filter,
+      imageWillChange: getComputedStyle(image).willChange,
       atmosphereBackground: atmosphereStyle.backgroundImage,
       primaryGlow: token('--application-atmosphere-primary-glow'),
       secondaryGlow: token('--application-atmosphere-secondary-glow'),
@@ -78,6 +80,7 @@ test('desktop shares one atmosphere baseline and locks its intensity', async ({ 
   const atmosphere = await expectUnifiedAtmosphere(page, { width: 1440, height: 900 });
 
   expect(atmosphere.imageFilter).toBe('saturate(0.72) contrast(1.08) brightness(0.72)');
+  expect(atmosphere.imageWillChange).toBe('auto');
   expect(atmosphere.primaryGlow).toBe('rgba(86, 224, 137, 0.10)');
   expect(atmosphere.secondaryGlow).toBe('rgba(44, 176, 102, 0.06)');
   expect(atmosphere.shadeStart).toBe('rgba(1, 7, 4, 0.96)');
@@ -95,6 +98,7 @@ test('mobile shares one atmosphere baseline and locks its intensity', async ({ p
   const atmosphere = await expectUnifiedAtmosphere(page, { width: 390, height: 844 });
 
   expect(atmosphere.imageFilter).toBe('saturate(0.68) contrast(1.08) brightness(0.62)');
+  expect(atmosphere.imageWillChange).toBe('auto');
   expect(atmosphere.primaryGlow).toBe('rgba(86, 224, 137, 0.09)');
   expect(atmosphere.shadeStart).toBe('rgba(1, 7, 4, 0.78)');
   expect(atmosphere.shadeMid).toBe('rgba(2, 10, 6, 0.76)');

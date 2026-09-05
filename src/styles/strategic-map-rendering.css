@@ -5,9 +5,51 @@
 }
 
 .province-map-camera-surface {
-  transform: none !important;
+  contain: none;
   will-change: auto !important;
   backface-visibility: visible;
+}
+
+.province-map-camera-raster {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  image-rendering: auto;
+  transform-origin: 0 0;
+  will-change: auto;
+  backface-visibility: visible;
+}
+
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface {
+  transform-origin: 0 0 !important;
+}
+
+.province-map-static-viewport[data-map-zoom-active='true']:not([data-map-raster-ready='true']) .province-map-camera-surface {
+  will-change: transform !important;
+  backface-visibility: hidden;
+}
+
+.province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-camera-raster {
+  opacity: 1;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-world-svg {
+  opacity: 0;
+}
+
+/* The outer strategic viewport owns the active clip. With a ready snapshot, the authoritative SVG keeps its settled
+   geometry while only the Canvas texture receives the transient Camera transform; if the snapshot is unavailable the
+   existing live-SVG fallback still uses the Camera surface and temporary full-world viewBox. */
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
+  overflow: visible;
 }
 
 .province-map-world-svg {
@@ -18,13 +60,26 @@
   text-rendering: optimizeLegibility;
 }
 
-/* viewBox zoom re-rasterizes the visible vectors. Keep the map world filter-free so each frame does not rerun large SVG filters. */
+/* viewBox settle re-rasterizes the visible vectors. Keep the map world filter-free so the final vector commit does not rerun large SVG filters. */
 .province-map-world-shadow {
   fill: none !important;
+  fill-opacity: 0;
   stroke: color-mix(in srgb, var(--color-map-region-border) 28%, transparent) !important;
   stroke-width: 4;
-  opacity: .22;
+  stroke-opacity: .22;
+  opacity: 1;
   filter: none !important;
+}
+
+/* The raster snapshot is generated from the same SVG world with the lightweight 110m world fill already applied.
+   This live-SVG fallback preserves the same LOD if a snapshot is not ready when input starts. */
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-fill {
+  display: none;
+}
+
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-shadow {
+  fill: var(--province-map-world-fill) !important;
+  fill-opacity: .78;
 }
 
 .province-map-region[data-selected='true'],

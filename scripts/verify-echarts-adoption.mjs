@@ -128,4 +128,4 @@ if (failures.length) {
   console.error(`ECharts 架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('ECharts 架构验证通过：唯一 EconomyChart 继续负责业务数据图表，战略地图使用独立静态 SVG 世界面与合成相机；统一 commonTooltip 进入共享 Top Layer Tooltip 宿主，毛玻璃材质、精确依赖、SVG 按需模块、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');
+console.log('ECharts 架构验证通过：唯一 EconomyChart 继续负责业务数据图表，战略地图使用独立静态 SVG 世界面与 SVG viewBox Camera；统一 commonTooltip 进入共享 Top Layer Tooltip 宿主，毛玻璃材质、精确依赖、SVG 按需模块、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');

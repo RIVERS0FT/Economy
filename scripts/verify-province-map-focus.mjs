@@ -1,3 +1,4 @@
+import './verify-province-map-raster-snapshot.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +20,7 @@ function rejectText(source, rejected, message) {
 const mapSource = read('src/components/provinces/UsMainlandMap.tsx');
 const styleSource = read('src/styles/province-map.css');
 const renderingSource = read('src/styles/strategic-map-rendering.css');
-const designSource = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
+const designSource = read('docs/STRATEGIC_MAP_RENDERING_DESIGN.md');
 const browserSource = read('tests/browser/province-map-focus.spec.ts');
 
 requireText(
@@ -85,7 +86,12 @@ requireText(
 requireText(
   renderingSource,
   'filter: none;',
-  'viewBox zoom must not rerun SVG drop-shadow filters for province selection',
+  'viewBox settle must not rerun SVG drop-shadow filters for province selection',
+);
+rejectText(
+  renderingSource,
+  '--province-map-camera-transform',
+  'transient camera must write the built-in transform property directly instead of routing every frame through a CSS custom property',
 );
 requireText(
   styleSource,
@@ -111,22 +117,27 @@ rejectText(
 requireText(
   designSource,
   '战略地图州面交互固定采用“镜头底色 + 中性轮廓”分层',
-  'authoritative chrome design must record the province focus hierarchy',
+  'authoritative strategic map design must record the province focus hierarchy',
 );
 requireText(
   designSource,
   '选中悬浮 > 选中 > 普通悬浮 > 默认',
-  'authoritative chrome design must record province focus precedence',
+  'authoritative strategic map design must record province focus precedence',
 );
 requireText(
   designSource,
   '静态 SVG',
-  'authoritative chrome design must record the static SVG implementation boundary',
+  'authoritative strategic map design must record the static SVG implementation boundary',
 );
 requireText(
   designSource,
-  '`tests/browser/province-map-focus.spec.ts`',
-  'authoritative chrome design must register the browser regression',
+  '二选一直接写一次浏览器内建 `style.transform`',
+  'authoritative strategic map design must prohibit transient custom-property indirection while preserving one built-in transform write per frame',
+);
+requireText(
+  designSource,
+  '`province-map-focus.spec.ts`',
+  'authoritative strategic map design must register the browser regression',
 );
 
 requireText(

@@ -26,6 +26,7 @@ import {
 } from '../ui/topLayer';
 import { createProvinceMapCamera, type ProvinceMapCameraController } from './provinceMapCamera';
 import { createProvinceMapProjection, provinceGeometryPath } from './provinceMapProjection';
+import { createProvinceMapRasterSnapshot } from './provinceMapRasterSnapshot';
 import {
   layoutProvinceMapRoutes,
   provinceMapPointAlongPolyline,
@@ -40,7 +41,11 @@ import {
   createProvinceMapTransportPhysicalPaths,
   transportCapitalRouteDataKind,
 } from './provinceMapTransportNetwork';
-import { createProvinceMapMainlandFocusBounds, createProvinceMapWorldOutlinePath } from './provinceMapWorldOutline';
+import {
+  createProvinceMapMainlandFocusBounds,
+  createProvinceMapWorldFillPath,
+  createProvinceMapWorldStrokePath,
+} from './provinceMapWorldOutline';
 
 const MOBILE_MAP_MAX_WIDTH = 720;
 
@@ -110,7 +115,8 @@ const mainlandOutlineGeometry = merge(
 );
 
 const provinceMapProjection = createProvinceMapProjection(mainlandFeatures.map((entry) => entry.geometry));
-const provinceMapWorldOutlinePath = createProvinceMapWorldOutlinePath(provinceMapProjection);
+const provinceMapWorldFillPath = createProvinceMapWorldFillPath(provinceMapProjection);
+const provinceMapWorldStrokePath = createProvinceMapWorldStrokePath(provinceMapProjection);
 const provinceMapMainlandOutlinePath = provinceGeometryPath(mainlandOutlineGeometry, provinceMapProjection);
 const provinceMapMainlandFocusBounds = createProvinceMapMainlandFocusBounds(provinceMapProjection);
 const capitalPointByProvinceId = new Map(
@@ -211,7 +217,6 @@ function currentShipmentPosition(shipment: ProvinceMapShipmentOverlay, now: numb
     remainingLoad: leg.remainingLoad,
   };
 }
-
 function ShipmentMarkerIcon({ mode }: { mode: TransportModeId }) {
   if (mode === 'air') {
     return <path className="province-map-shipment-icon" d="M -7 1 L 7 -3 L 2 2 L 1 6 L -1 6 L -2 2 Z" />;
@@ -264,7 +269,11 @@ export function UsMainlandMap({
   const provinceNameById = useMemo(() => new Map(provinces.map((province) => [province.id, province.name])), [provinces]);
   const viewportRef = useRef<HTMLDivElement>(null);
   const cameraSurfaceRef = useRef<HTMLDivElement>(null);
+  const rasterCanvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<ProvinceMapCameraController | null>(null);
+  const rasterGenerationRef = useRef(0);
+  const rasterRevisionRef = useRef(0);
+  const rasterRefreshPendingRef = useRef(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const labelRevisionRef = useRef(0);
   const [labels, setLabels] = useState<ProvinceMapLabelLayout[]>([]);
@@ -361,10 +370,79 @@ export function UsMainlandMap({
     container.dataset.mapContainViewport = `${width}x${height}`;
     container.dataset.mapIntrinsicAspect = provinceMapProjection.aspect.toFixed(6);
     container.dataset.mapTooltipMode = width > MOBILE_MAP_MAX_WIDTH ? 'desktop' : 'hidden-mobile';
-    container.dataset.mapWorldContext = 'continents-filled-10m';
-    container.dataset.mapWorldResolution = '10m';
+    container.dataset.mapWorldContext = 'continents-10m-fill-110m-stroke';
+    container.dataset.mapWorldFillResolution = '10m';
+    container.dataset.mapWorldStrokeResolution = '110m';
     container.dataset.mapMainlandOutlineResolution = '10m';
     container.dataset.mapWorldInteractive = 'false';
+    container.dataset.mapRasterMode = 'preloaded-full-world-svg-snapshot';
+    if (!container.dataset.mapRasterReady) container.dataset.mapRasterReady = 'false';
+  }, []);
+
+  const refreshRasterSnapshot = useCallback(() => {
+    const container = viewportRef.current;
+    const surface = cameraSurfaceRef.current;
+    const canvas = rasterCanvasRef.current;
+    if (!container || !surface || !canvas) return;
+    // A content update during input still invalidates an older decoder result.
+    // Remember the work instead of silently losing it until another prop update.
+    rasterRefreshPendingRef.current = true;
+    const generation = rasterGenerationRef.current + 1;
+    rasterGenerationRef.current = generation;
+    if (container.dataset.mapZoomActive === 'true') return;
+    if (Number(container.dataset.mapLabelCount || 0) !== provinceMapLabelSources.length) return;
+    const svg = surface.querySelector<SVGSVGElement>('.province-map-world-svg');
+    const preloadViewBox = container.dataset.mapCameraPreloadViewBox;
+    const viewportWidth = container.clientWidth;
+    const viewportHeight = container.clientHeight;
+    if (!svg || !preloadViewBox || !(viewportWidth > 0) || !(viewportHeight > 0)) return;
+
+    rasterRefreshPendingRef.current = false;
+    container.dataset.mapRasterReady = 'false';
+    container.dataset.mapRasterError = '';
+    const rasterScale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const pixelWidth = Math.max(1, Math.round(viewportWidth * rasterScale));
+    const pixelHeight = Math.max(1, Math.round(viewportHeight * rasterScale));
+    container.dataset.mapRasterScale = rasterScale.toFixed(2);
+    container.dataset.mapRasterPixelSize = `${pixelWidth}x${pixelHeight}`;
+
+    void createProvinceMapRasterSnapshot(svg, preloadViewBox, pixelWidth, pixelHeight).then((snapshot) => {
+      try {
+        if (rasterGenerationRef.current !== generation) return;
+        // Decoding is asynchronous: idle at request time does not mean idle now.
+        // Do not replace pixels or switch the active fallback to a different layer.
+        if (container.dataset.mapZoomActive === 'true') {
+          rasterRefreshPendingRef.current = true;
+          return;
+        }
+        const context = canvas.getContext('2d', { alpha: true });
+        if (!context) {
+          container.dataset.mapRasterReady = 'false';
+          container.dataset.mapRasterError = 'context-unavailable';
+          return;
+        }
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+        context.clearRect(0, 0, pixelWidth, pixelHeight);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(snapshot.image, 0, 0, pixelWidth, pixelHeight);
+        rasterRevisionRef.current += 1;
+        container.dataset.mapRasterRevision = String(rasterRevisionRef.current);
+        container.dataset.mapRasterReady = 'true';
+        container.dataset.mapRasterError = '';
+      } finally {
+        snapshot.dispose();
+      }
+    }).catch(() => {
+      if (rasterGenerationRef.current !== generation) return;
+      if (container.dataset.mapZoomActive === 'true') {
+        rasterRefreshPendingRef.current = true;
+        return;
+      }
+      container.dataset.mapRasterReady = 'false';
+      container.dataset.mapRasterError = 'snapshot-failed';
+    });
   }, []);
 
   useLayoutEffect(() => {
@@ -374,17 +452,36 @@ export function UsMainlandMap({
     cameraRef.current?.destroy();
     cameraRef.current = createProvinceMapCamera(container, surface, { focusBounds: provinceMapMainlandFocusBounds });
     updateViewportMetadata(container);
+    let idleRefreshFrame: number | null = null;
+    const queueIdleRefresh = () => {
+      if (idleRefreshFrame !== null) return;
+      idleRefreshFrame = requestAnimationFrame(() => {
+        idleRefreshFrame = null;
+        refreshRasterSnapshot();
+      });
+    };
+    // Observe only the existing active/idle boundary, never Camera frame writes.
+    const settleObserver = new MutationObserver(() => {
+      if (container.dataset.mapZoomActive !== 'true' && rasterRefreshPendingRef.current) queueIdleRefresh();
+    });
+    settleObserver.observe(container, { attributes: true, attributeFilter: ['data-map-zoom-active'] });
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
       updateViewportMetadata(container);
       cameraRef.current?.reset();
+      queueIdleRefresh();
     });
     observer?.observe(container);
     return () => {
       observer?.disconnect();
+      settleObserver.disconnect();
+      if (idleRefreshFrame !== null) cancelAnimationFrame(idleRefreshFrame);
+      rasterGenerationRef.current += 1;
+      rasterRefreshPendingRef.current = false;
+      container.dataset.mapRasterReady = 'false';
       cameraRef.current?.destroy();
       cameraRef.current = null;
     };
-  }, [updateViewportMetadata]);
+  }, [refreshRasterSnapshot, updateViewportMetadata]);
 
   useLayoutEffect(() => {
     const container = viewportRef.current;
@@ -407,6 +504,12 @@ export function UsMainlandMap({
     void document.fonts?.ready.then(renderLabels);
     return () => { cancelled = true; };
   }, []);
+
+  useLayoutEffect(() => {
+    if (labels.length !== provinceMapLabelSources.length) return undefined;
+    const frame = requestAnimationFrame(refreshRasterSnapshot);
+    return () => cancelAnimationFrame(frame);
+  }, [data, labels, referenceNow, refreshRasterSnapshot, routeOverlays, selectedProvinceId, shipmentOverlays]);
 
   useEffect(() => {
     const container = viewportRef.current;
@@ -485,10 +588,10 @@ export function UsMainlandMap({
     </div>
   ) : null;
 
-  const accessibleSummary = `世界战略地图以 10m 大陆填充和海岸线提供地理背景，美国本土连续 ${provinces.length} 州是唯一可经营和交互地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}当前有 ${shipmentOverlays.length} 笔运输在途。美国外边界由同一份 10m 州界拓扑合并生成，并覆盖大陆对应海岸线，避免双重边线。世界背景、州面、州名、运输路线和在途标记位于同一个静态 SVG 世界面，并由根 SVG 的 viewBox Camera 同步缩放和平移；最小 1 倍镜头把美国本土居中，Camera 的 world bounds 在初始化或真实容器变化时固定，放大后根据当前倍率反求视场并在同一固定边界内约束中心。${routePickingActive ? '当前处于运输路线选州模式，只能按顺序选择美国本土州面作为站点，再次点击起点州可以闭环。' : '点击美国本土州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置到最小居中镜头。`;
+  const accessibleSummary = `世界战略地图以 10m 大陆填充和同源 110m 简化海岸描边提供地理背景，美国本土连续 ${provinces.length} 州是唯一可经营和交互地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}当前有 ${shipmentOverlays.length} 笔运输在途。美国外边界由同一份 10m 州界拓扑合并生成，并覆盖大陆对应海岸线，避免双重边线。权威世界背景、州面、州名、运输路线和在途标记位于同一个静态 SVG 世界面；镜头输入 active 时只显示由该 SVG 预生成的临时全世界栅格快照并继续使用同一个 Camera transform，停手后立即回到根 SVG 的最终 viewBox 矢量画面。最小 1 倍镜头把美国本土居中，Camera 的 world bounds 在初始化或真实容器变化时固定，放大后根据当前倍率反求视场并在同一固定边界内约束中心。${routePickingActive ? '当前处于运输路线选州模式，只能按顺序选择美国本土州面作为站点，再次点击起点州可以闭环。' : '点击美国本土州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置到最小居中镜头。`;
 
   return (
-    <div className="province-map-chart" data-province-count={provinces.length} data-map-feature-count={provinceMapWorld.length} data-selected-province-id={selectedProvinceId ?? ''} data-map-lens={lens} data-map-zoom-min="1" data-map-zoom-max="4" data-map-label-mode="curved-chinese-full-name" data-map-world-context="continents-filled-10m" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-route-network-kind={transportCapitalRouteDataKind} data-route-physical-edge-count={transportPhysicalPathByEdge.size} data-shipment-overlay-count={shipmentOverlays.length}>
+    <div className="province-map-chart" data-province-count={provinces.length} data-map-feature-count={provinceMapWorld.length} data-selected-province-id={selectedProvinceId ?? ''} data-map-lens={lens} data-map-zoom-min="1" data-map-zoom-max="4" data-map-label-mode="curved-chinese-full-name" data-map-world-context="continents-10m-fill-110m-stroke" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-route-network-kind={transportCapitalRouteDataKind} data-route-physical-edge-count={transportPhysicalPathByEdge.size} data-shipment-overlay-count={shipmentOverlays.length}>
       <div className="province-map-echart province-map-static-map" role="group" aria-label="世界战略地图，美国本土连续四十八州可交互" data-map-ready="true" data-testid="us-mainland-map" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-shipment-overlay-count={shipmentOverlays.length}>
         <div
           ref={viewportRef}
@@ -510,9 +613,9 @@ export function UsMainlandMap({
                   <path
                     className="province-map-world-shadow"
                     data-world-shadow="outer"
-                    data-world-resolution="10m"
+                    data-world-resolution="110m"
                     data-interactive="false"
-                    d={provinceMapWorldOutlinePath}
+                    d={provinceMapWorldStrokePath}
                     fillRule="evenodd"
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
@@ -522,17 +625,17 @@ export function UsMainlandMap({
                     data-world-fill="continents"
                     data-world-resolution="10m"
                     data-interactive="false"
-                    d={provinceMapWorldOutlinePath}
+                    d={provinceMapWorldFillPath}
                     fillRule="evenodd"
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
                   />
                   <path
                     className="province-map-world-outline"
-                    data-world-outline="continents-10m"
-                    data-world-resolution="10m"
+                    data-world-outline="continents-110m-stroke"
+                    data-world-resolution="110m"
                     data-interactive="false"
-                    d={provinceMapWorldOutlinePath}
+                    d={provinceMapWorldStrokePath}
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
                   />
@@ -638,6 +741,7 @@ export function UsMainlandMap({
                 </g>
               </g>
             </svg>
+            <canvas ref={rasterCanvasRef} className="province-map-camera-raster" aria-hidden="true" />
           </div>
           {tooltipNode ? (tooltipLayer ? createPortal(tooltipNode, tooltipLayer) : tooltipNode) : null}
         </div>

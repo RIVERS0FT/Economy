@@ -228,6 +228,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   const serverTestCandidates = listFiles(root, 'server/test', isServerTest);
   const browserCandidates = listFiles(root, 'tests/browser', isBrowserSpec);
   const domains = inferDomains(executableChanges);
+  const itDomains = inferDomains([...serverChanges, ...executableChanges.filter(isServerTest)]);
 
   if (domains.some((rule) => rule.name === 'product-catalog')) {
     addCommand(commands, seenCommands, 'npm', ['run', 'generate:product-artwork']);
@@ -236,6 +237,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   if (domains.some((rule) => rule.name === 'facility')) addCommand(commands, seenCommands, 'npm', ['run', 'generate:facility-artwork']);
 
   const isDomainCandidate = (candidate) => domains.some((rule) => rule.candidate.test(candidate));
+  const isItDomainCandidate = (candidate) => itDomains.some((rule) => rule.candidate.test(candidate));
   const isReferenceCandidate = (candidate) => candidateReferencesAnyChangedFile(root, candidate, executableChanges);
 
   for (const candidate of verifyCandidates) {
@@ -247,7 +249,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
 
   const selectedServerTests = new Set(executableChanges.filter(isServerTest));
   for (const candidate of serverTestCandidates) {
-    if (isDomainCandidate(candidate) || isReferenceCandidate(candidate)) selectedServerTests.add(candidate);
+    if (isItDomainCandidate(candidate) || isReferenceCandidate(candidate)) selectedServerTests.add(candidate);
   }
   plan.it.tests = [...selectedServerTests].sort();
   if (plan.it.tests.length > 0) plan.needsDependencies = true;

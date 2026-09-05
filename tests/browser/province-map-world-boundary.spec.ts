@@ -68,6 +68,10 @@ async function readCameraViewBox(canvas: Locator) {
   }));
 }
 
+async function waitForSettledCamera(canvas: Locator) {
+  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+}
+
 function parseWorldBounds(value: string | null) {
   const [minX, minY, maxX, maxY] = String(value || '').split(/\s+/u).map(Number);
   if (![minX, minY, maxX, maxY].every(Number.isFinite)) throw new Error('fixed camera world bounds missing');
@@ -103,7 +107,7 @@ async function mainlandFootprint(page: Page) {
   });
 }
 
-test('world context uses filled 10m land, filter-free coastline hierarchy and the contiguous-US 10m seam while only states stay interactive', async ({ page }) => {
+test('world context keeps 10m land fill, lightweight 110m strokes and the contiguous-US 10m seam while only states stay interactive', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -115,8 +119,9 @@ test('world context uses filled 10m land, filter-free coastline hierarchy and th
   const outline = map.locator('.province-map-world-outline');
   const mainlandOutline = map.locator('.province-map-mainland-outline');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
-  await expect(canvas).toHaveAttribute('data-map-world-context', 'continents-filled-10m');
-  await expect(canvas).toHaveAttribute('data-map-world-resolution', '10m');
+  await expect(canvas).toHaveAttribute('data-map-world-context', 'continents-10m-fill-110m-stroke');
+  await expect(canvas).toHaveAttribute('data-map-world-fill-resolution', '10m');
+  await expect(canvas).toHaveAttribute('data-map-world-stroke-resolution', '110m');
   await expect(canvas).toHaveAttribute('data-map-mainland-outline-resolution', '10m');
   await expect(canvas).toHaveAttribute('data-map-world-interactive', 'false');
   await expect(canvas).toHaveAttribute('data-map-world-shadow-path-count', '1');
@@ -127,7 +132,10 @@ test('world context uses filled 10m land, filter-free coastline hierarchy and th
   await expect(fill).toHaveCount(1);
   await expect(outline).toHaveCount(1);
   await expect(mainlandOutline).toHaveCount(1);
-  await expect(outline).toHaveAttribute('data-world-outline', 'continents-10m');
+  await expect(shadow).toHaveAttribute('data-world-resolution', '110m');
+  await expect(fill).toHaveAttribute('data-world-resolution', '10m');
+  await expect(outline).toHaveAttribute('data-world-outline', 'continents-110m-stroke');
+  await expect(outline).toHaveAttribute('data-world-resolution', '110m');
   await expect(mainlandOutline).toHaveAttribute('data-mainland-outline', 'states-10m-union');
   await expect(mainlandOutline).toHaveAttribute('data-mainland-outline-source', 'us-atlas-states-10m');
   for (const layer of [shadow, fill, outline, mainlandOutline]) {
@@ -143,7 +151,30 @@ test('world context uses filled 10m land, filter-free coastline hierarchy and th
   await expect(map.locator('.province-map-region')).toHaveCount(48);
   await expect(map.locator('.province-map-region[role="button"]')).toHaveCount(48);
 
-  const outlinePathBefore = await outline.getAttribute('d');
+  const pathComplexity = await map.evaluate((element) => {
+    const stats = (selector: string) => {
+      const path = element.querySelector<SVGPathElement>(selector)?.getAttribute('d') ?? '';
+      return {
+        path,
+        characters: path.length,
+        vertices: path.match(/[ML]/g)?.length ?? 0,
+      };
+    };
+    return {
+      shadow: stats('.province-map-world-shadow'),
+      fill: stats('.province-map-world-fill'),
+      outline: stats('.province-map-world-outline'),
+    };
+  });
+  expect(pathComplexity.fill.vertices).toBeGreaterThan(100_000);
+  expect(pathComplexity.shadow.vertices).toBeLessThan(2_000);
+  expect(pathComplexity.outline.vertices).toBeLessThan(2_000);
+  expect(pathComplexity.shadow.characters).toBeLessThan(30_000);
+  expect(pathComplexity.outline.characters).toBeLessThan(30_000);
+  expect(pathComplexity.shadow.path).toBe(pathComplexity.outline.path);
+  expect(pathComplexity.outline.path).not.toBe(pathComplexity.fill.path);
+
+  const outlinePathBefore = pathComplexity.outline.path;
   const mainlandPathBefore = await mainlandOutline.getAttribute('d');
   expect(outlinePathBefore?.length || 0).toBeGreaterThan(100);
   expect(mainlandPathBefore?.length || 0).toBeGreaterThan(100);
@@ -180,11 +211,13 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   expect(Math.abs(baseline.centerOffsetY)).toBeLessThan(3);
 
   await dragToEdge(canvas, 'right', 3);
+  await waitForSettledCamera(canvas);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).x - minimumView.x)).toBeLessThan(0.02);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).y - minimumView.y)).toBeLessThan(0.02);
 
   await zoomIn(page, canvas, 6);
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.5);
+  await waitForSettledCamera(canvas);
   expect(await canvas.getAttribute('data-map-camera-world-bounds')).toBe(fixedBoundsText);
   const zoomedView = await readCameraViewBox(canvas);
   expect(zoomedView.width).toBeLessThan(minimumView.width);
@@ -193,9 +226,11 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
 
   await dragToEdge(canvas, 'right');
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-pan-clamp-count'))).toBeGreaterThan(0);
+  await waitForSettledCamera(canvas);
   const rightBoundary = await readCameraViewBox(canvas);
   expectViewInsideBounds(rightBoundary, fixedBounds);
   await dragToEdge(canvas, 'right', 3);
+  await waitForSettledCamera(canvas);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).x - rightBoundary.x)).toBeLessThan(0.02);
 
   await canvas.dispatchEvent('dblclick', { clientX: 20, clientY: 20 });
@@ -207,10 +242,14 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   expect(Math.abs(reset.areaRatio - baseline.areaRatio)).toBeLessThan(0.01);
 
   await zoomIn(page, canvas, 6);
+  await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.5);
+  await waitForSettledCamera(canvas);
   await dragToEdge(canvas, 'down');
+  await waitForSettledCamera(canvas);
   const bottomBoundary = await readCameraViewBox(canvas);
   expectViewInsideBounds(bottomBoundary, fixedBounds);
   await dragToEdge(canvas, 'down', 3);
+  await waitForSettledCamera(canvas);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).y - bottomBoundary.y)).toBeLessThan(0.02);
 });
 
