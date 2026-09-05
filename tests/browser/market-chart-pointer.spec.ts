@@ -11,7 +11,8 @@ async function point(chart: Locator, ratio: number, volume = false) {
 async function pointerLines(chart: Locator) {
   return chart.locator('svg [stroke-dasharray]').evaluateAll((elements) => elements.map((el) => {
     const r = el.getBoundingClientRect();
-    return { x: r.x, y: r.y, width: r.width, height: r.height, offset: Number(el.getAttribute('stroke-dashoffset') || 0) };
+    const path = el as SVGGeometryElement;
+    return { x: r.x, y: r.y, width: r.width, height: r.height, offset: Number(el.getAttribute('stroke-dashoffset') || 0), length: path.getTotalLength(), startY: path.getPointAtLength(0).y, endY: path.getPointAtLength(path.getTotalLength()).y };
   }).filter((r) => r.width <= 2 && r.height >= 40).sort((a, b) => a.y - b.y));
 }
 async function expectPointers(chart: Locator) {
@@ -19,6 +20,12 @@ async function expectPointers(chart: Locator) {
   const lines = await pointerLines(chart);
   expect(Math.abs(lines[0].x - lines[1].x)).toBeLessThanOrEqual(1);
   expect(Math.abs(lines[0].y + lines[0].height - lines[1].y)).toBeLessThanOrEqual(1);
+  // ECharts emits both vertical paths bottom-to-top. Compare the actual phases at
+  // the shared boundary, not just line styles or the two option strings.
+  expect(lines[0].startY).toBeGreaterThan(lines[0].endY);
+  expect(lines[1].startY).toBeGreaterThan(lines[1].endY);
+  const phaseDelta = lines[1].length + lines[1].offset - lines[0].offset;
+  expect(Math.abs(phaseDelta - Math.round(phaseDelta / 8) * 8)).toBeLessThanOrEqual(1);
 }
 async function expectForegroundTooltip(page: Page) {
   const tooltip = page.locator('.economy-chart-tooltip');
@@ -40,7 +47,7 @@ async function expectForegroundTooltip(page: Page) {
       top: r.top, bottom: r.bottom, left: r.left, right: r.right, safeTop: safe.top, safeBottom: safe.bottom,
       statusBottom: status.bottom, viewportWidth: window.innerWidth };
   });
-  expect(geometry.inFront).toBe(true);
+  expect(geometry.inFront, JSON.stringify(geometry)).toBe(true);
   expect(geometry.host).toBe('true');
   expect(geometry.hostEvents).toBe('none');
   expect(geometry.top).toBeGreaterThanOrEqual(geometry.statusBottom);
@@ -97,5 +104,49 @@ test.describe('touch market tooltip inside the actual mobile Sheet', () => {
     await page.locator('.market-detail-product-icon-card').tap();
     await expect(page.locator('.economy-chart-tooltip')).toBeHidden();
     await expect.poll(async () => (await pointerLines(chart)).length).toBe(0);
+  });
+});
+
+
+test('integer price ticks never round away the tooltip currency precision', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await page.goto('market-tooltip-persistence-test.html?scenario=decimal');
+  const chart = page.locator('.market-history-chart.full');
+  await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+  const selected = await point(chart, 0.502);
+  await page.mouse.move(selected.x, selected.y);
+  const tooltip = page.locator('.economy-chart-tooltip');
+  await expect(tooltip).toContainText('16.03');
+  await expectPointers(chart);
+  await page.evaluate(() => window.__advanceMarketTooltipData?.());
+  await expect(tooltip).toContainText('17.03');
+  await expectPointers(chart);
+  await page.screenshot({ path: 'test-results/market-tooltip-decimal.png' });
+});
+
+test.describe('native chart touch scrolling', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+  test('a vertical swipe scrolls the existing Sheet and clears both pointers', async ({ page }) => {
+    await page.goto('market-runtime-test.html?scenario=active');
+    const chart = page.locator('.market-history-chart.full');
+    await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+    await chart.scrollIntoViewIfNeeded();
+    const scroll = page.locator('.mobile-detail-sheet-scroll');
+    const before = await scroll.evaluate((element) => element.scrollTop);
+    const selected = await point(chart, 0.502, true);
+    await page.touchscreen.tap(selected.x, selected.y);
+    await expectForegroundTooltip(page);
+    const session = await page.context().newCDPSession(page);
+    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: selected.x, y: selected.y }] });
+    for (let distance = 20; distance <= 140; distance += 20) {
+      await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: selected.x, y: selected.y - distance }] });
+      await page.waitForTimeout(16);
+    }
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await session.detach();
+    await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBeGreaterThan(before + 10);
+    await expect(page.locator('.economy-chart-tooltip')).toBeHidden();
+    await expect.poll(async () => (await pointerLines(chart)).length).toBe(0);
+    await expect(page.locator('[data-mobile-workspace-sheet-host="true"]')).toBeVisible();
   });
 });

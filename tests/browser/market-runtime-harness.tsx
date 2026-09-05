@@ -39,6 +39,7 @@ import '../../src/styles/form-controls.css';
 import '../../src/styles/financial-backdrop.css';
 import '../../src/styles/province-map.css';
 import '../../src/styles/strategic-game-shell.css';
+import '../../src/styles/market-detail-direct-flow.css';
 
 const params = new URLSearchParams(window.location.search);
 const scenario = params.get('scenario') ?? 'active';

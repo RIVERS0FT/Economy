@@ -29,8 +29,10 @@
   pointer-events: none;
 }
 
-.game-shell .workspace-floating-layer {
-  z-index: 4;
+@media (min-width: 721px) {
+  .game-shell .workspace-floating-layer {
+    z-index: 4;
+  }
 }
 
 .game-shell .page-scroll {
