@@ -1,4 +1,5 @@
 import { commoditySystemPriceFor } from './domain.js';
+import { applyFacilityGroupAction } from './facility-groups.js';
 import { FACILITY_TYPE_CATALOG } from './industry-catalog.js';
 import { createProductionSettlementBasis } from './production-settlement.js';
 import { normalizeProvinceId, provinceScopedKey } from './provinces.js';
@@ -91,6 +92,37 @@ export function prepareProductionInputsForPlayer(world, userId, now = Date.now()
   return baseline;
 }
 
+function recoverCompletedProductionGroups(world, userId, provinceId, completed, now) {
+  const player = world.players?.[String(userId)];
+  if (!player) return;
+  for (const source of completed) {
+    if (source.kind !== 'production') continue;
+    const group = (player.facilityGroups || []).find((candidate) => (
+      normalizeProvinceId(candidate.provinceId) === provinceId
+      && candidate.facilityTypeId === source.sourceId
+    ));
+    if (!group?.enabled || group.status !== 'error') continue;
+    const type = FACILITY_TYPES.get(group.facilityTypeId);
+    const recipe = activeRecipe(type, group.activeRecipeId);
+    const count = nonNegativeInteger(group.count);
+    if (!type || !recipe || count < 1) continue;
+    for (const input of recipe.inputs || []) {
+      thawInventoryFreeze(player, {
+        kind: 'production',
+        provinceId,
+        productId: input.productId,
+        sourceId: type.id,
+        sourceLabel: type.name,
+      }, nonNegativeInteger(input.quantity) * count);
+    }
+    applyFacilityGroupAction(world, { id: Number(userId) }, 'startFacility', {
+      provinceId,
+      facilityTypeId: type.id,
+    }, now, { migrate: false, process: false });
+  }
+  reconcileProvinceBuildingFreezes(world, userId, provinceId);
+}
+
 export function finalizeProductionOutputContracts(world, userId, baseline, now = Date.now()) {
   const player = world.players?.[String(userId)];
   if (!player || !(baseline instanceof Map)) return 0;
@@ -114,15 +146,21 @@ export function finalizeProductionOutputContracts(world, userId, baseline, now =
     recordDailyProductProduction(player, provinceId, productId, delta, now);
     allocateDailySupplyReservesForSupplier(world, userId, provinceId, productId, now);
     const completed = completedByProvince.get(provinceId) || [];
-    completed.push({ kind: 'production', sourceId: facilityTypeId });
+    if (!completed.some((source) => source.kind === 'production' && source.sourceId === facilityTypeId)) {
+      completed.push({ kind: 'production', sourceId: facilityTypeId });
+    }
     completedByProvince.set(provinceId, completed);
     produced += delta;
   }
 
   for (const provinceId of touchedProvinces) {
     const completed = completedByProvince.get(provinceId) || [];
-    if (completed.length > 0) runCycleAutoOperation(world, userId, provinceId, completed, now);
-    else reconcileProvinceBuildingFreezes(world, userId, provinceId);
+    if (completed.length > 0) {
+      runCycleAutoOperation(world, userId, provinceId, completed, now);
+      recoverCompletedProductionGroups(world, userId, provinceId, completed, now);
+    } else {
+      reconcileProvinceBuildingFreezes(world, userId, provinceId);
+    }
   }
   return produced;
 }
