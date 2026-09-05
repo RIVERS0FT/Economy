@@ -121,12 +121,13 @@ test('regional commodity daily-price detail stays readable on mobile', async ({ 
   expect(tradeSummary).toEqual(['今日价格', '今日成交量', '可用库存', '冻结库存']);
 });
 
-test('regional commodity detail marks the trend chart unavailable when its detail request fails', async ({ page }) => {
+test('regional commodity detail keeps snapshot trend when its detail request fails', async ({ page }) => {
   await page.route('**/economy-api/game/market-detail**', (route) => route.fulfill({ status: 503 }));
   await openRegionalWheatDetail(page);
 
   const chartCard = page.locator('.market-chart-card');
-  await expect(chartCard.locator('.market-chart-card__content')).toHaveAttribute('aria-disabled', 'true');
-  await expect(chartCard.getByText('成交趋势图不可用', { exact: true })).toBeVisible();
-  await expect(chartCard.locator('.market-history-chart')).toHaveCount(0);
+  await expect(chartCard.locator('.market-chart-card__content')).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(chartCard.getByText('成交趋势图不可用', { exact: true })).toHaveCount(0);
+  await expect(chartCard.locator('.market-history-chart')).toBeVisible();
+  await expect(chartCard.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
 });
