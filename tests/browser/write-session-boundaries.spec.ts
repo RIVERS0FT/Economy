@@ -41,7 +41,7 @@ test('rapid start-stop-start receives three ordered keys and keeps the final int
   expect(result.enabled).toBe(true);
 });
 
-test('unconfirmed control blocks an opposite command and only the original key can confirm it', async ({ page }) => {
+test('unconfirmed control blocks execution until same-key confirmation permits the new intent', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const moduleUrl = '/economy/src/api/idempotentGameWriteFetch.ts';
     const sessionUrl = '/economy/src/api/gameWriteSession.ts';
@@ -49,9 +49,10 @@ test('unconfirmed control blocks an opposite command and only the original key c
     const { beginGameWriteSession } = await import(sessionUrl);
     beginGameWriteSession(802);
     const keys: string[] = [];
+    let canConfirm = false;
     const client = createIdempotentGameWriteFetch(async (_input: RequestInfo | URL, init: RequestInit) => {
       keys.push(new Headers(init.headers).get('Idempotency-Key')!);
-      return keys.length === 1 ? Response.json({ message: 'unknown' }, { status: 503 })
+      return !canConfirm ? Response.json({ message: 'unknown' }, { status: 503 })
         : Response.json({ result: { ok: true, message: 'confirmed' }, revision: keys.length });
     });
     const send = (action: string, key: string) => client('/economy-api/game/facilities/wheat-farm/' + action,
@@ -59,12 +60,12 @@ test('unconfirmed control blocks an opposite command and only the original key c
     await send('start', 'unknown-start-first');
     let blocked = '';
     try { await send('stop', 'unknown-stop-second'); } catch (error) { blocked = (error as { code: string }).code; }
-    await send('start', 'replacement-not-used');
+    canConfirm = true;
     await send('stop', 'confirmed-stop-final');
     return { blocked, keys };
   });
-  expect(result.blocked).toBe('WRITE_RESULT_UNCONFIRMED');
-  expect(result.keys).toEqual(['unknown-start-first', 'unknown-start-first', 'confirmed-stop-final']);
+  expect(result.blocked).toBe('OPERATION_RESULT_UNCONFIRMED');
+  expect(result.keys).toEqual(['unknown-start-first', 'unknown-start-first', 'unknown-start-first', 'confirmed-stop-final']);
 });
 
 test('account switch aborts the old result, isolates identical writes and preserves the original account reservation', async ({ page }) => {
@@ -169,4 +170,37 @@ test('a late game state read cannot publish into a new account session', async (
   });
   expect(result.code).toBe('WRITE_SESSION_CHANGED');
   expect(result.state).toBeNull();
+});
+
+test('reloaded controls confirm the persisted original command before sending a different intent', async ({ page }) => {
+  await page.evaluate(async () => {
+    const moduleUrl = '/economy/src/api/idempotentGameWriteFetch.ts';
+    const sessionUrl = '/economy/src/api/gameWriteSession.ts';
+    const { createIdempotentGameWriteFetch } = await import(moduleUrl);
+    const { beginGameWriteSession } = await import(sessionUrl);
+    beginGameWriteSession(811);
+    const client = createIdempotentGameWriteFetch(async () => Response.json({ message: 'unknown' }, { status: 503 }));
+    await client('/economy-api/game/facilities/wheat-farm/start', { method: 'POST',
+      headers: { 'Idempotency-Key': 'persisted-original-start', 'X-Economy-Save-Epoch': '0' }, body: JSON.stringify({ provinceId: '110000' }) });
+  });
+  await page.reload();
+  const calls = await page.evaluate(async () => {
+    const moduleUrl = '/economy/src/api/idempotentGameWriteFetch.ts';
+    const sessionUrl = '/economy/src/api/gameWriteSession.ts';
+    const { createIdempotentGameWriteFetch } = await import(moduleUrl);
+    const { beginGameWriteSession } = await import(sessionUrl);
+    beginGameWriteSession(811);
+    const calls: { path: string; key: string }[] = [];
+    const client = createIdempotentGameWriteFetch(async (input: RequestInfo | URL, init: RequestInit) => {
+      calls.push({ path: String(input), key: new Headers(init.headers).get('Idempotency-Key')! });
+      return Response.json({ result: { ok: true, message: 'confirmed' }, revision: calls.length });
+    });
+    await client('/economy-api/game/facilities/wheat-farm/stop', { method: 'POST',
+      headers: { 'Idempotency-Key': 'reloaded-new-stop', 'X-Economy-Save-Epoch': '0' }, body: JSON.stringify({ provinceId: '110000' }) });
+    return calls;
+  });
+  expect(calls).toEqual([
+    { path: '/economy-api/game/facilities/wheat-farm/start', key: 'persisted-original-start' },
+    { path: '/economy-api/game/facilities/wheat-farm/stop', key: 'reloaded-new-stop' },
+  ]);
 });
