@@ -265,6 +265,7 @@ label {
 
 .page-content {
   --radius-card: var(--radius-sm);
+  --radius-control: var(--radius-sm);
   --card-radius: var(--radius-sm);
 }
 
