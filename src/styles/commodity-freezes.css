@@ -1,15 +1,21 @@
 .commodity-freeze-disclosure { min-width: 0; }
+.commodity-freeze-disclosure > .safe-tooltip-anchor { display: grid; }
 .commodity-freeze-disclosure__trigger {
-  display: block; padding: 0; border: 0; background: transparent; color: inherit;
-  font: inherit; text-align: inherit; cursor: pointer; text-decoration: underline dotted;
-  text-underline-offset: 0.25em;
+  --ui-interactive-active-transform: none;
+  --ui-interactive-hover-transform: none;
+  position: relative; display: block; min-width: 0; min-height: 0; width: 100%; height: auto;
+  padding: 0; border: 0; background: transparent; color: inherit;
+  font: inherit; line-height: inherit; text-align: inherit; cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 0.25em;
+}
+.commodity-freeze-disclosure__trigger > strong { display: block; }
+/* The touch target grows outside the value's line box, not inside the metric grid. */
+.commodity-freeze-disclosure__trigger::after {
+  content: ''; position: absolute; inset: 50% 0 auto;
+  height: max(100%, var(--control-height)); transform: translateY(-50%);
 }
 .commodity-freeze-disclosure__trigger:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
-.commodity-freeze-disclosure__expanded {
-  grid-column: 1 / -1; display: block; margin-block-start: var(--space-3); max-width: 100%; min-width: 0;
-  padding-block-start: var(--space-2); border-block-start: 1px solid var(--color-border);
-}
-.commodity-freeze-details { display: grid; gap: var(--space-3); min-width: 0; text-align: start; }
+.commodity-freeze-details { display: grid; gap: var(--space-3); min-width: 0; max-width: 22rem; text-align: start; }
 .commodity-freeze-details__group { display: grid; gap: var(--space-2); min-width: 0; }
 .commodity-freeze-details__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); }
 .commodity-freeze-details__row > :first-child { overflow-wrap: anywhere; min-width: 0; }
