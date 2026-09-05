@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('only the global directory owns filtering and regional tabs fix the kind and use the same detail page without commercial asset conversion', () => {
   const province = read('src/pages/ProvincePage.tsx');
