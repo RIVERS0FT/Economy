@@ -1,0 +1,137 @@
+name: Cycle horizon regression
+on:
+  push:
+    branches: [work/cycle-frozen-inventory-20260905]
+    paths: [.github/workflows/cycle-horizon-check.yml]
+permissions:
+  contents: write
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Add horizon regression
+        shell: bash
+        run: |
+          cat > server/test/cycle-auto-horizon.test.js <<'EOF'
+          import assert from 'node:assert/strict';
+          import test from 'node:test';
+          import { createWorld, ensurePlayer } from '../src/domain.js';
+          import { FACILITY_TYPE_CATALOG } from '../src/industry-catalog.js';
+          import { migrateFacilityGroupWorld } from '../src/facility-groups.js';
+          import { createProductionSettlementClaim } from '../../shared/production-settlement.js';
+          import { applyProductionSettlementClaim, createProductionSettlementBasis, settleProductionForPlayerServerSide } from '../src/production-settlement.js';
+          import { inventoryForProvince, provinceScopedKey } from '../src/provinces.js';
+
+          const start = 1_800_000_000_000;
+          const provinceId = '110000';
+          const user = { id: 98321, name: 'Horizon', email: 'cycle-horizon@example.test' };
+          function setup() {
+            const world = createWorld(start);
+            const player = ensurePlayer(world, user, start);
+            const type = FACILITY_TYPE_CATALOG.find((item) => item.id === 'mill');
+            const recipe = type.recipes.find((item) => item.id === type.defaultRecipeId) || type.recipes[0];
+            player.facilityGroups = [{ provinceId, facilityTypeId: type.id, count: 1, participatingCount: 1,
+              enabled: true, status: 'running', activeRecipeId: recipe.id, lifetimeOutput: 0, cycleStartedAt: start,
+              staffingRateBps: 10000, staffingUpdatedAt: start, staffingBatchCarryBps: 0 }];
+            player.credits = 10000;
+            player.provinceAutoSaleEnabled = { [provinceId]: true };
+            for (const input of recipe.inputs) inventoryForProvince(player, input.productId, provinceId).available = input.quantity;
+            migrateFacilityGroupWorld(world, start);
+            world.markets[provinceScopedKey(provinceId, 'wheat')].officialPrice = 5;
+            world.markets[provinceScopedKey(provinceId, 'flour')].officialPrice = 25;
+            return { world, player, recipe, group: player.facilityGroups[0] };
+          }
+          const claimAt = (world, through) => createProductionSettlementClaim(createProductionSettlementBasis(world, user.id, through));
+          const stale = (error) => error.code === 'PRODUCTION_SETTLEMENT_STALE';
+
+          test('old client horizons cannot spend new procurement on unprocessed historical cycles', () => {
+            const { world, player, recipe, group } = setup();
+            const horizon = start + recipe.cycleMs;
+            const now = start + recipe.cycleMs * 10;
+            const claim = claimAt(world, horizon);
+            const before = JSON.stringify(world);
+            assert.throws(() => applyProductionSettlementClaim(world, user.id, claim, now), stale);
+            assert.equal(JSON.stringify(world), before, 'stale proposals are rejected before any mutation');
+            assert.equal(settleProductionForPlayerServerSide(world, user.id, now).ok, true);
+            assert.equal(group.lifetimeOutput, recipe.output.quantity);
+            assert.equal(group.cycleStartedAt, now);
+            const paid = player.credits;
+            settleProductionForPlayerServerSide(world, user.id, now);
+            assert.equal(group.lifetimeOutput, recipe.output.quantity);
+            assert.equal(player.credits, paid);
+          });
+
+          test('a proposal crossing a future deadline cannot finish a not-yet-due cycle', () => {
+            const { world, recipe, group } = setup();
+            const due = start + recipe.cycleMs;
+            const proposal = claimAt(world, due);
+            assert.throws(() => applyProductionSettlementClaim(world, user.id, proposal, due - 100), stale);
+            assert.equal(group.lifetimeOutput, 0);
+          });
+
+          test('ordinary latency within the same due window preserves the completed result and resumes at server time', () => {
+            const { world, recipe, group } = setup();
+            const due = start + recipe.cycleMs;
+            assert.equal(applyProductionSettlementClaim(world, user.id, claimAt(world, due), due + 100).ok, true);
+            assert.equal(group.lifetimeOutput, recipe.output.quantity);
+            assert.equal(group.cycleStartedAt, due + 100);
+          });
+          EOF
+      - name: Confirm regression fails against saved implementation
+        shell: bash
+        run: |
+          set +e
+          node --test server/test/cycle-auto-horizon.test.js > "$RUNNER_TEMP/horizon-before.log" 2>&1
+          result=$?
+          set -e
+          cat "$RUNNER_TEMP/horizon-before.log"
+          test "$result" -ne 0
+          grep -q 'Missing expected exception' "$RUNNER_TEMP/horizon-before.log"
+      - name: Apply minimal settlement repair
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('server/src/production-settlement.js')
+          s = p.read_text()
+          before = '  validateClaimShape(basis, claim);\n'
+          after = '''  validateClaimShape(basis, claim);
+
+            // Proposals may tolerate transport latency, but cannot omit an already-due cycle or complete a future one.
+            // Otherwise repeated old horizons could spend freshly bought inputs to manufacture past production.
+            for (const entry of basis.groups) {
+              if (entry.status === 'running'
+                && dueProductionCycles(entry, settleThrough) !== dueProductionCycles(entry, now)) {
+                stale('生产周期截止时间已经变化，请按服务器时间重新结算');
+              }
+            }
+          '''
+          assert s.count(before) == 1
+          s = s.replace(before, after)
+          before = '  recoverEnabledErrorGroups(world, player, settleThrough, currentResources);'
+          assert s.count(before) == 1
+          s = s.replace(before, '  recoverEnabledErrorGroups(world, player, now, currentResources);')
+          p.write_text(s)
+          PY
+      - name: Validate affected production boundaries
+        shell: bash
+        run: |
+          node --test server/test/cycle-auto-horizon.test.js server/test/cycle-auto-operation.test.js server/test/cycle-auto-runtime.test.js server/test/production-lazy-settlement.test.js server/test/production-settlement-runtime-fallback.test.js
+          git diff --check
+      - name: Preserve only tested source changes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/cycle-horizon-check.yml
+          git add server/src/production-settlement.js server/test/cycle-auto-horizon.test.js
+          git diff --cached --stat
+          git commit -m 'fix: reject stale cycle horizons before automatic procurement'
+          git push origin HEAD:work/cycle-frozen-inventory-20260905
