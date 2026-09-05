@@ -7,7 +7,7 @@ on:
       - 'shared/provinces.json'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   subset:
@@ -15,11 +15,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Build pinned Source Han Serif map subset
+      - name: Build and commit pinned Source Han Serif map subset
         shell: bash
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check 'fonttools[woff]==4.59.2' brotli==1.1.0
@@ -69,9 +73,39 @@ jobs:
           font.flavor = 'woff2'
           font.save(path)
           PY
-          echo "MAP_FONT_SIZE=$(stat -c '%s' /tmp/economy-map-serif-600.woff2)"
-          echo "MAP_FONT_SHA256=$(sha256sum /tmp/economy-map-serif-600.woff2 | cut -d ' ' -f 1)"
-          echo 'MAP_FONT_BASE64_BEGIN'
-          base64 -w 4096 /tmp/economy-map-serif-600.woff2
-          echo
-          echo 'MAP_FONT_BASE64_END'
+          mkdir -p src/assets/fonts
+          cp /tmp/economy-map-serif-600.woff2 src/assets/fonts/economy-map-serif-600.woff2
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          chars = Path('/tmp/map-font-chars.txt').read_text(encoding='utf-8')
+          font_path = Path('src/assets/fonts/economy-map-serif-600.woff2')
+          payload = {
+              'family': 'Economy Map Serif',
+              'weight': 600,
+              'sourceProject': 'Adobe Source Han Serif',
+              'sourceVersion': '2.003R',
+              'sourcePath': 'SubsetOTF/CN/SourceHanSerifCN-SemiBold.otf',
+              'sourceGitBlobSha': '44d7f0c522ee7e9c6cb373a5ef7e851f30b558a1',
+              'generator': {'fonttools': '4.59.2', 'brotli': '1.1.0'},
+              'characters': chars,
+              'characterCount': len(chars),
+              'sizeBytes': font_path.stat().st_size,
+              'sha256': hashlib.sha256(font_path.read_bytes()).hexdigest(),
+          }
+          Path('src/assets/fonts/economy-map-serif-600.manifest.json').write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          print(f"MAP_FONT_SIZE={payload['sizeBytes']}")
+          print(f"MAP_FONT_SHA256={payload['sha256']}")
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/assets/fonts/economy-map-serif-600.woff2 src/assets/fonts/economy-map-serif-600.manifest.json
+          if git diff --cached --quiet; then
+            echo 'MAP_FONT_SUBSET_UNCHANGED'
+            exit 0
+          fi
+          git commit -m 'chore: add generated map font subset'
+          git push origin "HEAD:${HEAD_REF}"
