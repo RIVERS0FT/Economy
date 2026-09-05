@@ -1,3 +1,4 @@
+import { assertCommodityFreezeInvariant } from './commodity-freezes.js';
 function cloneValue(value) {
   try {
     return structuredClone(value);
@@ -45,6 +46,7 @@ function assertPlayerEconomicState(userId, player) {
   for (const [productId, inventory] of Object.entries(player?.inventories || {})) {
     assertSafeQuantity(inventory?.available, `玩家 ${userId} ${productId} 可用库存`);
     assertSafeQuantity(inventory?.frozen, `玩家 ${userId} ${productId} 冻结库存`);
+    assertCommodityFreezeInvariant(inventory);
     assertSafeQuantity(inventory?.inTransit ?? 0, `玩家 ${userId} ${productId} 在途库存`);
   }
 

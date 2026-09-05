@@ -97,7 +97,7 @@ test('world migration normalizes legacy province access fields to all 48 states 
 
   migrateWorld(world, now + 1);
 
-  assert.equal(world.version, 32);
+  assert.equal(world.version, 33);
   assert.equal(player.startingProvinceId, '110000');
   assertAllProvincesAccessible(player);
   assert.equal(player.inventories['120000:wheat'].available, 3);

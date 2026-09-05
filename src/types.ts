@@ -42,6 +42,13 @@ export interface ProductDefinition {
   basePrice: number;
 }
 
+export interface CommodityFreezeDetail {
+  kind: 'production' | 'commercial' | 'contract' | 'auction' | 'legacy';
+  sourceId: string;
+  label: string;
+  quantity: number;
+}
+
 export interface ProductInventory {
   available: number;
   frozen: number;
@@ -705,7 +712,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState extends CommercialStateFields {
-  version: 40;
+  version: 41;
   userId: number;
   playerName: string;
   startingProvinceId: string;
@@ -725,6 +732,9 @@ export interface EconomyState extends CommercialStateFields {
   provinceInventories: Record<string, Record<string, ProductInventory>>;
   provinceAssetSummaries: Record<string, ProvinceAssetSummary>;
   warehouseStoredQuantity: number;
+  inventoryFreezeDetails?: Record<string, CommodityFreezeDetail[]>;
+  provinceAutoSaleEnabled?: Record<string, boolean>;
+  cycleAutoSaleCounts?: Record<string, number>;
   facilityGroups: FacilityGroup[];
   provinceFacilityGroups: Record<string, FacilityGroup[]>;
   facilityConstruction?: FacilityConstruction;

@@ -2,12 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { FACILITY_TYPE_CATALOG } from '../src/industry-catalog.js';
-import { migrateFacilityGroupWorld, productionReservedQuantitiesForPlayer } from '../src/facility-groups.js';
-import { factoryAutoTradeExecutionPolicyFor } from '../src/factory-auto-operation.js';
-import { applyOnlineAutoSell } from '../src/online-auto-sell.js';
-import { applyOnlineAutoBuy } from '../src/online-auto-buy.js';
+import { migrateFacilityGroupWorld } from '../src/facility-groups.js';
 import { applyCommercialBuildingAction } from '../src/commercial-buildings.js';
-import { buildingReservedQuantitiesForPlayer } from '../src/building-input-reservations.js';
+import { buildingFreezeSource, reconcileBuildingInputFreezes } from '../src/building-input-freezes.js';
+import { freezeCommodity, frozenForSource, assertCommodityFreezeInvariant } from '../src/commodity-freezes.js';
 import { inventoryForProvince, provinceScopedKey } from '../src/provinces.js';
 
 const now = 1_800_000_000_000;
@@ -19,56 +17,65 @@ function setup(commercialTypeId) {
   player.credits = 100_000;
   applyCommercialBuildingAction(world, user, { operation: 'build', provinceId, commercialTypeId, quantity: 3 }, now + 1);
   const commerce = player.commercialBuildingGroups.find((group) => group.commercialTypeId === commercialTypeId);
-  commerce.enabled = true;
+  Object.assign(commerce, { enabled: true, status: 'running', staffingRateBps: 10_000, staffingUpdatedAt: now });
   return { world, player, commerce };
 }
-function industrial(world, player, type, recipe, count, coverage = 2) {
-  player.facilityGroups ??= [];
-  player.facilityGroups.push({ facilityTypeId: type.id, provinceId, count, participatingCount: count, productionAvailableCount: count,
-    enabled: true, status: 'running', activeRecipeId: recipe.id, cycleStartedAt: now, lifetimeOutput: 0 });
-  player.factoryAutoOperationPolicies ??= {};
-  player.factoryAutoOperationPolicies[provinceScopedKey(provinceId, type.id)] = { enabled: true, inputCoverageCycles: coverage, mode: 'balanced', outputMode: 'surplus' };
-  migrateFacilityGroupWorld(world, now);
-}
 
-test('industrial automatic sale protects commerce full coverage then its next cycle when procurement is off', () => {
+test('commercial coverage is real source custody; turning procurement off releases only extra cycles', () => {
   const { world, player, commerce } = setup('convenience-store');
-  const producer = FACILITY_TYPE_CATALOG.find((type) => type.recipes?.some((recipe) => recipe.output?.productId === 'food'));
-  assert.ok(producer);
-  const recipe = producer.recipes.find((item) => item.output?.productId === 'food');
-  industrial(world, player, producer, recipe, 1);
-  const policy = factoryAutoTradeExecutionPolicyFor(player, 'food', provinceId).sell;
-  world.markets[provinceScopedKey(provinceId, 'food')].officialPrice = policy.price;
-  const inventory = inventoryForProvince(player, 'food', provinceId);
-  inventory.available = 100;
-  assert.equal(applyOnlineAutoSell(world, user, { productId: 'food', provinceId }, now + 2).ok, true);
-  assert.equal(inventory.available, 6);
+  const stock = inventoryForProvince(player, 'food', provinceId);
+  stock.available = 100;
+  freezeCommodity(stock, 'auction', 'auction-food', 20);
+  reconcileBuildingInputFreezes(world, player, now, provinceId);
+  assert.equal(frozenForSource(stock, 'commercial', buildingFreezeSource(commerce, 'commercial')), 6);
+  assert.equal(stock.available, 74);
   commerce.autoOperationPolicy = { enabled: false, inputCoverageCycles: 5 };
-  inventory.available = 100;
-  assert.equal(applyOnlineAutoSell(world, user, { productId: 'food', provinceId }, now + 3).ok, true);
-  assert.equal(inventory.available, 3);
-  assert.equal(inventory.frozen, 0);
+  reconcileBuildingInputFreezes(world, player, now, provinceId);
+  assert.equal(frozenForSource(stock, 'commercial', buildingFreezeSource(commerce, 'commercial')), 3);
+  assert.equal(stock.available, 77);
+  commerce.enabled = false;
+  reconcileBuildingInputFreezes(world, player, now, provinceId);
+  assert.equal(stock.available, 80);
+  assert.equal(stock.frozen, 20);
+  assertCommodityFreezeInvariant(stock);
 });
 
-test('industrial, commercial and contract input holds are additive without double procurement', () => {
-  const { world, player } = setup('fresh-market');
-  const consumer = FACILITY_TYPE_CATALOG.find((type) => type.recipes?.some((recipe) => recipe.inputs?.some((input) => input.productId === 'fruit')));
-  assert.ok(consumer);
-  const recipe = consumer.recipes.find((item) => item.inputs?.some((input) => input.productId === 'fruit'));
-  const input = recipe.inputs.find((item) => item.productId === 'fruit');
-  industrial(world, player, consumer, recipe, 2, 3);
-  world.productionContracts = [{ id: 'commercial-shared-fruit', kind: 'supply', status: 'active', supplierId: user.id, provinceId,
-    productId: 'fruit', quantityPerDelivery: 4, supplierReservedQuantity: 1, supplierAutoReserve: true, completedDeliveries: 0, totalDeliveries: null }];
-  const production = productionReservedQuantitiesForPlayer(world, user.id, provinceId).fruit;
-  assert.equal(production, input.quantity * 2);
-  assert.equal(buildingReservedQuantitiesForPlayer(world, user.id, provinceId).fruit, production + 6);
-  const market = world.markets[provinceScopedKey(provinceId, 'fruit')];
-  market.officialPrice = 1;
-  const inventory = inventoryForProvince(player, 'fruit', provinceId);
-  inventory.available = 0;
-  assert.equal(applyOnlineAutoBuy(world, user, { productId: 'fruit', provinceId }, now + 2).ok, true);
-  assert.equal(inventory.available, production * 3 + 6 * 2 + 3);
-  const paid = player.credits;
-  assert.equal(applyOnlineAutoBuy(world, user, { productId: 'fruit', provinceId }, now + 3).ok, true);
-  assert.equal(player.credits, paid);
+test('industrial, commercial and contract custody are additive and repeated reconciliation never duplicates goods', () => {
+  const { world, player, commerce } = setup('fresh-market');
+  const type = FACILITY_TYPE_CATALOG.find((type) => type.recipes.some((recipe) => recipe.inputs.some((input) => input.productId === 'fruit')));
+  const recipe = type.recipes.find((recipe) => recipe.inputs.some((input) => input.productId === 'fruit'));
+  const input = recipe.inputs.find((input) => input.productId === 'fruit');
+  for (const item of recipe.inputs) inventoryForProvince(player, item.productId, provinceId).available = 100;
+  player.facilityGroups = [{ provinceId, facilityTypeId: type.id, activeRecipeId: recipe.id, count: 2, participatingCount: 2,
+    enabled: true, status: 'running', cycleStartedAt: now, lifetimeOutput: 0, staffingRateBps: 10_000,
+    staffingUpdatedAt: now, staffingBatchCarryBps: 0 }];
+  player.factoryAutoOperationPolicies = { [provinceScopedKey(provinceId, type.id)]: {
+    enabled: true, inputCoverageCycles: 3, mode: 'balanced', outputMode: 'surplus',
+  } };
+  migrateFacilityGroupWorld(world, now);
+  const stock = inventoryForProvince(player, 'fruit', provinceId);
+  freezeCommodity(stock, 'contract', 'fruit-supply', 7);
+  reconcileBuildingInputFreezes(world, player, now, provinceId);
+  assert.equal(frozenForSource(stock, 'production', provinceScopedKey(provinceId, type.id)), input.quantity * 2 * 3);
+  assert.equal(frozenForSource(stock, 'commercial', buildingFreezeSource(commerce, 'commercial')), 12);
+  assert.equal(frozenForSource(stock, 'contract', 'fruit-supply'), 7);
+  const before = structuredClone(stock);
+  reconcileBuildingInputFreezes(world, player, now, provinceId);
+  assert.deepEqual(stock, before);
+  assert.equal(stock.available + stock.frozen, 100);
+  assertCommodityFreezeInvariant(stock);
+});
+
+test('insufficient inventory creates only actual freezes and cannot consume another reservation', () => {
+  const { world, player, commerce } = setup('convenience-store');
+  const stock = inventoryForProvince(player, 'food', provinceId);
+  const credits = player.credits;
+  stock.available = 4;
+  freezeCommodity(stock, 'contract', 'existing-obligation', 3);
+  reconcileBuildingInputFreezes(world, player, now, provinceId);
+  assert.equal(frozenForSource(stock, 'commercial', buildingFreezeSource(commerce, 'commercial')), 1);
+  assert.equal(stock.frozen, 4);
+  assert.equal(stock.available, 0);
+  assert.equal(player.credits, credits);
+  assertCommodityFreezeInvariant(stock);
 });

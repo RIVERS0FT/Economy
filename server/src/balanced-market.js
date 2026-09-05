@@ -1,3 +1,4 @@
+import { adoptLegacyCommodityFreeze, consumeCommodityFreeze, freezeCommodity, releaseLegacyOrderFreeze } from './commodity-freezes.js';
 import { randomUUID } from 'node:crypto';
 import { dailyCheckInPeriodFor } from './daily-check-in.js';
 import { isOpenOrder } from './order-identity.js';
@@ -156,7 +157,8 @@ export function createBalancedMarketRuntime({ products, constants }) {
     const player = world.players?.[String(order.ownerId)];
     if (!player) throw new Error(`Missing seller ${order.ownerId}`);
     const inventory = inventoryFor(player, order.productId, order.provinceId);
-    inventory.frozen -= quantity;
+    adoptLegacyCommodityFreeze(inventory, 'legacy', `order:${order.id}`, quantity);
+  consumeCommodityFreeze(inventory, 'legacy', `order:${order.id}`, quantity);
     player.credits = roundInternalMoney(player.credits + settlement.netTotal) || 0;
     player.stats ||= {};
     player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;

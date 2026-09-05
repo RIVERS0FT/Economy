@@ -565,7 +565,7 @@ test('new worlds create private market demand orders without publishing them in 
     assert.deepEqual([...new Set(marketOrders.map((order) => order.ownerName))].sort(), [
       '家庭消费市场需求', '食品市场需求',
     ]);
-    assert.equal(persisted.version, 32);
+    assert.equal(persisted.version, 33);
     assert.equal(persisted.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
     assert.ok(persisted.demandGroups.food.lastCommitted <= persisted.demandGroups.food.lastBudget);
     assert.ok(persisted.demandGroups.household.lastCommitted <= persisted.demandGroups.household.lastBudget);
@@ -593,7 +593,7 @@ test('legacy demand migration immediately rebuilds market demand without losing 
   }];
 
   migrateWorld(world, now);
-  assert.equal(world.version, 32);
+  assert.equal(world.version, 33);
   assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-wheat-sell']);
   assert.equal(world.orders[0].status, 'cancelled');
@@ -645,7 +645,7 @@ test('migration removes obsolete system orders while preserving player orders', 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 32);
+  assert.equal(world.version, 33);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-order']);
   assert.equal(world.orders[0].status, 'cancelled');
   assert.equal(player.credits, 777);
@@ -668,7 +668,7 @@ test('world version 8 migration restarts electronics and upgrades market demand 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 32);
+  assert.equal(world.version, 33);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.plastic.available, 9);
   assert.equal(player.inventories.copper.available, 4);

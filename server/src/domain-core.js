@@ -1,3 +1,4 @@
+import { adoptLegacyCommodityFreeze, consumeCommodityFreeze, freezeCommodity, releaseLegacyOrderFreeze } from './commodity-freezes.js';
 import { multiplyMoneyByInteger, normalizePlayerMoneyInput } from './money.js';
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
@@ -243,7 +244,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 32,
+    version: 33,
     auctionFeeEscrowCredits: 0,
     players: {},
     orders: seedOrders(now),
@@ -516,7 +517,8 @@ function settlePlayerSell(world, order, quantity, tradePrice, buyer, settlement,
   if (!player) throw new Error(`Missing seller ${order.ownerId}`);
   const inventory = inventoryFor(player, order.productId, order.provinceId);
   const total = quantity * tradePrice;
-  inventory.frozen -= quantity;
+  adoptLegacyCommodityFreeze(inventory, 'legacy', `order:${order.id}`, quantity);
+  consumeCommodityFreeze(inventory, 'legacy', `order:${order.id}`, quantity);
   player.credits += settlement.netTotal;
   player.stats.systemSinks = Number(player.stats.systemSinks || 0) + settlement.fee;
   player.stats.commodityVolume += quantity;
@@ -1001,6 +1003,7 @@ function placeOrder(world, userId, payload, now) {
   const openOrders = world.orders.filter((order) => order.ownerId === userId && isOpenOrder(order));
   if (openOrders.length >= ECONOMY_CONSTANTS.maxOpenOrders) return result(false, '未完成订单数量已达上限');
 
+  const orderId = createId('order');
   if (side === 'buy') {
     if (player.credits < total) return result(false, '可用资金不足');
     player.credits -= total;
@@ -1008,12 +1011,11 @@ function placeOrder(world, userId, payload, now) {
   } else {
     const inventory = inventoryFor(player, productId);
     if (inventory.available < quantity) return result(false, '可用商品库存不足');
-    inventory.available -= quantity;
-    inventory.frozen += quantity;
+    freezeCommodity(inventory, 'legacy', `order:${orderId}`, quantity);
   }
 
   const order = {
-    id: createId('order'),
+    id: orderId,
     productId,
     side,
     ownerType: 'player',
@@ -1041,8 +1043,7 @@ function cancelOrder(world, userId, payload) {
     player.credits += release;
   } else {
     const inventory = inventoryFor(player, order.productId);
-    inventory.frozen -= order.remaining;
-    inventory.available += order.remaining;
+    releaseLegacyOrderFreeze(inventory, order.id, order.remaining);
   }
   order.status = 'cancelled';
   closeOrderInOrderBook(world, order);

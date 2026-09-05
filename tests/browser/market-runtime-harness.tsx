@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CURRENT_CLIENT_STATE_VERSION } from '../../server/shared/economy-state-version.js';
 import '../../src/app/interactionBootstrap';
@@ -168,6 +168,11 @@ const facilityNames = [
 ];
 
 function MarketHarness() {
+  const [freezeExtra, setFreezeExtra] = useState(0);
+  useEffect(() => {
+    window.__updateFreezeFixture = () => setFreezeExtra((value) => value + 5);
+    return () => { delete window.__updateFreezeFixture; };
+  }, []);
   const [tab, setTab] = useState<TabId>('market');
   const [marketAssetKind, setMarketAssetKind] = useState<'commodity' | 'facility'>('commodity');
   const [marketAssetId, setMarketAssetId] = useState('wheat');
@@ -211,7 +216,7 @@ function MarketHarness() {
     const orders = [];
     const inventories = Object.fromEntries(products.map((product) => [
       product.id,
-      { available: product.id === 'wheat' ? inventoryAvailable : 0, frozen: 0 },
+      { available: product.id === 'wheat' ? inventoryAvailable : 0, frozen: product.id === 'wheat' && scenario.startsWith('freeze') ? 320 + freezeExtra : 0 },
     ]));
     const facilityGroups = facilityTypes.map((facility) => ({
       facilityTypeId: facility.id,
@@ -280,6 +285,13 @@ function MarketHarness() {
       frozenCredits: 0,
       gems: 0,
       inventories,
+      inventoryFreezeDetails: scenario === 'freeze-details' ? { wheat: [
+        { kind: 'production', sourceId: '110000:mill', label: '磨坊', quantity: 120 + freezeExtra },
+        { kind: 'production', sourceId: '110000:feed-factory', label: '饲料厂', quantity: 80 },
+        { kind: 'commercial', sourceId: '110000:fresh-market', label: '生鲜市场', quantity: 30 },
+        { kind: 'contract', sourceId: 'supply-123', label: '供货合同 supply-123', quantity: 70 },
+        { kind: 'auction', sourceId: 'auction-456', label: '拍卖 auction-456', quantity: 20 },
+      ] } : undefined,
       warehouseStoredQuantity: inventoryAvailable,
       facilityGroups,
       products,
@@ -396,6 +408,7 @@ function MarketHarness() {
       cancelOrder: async () => ({ ok: true, message: '测试订单已撤销' }),
     } as unknown as LoadedGameViewModel;
   }, [
+    freezeExtra,
     marketAssetId,
     marketAssetKind,
     marketViewMode,
@@ -425,3 +438,7 @@ function MarketHarness() {
 createRoot(document.getElementById('root') as HTMLElement).render(
   <ApplicationLayerRoot><MarketHarness /></ApplicationLayerRoot>,
 );
+
+declare global {
+  interface Window { __updateFreezeFixture?: () => void; }
+}

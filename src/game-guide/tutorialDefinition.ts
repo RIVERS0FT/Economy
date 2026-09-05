@@ -34,14 +34,14 @@ export const TUTORIAL_STEPS: TutorialStepDefinition[] = [
   {
     id: 'set-auto-sell',
     title: '设置工厂自动经营',
-    description: '打开已有工厂详情，确认原料保障后即时更新自动经营策略。系统会把工厂经营意图汇总为本州商品自动采购与出售执行。',
+    description: '打开已有工厂详情，设置原料保障周期，并开启“出售本地区非冻结商品”。自动采购和出售仅在服务器确认周期完成时执行。',
     actionLabel: '设置自动经营',
     targetTab: 'buildings',
   },
   {
     id: 'complete-sale',
     title: '完成一次自动出售',
-    description: '保持客户端在线，等待该工厂产成品通过统一商品订单簿完成一次自动出售。',
+    description: '开启本地区非冻结商品出售，等待工厂周期完成后按今日官方价自动出售产成品。冻结商品不会出售。',
     actionLabel: '查看市场',
     targetTab: 'market',
   },

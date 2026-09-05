@@ -41,14 +41,9 @@ for (const token of [
   'allocateDailySupplyReservesForSupplier',
 ]) requireText(daily, token, `每日商品合同运行层缺少：${token}`);
 
-for (const token of [
-  'marginalMarketPrice',
-  'consumeDailySupplyForBuyer',
-  'applyImmediateCommodityBuy',
-  'splitProvinceScopedKey',
-  'prepareProductionInputsForPlayer',
-  'finalizeProductionOutputContracts',
-]) requireText(sourcing, token, `生产输入择源缺少：${token}`);
+for (const token of ['quotePreparedDailySupply', 'consumePreparedDailySupply', 'applySettledCommodityOrder']) {
+  requireText(read('server/src/cycle-auto-operation.js'), token, `周期生产采购缺少：${token}`);
+}
 
 for (const token of [
   'termDays',
@@ -88,7 +83,7 @@ for (const token of ['合同简要', '采购合同', '供应合同', '今日采�
 requireText(productDetail, 'setContractMarketIntent(product.id, model.selectedProvinceId)', '地区商品详情合同跳转必须携带 provinceId + productId。');
 
 for (const [source, token, message] of [
-  [industry, '有效采购合同固定价严格低于当日 `officialPrice` 时可以优先使用合同额度；否则先使用本地仓库。本地库存不足时才按同地区当日官方价即时采购缺口', '产业权威设计必须锁定“低价合同 → 本地仓库 → 当日官方价即时采购”的生产输入来源顺序。'],
+  [industry, '周期完成', '产业权威设计必须把自动采购限制在周期完成结算。'],
   [industry, '最低当日产量 + 最低合同固定价', '产业权威设计必须锁定供应优先条件。'],
   [warehouse, '每日最大供应量', '仓库权威设计必须锁定每日额度合同。'],
   [warehouse, '合同简要', '仓库权威设计必须锁定商品详情合同摘要。'],

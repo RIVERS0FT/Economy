@@ -1,3 +1,4 @@
+import { createCommodityFreezeClientState } from './commodity-freeze-state.js';
 import {
   createFactoryAutoOperationClientState,
   createFactoryAutoTradeExecutionClientState,
@@ -33,6 +34,8 @@ export function createWarehouseSummaryReadOnly(player) {
   const sellState = createOnlineAutoSellPolicyClientState(player);
   const executionState = createFactoryAutoTradeExecutionClientState(player);
   return {
+    ...executionState,
+    ...createCommodityFreezeClientState(player),
     warehouseStoredQuantity: storedQuantity(player),
     onlineAutoBuyPolicies: executionState.onlineAutoBuyPolicies,
     onlineAutoSellPolicies: executionState.onlineAutoSellPolicies,

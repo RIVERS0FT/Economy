@@ -1,3 +1,4 @@
+import { CommodityFreezeDisclosure } from '../components/market/CommodityFreezeDisclosure';
 import { subscribeCommodityWriteProgress } from '../api/commodityWriteProgress';
 import { WRITE_RESULT_UNCONFIRMED } from '../api/gameWriteConfirmation';
 import { CompactNumber } from '../components/ui/CompactNumber';
@@ -501,7 +502,7 @@ export function MarketPage({
             <span><small>今日价格</small><strong><CurrencyAmount>{formatCurrency(officialPrice ?? selectedProduct.basePrice)}</CurrencyAmount></strong></span>
             <span><small>今日成交量</small><strong><CompactNumber value={todayVolume} /></strong></span>
             <span><small>可用库存</small><strong><CompactNumber value={selectedInventory.available} /></strong></span>
-            <span><small>冻结库存</small><strong><CompactNumber value={selectedInventory.frozen} /></strong></span>
+            <CommodityFreezeDisclosure quantity={selectedInventory.frozen} entries={game.inventoryFreezeDetails?.[selectedProduct.id]} />
           </div>
         </div>
       ) : null}

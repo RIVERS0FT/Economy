@@ -1,3 +1,6 @@
+import { consumeCommodityFreeze, frozenForSource } from './commodity-freezes.js';
+import { reconcileBuildingInputFreezes } from './building-input-freezes.js';
+import { completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from './cycle-auto-operation.js';
 import {
   applyProductionUsageToResources,
   createProductionSettlementBasisId,
@@ -12,11 +15,7 @@ import {
   PRODUCTION_SETTLEMENT_VERSION,
 } from '../../shared/production-settlement.js';
 import { FACILITY_TYPE_CATALOG } from './domain.js';
-import {
-  leasedInFacilityQuantity,
-  leasedOutFacilityQuantity,
-} from './contract-asset-locks.js';
-import { facilitySellQuantityForOwner } from './order-book-runtime.js';
+import { productionAvailableCount } from './facility-production-availability.js';
 import { ensurePopulationEconomy, POPULATION_MODEL_IDS } from './population-economy.js';
 import { POPULATION_PRODUCTION_PROFILE_BPS } from './population-demographics.js';
 import {
@@ -89,43 +88,6 @@ function recipeFor(type, recipeId) {
     || recipes.find((recipe) => recipe.id === type?.defaultRecipeId)
     || recipes[0]
     || null;
-}
-
-function auctionItems(auction) {
-  if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
-  const assetId = String(auction?.assetId || auction?.facilityTypeId || '');
-  return auction?.assetKind === 'facility' && assetId
-    ? [{ assetKind: 'facility', assetId, quantity: Math.max(1, Number(auction.quantity || 1)), provinceId: auction.provinceId }]
-    : [];
-}
-
-function auctionedFacilityQuantity(world, ownerId, typeId, provinceId) {
-  const selectedProvinceId = normalizeProvinceId(provinceId);
-  let total = 0;
-  for (const auction of world.assetAuctions || []) {
-    if (
-      Number(auction?.sellerId) !== Number(ownerId)
-      || auction?.status !== 'open'
-      || auction?.escrowStatus === 'released'
-      || auction?.escrowStatus === 'transferred'
-    ) continue;
-    for (const item of auctionItems(auction)) {
-      if (
-        item.assetKind === 'facility'
-        && String(item.assetId || '') === String(typeId || '')
-        && normalizeProvinceId(item.provinceId ?? auction.provinceId) === selectedProvinceId
-      ) total += nonNegativeInteger(item.quantity);
-    }
-  }
-  return total;
-}
-
-function productionAvailableCount(world, player, group) {
-  const listed = facilitySellQuantityForOwner(world, player.userId, group.facilityTypeId, group.provinceId);
-  const auctioned = auctionedFacilityQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
-  const leasedOut = leasedOutFacilityQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
-  const leasedIn = leasedInFacilityQuantity(world, player.userId, group.facilityTypeId, group.provinceId);
-  return Math.max(0, nonNegativeInteger(group.count) - listed - auctioned - leasedOut + leasedIn);
 }
 
 function inventoryAvailable(player, key) {
@@ -219,6 +181,9 @@ export function createProductionSettlementBasis(world, userId, settleThrough = D
   const resources = {
     creditsMicros: creditsMicros.toString(),
     inventories: Object.fromEntries([...inventoryKeys].sort().map((key) => [key, inventoryAvailable(player, key)])),
+    inputFreezes: Object.fromEntries(groups.map((group) => [group.key, Object.fromEntries(group.recipe.inputs.map((input) => [
+      input.inventoryKey, frozenForSource(player.inventories?.[input.inventoryKey], 'production', group.key),
+    ]))])),
   };
   const basis = {
     version: PRODUCTION_SETTLEMENT_VERSION,
@@ -237,6 +202,7 @@ function mutableResourcesFromBasis(basis) {
   return {
     creditsMicros: String(basis.resources?.creditsMicros || '0'),
     inventories: { ...(basis.resources?.inventories || {}) },
+    inputFreezes: structuredClone(basis.resources?.inputFreezes || {}),
   };
 }
 
@@ -247,7 +213,7 @@ function resourceBlockReason(groupBasis, resources, completedCycles) {
   if (nextCost > bigint(resources.creditsMicros)) return 'insufficient_funds';
   for (const [key, total] of Object.entries(next.inputs)) {
     const required = bigint(total) - bigint(current.inputs[key]);
-    if (required > bigint(resources.inventories?.[key])) return 'insufficient_input';
+    if (required > bigint(resources.inventories?.[key]) + bigint(resources.inputFreezes?.[groupBasis.key]?.[key])) return 'insufficient_input';
   }
   return null;
 }
@@ -256,6 +222,15 @@ function updatePlayerResources(player, resources) {
   const credits = microsToInternalMoney(bigint(resources.creditsMicros));
   if (credits === null || credits < 0) invalid('生产结算后的资金超出系统可表示范围');
   player.credits = credits;
+  for (const [sourceId, inputs] of Object.entries(resources.inputFreezes || {})) {
+    for (const [key, remainingValue] of Object.entries(inputs)) {
+      const inventory = mutableInventory(player, key);
+      const remaining = safeBigIntNumber(remainingValue, '生产冻结');
+      const held = frozenForSource(inventory, 'production', sourceId);
+      if (remaining > held) invalid('生产冻结基线不允许增加商品');
+      consumeCommodityFreeze(inventory, 'production', sourceId, held - remaining);
+    }
+  }
   for (const [key, quantityValue] of Object.entries(resources.inventories || {})) {
     const quantity = safeBigIntNumber(quantityValue, '生产结算库存');
     mutableInventory(player, key).available = quantity;
@@ -417,7 +392,8 @@ function applyCompletedCycles(world, player, group, groupBasis, completedCycles,
   }
   for (const item of groupBasis.recipe.inputs || []) {
     const needed = BigInt(nonNegativeInteger(item.quantity)) * effective;
-    if (needed > bigint(resources.inventories?.[item.inventoryKey])) {
+    if (needed > bigint(resources.inventories?.[item.inventoryKey])
+      + bigint(resources.inputFreezes?.[groupBasis.key]?.[item.inventoryKey])) {
       setGroupError(group, 'insufficient_input', group.staffingRateBps, group.cycleStartedAt);
       return;
     }
@@ -441,7 +417,8 @@ function recoverEnabledErrorGroups(world, player, settleThrough, resources) {
     let blocked = false;
     for (const item of recipe.inputs || (recipe.input ? [recipe.input] : [])) {
       const key = provinceScopedKey(group.provinceId, item.productId);
-      if (BigInt(nonNegativeInteger(item.quantity)) * effective > bigint(resources.inventories?.[key])) {
+      if (BigInt(nonNegativeInteger(item.quantity)) * effective > bigint(resources.inventories?.[key])
+        + bigint(resources.inputFreezes?.[provinceScopedKey(group.provinceId, group.facilityTypeId)]?.[key])) {
         blocked = true;
         break;
       }
@@ -458,6 +435,7 @@ function recoverEnabledErrorGroups(world, player, settleThrough, resources) {
 }
 
 function validateClaimShape(basis, claim) {
+  if (claim && Number(claim.version) === 1) stale('生产冻结结算协议已更新，请重新同步');
   if (!claim || Number(claim.version) !== PRODUCTION_SETTLEMENT_VERSION) invalid();
   const claimedBasisId = String(claim.basisId || '');
   if (claimedBasisId && claimedBasisId !== String(basis.basisId || '')) stale();
@@ -499,22 +477,39 @@ export function applyProductionSettlementClaim(world, userId, claim, now = Date.
     if (!group || `${normalizeProvinceId(group.provinceId)}:${group.facilityTypeId}` !== groupBasisEntry.key) stale();
   }
 
-  const resources = mutableResourcesFromBasis(basis);
+  // Validate all groups against one snapshot before any material or money mutation.
+  const validationResources = mutableResourcesFromBasis(basis);
   for (let index = 0; index < basis.groups.length; index += 1) {
-    const groupBasisEntry = basis.groups[index];
-    const group = player.facilityGroups[groupBasisEntry.groupIndex];
-    const claimedCycles = Number(claim.groups[index].completedCycles);
-    const due = dueProductionCycles(groupBasisEntry, settleThrough);
-    if (groupBasisEntry.status !== 'running' || due <= 0) {
-      if (claimedCycles !== 0) invalid();
+    const entry = basis.groups[index];
+    const count = Number(claim.groups[index].completedCycles);
+    if (entry.status !== 'running' || dueProductionCycles(entry, settleThrough) <= 0) {
+      if (count !== 0) invalid();
       continue;
     }
-    validateClaimedMaximum(groupBasisEntry, claimedCycles, resources, settleThrough);
-    applyCompletedCycles(world, player, group, groupBasisEntry, claimedCycles, resources, settleThrough);
+    validateClaimedMaximum(entry, count, validationResources, settleThrough);
+    if (count > 0) applyProductionUsageToResources(validationResources, productionResourceUsage(entry, count));
   }
 
+  const resources = mutableResourcesFromBasis(basis);
+  const completed = [];
+  for (let index = 0; index < basis.groups.length; index += 1) {
+    const entry = basis.groups[index];
+    const group = player.facilityGroups[entry.groupIndex];
+    const count = Number(claim.groups[index].completedCycles);
+    if (entry.status !== 'running' || dueProductionCycles(entry, settleThrough) <= 0) continue;
+    applyCompletedCycles(world, player, group, entry, count, resources, settleThrough);
+    if (count > 0) {
+      const usage = productionResourceUsage(entry, count);
+      completed.push({ group, entry, completedAt: usage.finalCycleStartedAt, output: safeBigIntNumber(usage.outputQuantity, '生产产量') });
+    }
+  }
   updatePlayerResources(player, resources);
-  recoverEnabledErrorGroups(world, player, settleThrough, resources);
+  // A catch-up settles only cycles backed by the original snapshot. New purchases never backfill past downtime.
+  for (const event of completed) recordCompletedIndustrialOutput(world, player, event.group, event.entry.recipe.output.productId, event.output, now);
+  for (const event of completed) completeBuildingCycleAutoOperation(world, player, event.group, 'production', event.completedAt, now);
+  const currentResources = mutableResourcesFromBasis(createProductionSettlementBasis(world, userId, settleThrough));
+  recoverEnabledErrorGroups(world, player, settleThrough, currentResources);
+  reconcileBuildingInputFreezes(world, player, now);
   return {
     ok: true,
     message: '生产结算已由服务器校验并入账',

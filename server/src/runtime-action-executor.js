@@ -1,3 +1,4 @@
+import { reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { isDeepStrictEqual } from 'node:util';
 import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
@@ -151,7 +152,7 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
       } else if (action === 'placeOrder' && payload.execution === 'online-auto-trade-policy') {
         gameResult = applyOnlineAutoTradePolicyAction(world, user, payload);
       } else if (action === 'placeOrder' && payload.execution === 'factory-auto-operation-policy') {
-        gameResult = applyFactoryAutoOperationPolicyAction(world, user, payload);
+        gameResult = applyFactoryAutoOperationPolicyAction(world, user, payload, now);
       } else if (action === 'placeOrder' && payload.execution === 'online-auto-buy') {
         gameResult = applyOnlineAutoBuy(world, user, payload, now);
       } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {
@@ -211,7 +212,7 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
         ? [...new Set((payload.targets || []).map((target) => target?.provinceId).filter(Boolean))]
         : [payload.provinceId];
       for (const provinceId of targetProvinceIds) {
-        const rebuilt = rebuildFactoryAutoTradePoliciesForProvince(world, user.id, provinceId);
+        const rebuilt = rebuildFactoryAutoTradePoliciesForProvince(world, user.id, provinceId, now);
         if (!rebuilt.ok) {
           gameResult = rebuilt;
           break;
@@ -220,6 +221,7 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
     }
 
     if (gameResult?.ok) {
+      reconcileBuildingInputFreezes(world, world.players[String(user.id)], now);
       measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariantsScoped(world, mutationScope));
       savepoint.release();
     } else {
@@ -258,13 +260,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
   setRequestGauge('interactiveActionBudgetMs', actionMetadata.latencyBudgetMs);
   setRequestGauge('interactiveActionRegistered', 1);
   const payload = normalizePlayerMoneyPayload(action, requestMeta.payload);
-  const mutationScope = createRuntimeMutationScope(
-    store.worldCache?.world,
-    user.id,
-    action,
-    payload,
-    { scheduledProcessing: store.scheduledProcessing },
-  );
+
 
   return store.transaction(() => {
     const cached = store.selectIdempotency.get(Number(user.id), requestKey);
@@ -278,6 +274,14 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
       return createActionAcknowledgement(cachedResponse.result, cachedResponse.revision);
     }
 
+    if (!store.worldCache?.world) store.loadWorld(now);
+    const mutationScope = createRuntimeMutationScope(
+      store.worldCache?.world,
+      user.id,
+      action,
+      payload,
+      { scheduledProcessing: store.scheduledProcessing },
+    );
     const { revision, stateJson, world } = store.loadWorld(now, mutationScope);
     const player = ensurePlayer(world, user, now, { migrate: false });
     ensureWarehouse(player);
@@ -286,12 +290,16 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     ensurePlayerBankAccount(player, now);
     ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: !store.scheduledProcessing });
     ensurePlayerWeeklyCashSettlement(player, now);
+    const contractsBeforeCycles = structuredClone(world.productionContracts || []);
     settleProductionForAction(
       world,
       Number(user.id),
       payload?.productionSettlement,
       now,
     );
+    store.captureContractAuditTransition(contractsBeforeCycles, world, {
+      actorUserId: Number(user.id), triggerType: 'production_output_reserve', action, requestKey, now,
+    });
     if (!store.scheduledProcessing) {
       store.processWorldIfDue(world, now, Number(user.id), {
         force: false,

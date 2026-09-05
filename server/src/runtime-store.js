@@ -1,3 +1,4 @@
+import { migrateCommodityFreezeSources } from './commodity-freeze-state.js';
 import { isDeepStrictEqual } from 'node:util';
 import { measureRequestPhase } from './request-performance.js';
 import { executeRuntimeAction } from './runtime-action-executor.js';
@@ -12,7 +13,7 @@ import {
   migrateProductionContractWorld,
   processProductionContracts,
 } from './unified-contracts.js';
-import { isDailySupplyContract, processDailySupplyContracts } from './daily-supply-contracts.js';
+import { isDailySupplyContract, processDailySupplyContracts, withDailySupplyContext } from './daily-supply-contracts.js';
 import {
   finalizeProductionOutputContracts,
   prepareProductionInputsForPlayer,
@@ -74,6 +75,7 @@ export class EconomyStore extends CoreEconomyStore {
   migrateLoadedWorld(world, now) {
     const migrated = super.migrateLoadedWorld(world, now);
     migrateProductionContractWorld(migrated, now);
+    migrateCommodityFreezeSources(migrated);
     return migrated;
   }
 
@@ -156,11 +158,22 @@ export class EconomyStore extends CoreEconomyStore {
     if (dailyChanged) this.captureContractAuditTransition(beforeDaily, world, { actorUserId: null, triggerType: 'scheduler', action: null, requestKey: null, now });
 
     const dailyContracts = afterDaily;
+    const beforeCycles = structuredClone(dailyContracts);
     world.productionContracts = (world.productionContracts || []).filter((contract) => !isDailySupplyContract(contract));
-    settleProductionForDueContractParticipants(world, now);
-    const legacyProcessed = super.processWorldIfDue(world, now, currentUserId, options);
-    world.productionContracts = [...(world.productionContracts || []), ...dailyContracts];
-    return legacyProcessed || dailyChanged;
+    let legacyProcessed;
+    try {
+      legacyProcessed = withDailySupplyContext(world, dailyContracts, () => {
+        settleProductionForDueContractParticipants(world, now);
+        return super.processWorldIfDue(world, now, currentUserId, options);
+      });
+    } finally {
+      const legacyContracts = world.productionContracts || [];
+      world.productionContracts = [...legacyContracts, ...dailyContracts];
+      this.captureContractAuditTransition([...legacyContracts, ...beforeCycles], world, {
+        actorUserId: null, triggerType: 'production_output_reserve', action: null, requestKey: null, now,
+      });
+    }
+    return legacyProcessed || dailyChanged || !isDeepStrictEqual(beforeCycles, dailyContracts);
   }
 
   prepareProductionInputs(user, requestMeta, now) {
@@ -213,7 +226,11 @@ export class EconomyStore extends CoreEconomyStore {
       const { revision, stateJson, world } = this.loadWorld(now, createFullMutationScope());
       const player = ensurePlayer(world, user, now, { migrate: false }); ensureWarehouse(player); ensureGemState(player);
       this.processWorldIfDue(world, now, Number(user.id), { force: true, forceDomains: [], auditTrigger: 'action_preprocess' });
+      const beforeCycles = structuredClone(world.productionContracts || []);
       settleProductionForPlayerServerSide(world, Number(user.id), now);
+      this.captureContractAuditTransition(beforeCycles, world, {
+        actorUserId: Number(user.id), triggerType: 'production_output_reserve', action, requestKey, now,
+      });
       const boundary = createEconomicActionBoundary(world);
       const savepoint = beginEconomicSavepoint(this, 'economy_contract_action');
       const beforeActionPlayer = structuredClone(world.players[String(user.id)]);
@@ -250,25 +267,9 @@ export class EconomyStore extends CoreEconomyStore {
   }
 
   apply(user, requestMeta, now = Date.now()) {
-    const needsProductionInputSourcing = this.worldCache?.world
-      ? productionInputSourcingRequired(this.worldCache.world, Number(user.id), now)
-      : true;
-    let response;
-    if (!CONTRACT_ACTIONS.has(requestMeta.action) && !needsProductionInputSourcing) {
-      response = this.executeDirectRuntimeAction(user, requestMeta, now);
-    } else if (!needsProductionInputSourcing) {
-      response = this.applyContractAction(user, requestMeta, null, now);
-    } else {
-      const prepared = this.prepareProductionInputs(user, requestMeta, now);
-      if (prepared.cached) response = prepared.cached;
-      else if (CONTRACT_ACTIONS.has(requestMeta.action)) {
-        response = this.applyContractAction(user, requestMeta, prepared.baseline, now);
-      } else {
-        response = this.executeDirectRuntimeAction(user, requestMeta, now);
-        response = this.finalizeProductionInputs(user, prepared.baseline, response, requestMeta, now);
-      }
-    }
-    return response;
+    // Cycle inputs, output reservations, trades and their audit share the action's atomic transaction.
+    if (CONTRACT_ACTIONS.has(requestMeta.action)) return this.applyContractAction(user, requestMeta, null, now);
+    return this.executeDirectRuntimeAction(user, requestMeta, now);
   }
 
   enqueueAuthoritativeWrite(options, callback) {

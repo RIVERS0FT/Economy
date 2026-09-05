@@ -46,6 +46,7 @@ test('commercial building consumes local goods and settles a fixed locked profit
   const group = player.commercialBuildingGroups.find((candidate) => candidate.commercialTypeId === type.id);
   assert.ok(group);
   assert.equal(group.enabled, false);
+  group.autoOperationPolicy = { enabled: false, inputCoverageCycles: 2 }; // Isolate locked settlement from cycle procurement.
 
   const started = applyCommercialBuildingAction(world, user, {
     operation: 'start', provinceId: california, commercialTypeId: type.id,
@@ -127,7 +128,8 @@ test('stopping during an invested cycle keeps the locked settlement but prevents
   }, now + 2);
   const group = player.commercialBuildingGroups.find((candidate) => candidate.commercialTypeId === type.id);
   const lockedRevenue = group.pendingRevenue;
-  const inventoryAfterStart = inventoryForProvince(player, 'clothing', california).available;
+  const stockAfterStart = inventoryForProvince(player, 'clothing', california);
+  const inventoryAfterStart = stockAfterStart.available + stockAfterStart.frozen;
 
   const stopped = applyCommercialBuildingAction(world, user, {
     operation: 'stop', provinceId: california, commercialTypeId: type.id,

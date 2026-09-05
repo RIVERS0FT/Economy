@@ -1,3 +1,4 @@
+import { adoptLegacyCommodityFreeze, consumeCommodityFreeze, freezeCommodity, releaseCommodityFreeze, transferCommodityFreeze } from './commodity-freezes.js';
 import { randomUUID } from 'node:crypto';
 import { PRODUCT_CATALOG } from './domain.js';
 import { calculateCumulativeMarketSellFee } from './market-sell-fee.js';
@@ -388,8 +389,8 @@ function transferFrozenCredits(fromPlayer, toPlayer, amount) {
 function releaseSupplierGoods(contract, supplier) {
   const inventory = inventoryFor(supplier, contract.productId);
   const quantity = Math.min(contract.supplierReservedQuantity, Math.max(0, Number(inventory.frozen || 0)));
-  inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - quantity);
-  inventory.available = Math.max(0, Number(inventory.available || 0)) + quantity;
+  adoptLegacyCommodityFreeze(inventory, 'contract', contract.id, contract.supplierReservedQuantity);
+  releaseCommodityFreeze(inventory, 'contract', contract.id, quantity);
   contract.supplierReservedQuantity = Math.max(0, contract.supplierReservedQuantity - quantity);
   return quantity;
 }
@@ -406,8 +407,8 @@ function releaseRenewalEscrow(contract, buyer, supplier, reason = null) {
       releaseFrozenCredits(supplier, proposal.supplierBondCredits);
       const inventory = inventoryFor(supplier, contract.productId);
       const quantity = Math.min(proposal.supplierReservedQuantity, Math.max(0, Number(inventory.frozen || 0)));
-      inventory.frozen -= quantity;
-      inventory.available += quantity;
+      adoptLegacyCommodityFreeze(inventory, 'contract', `${contract.id}:renewal`, proposal.supplierReservedQuantity);
+      releaseCommodityFreeze(inventory, 'contract', `${contract.id}:renewal`, quantity);
     }
   }
   if (reason) contract.renewalCancellationReason = reason;
@@ -422,8 +423,8 @@ function reserveRenewalSupplierGoods(contract, supplier) {
   if (required <= 0) return true;
   const inventory = inventoryFor(supplier, contract.productId);
   if (inventory.available < required) return false;
-  inventory.available -= required;
-  inventory.frozen += required;
+  adoptLegacyCommodityFreeze(inventory, 'contract', `${contract.id}:renewal`, proposal.supplierReservedQuantity);
+  freezeCommodity(inventory, 'contract', `${contract.id}:renewal`, required);
   proposal.supplierReservedQuantity += required;
   return true;
 }
@@ -455,6 +456,11 @@ function activateRenewal(world, contract, buyer, supplier, now, runtimeIndex) {
     roundStatus: 'preparing',
     renewedFromContractId: contract.id,
   });
+  if (proposal.supplierReservedQuantity > 0) {
+    const inventory = inventoryFor(supplier, contract.productId);
+    adoptLegacyCommodityFreeze(inventory, 'contract', `${contract.id}:renewal`, proposal.supplierReservedQuantity);
+    transferCommodityFreeze(inventory, 'contract', `${contract.id}:renewal`, nextContract.id, proposal.supplierReservedQuantity);
+  }
   if (nextContract.supplierAutoReserve && nextContract.supplierReservedQuantity < nextContract.quantityPerDelivery) {
     reserveSupplierBatch(nextContract, supplier);
   }
@@ -492,8 +498,8 @@ function reserveSupplierBatch(contract, supplier) {
   if (required <= 0) return true;
   const inventory = inventoryFor(supplier, contract.productId);
   if (inventory.available < required) return false;
-  inventory.available -= required;
-  inventory.frozen = Math.max(0, Number(inventory.frozen || 0)) + required;
+  adoptLegacyCommodityFreeze(inventory, 'contract', contract.id, contract.supplierReservedQuantity);
+  freezeCommodity(inventory, 'contract', contract.id, required);
   contract.supplierReservedQuantity += required;
   return true;
 }
@@ -546,7 +552,8 @@ function settleMarketReserveBatch(world, contract, supplier, now, runtimeIndex) 
   if (supplierInventory.frozen < contract.quantityPerDelivery) return false;
 
   return runtimeIndex.transition(contract, () => {
-    supplierInventory.frozen -= contract.quantityPerDelivery;
+    adoptLegacyCommodityFreeze(supplierInventory, 'contract', contract.id, contract.supplierReservedQuantity);
+    consumeCommodityFreeze(supplierInventory, 'contract', contract.id, contract.quantityPerDelivery);
     contract.supplierReservedQuantity -= contract.quantityPerDelivery;
     reserve.inventory = Math.max(0, Math.floor(Number(reserve.inventory || 0))) + contract.quantityPerDelivery;
     consumeMarketReserveFrozenCredits(group, gross);
@@ -777,7 +784,8 @@ function settleBatch(world, contract, buyer, supplier, now, runtimeIndex) {
   if (supplierInventory.frozen < contract.quantityPerDelivery || buyer.frozenCredits < gross) return false;
 
   return runtimeIndex.transition(contract, () => {
-    supplierInventory.frozen -= contract.quantityPerDelivery;
+    adoptLegacyCommodityFreeze(supplierInventory, 'contract', contract.id, contract.supplierReservedQuantity);
+    consumeCommodityFreeze(supplierInventory, 'contract', contract.id, contract.quantityPerDelivery);
     contract.supplierReservedQuantity -= contract.quantityPerDelivery;
     buyerInventory.available += contract.quantityPerDelivery;
 

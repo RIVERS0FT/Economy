@@ -72,7 +72,7 @@ test('local bank mutation persists one player row without rewriting the orders s
     assert.equal(String(afterOrders.state_json), String(beforeOrders.state_json));
     assert.equal(Number(legacy.revision), Number(afterMeta.revision));
     assert.deepEqual(JSON.parse(String(legacy.state_json)), {
-      version: 32,
+      version: 33,
       storageSchemaVersion: WORLD_STORAGE_SCHEMA_VERSION,
       segmented: true,
     });
@@ -118,7 +118,7 @@ test('province access mutations use the current-player local scope', () => {
     auctionFeeEscrowCredits: 0,
     systemMarketAudit: {},
     transportShipments: [],
-    version: 32,
+    version: 33,
   };
 
   for (const actionName of ['chooseStartingProvince', 'unlockProvince']) {
@@ -327,7 +327,7 @@ test('commodity order COW scope clones actor and crossing counterparties only', 
     stats: {},
     moneyPrecision: { version: 2 },
     auctionFeeEscrowCredits: 0,
-    version: 32,
+    version: 33,
   };
   const scope = createRuntimeMutationScope(world, 1, 'placeOrder', {
     assetKind: 'commodity',
@@ -380,7 +380,7 @@ test('factory interaction scope keeps unrelated players shared while including p
     ],
     markets: { '110000:wheat': { lastPrice: 9 }, '130000:wheat': { lastPrice: 8 } },
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
-    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 33,
   };
   const scope = createRuntimeMutationScope(world, 1, 'buildFacility', {
     provinceId: '110000', autoProcure: true, materialPriceCaps: { wheat: 10 },
@@ -409,7 +409,7 @@ test('factory auto-operation policy uses bounded order scope without cloning mar
     ],
     markets: { '110000:wheat': { lastPrice: 9 } },
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
-    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 33,
   };
   const scope = createRuntimeMutationScope(world, 1, 'placeOrder', {
     execution: 'factory-auto-operation-policy', provinceId: '110000', assetKind: 'facility', facilityTypeId: 'farm',
@@ -432,7 +432,7 @@ test('profile scope keeps the global order segment shared for name and avatar ch
       { id: 'other', ownerType: 'player', ownerId: 2, status: 'open', remaining: 1 },
     ],
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
-    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 33,
   };
   const scope = createRuntimeMutationScope(world, 1, 'renamePlayer', { playerName: '新的名字' }, { scheduledProcessing: true });
   assert.deepEqual([...scope.playerIds], ['1']);
@@ -506,7 +506,7 @@ test('contract scope clones all contract participants but keeps non-contract pla
       { id: 'contract-b', publisherId: 3, buyerId: 3, supplierId: 2 },
     ],
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
-    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 33,
   };
   const scope = createRuntimeMutationScope(world, 1, 'acceptProductionContract', { contractId: 'contract-a' }, { scheduledProcessing: true });
   assert.deepEqual([...scope.playerIds].sort(), ['1', '2', '3']);
@@ -525,7 +525,7 @@ test('legacy facility listing cancel scope includes actor and listing owner only
     players: { 1: { userId: 1 }, 2: { userId: 2 }, 3: { userId: 3 } },
     facilityListings: [{ id: 'listing-a', ownerType: 'player', ownerId: 2 }],
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
-    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 33,
   };
   const scope = createRuntimeMutationScope(world, 1, 'cancelFacilityListing', { listingId: 'listing-a' }, { scheduledProcessing: true });
   assert.deepEqual([...scope.playerIds].sort(), ['1', '2']);
@@ -542,7 +542,7 @@ test('production settlement remains current-player local through the action regi
     players: { 1: { userId: 1 }, 2: { userId: 2 } },
     orders: [{ id: 'other', ownerType: 'player', ownerId: 2, status: 'open', remaining: 1 }],
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
-    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 33,
   };
   const scope = createRuntimeMutationScope(world, 1, 'settleProduction', {}, { scheduledProcessing: true });
   assert.deepEqual([...scope.playerIds], ['1']);
@@ -554,7 +554,7 @@ test('unregistered interactive actions are rejected instead of falling back to f
   const world = {
     players: { 1: { userId: 1 }, 2: { userId: 2 } },
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
-    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 33,
   };
   assert.throws(
     () => createRuntimeMutationScope(
@@ -584,7 +584,7 @@ test('local action scope size stays constant as unrelated player count grows', (
     orders: [],
     markets: {},
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
-    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 33,
   };
   const scope = createRuntimeMutationScope(world, 1, 'unlockProvince', { provinceId: '130000' }, {
     scheduledProcessing: true,
@@ -601,7 +601,7 @@ test('unknown order execution modes are rejected before mutation scope fallback'
     players: { 1: { userId: 1 } },
     orders: [], markets: {},
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
-    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 33,
   };
   assert.throws(
     () => createRuntimeMutationScope(world, 1, 'placeOrder', {

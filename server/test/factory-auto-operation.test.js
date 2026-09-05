@@ -37,74 +37,18 @@ test('missing factory policy uses the low-operation default', () => {
   );
 });
 
-test('factory policy aggregates extra input coverage into product execution policy', () => {
+test('old commodity execution policies remain disabled even when factory operation is enabled', () => {
   const { type, recipe } = inputFacility();
-  const input = recipe.inputs[0];
-  const output = recipe.output;
-  const player = {
-    facilityGroups: [{
-      facilityTypeId: type.id,
-      provinceId: DEFAULT_PROVINCE_ID,
-      count: 2,
-      participatingCount: 2,
-      enabled: true,
-      status: 'running',
-      activeRecipeId: recipe.id,
-    }],
-    factoryAutoOperationPolicies: {
-      [provinceScopedKey(DEFAULT_PROVINCE_ID, type.id)]: {
-        enabled: true,
-        inputCoverageCycles: 3,
-        mode: 'balanced',
-        outputMode: 'surplus',
-      },
-    },
-  };
-
+  const player = { facilityGroups: [{ facilityTypeId: type.id, enabled: true, count: 3, activeRecipeId: recipe.id }] };
+  const before = structuredClone(player);
   const policies = deriveFactoryAutoTradePolicies(player, DEFAULT_PROVINCE_ID);
-  assert.equal(policies[input.productId].buy.enabled, true);
-  assert.equal(
-    policies[input.productId].buy.targetFreeInventory,
-    input.quantity * 2 * 2,
-    'one cycle stays in productionReserved; policy stores only the extra two cycles',
-  );
-  assert.equal(
-    policies[input.productId].buy.maxPrice,
-    roundedPrice(product(input.productId).basePrice * 1.05),
-  );
-  assert.equal(policies[output.productId].sell.enabled, true);
-  assert.equal(
-    policies[output.productId].sell.price,
-    roundedPrice(product(output.productId).basePrice),
-  );
+  assert.ok(Object.values(policies).every((policy) => !policy.buy.enabled && !policy.sell.enabled));
+  assert.deepEqual(player, before);
 });
 
-test('keep output disables automatic selling while preserving input purchasing', () => {
-  const { type, recipe } = inputFacility();
-  const input = recipe.inputs[0];
-  const player = {
-    facilityGroups: [{
-      facilityTypeId: type.id,
-      provinceId: DEFAULT_PROVINCE_ID,
-      count: 1,
-      participatingCount: 1,
-      enabled: true,
-      status: 'running',
-      activeRecipeId: recipe.id,
-    }],
-    factoryAutoOperationPolicies: {
-      [provinceScopedKey(DEFAULT_PROVINCE_ID, type.id)]: {
-        enabled: true,
-        inputCoverageCycles: 2,
-        mode: 'supply',
-        outputMode: 'keep',
-      },
-    },
-  };
-
-  const policies = deriveFactoryAutoTradePolicies(player, DEFAULT_PROVINCE_ID);
-  assert.equal(policies[input.productId].buy.enabled, true);
-  assert.equal(policies[recipe.output.productId].sell.enabled, false);
+test('legacy modes normalize without retaining base-price thresholds or keep exemptions', () => {
+  assert.deepEqual(normalizeFactoryAutoOperationPolicy({ enabled: true, inputCoverageCycles: 3, mode: 'supply', outputMode: 'keep' }),
+    { enabled: true, inputCoverageCycles: 3, mode: 'balanced', outputMode: 'surplus' });
 });
 
 test('invalid factory policy is rejected instead of silently changing strategy', () => {
@@ -120,4 +64,15 @@ test('invalid factory policy is rejected instead of silently changing strategy',
     mode: 'unknown',
     outputMode: 'surplus',
   }), null);
+});
+
+
+test('coverage and enablement cannot be coerced from fractional or string input', () => {
+  for (const invalid of [
+    { enabled: 'true', inputCoverageCycles: 2 },
+    { enabled: true, inputCoverageCycles: '2' },
+    { enabled: true, inputCoverageCycles: 2.5 },
+  ]) {
+    assert.equal(normalizeFactoryAutoOperationPolicy({ mode: 'balanced', outputMode: 'surplus', ...invalid }), null);
+  }
 });

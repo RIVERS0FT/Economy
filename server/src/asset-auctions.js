@@ -1,3 +1,4 @@
+import { adoptLegacyCommodityFreeze, consumeCommodityFreeze, freezeCommodity, releaseCommodityFreeze } from './commodity-freezes.js';
 import { randomUUID } from 'node:crypto';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';
 import {
@@ -292,14 +293,14 @@ function releaseBid(world, auction) {
   return amount;
 }
 
-function releaseItems(world, sellerId, items, now, assumeReserved = false) {
+function releaseItems(world, sellerId, items, now, auctionId, assumeReserved = false) {
   const seller = player(world, sellerId);
   for (const item of items) {
     if (item.assetKind === 'commodity' && seller) {
       const inventory = inventoryFor(seller, item.assetId, item.provinceId);
       const quantity = Math.min(Number(inventory.frozen || 0), item.quantity);
-      inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - quantity);
-      inventory.available = Number(inventory.available || 0) + quantity;
+      adoptLegacyCommodityFreeze(inventory, 'auction', auctionId, item.quantity);
+      releaseCommodityFreeze(inventory, 'auction', auctionId, quantity);
     } else if (item.assetKind === 'facility') {
       releaseFacilityAuctionQuantity(world, sellerId, item.assetId, item.quantity, now, assumeReserved, item.provinceId);
     }
@@ -317,7 +318,7 @@ function releaseAuctionAsset(world, auction, now) {
       }
     }
   } else {
-    releaseItems(world, auction.sellerId, auctionItems(auction), now);
+    releaseItems(world, auction.sellerId, auctionItems(auction), now, auction.id);
   }
   auction.escrowStatus = 'released';
 }
@@ -399,7 +400,7 @@ function cancelLegacyCollectibleAuction(world, auction, items, now) {
   if (auction.status !== 'open') return;
   releaseBid(world, auction);
   if (auction.escrowStatus !== 'released' && auction.escrowStatus !== 'transferred') {
-    releaseItems(world, auction.sellerId, items.filter((item) => item.assetKind !== 'collectible'), now, true);
+    releaseItems(world, auction.sellerId, items.filter((item) => item.assetKind !== 'collectible'), now, auction.id, true);
   }
   auction.status = 'cancelled';
   auction.escrowStatus = 'released';
@@ -493,7 +494,8 @@ function transferAuctionAsset(world, auction, bidder, now) {
           reserve.frozenInventory -= item.quantity;
         } else {
           const sellerInventory = inventoryFor(seller, item.assetId, item.provinceId);
-          sellerInventory.frozen -= item.quantity;
+          adoptLegacyCommodityFreeze(sellerInventory, 'auction', auction.id, item.quantity);
+          consumeCommodityFreeze(sellerInventory, 'auction', auction.id, item.quantity);
           seller.stats ||= {};
           seller.stats.commodityVolume = Number(seller.stats.commodityVolume || 0) + item.quantity;
           seller.stats.soldGoods = Number(seller.stats.soldGoods || 0) + item.quantity;
@@ -668,14 +670,13 @@ function validateAuctionItems(world, seller, userId, items) {
   return result(true, '资产包可以冻结');
 }
 
-function holdAuctionItems(world, seller, userId, items, now) {
+function holdAuctionItems(world, seller, userId, items, now, auctionId) {
   const inventoriesBefore = structuredClone(seller.inventories || {});
   const facilityGroupsBefore = structuredClone(seller.facilityGroups || []);
   for (const item of items) {
     if (item.assetKind === 'commodity') {
       const inventory = inventoryFor(seller, item.assetId, item.provinceId);
-      inventory.available -= item.quantity;
-      inventory.frozen += item.quantity;
+      freezeCommodity(inventory, 'auction', auctionId, item.quantity);
     } else {
       const reserved = reserveFacilityAuctionQuantity(world, userId, item.assetId, item.quantity, now, item.provinceId);
       if (!reserved.ok) {
@@ -708,7 +709,8 @@ function createAuction(world, userId, payload, now) {
   const escrowBefore = Number(world.auctionFeeEscrowCredits || 0);
   seller.credits = subtractMoney(seller.credits, listingFee);
   world.auctionFeeEscrowCredits = addMoney(world.auctionFeeEscrowCredits, listingFee);
-  const held = holdAuctionItems(world, seller, userId, items, now);
+  const auctionId = `asset-auction-${randomUUID()}`;
+  const held = holdAuctionItems(world, seller, userId, items, now, auctionId);
   if (!held.ok) {
     world.players[String(userId)] = sellerSnapshot;
     world.auctionFeeEscrowCredits = escrowBefore;
@@ -717,7 +719,7 @@ function createAuction(world, userId, payload, now) {
 
   const originalEndsAt = now + durationHours * 60 * 60 * 1_000;
   const auction = applyAuctionAliases({
-    id: `asset-auction-${randomUUID()}`,
+    id: auctionId,
     auctionRuleVersion: ASSET_AUCTION_RULE_VERSION,
     items,
     sellerId: userId,

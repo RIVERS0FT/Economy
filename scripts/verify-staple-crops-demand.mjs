@@ -188,7 +188,7 @@ for (const text of [
   'marketDemand.normalizeWorld',
   'marketDemand.process',
   'ensurePopulationEconomy',
-  'world.version = 32',
+  'world.version = 33',
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
 for (const forbidden of [
   'balancedMarket.matchOrder(world, incoming, now)',

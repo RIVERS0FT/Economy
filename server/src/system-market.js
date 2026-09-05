@@ -1,3 +1,4 @@
+import { adoptLegacyCommodityFreeze, consumeCommodityFreeze, freezeCommodity, releaseLegacyOrderFreeze } from './commodity-freezes.js';
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { isOpenOrder, orderKind } from './order-identity.js';
@@ -277,7 +278,8 @@ export function createSystemMarketRuntime({
       addLedger(player, 'market_trade', -total, `按今日系统价买入 ${quantity} 个${product.name}，成交价 ${price}`, createdAt);
     } else {
       const inventory = inventoryFor(player, product.id, order.provinceId);
-      inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - quantity);
+      adoptLegacyCommodityFreeze(inventory, 'legacy', `order:${order.id}`, quantity);
+      consumeCommodityFreeze(inventory, 'legacy', `order:${order.id}`, quantity);
       player.credits = roundInternalMoney(Number(player.credits || 0) + sellerSettlement.netTotal) || 0;
       player.stats ||= {};
       player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;

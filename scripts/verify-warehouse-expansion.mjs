@@ -39,47 +39,19 @@ for (const text of ['<FacilityAutoOperationControls group={group}>', 'GameConcep
 }
 forbidText('src/pages/MarketPage.tsx', '<MarketAutoTradePanel');
 
-for (const [path, tokens] of [
-  ['server/src/online-auto-buy.js', [
-    'commoditySystemPriceFor(world, productId, provinceId, now)',
-    'officialPrice > policy.maxPrice',
-    'applySettledCommodityOrder(world, user',
-    "execution: 'online-auto-buy'",
-  ]],
-  ['server/src/online-auto-sell.js', [
-    'commoditySystemPriceFor(world, productId, provinceId, now)',
-    'officialPrice < policy.price',
-    'applySettledCommodityOrder(world, user',
-    "execution: 'online-auto-sell'",
-  ]],
-  ['src/auto-trade/useOnlineAutoTrade.ts', [
-    'function productOfficialPrice(',
-    'const buyPriceEligible = officialPrice <= buyPolicy.maxPrice;',
-    'const sellPriceEligible = officialPrice >= sellPolicy.price;',
-    "['catalog', 'player.assets', 'player.production', 'market.quotes', 'contract']",
-  ]],
-]) {
-  for (const token of tokens) requireText(path, token);
+for (const path of ['server/src/online-auto-buy.js', 'server/src/online-auto-sell.js']) {
+  requireText(path, '仅在服务器确认周期完成时执行');
+  forbidText(path, 'applySettledCommodityOrder(');
 }
-for (const token of ['managedOnlineAutoBuyOrderFor', 'onlineAutoBuyManagedOrderIds']) forbidText('server/src/online-auto-buy.js', token);
-for (const token of ['managedOnlineAutoSellOrderFor', 'onlineAutoSellManagedOrderIds']) forbidText('server/src/online-auto-sell.js', token);
-for (const token of ['getClientOrderIndex(', 'managedCommodityOrder(', 'market.orders', 'onlineAutoBuyManagedOrderIds', 'onlineAutoSellManagedOrderIds']) forbidText('src/auto-trade/useOnlineAutoTrade.ts', token);
-
-for (const text of [
-  '仓库容量永久无限',
-  '连续 48 州均直接显示本地库存内容',
-  '自动经营执行不保存 managed-order ID',
-  '也不创建玩家商品开放订单',
-  '即时采购只在当日 `officialPrice` 不高于派生采购上限时发生',
-  '即时出售只在当日 `officialPrice` 不低于派生出售下限时发生',
-  '不改成服务器后台常驻扫描任务',
-  '旧 `onlineAutoBuyPolicies`、`onlineAutoSellPolicies`',
-]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
-for (const text of [
-  '不再维护 managed-order ID',
-  '自动采购：当日 `officialPrice <= 采购最高价`',
-  '自动出售：当日 `officialPrice >= 出售最低价`',
-]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
+for (const token of ['model.onlineAutoBuy(', 'model.onlineAutoSell(', 'setInterval(']) {
+  forbidText('src/auto-trade/useOnlineAutoTrade.ts', token);
+}
+requireText('server/src/warehouse.js', 'createCommodityFreezeClientState(player)');
+requireText('server/src/commodity-freezes.js', 'assertCommodityFreezeInvariant');
+requireText('server/src/cycle-auto-operation.js', 'completeBuildingCycleAutoOperation');
+for (const text of ['仓库容量永久无限', '连续 48 州均直接显示本地库存内容']) {
+  requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
+}
 
 const bannedRuntimeTokens = [
   'warehouseUpgradeCost',
@@ -126,4 +98,4 @@ if (failures.length) {
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
-console.log('无限共享仓库/即时自动经营防回退检查通过：连续 48 州仓库直接可用，工厂策略按当日官方价触发即时采购/出售，不维护玩家托管挂单或冻结。');
+console.log('无限共享仓库/即时自动经营防回退检查通过：连续 48 州仓库直接可用，工厂策略按当日官方价触发即时采购/出售，以来源冻结保护库存，不维护玩家挂单。');

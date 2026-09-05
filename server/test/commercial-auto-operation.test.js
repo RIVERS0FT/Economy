@@ -5,7 +5,8 @@ import { applyCommercialBuildingAction, processCommercialWorld, COMMERCIAL_BUILD
 import { applyOnlineAutoBuy } from '../src/online-auto-buy.js';
 import { applyOnlineAutoSell } from '../src/online-auto-sell.js';
 import { factoryAutoTradeExecutionPolicyFor } from '../src/factory-auto-operation.js';
-import { buildingReservedQuantitiesForPlayer, commercialInputReservations } from '../src/building-input-reservations.js';
+import { buildingFreezeSource, buildingInputPlans, planInputTotals, reconcileBuildingInputFreezes } from '../src/building-input-freezes.js';
+import { frozenForSource } from '../src/commodity-freezes.js';
 import { inventoryForProvince, provinceScopedKey } from '../src/provinces.js';
 import { commercialAutoOperationPolicyFor } from '../../shared/commercial-auto-operation.js';
 
@@ -22,6 +23,7 @@ function setup(count = 3, commercialTypeId = 'convenience-store') {
   assert.equal(applyCommercialBuildingAction(world, user, { operation: 'build', provinceId, commercialTypeId, quantity: count }, now + 1).ok, true);
   const group = player.commercialBuildingGroups.find((item) => item.commercialTypeId === commercialTypeId);
   group.enabled = true;
+  group.staffingRateBps = 10_000; group.staffingUpdatedAt = now;
   for (const input of type.consumptionInputs) world.markets[provinceScopedKey(provinceId, input.productId)].officialPrice = 15;
   return { world, player, group, type };
 }
@@ -45,64 +47,57 @@ test('legacy default and derived execution policy do not rewrite saved groups', 
   const { player, group } = setup();
   const original = structuredClone(group);
   assert.deepEqual(commercialAutoOperationPolicyFor(group), { enabled: true, inputCoverageCycles: 2 });
-  assert.equal(factoryAutoTradeExecutionPolicyFor(player, 'food', provinceId).buy.enabled, true);
+  assert.equal(factoryAutoTradeExecutionPolicyFor(player, 'food', provinceId).buy.enabled, false);
   assert.deepEqual(group, original);
 });
 
-test('commercial purchase fills only the local two-cycle shortfall once', () => {
-  const { world, player } = setup();
-  inventoryForProvince(player, 'food', provinceId).available = 0;
+test('commercial completion buys and freezes next-cycle goods at official prices without moving other-region stock', () => {
+  const { world, player, group, type } = setup(1);
+  for (const input of type.consumptionInputs) inventoryForProvince(player, input.productId, provinceId).available = input.quantity;
   inventoryForProvince(player, 'food', other).available = 77;
+  applyCommercialBuildingAction(world, user, { operation: 'start', provinceId, commercialTypeId: type.id }, now + 1);
   const market = world.markets[provinceScopedKey(provinceId, 'food')];
-  const volume = Number(market.todayBuyQuantity || 0);
-  const credits = player.credits;
-  assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId }, now + 3).ok, true);
-  assert.equal(inventoryForProvince(player, 'food', provinceId).available, 6);
+  const before = market.todayBuyQuantity;
+  const dueAt = group.cycleCompletesAt;
+  processCommercialWorld(world, dueAt - 1);
+  assert.equal(market.todayBuyQuantity, before);
+  processCommercialWorld(world, dueAt);
+  assert.equal(player.autoOperationCycleCursors[`commercial:${buildingFreezeSource(group, 'commercial')}`], dueAt);
+  assert.equal(group.status, 'running');
+  assert.ok(market.todayBuyQuantity > before);
+  const stock = inventoryForProvince(player, 'food', provinceId);
+  assert.equal(stock.available, 0);
+  assert.ok(frozenForSource(stock, 'commercial', buildingFreezeSource(group, 'commercial')) > 0);
   assert.equal(inventoryForProvince(player, 'food', other).available, 77);
-  assert.equal(player.credits, credits - 6 * market.officialPrice);
-  assert.equal(market.todayBuyQuantity, volume + 6);
-  assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId }, now + 4).ok, true);
-  assert.equal(player.credits, credits - 6 * market.officialPrice);
+  const snapshot = structuredClone({ stock, credits: player.credits, bought: market.todayBuyQuantity });
+  processCommercialWorld(world, dueAt);
+  assert.deepEqual({ stock, credits: player.credits, bought: market.todayBuyQuantity }, snapshot);
 });
 
-test('commercial auto-purchase respects price caps, cash and operating intent', () => {
-  const { world, player, group } = setup();
-  const inventory = inventoryForProvince(player, 'food', provinceId);
-  inventory.available = 0;
-  world.markets[provinceScopedKey(provinceId, 'food')].officialPrice = 1_000_000;
-  assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId }, now + 3).ok, true);
-  assert.equal(inventory.available, 0);
-  world.markets[provinceScopedKey(provinceId, 'food')].officialPrice = 15;
-  player.credits = 30;
-  assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId }, now + 4).ok, true);
-  assert.equal(inventory.available, 2);
-  group.enabled = false;
-  assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId }, now + 5).ok, false);
-  assert.equal(applyOnlineAutoBuy(world, user, { productId: 'food', provinceId: other }, now + 5).ok, false);
+test('a missing first commercial input never starts procurement and legacy direct requests cannot bypass it', () => {
+  const { world, player, group, type } = setup(1);
+  const before = player.credits;
+  applyCommercialBuildingAction(world, user, { operation: 'start', provinceId, commercialTypeId: type.id }, now + 1);
+  assert.equal(group.status, 'error');
+  assert.equal(applyOnlineAutoBuy(world, user, { provinceId, productId: 'food' }, now + 1).ok, false);
+  assert.equal(applyOnlineAutoSell(world, user, { provinceId, productId: 'food' }, now + 1).ok, false);
+  assert.equal(player.credits, before);
+  assert.equal(world.markets[provinceScopedKey(provinceId, 'food')].todayBuyQuantity, 0);
 });
 
-test('commercial inventory protection adds per-consumer demand and survives disabling procurement', () => {
-  const { world, player, group } = setup();
-  assert.equal(applyCommercialBuildingAction(world, user, { operation: 'build', provinceId, commercialTypeId: 'restaurant', quantity: 2 }, now + 2).ok, true);
-  const restaurant = player.commercialBuildingGroups.find((item) => item.commercialTypeId === 'restaurant');
-  restaurant.enabled = true;
-  const recipe = COMMERCIAL_BUILDING_TYPE_CATALOG.find((item) => item.id === 'restaurant');
-  const beverage = recipe.consumptionInputs.find((item) => item.productId === 'beverage');
-  assert.ok(beverage);
-  assert.equal(commercialInputReservations(player, provinceId).beverage, 3 + 2 * beverage.quantity);
+test('commercial consumers keep separate real freezes and procurement-off retains only one unconsumed cycle', () => {
+  const { world, player, group } = setup(3);
+  inventoryForProvince(player, 'food', provinceId).available = 100;
+  reconcileBuildingInputFreezes(world, player, now, provinceId);
+  const stock = inventoryForProvince(player, 'food', provinceId);
+  assert.equal(frozenForSource(stock, 'commercial', buildingFreezeSource(group, 'commercial')), 6);
   group.autoOperationPolicy = { enabled: false, inputCoverageCycles: 5 };
-  assert.equal(commercialInputReservations(player, provinceId).food, 3);
-  assert.equal(buildingReservedQuantitiesForPlayer(world, user.id, provinceId).food, 3);
-  assert.deepEqual(commercialInputReservations(player, other), {});
-});
-
-test('commerce alone cannot create an automatic sale or return goods on stop', () => {
-  const { world, player, group } = setup();
-  inventoryForProvince(player, 'food', provinceId).available = 99;
-  assert.equal(applyOnlineAutoSell(world, user, { productId: 'food', provinceId }, now + 2).ok, false);
+  reconcileBuildingInputFreezes(world, player, now, provinceId);
+  assert.equal(frozenForSource(stock, 'commercial', buildingFreezeSource(group, 'commercial')), 3);
   group.enabled = false;
-  assert.equal(commercialInputReservations(player, provinceId).food, undefined);
-  assert.equal(inventoryForProvince(player, 'food', provinceId).available, 99);
+  reconcileBuildingInputFreezes(world, player, now, provinceId);
+  assert.equal(stock.frozen, 0);
+  assert.equal(stock.available, 100);
 });
 
 test('server locks all commercial settlement details across price, count and policy changes', () => {
@@ -124,22 +119,19 @@ test('server locks all commercial settlement details across price, count and pol
   assert.equal(group.status, 'stopped');
 });
 
-test('offline commercial world advancement does not invoke automatic purchases', () => {
-  const { world, player, group } = setup();
-  for (const input of COMMERCIAL_BUILDING_TYPE_CATALOG[0].consumptionInputs) inventoryForProvince(player, input.productId, provinceId).available = 0;
+test('zero-effective recovery is a real completed cycle; no purchase precedes its completion', () => {
+  const { world, player, group } = setup(3);
   const before = player.credits;
-  const market = world.markets[provinceScopedKey(provinceId, 'food')];
-  const volume = Number(market.todayBuyQuantity || 0);
   processCommercialWorld(world, now + 86_400_000);
   assert.equal(player.credits, before);
-  assert.equal(Number(market.todayBuyQuantity || 0), volume);
-  // Full decay can first enter a zero-output recovery cycle, without buying anything.
   assert.equal(group.status, 'running');
   assert.equal(group.pendingEffectiveCount, 0);
-  assert.equal(group.pendingRevenue, 0);
-  processCommercialWorld(world, group.cycleCompletesAt);
-  assert.equal(group.status, 'error');
-  assert.equal(group.statusReason, 'insufficient_input');
-  assert.equal(player.credits, before);
-  assert.equal(Number(market.todayBuyQuantity || 0), volume);
+  const market = world.markets[provinceScopedKey(provinceId, 'food')];
+  assert.equal(market.todayBuyQuantity, 0);
+  const dueAt = group.cycleCompletesAt;
+  processCommercialWorld(world, dueAt);
+  assert.equal(player.autoOperationCycleCursors[`commercial:${buildingFreezeSource(group, 'commercial')}`], dueAt);
+  assert.ok(market.todayBuyQuantity > 0);
+  assert.ok(player.credits < before);
+  assert.equal(group.status, 'running');
 });

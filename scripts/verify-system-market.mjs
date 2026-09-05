@@ -33,7 +33,7 @@ for (const token of [
   '基础价的 50%～300%',
   '`priceDateKey` 是每日调价幂等键',
   '`world.systemMarketAudit`',
-  '自动采购和自动出售继续由玩家策略决定是否执行，但不再维护 managed-order ID',
+  '不再维护 managed-order ID',
   '建厂一键购料不再读取真实卖盘深度',
   '价格输入框、价格加减按钮、卖 5～卖 1／买 1～买 5',
 ]) requireText(design, token, `商品即时市场权威设计缺少规则：${token}`);
@@ -56,9 +56,9 @@ forbidText(domain, "return { ok: true, message: '订单已进入订单簿' }", '
 requireText(catalog, 'SYSTEM_PRICE_CYCLE_MS = 24 * 60 * 60 * 1000', '系统价格常量必须按日表达。');
 requireText(catalog, 'SYSTEM_PRICE_K_BPS = 1000', '每日价格失衡响应必须固定为 1000 bps。');
 requireText(catalog, 'SYSTEM_PRICE_MAX_CHANGE_BPS = 500', '每日价格涨跌上限必须固定为 500 bps。');
-requireText(autoBuy, 'commoditySystemPriceFor', '自动采购必须读取今日官方系统价。');
+requireText(read('server/src/cycle-auto-operation.js'), 'applySettledCommodityOrder', '周期采购必须走同一官方价即时结算。');
 forbidText(autoBuy, 'managedOrder', '自动采购不得恢复托管挂单。');
-requireText(autoSell, 'commoditySystemPriceFor', '自动出售必须读取今日官方系统价。');
+requireText(read('server/src/cycle-auto-operation.js'), '.officialPrice', '周期出售必须读取正式官方价。');
 forbidText(autoSell, 'managedOrder', '自动出售不得恢复托管挂单。');
 requireText(procurement, 'quoteMissingAtDailyPrice', '建厂报价必须按今日系统价生成。');
 requireText(procurement, 'applyImmediateCommodityBuy', '建厂缺料必须即时购买。');

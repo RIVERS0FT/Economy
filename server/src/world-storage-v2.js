@@ -1,10 +1,13 @@
+import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
+import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-catalog.js';
+import { splitProvinceScopedKey } from './provinces.js';
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import { normalizeProvinceId, provinceScopedKey } from './provinces.js';
 import { installProvinceRuntimeAliases } from './provinces.js';
 import { getPlayerActionMetadata, requireOrderExecutionMetadata } from './player-action-registry.js';
 
 export const WORLD_STORAGE_SCHEMA_VERSION = 2;
-export const AUTHORITATIVE_WORLD_VERSION = 32;
+export const AUTHORITATIVE_WORLD_VERSION = 33;
 
 const CORE_LOCAL_SEGMENTS = Object.freeze([
   'bank',
@@ -510,6 +513,50 @@ function invalidScopeInput(action, payload) {
   );
 }
 
+/** Every player action can confirm production. Clone only that player's operating footprint and counterparties. */
+function includeCycleSettlementScope(world, userId, scope) {
+  const player = world?.players?.[playerKey(userId)];
+  if (!player) return scope;
+  const regions = new Set();
+  const keys = new Set();
+  for (const group of player.facilityGroups || []) {
+    if (!group.enabled) continue;
+    const provinceId = normalizeProvinceId(group.provinceId);
+    const type = FACILITY_TYPE_CATALOG.find((item) => item.id === group.facilityTypeId);
+    const recipe = type?.recipes?.find((item) => item.id === group.activeRecipeId)
+      || type?.recipes?.find((item) => item.id === type.defaultRecipeId) || type?.recipes?.[0];
+    if (!recipe) continue;
+    regions.add(provinceId);
+    for (const item of [...(recipe.inputs || []), recipe.output]) keys.add(provinceScopedKey(provinceId, item.productId));
+  }
+  for (const group of player.commercialBuildingGroups || []) {
+    if (!group.enabled && !group.cycleActive && !(group.pendingRevenue > 0)) continue;
+    const provinceId = normalizeProvinceId(group.provinceId);
+    const type = COMMERCIAL_BUILDING_TYPE_CATALOG.find((item) => item.id === group.commercialTypeId);
+    if (!type) continue;
+    regions.add(provinceId);
+    for (const item of type.consumptionInputs) keys.add(provinceScopedKey(provinceId, item.productId));
+  }
+  if (!regions.size) return scope;
+  for (const [key, inventory] of Object.entries(player.inventories || {})) {
+    const { provinceId, assetId } = splitProvinceScopedKey(key);
+    if (regions.has(provinceId) && player.provinceAutoSaleEnabled?.[provinceId] === true && (inventory.available > 0 || inventory.frozen > 0)
+      && PRODUCT_CATALOG.some((product) => product.id === assetId)) keys.add(provinceScopedKey(provinceId, assetId));
+  }
+  scope.segments.add('orders');
+  scope.segments.add('markets');
+  for (const key of keys) scope.marketKeys.add(key);
+  for (const contract of world.productionContracts || []) {
+    if (contract.kind !== 'supply' || contract.supplyMode !== 'daily' || contract.status !== 'active'
+      || (Number(contract.buyerId) !== Number(userId) && Number(contract.supplierId) !== Number(userId))) continue;
+    scope.segments.add('productionContracts');
+    for (const id of [contract.buyerId, contract.supplierId]) {
+      if (Number.isSafeInteger(Number(id)) && Number(id) > 0) scope.playerIds.add(playerKey(id));
+    }
+  }
+  return scope;
+}
+
 export function createRuntimeMutationScope(world, userId, action, payload, {
   scheduledProcessing = true,
 } = {}) {
@@ -623,7 +670,7 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
   }
 
   if (!scope) throw invalidScopeInput(action, payload);
-  return finalizeInteractiveMutationScope(action, scope);
+  return finalizeInteractiveMutationScope(action, includeCycleSettlementScope(world, userId, scope));
 }
 
 function cloneScopedObject(source, keys) {

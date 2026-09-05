@@ -49,6 +49,8 @@ export function scopeEconomyState(game: EconomyState, requestedProvinceId: strin
     allProvinceOrders,
     inventories,
     warehouseStoredQuantity,
+    inventoryFreezeDetails: scopedRecord(game.inventoryFreezeDetails, provinceId),
+    cycleAutoSaleCounts: scopedRecord(game.cycleAutoSaleCounts, provinceId),
     facilityGroups,
     markets,
     facilityMarkets,

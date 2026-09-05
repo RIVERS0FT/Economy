@@ -254,12 +254,10 @@ forbidText('src/pages/MarketPage.tsx', [
   'orderBook.asks',
 ]);
 requireText('src/auto-trade/useOnlineAutoTrade.ts', [
-  'function productOfficialPrice(',
-  'const buyPriceEligible = officialPrice <= buyPolicy.maxPrice;',
-  'const sellPriceEligible = officialPrice >= sellPolicy.price;',
-  'statusCacheRef',
-  'subscribeStateAuthorityDependencies(',
-  "['catalog', 'player.assets', 'player.production', 'market.quotes', 'contract']",
+  'state.cycleAutoSaleCounts',
+  "subscribeStateAuthorityDependencies(['player.assets']",
+  'state.userId !== userId',
+  'state.saveEpoch !== saveEpoch',
 ]);
 forbidText('src/auto-trade/useOnlineAutoTrade.ts', [
   'getClientOrderIndex(',
@@ -333,7 +331,6 @@ requireText('src/api/idempotentGameWriteFetch.ts', [
   'acceptExternalStateDelivery(payload);',
 ]);
 const blockingRefreshAllowlist = new Map([
-  ['src/auto-trade/useOnlineAutoTrade.ts', 1],
 ]);
 for (const path of sourceFiles('src')) {
   const count = (read(path).match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length;
@@ -356,14 +353,12 @@ assert.equal(
   '建厂采购不得等待动作后的状态补拉才结束交互',
 );
 const autoTradeSource = read('src/auto-trade/useOnlineAutoTrade.ts');
-requireText('src/auto-trade/useOnlineAutoTrade.ts', [
-  "void model.refresh({ mode: 'authoritative' });\n      clearAutoSellPolicies(userId);\n      if (normalized.sell.enabled)",
+forbidText('src/auto-trade/useOnlineAutoTrade.ts', [
+  "await model.refresh({ mode: 'authoritative' });",
+  'model.onlineAutoBuy(', 'model.onlineAutoSell(',
 ]);
-assert.equal(
-  (autoTradeSource.match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
-  1,
-  '仅允许旧浏览器策略迁移等待权威补拉；用户保存策略必须即时返回',
-);
+assert.equal((autoTradeSource.match(/await model\.refresh\(/g) || []).length, 0,
+  '周期经营由服务器结算，客户端不得以自动交易或迁移触发阻塞补拉');
 
 if (failures.length > 0) {
   console.error('客户端响应性能防回退验证失败:');
