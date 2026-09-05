@@ -1,0 +1,33 @@
+name: Fix market write acknowledgement
+
+on:
+  push:
+    branches:
+      - codex/daily-market-freeze-timeout-fix
+    paths:
+      - scripts/__fix_market_write_ack.py
+      - .github/workflows/fix-market-write-ack.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply compact-ack fix
+        run: python3 scripts/__fix_market_write_ack.py
+      - name: Remove temporary fix machinery
+        run: rm -f scripts/__fix_market_write_ack.py .github/workflows/fix-market-write-ack.yml
+      - name: Check diff
+        run: git diff --check
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "缩短即时商品交易确认路径"
+          git push origin HEAD:codex/daily-market-freeze-timeout-fix
