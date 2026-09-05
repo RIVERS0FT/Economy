@@ -330,7 +330,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
           <div className="bank-financing-workspace">
             <div className="bank-collateral-list" role="table" aria-label="可冻结工厂">
               <div className="entity-list-header bank-collateral-list-header" role="row">
-                <span role="columnheader">冻结资产</span>
+                <span role="columnheader">工厂</span>
                 <span role="columnheader">可冻结</span>
                 <span role="columnheader">审慎单价</span>
                 <span role="columnheader">本次冻结</span>
