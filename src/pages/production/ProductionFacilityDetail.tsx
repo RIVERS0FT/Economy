@@ -1,3 +1,4 @@
+import { BuildingClusterCard } from '../../components/buildings/BuildingClusterCard';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { CompactNumber } from '../../components/ui/CompactNumber';
 import { FacilityIcon } from '../../components/icons/FacilityIcons';
@@ -294,24 +295,14 @@ export function FacilityClusterSelectorCard({
   });
 
   return (
-    <button
-      type="button"
-      className="facility-cluster-selector-card"
-      data-ui-interactive="surface"
-      data-status={group.status}
-      aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}，每分钟平均利润：${profit.accessibleValue}`}
-      onClick={(event) => onSelect(event.currentTarget)}
-    >
-      <strong className="facility-cluster-name">{type.name}</strong>
-      <FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />
-      <span
-        className={`facility-cluster-profit is-${profit.tone}`}
-        title={`${type.name}单厂平均利润／分钟；${profit.detail}`}
-      >
-        {profit.visibleValue}
-      </span>
-      <span className="facility-cluster-count">{<CompactNumber value={group.count} />}</span>
-    </button>
+    <BuildingClusterCard
+      name={type.name} status={group.status} count={group.count}
+      artwork={<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />}
+      profitValue={profit.visibleValue} profitTone={profit.tone}
+      profitTitle={`${type.name}单厂平均利润／分钟；${profit.detail}`}
+      ariaLabel={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}，每分钟平均利润：${profit.accessibleValue}`}
+      onSelect={onSelect}
+    />
   );
 }
 

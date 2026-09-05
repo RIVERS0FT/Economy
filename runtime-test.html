@@ -10,7 +10,7 @@
     <title>Economy runtime test</title>
     <script>
       const view = new URLSearchParams(window.location.search).get('view') ?? 'settings';
-      const gameViews = ['overview', 'map', 'production', 'research', 'contracts', 'leaderboard', 'gem-shop', 'scroll-ownership'];
+      const gameViews = ['overview', 'map', 'commerce', 'production', 'research', 'contracts', 'leaderboard', 'gem-shop', 'scroll-ownership'];
       document.documentElement.dataset.appSurface = gameViews.includes(view) ? 'game' : 'auth';
       document.documentElement.dataset.appBackdrop = gameViews.includes(view) ? 'game' : 'auth';
       document.documentElement.dataset.appTone = 'normal';

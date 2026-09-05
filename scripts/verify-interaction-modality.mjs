@@ -63,6 +63,8 @@ function collectUnguardedHoverRules() {
 }
 
 const productionDetailPath = 'src/pages/production/ProductionFacilityDetail.tsx';
+const buildingCardPath = 'src/components/buildings/BuildingClusterCard.tsx';
+const commercePath = 'src/pages/CommercePage.tsx';
 const mobileDetailPath = 'src/components/ui/MobileWorkspaceDetailSheet.tsx';
 const mobileSheetHostPath = 'src/components/ui/MobileWorkspaceSheetHost.tsx';
 const requiredFiles = [
@@ -73,6 +75,8 @@ const requiredFiles = [
   'src/pages/ResearchPage.tsx',
   'src/styles/research-page.css',
   productionDetailPath,
+  buildingCardPath,
+  commercePath,
   mobileDetailPath,
   mobileSheetHostPath,
   'src/styles/facility-group-card-grid.css',
@@ -104,7 +108,11 @@ if (failures.length === 0) {
     '--ui-interactive-active-transform',
   ]) requireText('src/styles/interaction-states.css', text);
 
-  requireText(productionDetailPath, 'data-ui-interactive="surface"');
+  requireText(buildingCardPath, 'data-ui-interactive="surface"');
+  requireText(buildingCardPath, '<button');
+  requireText(buildingCardPath, 'type="button"');
+  requireText(productionDetailPath, '<BuildingClusterCard');
+  requireText(commercePath, '<BuildingClusterCard');
   requireText('src/pages/ResearchPage.tsx', 'data-ui-interactive="surface"');
   for (const text of [
     '--ui-interactive-hover-filter: none;',
