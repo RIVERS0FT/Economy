@@ -390,7 +390,7 @@ function applyCommodityOrder(world, user, payload, now) {
   world.orders.push(closedTrade);
   return {
     ok: true,
-    message: '已按今日系统价即时成交',
+    message: '',
     executedPrice: settlement.price,
     quantity,
     total: settlement.total,
