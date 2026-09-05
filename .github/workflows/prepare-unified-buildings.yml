@@ -44,7 +44,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
+      - run: npm run generate:local-preview && npm run typecheck
       - name: Focused regression diagnostics
         if: always()
         shell: bash
@@ -55,3 +55,12 @@ jobs:
             node --experimental-strip-types scripts/$verifier.mjs || failed=1
           done
           exit "$failed"
+      - name: Package source for review
+        if: always()
+        run: git archive --format=zip HEAD > /tmp/building-review-source.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: building-review-source
+          path: /tmp/building-review-source.zip
+          retention-days: 1
