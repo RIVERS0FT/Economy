@@ -1,0 +1,76 @@
+name: Fix compact trade server time
+
+on:
+  push:
+    branches:
+      - codex/daily-market-freeze-timeout-fix
+    paths:
+      - .github/workflows/fix-compact-server-now.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Add server time to compact acknowledgement
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          app = Path('server/src/app.js')
+          text = app.read_text(encoding='utf-8')
+          old = """        commandRevision: actionResponse.revision,\n"""
+          new = """        commandRevision: actionResponse.revision,\n        serverNow: Date.now(),\n"""
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one compact commandRevision line, found {text.count(old)}')
+          app.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          for path in [
+              Path('scripts/verify-market-action-latency.mjs'),
+              Path('scripts/verify-state-delivery-capacity.mjs'),
+          ]:
+              text = path.read_text(encoding='utf-8')
+              anchor = "'commandRevision: actionResponse.revision',"
+              if anchor not in text:
+                  anchor = '"commandRevision: actionResponse.revision",'
+              if anchor not in text:
+                  raise SystemExit(f'{path}: compact commandRevision guard not found')
+              quote = '"' if anchor.startswith('"') else "'"
+              addition = anchor + f"\n  {quote}serverNow: Date.now(){quote},"
+              text = text.replace(anchor, addition, 1)
+              path.write_text(text, encoding='utf-8')
+
+          server_design = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = server_design.read_text(encoding='utf-8')
+          text = text.replace(
+              '`{ result, revision, commandRevision }` 精简确认',
+              '`{ result, revision, commandRevision, serverNow }` 精简确认',
+          )
+          if 'serverNow' not in text:
+              raise SystemExit('SERVER DESIGN unexpectedly lacks serverNow')
+          server_design.write_text(text.rstrip('\n') + '\n', encoding='utf-8')
+
+          market_design = Path('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md')
+          text = market_design.read_text(encoding='utf-8')
+          text = text.replace(
+              '带 `commandRevision` 的精简确认',
+              '带 `commandRevision` 与 `serverNow` 的精简确认',
+          )
+          market_design.write_text(text.rstrip('\n') + '\n', encoding='utf-8')
+          PY
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/fix-compact-server-now.yml
+      - name: Check diff
+        run: git diff --check
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "补齐即时交易服务器时间"
+          git push origin HEAD:codex/daily-market-freeze-timeout-fix
