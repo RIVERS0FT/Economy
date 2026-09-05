@@ -1,0 +1,16 @@
+{
+  "family": "Economy Map Serif",
+  "weight": 600,
+  "sourceProject": "Adobe Source Han Serif",
+  "sourceVersion": "2.003R",
+  "sourcePath": "SubsetOTF/CN/SourceHanSerifCN-SemiBold.otf",
+  "sourceGitBlobSha": "44d7f0c522ee7e9c6cb373a5ef7e851f30b558a1",
+  "generator": {
+    "fonttools": "4.59.2",
+    "brotli": "1.1.0"
+  },
+  "characters": "亚亥什他伊佐何佛俄克兰内冈利加勒北华南卡印吉哥因基堪塔塞墨夕多大奥威安宾密尔尼岛巴布康弗得怀拉拿斯新明易星来根格桑歇比治法泽涅爱特犹狄瓦田盛福科第约纳纽缅罕罗肯色艾苏荷萨蒙西诸诺路达那里阿顿马",
+  "characterCount": 96,
+  "sizeBytes": 28708,
+  "sha256": "ac112c693a1011c0092721fe05e13a6cd2d65acf55cd3c74970ea05c21ed70ad"
+}

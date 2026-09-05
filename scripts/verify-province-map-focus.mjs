@@ -1,5 +1,6 @@
 import './verify-province-map-raster-snapshot.mjs';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,6 +25,14 @@ const designSource = read('docs/STRATEGIC_MAP_RENDERING_DESIGN.md');
 const uiDesignSource = read('docs/UI_DESIGN_SYSTEM.md');
 const browserSource = read('tests/browser/province-map-focus.spec.ts');
 const mapBrowserSource = read('tests/browser/province-map.spec.ts');
+const mapFontGeneratorSource = read('scripts/generate-map-font-subset.py');
+const mapFontLicenseSource = read('public/licenses/source-han-serif-OFL-1.1.txt');
+const mapFontManifest = JSON.parse(read('src/assets/fonts/economy-map-serif-600.manifest.json'));
+const provinces = JSON.parse(read('shared/provinces.json'));
+const expectedMapFontCharacters = [...new Set(provinces.map((province) => province.name).join(''))].sort().join('');
+const mapFontPath = resolve(root, 'src/assets/fonts/economy-map-serif-600.woff2');
+const mapFontBytes = readFileSync(mapFontPath);
+const mapFontSha256 = createHash('sha256').update(mapFontBytes).digest('hex');
 
 requireText(
   mapSource,
@@ -117,8 +126,18 @@ rejectText(
 );
 requireText(
   styleSource,
-  'font-family: "Source Han Serif SC", "思源宋体", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", STSong, SimSun, serif;',
-  'province map labels must use the Source Han Serif SC-first serif stack',
+  '@font-face {',
+  'province map must declare the self-hosted map font face',
+);
+requireText(
+  styleSource,
+  'url("../assets/fonts/economy-map-serif-600.woff2") format("woff2")',
+  'province map must bundle the generated WOFF2 subset through Vite',
+);
+requireText(
+  styleSource,
+  'font-family: "Economy Map Serif", "Source Han Serif SC", "思源宋体", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", STSong, SimSun, serif;',
+  'province map labels must prefer the bundled Economy Map Serif subset',
 );
 requireText(
   styleSource,
@@ -158,13 +177,13 @@ requireText(
 );
 requireText(
   uiDesignSource,
-  '思源宋体 SemiBold（600）',
-  'authoritative UI design must record Source Han Serif SemiBold as the strategic map label font',
+  '自托管 `"Economy Map Serif"`',
+  'authoritative UI design must record the bundled strategic map font subset',
 );
 requireText(
   uiDesignSource,
-  '不得恢复 Playfair Display／Georgia',
-  'authoritative UI design must prohibit restoring the retired Playfair/Georgia map font stack',
+  '不得把完整 CJK 字体打入网页包',
+  'authoritative UI design must prohibit bundling the complete CJK font',
 );
 
 requireText(
@@ -189,8 +208,13 @@ requireText(
 );
 requireText(
   mapBrowserSource,
-  "expect(viewportFontFamily).toContain('Source Han Serif SC');",
-  'province map browser regression must assert the Source Han Serif SC-first font stack',
+  "expect(bundledMapFont).toEqual({ family: 'Economy Map Serif', weight: '600', status: 'loaded' });",
+  'province map browser regression must assert the bundled font is actually loaded',
+);
+requireText(
+  mapBrowserSource,
+  "expect(viewportFontFamily.split(',')[0]).toContain('Economy Map Serif');",
+  'province map browser regression must assert the bundled font is first in the map stack',
 );
 requireText(
   mapBrowserSource,
@@ -202,5 +226,31 @@ requireText(
   "expect(labelFont.weight).toBe('600');",
   'province map browser regression must assert SemiBold weight 600',
 );
+
+
+if (mapFontManifest.family !== 'Economy Map Serif' || mapFontManifest.weight !== 600) {
+  throw new Error('地图字体 manifest 必须保持 Economy Map Serif / 600');
+}
+if (mapFontManifest.characters !== expectedMapFontCharacters || mapFontManifest.characterCount !== expectedMapFontCharacters.length) {
+  throw new Error('地图字体子集字符必须与 shared/provinces.json 当前州名字符完全一致');
+}
+if (mapFontManifest.sourceVersion !== '2.003R' || mapFontManifest.sourceGitBlobSha !== '44d7f0c522ee7e9c6cb373a5ef7e851f30b558a1') {
+  throw new Error('地图字体必须保持固定 Source Han Serif 2.003R 来源');
+}
+if (mapFontManifest.generator?.fonttools !== '4.59.2' || mapFontManifest.generator?.brotli !== '1.1.0') {
+  throw new Error('地图字体生成工具版本必须保持固定');
+}
+if (statSync(mapFontPath).size !== mapFontManifest.sizeBytes || mapFontManifest.sizeBytes > 64 * 1024) {
+  throw new Error('地图 WOFF2 子集大小必须与 manifest 一致且不超过 64 KiB');
+}
+if (mapFontSha256 !== mapFontManifest.sha256) {
+  throw new Error('地图 WOFF2 子集 SHA-256 与 manifest 不一致');
+}
+for (const expected of [
+  'SOURCE_VERSION = "2.003R"',
+  'SOURCE_GIT_BLOB_SHA = "44d7f0c522ee7e9c6cb373a5ef7e851f30b558a1"',
+  'font["head"].modified = font["head"].created',
+]) requireText(mapFontGeneratorSource, expected, `地图字体生成器缺少固定约束: ${expected}`);
+requireText(mapFontLicenseSource, 'SIL OPEN FONT LICENSE Version 1.1', '地图字体必须随站点发布 OFL 1.1 许可证');
 
 console.log('province map focus verification passed');
