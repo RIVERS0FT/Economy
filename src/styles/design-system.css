@@ -263,6 +263,17 @@ label {
   font-size: var(--font-size-md);
 }
 
+.page-content {
+  --radius-card: var(--radius-sm);
+  --radius-control: var(--radius-sm);
+  --card-radius: var(--radius-sm);
+}
+
+.page-content button,
+.page-content .ui-button {
+  border-radius: var(--radius-sm);
+}
+
 .panel,
 .player-mini-card,
 .empty-state,

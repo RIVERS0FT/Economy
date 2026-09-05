@@ -10,9 +10,13 @@ const regionalMarket = read('src/pages/MarketPage.tsx');
 const commodityRow = read('src/components/market/MarketCommodityRow.tsx');
 const commodityCss = read('src/styles/market-commodity-row.css');
 const marketDetailCss = read('src/styles/market-detail-direct-flow.css');
+const marketAccountCss = read('src/styles/market-account-table.css');
+const designSystem = read('src/styles/design-system.css');
 const entityHeader = read('src/components/ui/EntityListHeader.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 const marketDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
+const marketRuntimeSpec = read('tests/browser/market-runtime.spec.ts');
 
 for (const token of [
   "type GlobalMarketSortKey = 'name' | 'volume24h' | 'market-price' | 'price-change24h';",
@@ -72,7 +76,7 @@ for (const token of [
   '<small>可用库存</small>',
   '<small>冻结库存</small>',
   'className={`widget market-chart-card ui-entity-card${marketDetailUnavailable ?',
-  'const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail);',
+  'const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail && !selectedMarket);',
   'className="market-chart-card__content" aria-disabled={marketDetailUnavailable || undefined}',
   'market-chart-card__unavailable',
   '<section className="market-trade-card market-immediate-trade-card">',
@@ -90,6 +94,27 @@ for (const token of [
   'padding-block: var(--space-2);',
   '.market-detail-surface .market-detail-product-artwork {\n  width: 100%;\n  height: 72%;\n}',
 ]) requireText(marketDetailCss, token, 'regional product summary geometry');
+for (const token of [
+  '.local-trades-heading {',
+  'flex-flow: row nowrap;',
+  '.local-trades-heading .ui-button {',
+  'white-space: nowrap;',
+]) requireText(marketAccountCss, token, 'local trade heading single row');
+forbidText(marketAccountCss, 'flex-direction: column;', 'local trade heading single row');
+for (const token of [
+  '.page-content {\n  --radius-card: var(--radius-sm);\n  --radius-control: var(--radius-sm);',
+  '.page-content button,\n.page-content .ui-button {\n  border-radius: var(--radius-sm);',
+]) requireText(designSystem, token, 'page content small radius');
+for (const token of [
+  '页面正文中获准显示圆角的卡片与普通业务按钮统一使用 `--radius-sm`',
+  '地区商品详情的成交记录标题与“清除记录”按钮在所有支持宽度下保持同一行',
+  '不得为了正文小圆角缩小根级 `--radius-card`／`--radius-card-mobile`',
+]) requireText(uiDesign, token, 'ui design small radius and local trade heading');
+for (const token of [
+  'page content buttons and entity cards use the shared small radius',
+  'recent local trades heading keeps clear action on the same row on narrow screens',
+  'market detail keeps snapshot history when the detail refresh fails',
+]) requireText(marketRuntimeSpec, token, 'market browser regression');
 for (const token of [
   'orderBook.bids',
   'orderBook.asks',
