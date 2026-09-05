@@ -30,10 +30,10 @@ test('bank page exposes capital management, weekly planning, and transparent cre
   await expect(page.getByText('预计周扣除', { exact: true })).toBeVisible();
   await expect(page.getByText(/成功经济操作会激活本周/)).toBeVisible();
 
-  await expect(page.getByRole('heading', { name: '工厂抵押融资', exact: true })).toBeVisible();
-  await expect(page.getByRole('table', { name: '可抵押工厂' })).toBeVisible();
-  await expect(page.getByText('抵押物审慎估值', { exact: true })).toBeVisible();
-  await page.getByLabel('农场抵押数量').fill('2');
+  await expect(page.getByRole('heading', { name: '工厂冻结融资', exact: true })).toBeVisible();
+  await expect(page.getByRole('table', { name: '可冻结工厂' })).toBeVisible();
+  await expect(page.getByText('冻结资产审慎估值', { exact: true })).toBeVisible();
+  await page.getByLabel('农场冻结数量').fill('2');
   await expect(page.getByText('最高可贷额度', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '申请贷款' })).toBeDisabled();
   await page.getByLabel('申请金额').fill('50');
@@ -59,7 +59,7 @@ test('bank page stacks safely on mobile without a collateral horizontal table', 
   expect(financingWorkspaceColumns).toBe(1);
 
   await expect(page.getByRole('button', { name: '最大', exact: true })).toBeVisible();
-  await expect(page.getByLabel('农场抵押数量')).toBeVisible();
+  await expect(page.getByLabel('农场冻结数量')).toBeVisible();
   expect(await page.locator('.bank-collateral-list').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   expect(await page.locator('.page-content').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   expect(pageErrors).toEqual([]);

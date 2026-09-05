@@ -1,6 +1,7 @@
 export type MarketChartVariant = 'compact' | 'full';
 
-const MARKET_TIME_INTERVAL_HOURS = [1, 2, 3, 4, 6, 8, 12] as const;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MARKET_TIME_INTERVAL_DAYS = [1, 2, 3, 5, 7, 10, 15] as const;
 
 function clampInteger(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, Math.floor(value)));
@@ -15,11 +16,11 @@ export function chooseMarketTimeInterval(
   const minimumLabelSpacing = variant === 'compact'
     ? Math.max(52, rootFontSize * 3.25)
     : Math.max(60, rootFontSize * 3.75);
-  const maximumSegments = clampInteger(Math.max(1, plotWidth) / minimumLabelSpacing, 3, 24);
-  const intervalHours = MARKET_TIME_INTERVAL_HOURS.find((hours) => (
-    Math.max(1, windowMs) / (hours * 60 * 60 * 1000) <= maximumSegments
-  )) ?? MARKET_TIME_INTERVAL_HOURS[MARKET_TIME_INTERVAL_HOURS.length - 1];
-  return intervalHours * 60 * 60 * 1000;
+  const maximumSegments = clampInteger(Math.max(1, plotWidth) / minimumLabelSpacing, 3, 15);
+  const intervalDays = MARKET_TIME_INTERVAL_DAYS.find((days) => (
+    Math.max(1, windowMs) / (days * DAY_MS) <= maximumSegments
+  )) ?? MARKET_TIME_INTERVAL_DAYS[MARKET_TIME_INTERVAL_DAYS.length - 1];
+  return intervalDays * DAY_MS;
 }
 
 export function chooseMarketPriceTickCount(priceHeight: number, rootFontSize: number) {

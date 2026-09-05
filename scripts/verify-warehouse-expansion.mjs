@@ -118,6 +118,9 @@ for (const text of [
   '@container (min-width: 960px)',
 ]) if (!css.includes(text)) failures.push(`仓库商品卡网格样式缺少: ${text}`);
 
+requireText('src/styles/factory-auto-operation.css', 'grid-template-columns: minmax(0, 1fr) auto;');
+requireText('src/pages/production/ProductionFacilityDetail.tsx', '(group.frozenCount ?? group.listedCount) + group.mortgagedCount + (group.contractCollateralCount ?? 0)');
+
 if (failures.length) {
   console.error('无限共享仓库/即时自动经营防回退检查失败：');
   failures.forEach((failure) => console.error(`- ${failure}`));

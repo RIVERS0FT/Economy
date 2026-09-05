@@ -154,7 +154,7 @@ for (const text of [
   'const provinceId = normalizeProvinceId(item?.provinceId);',
   'transferableFacilityQuantity(world, player, item.facilityTypeId, item.provinceId)',
   'const group = groupFor(player, item.facilityTypeId, item.provinceId);',
-]) assert.ok(banking.includes(text), `银行抵押州级边界缺少: ${text}`);
+]) assert.ok(banking.includes(text), `银行冻结州级边界缺少: ${text}`);
 const commercialContracts = read('server/src/commercial-contracts.js');
 for (const text of [
   'const provinceId = normalizeProvinceId(payload.provinceId);',
@@ -504,7 +504,7 @@ for (const text of [
   'construction and production consume and output only the selected province inventory', 'factory market orders are rejected and legacy open orders are retired',
   'without serialized aliases',
 ]) assert.ok(tests.includes(text), `州级经济专项测试缺少: ${text}`);
-assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
+assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省冻结防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
 console.log('地区经济验证通过：美国连续 48 州、中文展示名、首府目录和州级经济隔离保持稳定；所有州直接经营；战略地图闲置使用 10m 土地填充和轻量 110m 背景描边，raster-ready active RAF 只直接变换 Canvas，snapshot 缺失时才回退变换 live-SVG Surface，settle 后单次提交根 SVG viewBox 并恢复 Surface/Canvas transform:none 与 will-change:auto；固定 world bounds 与州面、州名、路线矢量几何保持同一 Camera；公路、铁路和航空沿各自正式几何运动，运行时不保留车道数据模型或返程副线，地图专属镜头栏和选路面板不使用毛玻璃。');

@@ -58,8 +58,8 @@ const END_REASON_LABELS: Record<string, string> = {
 const PUBLISH_TYPES: Array<[PublishType, string, string]> = [
   ['supply', '供应合同', '按固定价格提供商品'],
   ['purchase', '采购合同', '按固定价格采购商品'],
-  ['lend', '放贷合同', '提供抵押贷款'],
-  ['borrow', '贷款合同', '寻找抵押贷款'],
+  ['lend', '放贷合同', '提供冻结贷款'],
+  ['borrow', '贷款合同', '寻找冻结贷款'],
   ['lease-out', '出租合同', '提供工厂使用权'],
   ['lease-in', '租赁合同', '寻找工厂使用权'],
 ];
@@ -96,7 +96,7 @@ function canClaimConfirmedDefault(contract: ProductionContract) {
   return false;
 }
 function defaultClaimLabel(contract: ProductionContract) {
-  if (contract.kind === 'loan') return '解除合同并处置抵押';
+  if (contract.kind === 'loan') return '解除合同并处置冻结';
   if (contract.terminationReason === 'both_default') return '解除合同';
   return '解除合同并领取违约金';
 }
@@ -376,8 +376,8 @@ function PublishPanel({ model, busy, close, run, initial }: { model: TutorialAwa
           <MoneyInput label="贷款本金" value={principalInput} fallbackValue={1000} min={0.01} max={1_000_000} error={principal === null ? '请输入有效本金。' : undefined} onValueChange={setPrincipalInput} />
           <MoneyInput label="固定总利率（%）" value={interestInput} fallbackValue={5} min={1} max={20} error={interest === null ? '请输入 1～20。' : undefined} onValueChange={setInterestInput} />
           <SelectInput label="贷款期限（天）" value={loanDays} onChange={(event) => setLoanDays(Number.parseFloat(event.target.value))}>{LOAN_DAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectInput>
-          <SelectInput label="抵押工厂" value={facilityTypeId} onChange={(event) => setFacilityTypeId(event.target.value)}>{model.game.facilityTypes.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</SelectInput>
-          <IntegerInput label="抵押数量" value={collateralInput} fallbackValue={1} min={1} max={1_000_000} error={collateral === null ? '请输入有效数量。' : undefined} onValueChange={setCollateralInput} />
+          <SelectInput label="冻结工厂" value={facilityTypeId} onChange={(event) => setFacilityTypeId(event.target.value)}>{model.game.facilityTypes.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</SelectInput>
+          <IntegerInput label="冻结数量" value={collateralInput} fallbackValue={1} min={1} max={1_000_000} error={collateral === null ? '请输入有效数量。' : undefined} onValueChange={setCollateralInput} />
         </> : null}
         {!isSupply && !isLoan ? <>
           <SelectInput label="租赁工厂" value={facilityTypeId} onChange={(event) => setFacilityTypeId(event.target.value)}>{model.game.facilityTypes.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</SelectInput>
@@ -446,8 +446,8 @@ function HistoryRow({
               <DataRow label="贷款本金" value={<CurrencyAmount>{formatCurrency(contract.principal || 0)}</CurrencyAmount>} />
               <DataRow label="固定总利率" value={`${(Number(contract.interestRateBps || 0) / 100).toFixed(2)}%`} />
               <DataRow label="贷款期限" value={dayLabel(contract.termDays ?? msAsDays(contract.termMs))} />
-              <DataRow label="抵押工厂" value={facilityName} />
-              <DataRow label="抵押数量" value={<CompactNumber value={contract.collateralQuantity || 0} />} />
+              <DataRow label="冻结工厂" value={facilityName} />
+              <DataRow label="冻结数量" value={<CompactNumber value={contract.collateralQuantity || 0} />} />
             </> : null}
             {contract.kind === 'facility_lease' ? <>
               <DataRow label="租赁工厂" value={facilityName} />
@@ -486,8 +486,8 @@ function HistoryRow({
             {contract.kind === 'loan' ? <>
               <DataRow label="实际发放本金" value={<CurrencyAmount>{formatCurrency(settlement.loanPrincipalDisbursed || contract.principal || 0)}</CurrencyAmount>} />
               <DataRow label="实际偿还" value={<CurrencyAmount>{formatCurrency(settlement.loanRepaid)}</CurrencyAmount>} />
-              {settlement.collateralReceivedByMe > 0 ? <DataRow label="我获得抵押工厂" value={`${formatNumber(settlement.collateralReceivedByMe)} 个`} /> : null}
-              {settlement.collateralReturnedToMe > 0 ? <DataRow label="退回我的抵押工厂" value={`${formatNumber(settlement.collateralReturnedToMe)} 个`} /> : null}
+              {settlement.collateralReceivedByMe > 0 ? <DataRow label="我获得冻结工厂" value={`${formatNumber(settlement.collateralReceivedByMe)} 个`} /> : null}
+              {settlement.collateralReturnedToMe > 0 ? <DataRow label="退回我的冻结工厂" value={`${formatNumber(settlement.collateralReturnedToMe)} 个`} /> : null}
             </> : null}
             {contract.kind === 'facility_lease' ? <>
               <DataRow label="累计租金" value={<CurrencyAmount>{formatCurrency(settlement.leaseRentPaid || settlement.grossTotal)}</CurrencyAmount>} />
@@ -561,7 +561,7 @@ export function ContractWorkspacePage({ model }: { model: TutorialAwareGameViewM
   const provinces = new Map(model.game.provinces.map((province) => [province.id, province.name]));
   const labelFor = (contract: ProductionContract) => {
     const province = contract.provinceId ? provinces.get(contract.provinceId) : null;
-    const asset = contract.kind === 'supply' ? products.get(contract.productId) || contract.productId : contract.kind === 'loan' ? facilities.get(contract.facilityTypeId || '') || '工厂抵押' : facilities.get(contract.facilityTypeId || '') || '工厂租赁';
+    const asset = contract.kind === 'supply' ? products.get(contract.productId) || contract.productId : contract.kind === 'loan' ? facilities.get(contract.facilityTypeId || '') || '工厂冻结' : facilities.get(contract.facilityTypeId || '') || '工厂租赁';
     return `${province ? `${province} · ` : ''}${asset} · ${kindName(contract)}`;
   };
   const activeContracts = state.productionContracts.filter((contract) => contract.status === 'active' && (contract.isParticipant || contract.isBuyer || contract.isSupplier || contract.isLender || contract.isBorrower || contract.isLessor || contract.isLessee)).sort((a, b) => Number(isConfirmedDefault(b)) - Number(isConfirmedDefault(a)) || Number(contractNeedsAttention(b)) - Number(contractNeedsAttention(a)) || Number(a.nextDueAt || Infinity) - Number(b.nextDueAt || Infinity));

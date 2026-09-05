@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 import { createEconomicCalendarClientState } from './economic-events.js';
+import { checkInDateKey } from './daily-check-in.js';
 import {
   getOrderBookDepth,
   getOrderBookSummary,
@@ -13,6 +14,7 @@ import {
 } from './provinces.js';
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
+const MARKET_DAILY_HISTORY_DAYS = 30;
 const DETAIL_DEPTH_LIMIT = 5;
 const EMPTY_PUBLIC_ORDER_BOOK = Object.freeze({
   buyVolume: 0,
@@ -53,6 +55,43 @@ function realTradePointsBetween(market, startsAt, endsAt) {
       && (point?.takerSide === 'buy' || point?.takerSide === 'sell')
     ))
     .sort((left, right) => Number(left.createdAt || 0) - Number(right.createdAt || 0));
+}
+
+function dailyHistoryForMarket(market, assetKind, now) {
+  const byDate = new Map();
+  const remember = (entry) => {
+    const dateKey = String(entry?.dateKey || '');
+    const price = Number(entry?.price || 0);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !(price > 0)) return;
+    const buyVolume = Math.max(0, Number(entry?.buyQuantity ?? entry?.buyVolume) || 0);
+    const sellVolume = Math.max(0, Number(entry?.sellQuantity ?? entry?.sellVolume) || 0);
+    const neutralVolume = Math.max(0, Number(entry?.neutralVolume) || 0);
+    byDate.set(dateKey, { dateKey, price, buyVolume, sellVolume, neutralVolume, volume: Math.max(buyVolume + sellVolume + neutralVolume, Math.max(0, Number(entry?.volume) || 0)) });
+  };
+  for (const entry of Array.isArray(market?.dailyHistory) ? market.dailyHistory : []) remember(entry);
+  for (const point of realTradePointsBetween(market, now - MARKET_DAILY_HISTORY_DAYS * DAY_MS, now)) {
+    const dateKey = checkInDateKey(Number(point.createdAt || 0));
+    if (byDate.has(dateKey)) continue;
+    const sameDay = realTradePointsBetween(
+      market,
+      Date.parse(`${dateKey}T00:00:00+08:00`),
+      Date.parse(`${dateKey}T23:59:59.999+08:00`),
+    );
+    if (sameDay.length < 1) continue;
+    const buyVolume = sameDay.reduce((sum, trade) => sum + (trade.takerSide === 'buy' ? Math.max(0, Number(trade.quantity || 0)) : 0), 0);
+    const sellVolume = sameDay.reduce((sum, trade) => sum + (trade.takerSide === 'sell' ? Math.max(0, Number(trade.quantity || 0)) : 0), 0);
+    remember({
+      dateKey,
+      price: Number(sameDay[sameDay.length - 1].price || 0),
+      buyVolume,
+      sellVolume,
+      volume: buyVolume + sellVolume,
+    });
+  }
+  if (assetKind === 'commodity') {
+    remember({ dateKey: checkInDateKey(now), price: Number(market?.officialPrice || market?.lastPrice || 0), buyQuantity: Math.max(0, Number(market?.todayBuyQuantity || 0)), sellQuantity: Math.max(0, Number(market?.todaySellQuantity || 0)) });
+  }
+  return [...byDate.values()].sort((left, right) => left.dateKey.localeCompare(right.dateKey)).slice(-MARKET_DAILY_HISTORY_DAYS);
 }
 
 function completedEventWindowsByProduct(now) {
@@ -229,6 +268,7 @@ export function createMarketDetail(world, {
       : undefined,
   });
   const priceHistory = realTradePoints(market, now).map(publicPricePoint);
+  const dailyHistory = dailyHistoryForMarket(market, assetKind, now);
   const bids = assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth(world, {
     provinceId: normalizedProvinceId,
     assetKind,
@@ -244,7 +284,7 @@ export function createMarketDetail(world, {
     limit: DETAIL_DEPTH_LIMIT,
   }), 'sell');
   const revision = createHash('sha256')
-    .update(JSON.stringify({ summary, priceHistory, bids, asks }))
+    .update(JSON.stringify({ summary, priceHistory, dailyHistory, bids, asks }))
     .digest('base64url')
     .slice(0, 16);
   return {
@@ -252,7 +292,7 @@ export function createMarketDetail(world, {
     assetKind,
     assetId,
     revision,
-    market: { ...summary, priceHistory },
+    market: { ...summary, priceHistory, dailyHistory },
     orderBook: { bids, asks },
   };
 }

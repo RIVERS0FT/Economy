@@ -36,7 +36,8 @@ test('market chart keeps price, volume and mobile axis semantics readable', asyn
 
   await expect(chart.locator('.market-chart-section-label')).toHaveCount(2);
   await expect(chart.locator('.market-chart-x-axis-title')).toHaveCount(0);
-  await expect(chart.locator('.market-chart-legend')).toBeVisible();
+  await expect(chart.locator('.market-chart-legend')).toHaveCount(0);
+  await expect(chart.locator('.market-chart-footer')).toHaveCount(0);
 
   const cssColors = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement);
@@ -48,5 +49,8 @@ test('market chart keeps price, volume and mobile axis semantics readable', asyn
   expect(cssColors.info).not.toBe(cssColors.success);
 
   const visibleSvgLabels = await chart.locator('.economy-chart__canvas svg text').allTextContents();
-  expect(visibleSvgLabels).toContain('2');
+  const maxVolumeTick = Math.max(...state.volumeTicks);
+  const visibleIntermediateVolumeTick = state.volumeTicks.find((value) => value > 0 && value < maxVolumeTick) ?? null;
+  expect(visibleIntermediateVolumeTick).not.toBeNull();
+  expect(visibleSvgLabels).toContain(String(visibleIntermediateVolumeTick));
 });

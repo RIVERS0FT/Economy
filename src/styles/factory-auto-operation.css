@@ -4,10 +4,23 @@
 }
 
 .facility-auto-operation__header {
-  display: flex;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4, 1rem);
+  gap: var(--space-3, 0.75rem);
+}
+
+.facility-auto-operation__header > strong {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: var(--line-height-tight);
 }
 
 .facility-auto-operation__message {

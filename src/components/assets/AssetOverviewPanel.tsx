@@ -23,8 +23,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
   );
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
-  const frozenFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.frozenCount || 0), 0);
-  const mortgagedFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.mortgagedCount || 0), 0);
+  const frozenFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.frozenCount || 0) + Number(group.mortgagedCount || 0) + Number(group.contractCollateralCount || 0), 0);
   const frozenAssetValue = game.assetSummary.frozenAssetValue ?? game.frozenCredits;
   const availableAssetValue = game.assetSummary.availableAssetValue ?? (derived.totalAssets - frozenAssetValue);
   const grossAssetValue = game.assetSummary.grossAssetValue ?? (derived.totalAssets + (game.assetSummary.liabilityValue || 0));
@@ -33,8 +32,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
   const availableCommodityValue = game.assetSummary.availableCommodityValue ?? derived.commodityValue;
   const frozenCommodityValue = game.assetSummary.frozenCommodityValue ?? 0;
   const availableFacilityValue = game.assetSummary.availableFacilityValue ?? derived.facilityValue;
-  const mortgagedFacilityValue = game.assetSummary.mortgagedFacilityValue ?? 0;
-  const frozenFacilityValue = game.assetSummary.frozenFacilityValue ?? 0;
+  const frozenFacilityValue = (game.assetSummary.frozenFacilityValue ?? 0) + (game.assetSummary.mortgagedFacilityValue ?? 0);
 
   return (
     <PagePanel className="asset-overview-card">
@@ -117,15 +115,15 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
             <div
               className="asset-composition-row facility"
               role="row"
-              aria-label={`工厂，总计 ${formatCurrency(derived.facilityValue)}，可转让 ${formatCurrency(availableFacilityValue)}，抵押 ${formatCurrency(mortgagedFacilityValue)}，交易冻结 ${formatCurrency(frozenFacilityValue)}，冻结 ${formatNumber(frozenFacilities)} 座，抵押 ${formatNumber(mortgagedFacilities)} 座，共 ${formatNumber(totalFacilities)} 座`}
+              aria-label={`工厂，总计 ${formatCurrency(derived.facilityValue)}，可转让 ${formatCurrency(availableFacilityValue)}，冻结 ${formatCurrency(frozenFacilityValue)}，冻结 ${formatNumber(frozenFacilities)} 座，共 ${formatNumber(totalFacilities)} 座`}
             >
               <span className="asset-composition-name" role="cell">
                 <i className="facility-dot" />
-                <span>工厂<small>交易冻结 {<CompactNumber value={frozenFacilities} />} · 抵押 {<CompactNumber value={mortgagedFacilities} />} · 共 {<CompactNumber value={totalFacilities} />}</small></span>
+                <span>工厂<small>冻结 {<CompactNumber value={frozenFacilities} />} · 共 {<CompactNumber value={totalFacilities} />}</small></span>
               </span>
               <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount></strong>
               <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(availableFacilityValue)}</CurrencyAmount></span>
-              <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(frozenFacilityValue + mortgagedFacilityValue)}</CurrencyAmount></span>
+              <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(frozenFacilityValue)}</CurrencyAmount></span>
             </div>
             <div
               className="asset-composition-row commercial"
@@ -144,7 +142,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
         </section>
       </div>
 
-      <p className="ui-helper-text asset-freeze-note">冻结资产和抵押工厂仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结、抵押或产权交易状态；贷款负债从资产毛值中扣除形成净资产。</p>
+      <p className="ui-helper-text asset-freeze-note">冻结资产仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。</p>
     </PagePanel>
   );
 }
