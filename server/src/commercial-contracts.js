@@ -335,9 +335,9 @@ function acceptLoan(world, contract, user, now, runtimeIndex) {
   const unitValue = prudentFacilityUnitValue(world, contract.facilityTypeId, contract.provinceId);
   const collateralValue = multiplyMoneyByInteger(unitValue, contract.collateralQuantity);
   const maxPrincipal = collateralValue === null ? null : calculateRateMoney(collateralValue, MAX_LOAN_TO_VALUE_BPS, BASIS_POINTS, 'floor');
-  if (!maxPrincipal || contract.principal > maxPrincipal) return result(false, '贷款本金超过抵押工厂审慎价值的 50%');
+  if (!maxPrincipal || contract.principal > maxPrincipal) return result(false, '贷款本金超过冻结工厂审慎价值的 50%');
   if (lender.credits < contract.principal) return result(false, '出借方可用资金不足');
-  if (transferableFacilityQuantity(world, borrower, contract.facilityTypeId, contract.provinceId) < contract.collateralQuantity) return result(false, '借款方可抵押工厂数量不足');
+  if (transferableFacilityQuantity(world, borrower, contract.facilityTypeId, contract.provinceId) < contract.collateralQuantity) return result(false, '借款方可冻结工厂数量不足');
   runtimeIndex.transition(contract, () => {
     lender.credits = roundInternalMoney(lender.credits - contract.principal) || 0;
     borrower.credits = addMoney(borrower.credits, contract.principal) || 0;
@@ -352,7 +352,7 @@ function acceptLoan(world, contract, user, now, runtimeIndex) {
     delete contract.graceEndsAt;
     commercialAliases(contract);
   });
-  return result(true, '玩家贷款已放款，抵押工厂继续生产但已禁止转让');
+  return result(true, '玩家贷款已放款，冻结工厂继续生产但已禁止转让');
 }
 
 function acceptLease(world, contract, user, now, runtimeIndex) {
@@ -603,9 +603,9 @@ export function applyCommercialContractAction(world, user, action, payload, now,
   if (contract?.breachedAt && String(contract.terminationReason || '').endsWith('_default')) {
     if (action !== 'terminateProductionContractNow') return result(false, '合同已确认违约，不能再补救、还款或修改自动履约设置');
     if (contract.kind === 'loan') {
-      if (Number(contract.lenderId) !== Number(user.id)) return result(false, '只有出借方可以解除违约贷款并处置抵押');
+      if (Number(contract.lenderId) !== Number(user.id)) return result(false, '只有出借方可以解除违约贷款并处置冻结');
       transferLoanCollateral(world, contract, now, runtimeIndex);
-      return result(true, '违约贷款已解除，抵押工厂已按违约确认时快照处置');
+      return result(true, '违约贷款已解除，冻结工厂已按违约确认时快照处置');
     }
     if (contract.kind === 'facility_lease') {
       if (Number(contract.lessorId) !== Number(user.id)) return result(false, '只有出租方可以解除违约租赁并领取违约金');
@@ -676,7 +676,7 @@ export function commercialIssue(contract, userId = null) {
     const claimantId = contract.kind === 'loan' ? contract.lenderId : contract.lessorId;
     if (Number(claimantId) === Number(userId)) {
       return contract.kind === 'loan'
-        ? '借款方已违约，请主动解除贷款并处置抵押'
+        ? '借款方已违约，请主动解除贷款并处置冻结'
         : '承租方已违约，请主动解除租赁并领取违约金';
     }
     return '合同已确认违约，等待受偿方解除合同';

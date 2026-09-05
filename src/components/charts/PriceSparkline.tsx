@@ -223,13 +223,11 @@ export function buildMarketChartGeometry(
   const ratioProtectedVolumeHeight = (0.22 / 0.78) * priceHeight;
   const preferredVolumeHeight = (compact ? 33 : 106) * scale;
   let volumeHeight = Math.max(preferredVolumeHeight, minimumVolumeHeight, ratioProtectedVolumeHeight);
-  const timeLabelHeight = compact ? Math.max(28, rootFontSize * 1.8) : Math.max(52, rootFontSize * 3.2);
-  const legendGap = 8;
-  const legendHeight = Math.max(20, rootFontSize * 1.25);
-  const legendTitleGap = showXAxisTitle ? 10 : 0;
+  const timeLabelHeight = compact ? Math.max(26, rootFontSize * 1.7) : Math.max(44, rootFontSize * 2.75);
+  const titleGap = showXAxisTitle ? 8 : 0;
   const titleHeight = showXAxisTitle ? Math.max(16, rootFontSize) : 0;
   const bottomSafeInset = 6;
-  const footerHeight = legendGap + legendHeight + legendTitleGap + titleHeight + bottomSafeInset;
+  const footerHeight = titleGap + titleHeight + bottomSafeInset;
   const baseHeight = (compact ? 228 : 540) * scale;
   const naturalHeight = top + priceHeight + priceVolumeGap + volumeHeight + timeLabelHeight + footerHeight;
   const height = Math.max(baseHeight, naturalHeight, minimumHeight);
@@ -435,7 +433,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
 
   const option = useMemo<EChartsCoreOption>(() => ({
     animation: false,
-    aria: { enabled: true, description: '近二十四小时价格折线和成交量柱状图。蓝色为价格，绿色为净主动买入，红色为净主动卖出，灰色为方向未知。' },
+    aria: { enabled: true, description: '近三十天价格折线和成交量柱状图。蓝色为价格，成交量柱按当日净主动方向着色。' },
     grid: [
       { id: 'market-price-grid', left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
       { id: 'market-volume-grid', left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
@@ -458,7 +456,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         const bucket = safeBuckets[index];
         if (!bucket) return '';
         const sign = bucket.netVolume > 0 ? '+' : '';
-        return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }))}</strong>`
+        return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', timeZone: 'Asia/Shanghai' }))}</strong>`
           + `<div><small>价格</small> ${escapeChartHtml(formatIntegerPriceTick(bucket.price))}</div>`
           + `<div><small>总成交量</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.volume))}</div>`
           + `<div><small>主动买入</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.buyVolume))}</div>`
@@ -542,7 +540,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       ref={ref}
       className={`price-chart market-history-chart ${variant}`}
       role="img"
-      aria-label="近 24 小时价格、成交量与主动买卖方向趋势图"
+      aria-label="近 30 天价格、成交量与主动买卖方向趋势图"
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       data-chart-variant={variant}
@@ -580,7 +578,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         option={option}
         className="market-history-echart"
         style={{ height: geometry.canvasHeight }}
-        ariaLabel="近 24 小时价格、成交量与主动买卖方向趋势图"
+        ariaLabel="近 30 天价格、成交量与主动买卖方向趋势图"
         accessibleSummary={safeBuckets.map((bucket) => `${formatMarketAxisTime(bucket.startAt)}价格${formatIntegerPriceTick(bucket.price)}成交量${formatCompactVolumeTick(bucket.volume)}`).join('；')}
         updateMode="merge"
         onChartReady={handleChartReady}
@@ -597,13 +595,11 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
           <div className="market-chart-section-label" style={{ top: geometry.volumeTop + 4, left: geometry.left + 4 }} aria-hidden="true">成交量</div>
         </>
       ) : null}
-      <div className="market-chart-footer" style={{ paddingLeft: geometry.left, paddingRight: geometry.right }}>
-        <div className="market-chart-legend" aria-label="主动买卖方向图例">
-          <span className="market-chart-legend-item buy"><i />净主动买入</span>
-          <span className="market-chart-legend-item sell"><i />净主动卖出</span>
+      {geometry.showXAxisTitle ? (
+        <div className="market-chart-footer" style={{ paddingLeft: geometry.left, paddingRight: geometry.right }}>
+          <div className="market-chart-x-axis-title">日期</div>
         </div>
-        {geometry.showXAxisTitle ? <div className="market-chart-x-axis-title">时间</div> : null}
-      </div>
+      ) : null}
     </div>
   );
 }

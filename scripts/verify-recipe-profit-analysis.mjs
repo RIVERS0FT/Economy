@@ -289,7 +289,7 @@ for (const text of [
   '--facility-card-section-gap: var(--space-2);',
 ]) assert.ok(surfaceSource.includes(text), `生产一级表面压缩样式缺少: ${text}`);
 for (const text of [
-  'min-height: 32px;',
+  'min-height: 24px;',
   '.mobile-detail-sheet-header',
   'border-bottom: 0;',
 ]) assert.ok(sheetSource.includes(text), `移动详情头部压缩样式缺少: ${text}`);

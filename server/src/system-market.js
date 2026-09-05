@@ -22,6 +22,32 @@ import {
 
 export const DAILY_SYSTEM_MARKET_VERSION = 2;
 
+const SYSTEM_MARKET_DAILY_HISTORY_LIMIT = 29;
+
+function normalizeMarketDailyHistory(market) {
+  const normalized = new Map();
+  for (const entry of Array.isArray(market?.dailyHistory) ? market.dailyHistory : []) {
+    const dateKey = String(entry?.dateKey || '');
+    const price = Number(entry?.price || 0);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !(price > 0)) continue;
+    const buyQuantity = positiveInteger(entry?.buyQuantity ?? entry?.buyVolume);
+    const sellQuantity = positiveInteger(entry?.sellQuantity ?? entry?.sellVolume);
+    normalized.set(dateKey, { dateKey, price, buyQuantity, sellQuantity, volume: buyQuantity + sellQuantity });
+  }
+  market.dailyHistory = [...normalized.values()].sort((left, right) => left.dateKey.localeCompare(right.dateKey)).slice(-SYSTEM_MARKET_DAILY_HISTORY_LIMIT);
+  return market.dailyHistory;
+}
+
+function appendMarketDailyHistory(market, entry) {
+  normalizeMarketDailyHistory(market);
+  const dateKey = String(entry?.dateKey || '');
+  const price = Number(entry?.price || 0);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !(price > 0)) return;
+  const buyQuantity = positiveInteger(entry?.buyQuantity);
+  const sellQuantity = positiveInteger(entry?.sellQuantity);
+  market.dailyHistory = [...market.dailyHistory.filter((candidate) => candidate.dateKey !== dateKey), { dateKey, price, buyQuantity, sellQuantity, volume: buyQuantity + sellQuantity }].sort((left, right) => left.dateKey.localeCompare(right.dateKey)).slice(-SYSTEM_MARKET_DAILY_HISTORY_LIMIT);
+}
+
 function positiveInteger(value) {
   const normalized = Math.floor(Number(value || 0));
   return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;
@@ -53,6 +79,7 @@ export function createSystemMarketRuntime({
 
   function ensureSystemPrice(market, product, now) {
     market.provinceId = normalizeProvinceId(market.provinceId || DEFAULT_PROVINCE_ID);
+    normalizeMarketDailyHistory(market);
     if (!Number.isFinite(Number(market.officialPrice)) || Number(market.officialPrice) <= 0) {
       const seed = Number.isFinite(Number(market.lastTradePrice)) && Number(market.lastTradePrice) > 0
         ? Number(market.lastTradePrice)
@@ -299,6 +326,12 @@ export function createSystemMarketRuntime({
     const rawBps = Math.round(imbalance * SYSTEM_PRICE_K_BPS);
     const changeBps = clamp(-SYSTEM_PRICE_MAX_CHANGE_BPS, SYSTEM_PRICE_MAX_CHANGE_BPS, rawBps);
     const nextPrice = clampSystemPrice(product, market.officialPrice * (1 + changeBps / 10_000));
+    appendMarketDailyHistory(market, {
+      dateKey: String(market.priceDateKey || yesterdayKey),
+      price: market.officialPrice,
+      buyQuantity,
+      sellQuantity,
+    });
     market.previousDayBuyQuantity = buyQuantity;
     market.previousDaySellQuantity = sellQuantity;
     market.lastImbalance = round4(imbalance);

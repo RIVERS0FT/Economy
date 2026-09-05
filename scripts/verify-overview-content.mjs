@@ -184,8 +184,6 @@ requireAll(paths.chart, [
   "type: 'bar'",
   'volumeHeight / Math.max(1, dataAreaHeight)',
   'Math.max(48, rootFontSize',
-  'className="market-chart-legend-item buy"',
-  'className="market-chart-legend-item sell"',
   'data-volume-share={geometry.volumeShare.toFixed(4)}',
 ]);
 forbidAll(paths.chart, [

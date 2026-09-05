@@ -381,6 +381,15 @@ export interface PricePoint {
   takerSide?: OrderSide;
 }
 
+export interface MarketDailyHistoryPoint {
+  dateKey: string;
+  price: number;
+  volume: number;
+  buyVolume: number;
+  sellVolume: number;
+  neutralVolume?: number;
+}
+
 export interface ProductMarketState {
   productId: string;
   provinceId?: string;
@@ -404,6 +413,8 @@ export interface ProductMarketState {
   lastPriceChangeBps?: number;
   /** Full history is loaded only for the actively viewed market in client state version 38. */
   priceHistory?: PricePoint[];
+  /** Fixed Beijing-calendar-day trend history for the latest 30 days. */
+  dailyHistory?: MarketDailyHistoryPoint[];
   demand?: Partial<DemandState>;
   priceChange24h?: number | null;
   tradeVolume24h?: number;
@@ -431,6 +442,8 @@ export interface FacilityMarketState {
   lastTradePrice: number | null;
   /** Full history is loaded only for the actively viewed market in client state version 38. */
   priceHistory?: PricePoint[];
+  /** Fixed Beijing-calendar-day trend history for the latest 30 days. */
+  dailyHistory?: MarketDailyHistoryPoint[];
   priceChange24h?: number | null;
   tradeVolume24h?: number;
   tradeCount24h?: number;

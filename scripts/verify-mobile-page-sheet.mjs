@@ -288,4 +288,6 @@ requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '首次进入动画只能在每个物理 Sheet／详情实例初次挂载时播放一次',
 ]);
 
+requireAll('src/styles/mobile-detail-sheet.css', ['min-height: 24px;']);
+
 console.log('移动唯一 Sheet 自身毛玻璃、稳定松手、透明外部、状态/通知上层与导航隐藏恢复动画验证通过。');

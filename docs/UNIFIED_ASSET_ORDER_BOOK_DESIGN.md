@@ -133,3 +133,5 @@ nextPrice = previousPrice × (1 + changeBps / 10000)
 - `server/src/facility-auto-procure.js`：每日价原子购料；
 - `src/pages/MarketPage.tsx`、`src/components/market/MarketCommodityRow.tsx`：玩家即时交易页面；
 - `server/test/system-market.test.js`、`scripts/verify-system-market.mjs`：每日价格、无玩家挂单和防回退验证。
+
+手动即时商品交易的 HTTP 成功确认不得等待提交后的全状态投影：服务器事务和幂等结果落盘后立即返回带 `commandRevision` 与 `serverNow` 的精简确认，客户端结束提交状态并以非阻塞权威刷新恢复资金、库存和市场状态。刷新失败只表示状态同步待恢复，不能否定已提交成交，也不得生成新的幂等键重放同一交易。

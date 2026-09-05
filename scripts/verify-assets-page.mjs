@@ -60,7 +60,7 @@ for (const text of [
   'asset-composition-row commercial',
   'commercialValue',
   'commercialBuildingCount',
-  '冻结资产和抵押工厂仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结、抵押或产权交易状态；贷款负债从资产毛值中扣除形成净资产。',
+  '冻结资产仍归当前玩家所有并计入资产毛值；商业建筑第一版没有冻结或产权交易状态；贷款负债从资产毛值中扣除形成净资产。',
 ]) requireText(componentPath, text);
 
 for (const text of [
@@ -69,7 +69,7 @@ for (const text of [
   'className="bank-account-balance-strip"',
   'title="资金管理"',
   '本周资金计划',
-  'title="工厂抵押融资"',
+  'title="工厂冻结融资"',
   'bank-collateral-list',
   '授信利用率',
   'title="银行记录"',
@@ -96,10 +96,10 @@ forbidText(navigationPath, "{ id: 'assets', label: '资产' }");
 requireText(navigationPath, "{ id: 'bank', label: '银行' }");
 for (const text of [
   '独立资产页面已经永久删除，资产总览唯一归属银行页',
-  '页面顺序固定为“资产总览／资金管理／工厂抵押融资／银行记录”',
+  '页面顺序固定为“资产总览／资金管理／工厂冻结融资／银行记录”',
   '不得恢复独立资产页',
   '商业建筑按服务器目录 `systemValue` 估值',
-  '第一版全部计入可用建筑资产，不进入冻结、抵押或产权交易',
+  '第一版全部计入可用建筑资产，不进入冻结或产权交易',
 ]) requireText(designPath, text);
 
 for (const text of [
@@ -128,9 +128,11 @@ forbidText(componentPath, '商品和工厂按最近一次订单簿真实成交�
 requireText(designPath, '商品按各州当日官方系统价估值；工厂按最近一次真实产权成交价估值');
 requireText(designPath, '商业建筑按服务器目录 `systemValue` 估值');
 
+requireText(componentPath, 'Number(group.frozenCount || 0) + Number(group.mortgagedCount || 0) + Number(group.contractCollateralCount || 0)');
+
 if (failures.length) {
   console.error(`银行资产总览与本地资产变动删除验证失败：\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('银行资产总览、商业建筑资产估值、资金管理与抵押融资布局、十二个正式页面与十一项可见导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。');
+console.log('银行资产总览、商业建筑资产估值、资金管理与冻结融资布局、十二个正式页面与十一项可见导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。');

@@ -312,13 +312,14 @@ export function MarketPage({
   );
   const detailedMarket = selectedMarketDetail?.market;
   const marketHistory = detailedMarket?.priceHistory ?? selectedMarket?.priceHistory ?? [];
+  const marketDailyHistory = detailedMarket?.dailyHistory;
   const marketFallbackPrice = detailedMarket?.lastPrice ?? selectedMarket?.lastPrice
     ?? selectedProduct?.basePrice
     ?? selectedFacility?.systemValue
     ?? 1;
   const marketBuckets = useMemo(
-    () => buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now),
-    [marketFallbackPrice, marketHistory, now],
+    () => buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now, marketDailyHistory ?? []),
+    [marketDailyHistory, marketFallbackPrice, marketHistory, now],
   );
   const bucketMarketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
   const summaryMarketTrend = detailedMarket?.priceChange24h ?? selectedMarket?.priceChange24h;

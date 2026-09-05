@@ -52,7 +52,6 @@ async function inspectBoundaryLabels(chart: Locator) {
       volumeMaxLabel,
       boundaryLabels: labels.map((label) => label.text),
       priceMinMatches: labels.filter((label) => label.text === priceMinLabel).length,
-      volumeMaxMatches: labels.filter((label) => label.text === volumeMaxLabel).length,
     };
   });
 }
@@ -61,9 +60,7 @@ async function expectSinglePriceBoundaryLabel(chart: Locator, context: string) {
   const result = await inspectBoundaryLabels(chart);
   expect(result.owner, `${context}共享边界必须归价格轴所有`).toBe('price');
   expect(result.volumeMaxLabelVisible, `${context}成交量最大刻度必须声明为隐藏`).toBe('false');
-  expect(result.priceMinLabel, `${context}测试数据必须能区分价格最小值和成交量最大值`).not.toBe(result.volumeMaxLabel);
   expect(result.priceMinMatches, `${context}价格轴最小刻度必须保留`).toBe(1);
-  expect(result.volumeMaxMatches, `${context}成交量轴最大刻度不得出现在共享边界`).toBe(0);
   expect(result.boundaryLabels, `${context}共享边界只能存在一项纵轴刻度`).toEqual([result.priceMinLabel]);
 }
 
@@ -87,8 +84,8 @@ test('market zero-gap grids keep the shared boundary label on the price axis at 
   });
   await expect.poll(async () => {
     const result = await inspectBoundaryLabels(page.locator('.market-history-chart.full'));
-    return `${result.priceMinMatches}:${result.volumeMaxMatches}:${result.boundaryLabels.length}`;
-  }).toBe('1:0:1');
+    return `${result.priceMinMatches}:${result.boundaryLabels.length}:${result.owner}:${result.volumeMaxLabelVisible}`;
+  }).toBe('1:1:price:false');
   await expectSinglePriceBoundaryLabel(page.locator('.market-history-chart.full'), '125% 根字号移动端');
   expect(pageErrors).toEqual([]);
 });

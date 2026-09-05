@@ -100,8 +100,8 @@ test('loan default transfers only enough collateral and releases the remainder',
   assert.equal(breached.terminationReason, 'borrower_default');
   assert.ok(breached.breachedAt);
   assert.equal(breached.defaultCollateralQuantity, 1);
-  assert.equal(breached.collateralTransferredQuantity, 0, '违约确认时不得自动转移抵押工厂');
-  assert.equal(playerLoanCollateralQuantity(state, 1, facility.id), 2, '等待出借方处置期间抵押仍保持锁定');
+  assert.equal(breached.collateralTransferredQuantity, 0, '违约确认时不得自动转移冻结工厂');
+  assert.equal(playerLoanCollateralQuantity(state, 1, facility.id), 2, '等待出借方处置期间冻结仍保持锁定');
   assert.equal(state.players['1'].facilityGroups[0].count, 10);
   assert.equal(state.players['2'].facilityGroups[0].count, 10);
   assert.equal(applyProductionContractAction(state, { id: 1 }, 'terminateProductionContractNow', { contractId }, breached.breachedAt + 1).ok, false);
