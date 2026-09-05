@@ -55,12 +55,17 @@ jobs:
             node --experimental-strip-types scripts/$verifier.mjs || failed=1
           done
           exit "$failed"
-      - name: Package source for review
+      - name: Package isolated verification runtime
         if: always()
-        run: git archive --format=zip HEAD > /tmp/building-review-source.zip
+        run: |
+          npx playwright install chromium
+          mkdir -p /tmp/building-runtime/bin
+          cp "$(command -v node)" /tmp/building-runtime/bin/node
+          tar -czf /tmp/building-runtime/dependencies.tgz node_modules src/dev/generated
+          tar -czf /tmp/building-runtime/browser.tgz -C "$HOME/.cache" ms-playwright
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: building-review-source
-          path: /tmp/building-review-source.zip
+          name: building-review-runtime
+          path: /tmp/building-runtime
           retention-days: 1
