@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { FrostedGlassSurface } from '../ui/FrostedGlassSurface';
 import { ScrollArea } from '../ui/ScrollArea';
 import {
@@ -44,6 +44,45 @@ export function SignedInShell({
   const [tooltipLayer, setTooltipLayer] = useState<HTMLDivElement | null>(null);
   const [dialogLayer, setDialogLayer] = useState<HTMLDivElement | null>(null);
 
+  useLayoutEffect(() => {
+    if (!floatingLayer || !tooltipLayer) return undefined;
+    // DOM ownership and safe geometry are separate: ECharts owns its HTML node,
+    // so its stable host must clear the Sheet without entering the top layer.
+    // Copy the existing safe rectangle rather than duplicating Chrome insets.
+    let frame: number | null = null;
+    const update = () => {
+      const rect = floatingLayer.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const left = Math.max(rect.left, viewport?.offsetLeft ?? 0);
+      const top = Math.max(rect.top, viewport?.offsetTop ?? 0);
+      const right = Math.min(rect.right, (viewport?.offsetLeft ?? 0) + (viewport?.width ?? window.innerWidth));
+      const bottom = Math.min(rect.bottom, (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight));
+      Object.assign(tooltipLayer.style, {
+        left: `${left}px`, top: `${top}px`,
+        width: `${Math.max(0, right - left)}px`, height: `${Math.max(0, bottom - top)}px`,
+      });
+    };
+    const schedule = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { frame = null; update(); });
+    };
+    update();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    observer?.observe(floatingLayer);
+    window.addEventListener('resize', schedule);
+    document.addEventListener('scroll', schedule, true);
+    window.visualViewport?.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('scroll', schedule);
+    return () => {
+      observer?.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', schedule);
+      document.removeEventListener('scroll', schedule, true);
+      window.visualViewport?.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('scroll', schedule);
+    };
+  }, [floatingLayer, tooltipLayer, sidebarCollapsed]);
+
   const pageContent = pageFrameClassName ? <div className={pageFrameClassName}>{children}</div> : children;
   const pageLayer = (
     <div className="mobile-page-overlay">
@@ -74,13 +113,7 @@ export function SignedInShell({
         ref={setFloatingLayer}
         className="workspace-floating-layer"
         data-workspace-floating-layer="true"
-      >
-        <div
-          ref={setTooltipLayer}
-          className="workspace-tooltip-layer"
-          data-workspace-tooltip-layer="true"
-        />
-      </div>
+      />
     </>
   );
 
@@ -127,7 +160,13 @@ export function SignedInShell({
               ref={setDialogLayer}
               className="workspace-dialog-layer"
               data-workspace-dialog-layer="true"
-            />
+            >
+              <div
+                ref={setTooltipLayer}
+                className="workspace-tooltip-layer"
+                data-workspace-tooltip-layer="true"
+              />
+            </div>
           </main>
         </WorkspaceDialogLayerContext.Provider>
       </WorkspaceTooltipLayerContext.Provider>
