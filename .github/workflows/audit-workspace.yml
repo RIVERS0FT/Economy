@@ -1,0 +1,35 @@
+name: Prepare audit repair workspace
+on:
+  push:
+    branches: [work/audit-fixes-20260906]
+    paths: [.github/workflows/audit-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Export tracked source and test runtime without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/audit-workspace"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/audit-workspace/source.tar.gz"
+          tar -czf "$RUNNER_TEMP/audit-workspace/dependencies.tar.gz" node_modules
+          cp "$(command -v node)" "$RUNNER_TEMP/audit-workspace/node"
+          chmod +x "$RUNNER_TEMP/audit-workspace/node"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audit-repair-workspace
+          path: ${{ runner.temp }}/audit-workspace
+          retention-days: 1
+          compression-level: 0
