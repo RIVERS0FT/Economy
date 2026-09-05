@@ -10,6 +10,7 @@ const regionalMarket = read('src/pages/MarketPage.tsx');
 const commodityRow = read('src/components/market/MarketCommodityRow.tsx');
 const commodityCss = read('src/styles/market-commodity-row.css');
 const marketDetailCss = read('src/styles/market-detail-direct-flow.css');
+const marketAccountCss = read('src/styles/market-account-table.css');
 const entityHeader = read('src/components/ui/EntityListHeader.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const marketDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
@@ -72,7 +73,7 @@ for (const token of [
   '<small>可用库存</small>',
   '<small>冻结库存</small>',
   'className={`widget market-chart-card ui-entity-card${marketDetailUnavailable ?',
-  'const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail);',
+  'const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail && !selectedMarket);',
   'className="market-chart-card__content" aria-disabled={marketDetailUnavailable || undefined}',
   'market-chart-card__unavailable',
   '<section className="market-trade-card market-immediate-trade-card">',
@@ -91,6 +92,13 @@ for (const token of [
   '.market-detail-surface .market-detail-product-artwork {\n  width: 100%;\n  height: 72%;\n}',
 ]) requireText(marketDetailCss, token, 'regional product summary geometry');
 for (const token of [
+  '.local-trades-heading {',
+  'flex-flow: row nowrap;',
+  '.local-trades-heading .ui-button {',
+  'white-space: nowrap;',
+]) requireText(marketAccountCss, token, 'local trade heading single row');
+forbidText(marketAccountCss, 'flex-direction: column;', 'local trade heading single row');
+for (const token of [
   'orderBook.bids',
   'orderBook.asks',
   'market-order-price',
@@ -108,6 +116,7 @@ for (const token of [
   '连续 48 州均为完整经营上下文',
   '市场提供商品目录、今日官方价格、真实成交行情和当日价即时交易写操作',
   '趋势卡改为不可用状态',
+  '成交记录标题与“清除记录”按钮在所有支持宽度下保持同一行',
 ]) requireText(pageDesign, token, 'page design');
 for (const token of [
   '玩家商品交易不得创建 `open`／`partial` 商品订单',
