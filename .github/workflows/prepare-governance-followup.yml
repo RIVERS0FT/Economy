@@ -1,4 +1,4 @@
-name: Prepare governance consistency update
+name: Validate governance integration with main
 
 on:
   push:
@@ -15,58 +15,67 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: 24a53d35d4adfc78af86ebe531d250cdc6eec35a
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
           cache: npm
-      - name: Apply narrowly scoped consistency changes
+      - name: Integrate reviewed overlapping changes
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          runtime_path = Path('scripts/verify-runtime-reliability.mjs')
-          runtime = runtime_path.read_text()
-          start = runtime.index("for (const text of [\n  'push:',\n")
-          ending = "]) requireText('.github/workflows/ci.yml', text);"
-          end = runtime.index(ending, start) + len(ending)
-          runtime = runtime[:start] + """// Workflow topology and shard completeness belong to verify-deployment-pipeline.
-          // This verifier only owns runtime preparation and failure diagnostics.
-          for (const text of [
-            'group: economy-ci-',
-            'cancel-in-progress: true',
-            'bash scripts/prepare-playwright-chromium.sh',
-            '--phase browser 2>&1 | tee browser-test.log',
-            'name: economy-browser-test-artifacts-',
-            'if: failure()',
-            'retention-days: 3',
-          ]) requireText('.github/workflows/ci.yml', text);""" + runtime[end:]
-          ci_prose = ['真实头提交', 'GitHub 合并快照', 'verify-head-ci-registration', '不得写入 commit status', '不保留第二个重复的 PR Web Build 工作流', '不得用手工成功状态替代任一真实检查']
-          lines = runtime.splitlines()
-          runtime = '\n'.join(line for line in lines if not (
-              "['docs/CI_EXECUTION_DESIGN.md'," in line or (
-                  "['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'," in line
-                  and any(f"'{text}'" in line for text in ci_prose)
-              )
-          ))
-          runtime = runtime.replace('依赖锁、DT/IT/ST 分层 CI、PR/分支四分片浏览器硬门禁、失败步骤日志 Artifact', '依赖锁、浏览器运行环境、失败步骤日志 Artifact')
-          runtime_path.write_text(runtime.rstrip() + '\n')
+          import subprocess
+          import tempfile
+          BASE = '53a8561de91610829e8337db9896655fdb60ba27'
+          OURS = '73be1506b4633ae429f02a80e466084f7546f5c5'
+          MAIN = '24a53d35d4adfc78af86ebe531d250cdc6eec35a'
+          def original(ref, path):
+              return subprocess.check_output(['git', 'show', f'{ref}:{path}'], text=True).rstrip() + '\n'
+          def replace(text, before, after):
+              assert text.count(before) == 1, before
+              return text.replace(before, after, 1)
+          paths = subprocess.check_output(['git', 'diff', '--name-only', BASE, OURS], text=True).splitlines()
+          assert len(paths) == 12, paths
+          for path in paths:
+              text = original(OURS, path)
+              if path in ['docs/CI_EXECUTION_DESIGN.md', 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md']:
+                  with tempfile.TemporaryDirectory() as temp:
+                      names = []
+                      for name, ref in [('ours', OURS), ('base', BASE), ('main', MAIN)]:
+                          target = Path(temp, name)
+                          target.write_text(original(ref, path))
+                          names.append(str(target))
+                      merged = subprocess.run(['git', 'merge-file', '-p', *names], capture_output=True, text=True)
+                      if merged.returncode:
+                          raise RuntimeError(f'Unresolved document merge: {path}\n{merged.stdout}\n{merged.stderr}')
+                      text = merged.stdout
+              if path == 'scripts/select-ci-tests.mjs':
+                  anchor = '  const domains = inferDomains(executableChanges);'
+                  text = replace(text, anchor, anchor + '\n  const itDomains = inferDomains([...serverChanges, ...executableChanges.filter(isServerTest)]);')
+                  anchor = '  const isDomainCandidate = (candidate) => domains.some((rule) => rule.candidate.test(candidate));'
+                  text = replace(text, anchor, anchor + '\n  const isItDomainCandidate = (candidate) => itDomains.some((rule) => rule.candidate.test(candidate));')
+                  text = replace(text, 'if (isDomainCandidate(candidate) || isReferenceCandidate(candidate)) selectedServerTests.add(candidate);', 'if (isItDomainCandidate(candidate) || isReferenceCandidate(candidate)) selectedServerTests.add(candidate);')
+              if path == 'scripts/verify-deployment-pipeline.mjs':
+                  anchor = "const facilityPlan = selectCiPlan(['src/pages/GlobalBuildingsPage.tsx']);"
+                  block = """const frontendProvincePlan = selectCiPlan(['src/components/provinces/UsMainlandMap.tsx']);
+          if (frontendProvincePlan.mode !== 'targeted') failures.push('纯前端战略地图改动必须使用 targeted CI');
+          if (frontendProvincePlan.it.tests.length !== 0) failures.push('纯前端战略地图改动不得仅凭 province/map 域扩散服务器 IT');
+          if (frontendProvincePlan.browser.mode !== 'selected' || frontendProvincePlan.browser.tests.length === 0) failures.push('纯前端战略地图改动必须选择相关 Playwright ST');
 
-          server_path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
-          server = server_path.read_text()
-          lines = server.splitlines()
-          matches = [i for i, line in enumerate(lines) if line.startswith('- CI 必须验证真实头提交')]
-          assert len(matches) == 1, matches
-          lines[matches[0]] = '- CI 的事件、测试选择、聚合门禁和构建产物流转统一由 `CI_EXECUTION_DESIGN.md` 负责；本文不维护第二份 PR／push 拓扑。正式发布必须使用已验证的同一源码，不得用手工成功状态替代真实检查。'
-          server_path.write_text('\n'.join(lines) + '\n')
+          """
+                  text = replace(text, anchor, block + anchor)
+                  anchor = "const docsPlan = selectCiPlan(['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md']);"
+                  block = """const serverProvincePlan = selectCiPlan(['server/src/provinces.js']);
+          if (serverProvincePlan.mode !== 'targeted') failures.push('地区服务端改动必须使用 targeted CI');
+          if (!serverProvincePlan.it.tests.some((path) => /province/i.test(path))) failures.push('地区服务端改动必须继续选择相关 IT');
 
-          ci_path = Path('docs/CI_EXECUTION_DESIGN.md')
-          ci = ci_path.read_text()
-          ci = ci.replace('- full fallback 模式同样使用四分片覆盖完整 Playwright 集合', '- full fallback 模式同样使用配置的全部分片覆盖完整 Playwright 集合')
-          ci = ci.replace('`ECONOMY_PLAYWRIGHT_SHARD=N/4`', '`ECONOMY_PLAYWRIGHT_SHARD=N/总数`')
-          ci += '\n工作流依赖与分片完整性统一由 `scripts/verify-deployment-pipeline.mjs` 验证；`scripts/verify-runtime-reliability.mjs` 只保留运行环境准备、失败诊断及自身运行时边界，不另建第二份 CI 拓扑或设计文案清单。目录 README 与普通 Markdown 先按文档分类，不能仅因位于 `src`、`shared` 或工作流目录而当成可执行基础设施；混合变更仍按非文档路径判断影响。\n'
-          ci_path.write_text(ci)
-          Path('.github/workflows/prepare-governance-followup.yml').unlink()
+          """
+                  text = replace(text, anchor, block + anchor)
+              target = Path(path)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(text.rstrip() + '\n')
           PY
       - name: Validate focused behavior
         run: |
@@ -78,7 +87,7 @@ jobs:
           node scripts/verify-runtime-reliability.mjs
           node --experimental-strip-types --test tests/dt/project-governance.test.ts
           node scripts/verify-repository-text-format.mjs
-      - name: Store validated file objects
+      - name: Store validated integration file objects
         uses: actions/github-script@v7
         with:
           script: |
@@ -88,25 +97,24 @@ jobs:
             const {owner, repo} = context.repo;
             const entries = [];
             for (const path of paths) {
-              if (!fs.existsSync(path)) continue;
               const blob = await github.rest.git.createBlob({owner, repo, content: fs.readFileSync(path).toString('base64'), encoding: 'base64'});
               entries.push({path, mode: '100644', type: 'blob', sha: blob.data.sha});
             }
-            core.info('ECONOMY_PREPARED_ENTRIES=' + JSON.stringify(entries));
-            await core.summary.addHeading('Validated consistency update').addCodeBlock(JSON.stringify(entries, null, 2)).write();
+            core.info('ECONOMY_INTEGRATED_ENTRIES=' + JSON.stringify(entries));
+            await core.summary.addHeading('Validated integration files').addCodeBlock(JSON.stringify(entries, null, 2)).write();
       - name: Validate complete DT
         run: |
           set -euo pipefail
           npm ci
           npm run validate:dt 2>&1 | tee "$RUNNER_TEMP/governance-dt.log"
-      - name: Save complete review patch
+      - name: Save final integration patch
         if: always()
-        run: git diff 53a8561de91610829e8337db9896655fdb60ba27 --binary > "$RUNNER_TEMP/governance-review.patch"
-      - name: Upload review evidence
+        run: git diff 24a53d35d4adfc78af86ebe531d250cdc6eec35a --binary > "$RUNNER_TEMP/governance-review.patch"
+      - name: Upload integration evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: governance-review-${{ github.run_id }}
+          name: governance-integration-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/governance-review.patch
             ${{ runner.temp }}/governance-dt.log
