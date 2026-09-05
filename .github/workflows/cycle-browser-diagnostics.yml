@@ -18,7 +18,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh api repos/RIVERS0FT/Economy/actions/jobs/101325075840/logs > "$RUNNER_TEMP/browser-job.log"
+          gh api --allow-escape-sequences repos/RIVERS0FT/Economy/actions/jobs/101325075840/logs > "$RUNNER_TEMP/browser-job.log"
           python3 - <<'PY'
           import json, os, re
           from pathlib import Path
