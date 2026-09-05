@@ -64,7 +64,7 @@ for (const text of [
   '商业、工业与仓库直接显示本地经营内容',
   '一级市场商品的地区行情列表与一级建筑工厂的地区列表覆盖连续 48 州',
   '邀请卡与礼品码兑换唯一归属商店',
-  '战略地图镜头、缩放、重置和平移边界唯一遵循 `LIQUID_GLASS_CHROME_DESIGN.md`',
+  '战略地图镜头、缩放、重置和平移边界唯一遵循 `STRATEGIC_MAP_RENDERING_DESIGN.md`',
   '地图不得提供独立的放大、缩小或重置功能面板',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [

@@ -101,14 +101,85 @@ function formatPathValue(value: number) {
   return Number(value.toFixed(2));
 }
 
+function projectedRing(value: unknown, projection: ProvinceMapProjection) {
+  if (!Array.isArray(value)) return [] as ProvinceMapPoint[];
+  return value.filter(isCoordinate).map((coordinate) => projection.project(coordinate));
+}
+
+function pathForProjectedRing(points: ProvinceMapPoint[]) {
+  if (points.length < 3) return '';
+  return points.map((point, index) => (
+    `${index === 0 ? 'M' : 'L'}${formatPathValue(point.x)} ${formatPathValue(point.y)}`
+  )).join(' ') + ' Z';
+}
+
 function ringPath(value: unknown, projection: ProvinceMapProjection) {
-  if (!Array.isArray(value)) return '';
-  const coordinates = value.filter(isCoordinate);
-  if (coordinates.length < 3) return '';
-  return coordinates.map((coordinate, index) => {
-    const point = projection.project(coordinate);
-    return `${index === 0 ? 'M' : 'L'}${formatPathValue(point.x)} ${formatPathValue(point.y)}`;
-  }).join(' ') + ' Z';
+  return pathForProjectedRing(projectedRing(value, projection));
+}
+
+function pointDistanceSquared(left: ProvinceMapPoint, right: ProvinceMapPoint) {
+  const dx = right.x - left.x;
+  const dy = right.y - left.y;
+  return dx * dx + dy * dy;
+}
+
+function segmentDistanceSquared(point: ProvinceMapPoint, start: ProvinceMapPoint, end: ProvinceMapPoint) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (dx === 0 && dy === 0) return pointDistanceSquared(point, start);
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)));
+  const projected = { x: start.x + dx * t, y: start.y + dy * t };
+  return pointDistanceSquared(point, projected);
+}
+
+function simplifyOpenPoints(points: ProvinceMapPoint[], toleranceSquared: number) {
+  if (points.length <= 2) return [...points];
+  const keep = new Uint8Array(points.length);
+  keep[0] = 1;
+  keep[points.length - 1] = 1;
+  const stack: Array<[number, number]> = [[0, points.length - 1]];
+  while (stack.length > 0) {
+    const [startIndex, endIndex] = stack.pop()!;
+    let farthestIndex = -1;
+    let farthestDistance = toleranceSquared;
+    for (let index = startIndex + 1; index < endIndex; index += 1) {
+      const distance = segmentDistanceSquared(points[index], points[startIndex], points[endIndex]);
+      if (distance > farthestDistance) {
+        farthestDistance = distance;
+        farthestIndex = index;
+      }
+    }
+    if (farthestIndex < 0) continue;
+    keep[farthestIndex] = 1;
+    stack.push([startIndex, farthestIndex], [farthestIndex, endIndex]);
+  }
+  return points.filter((_, index) => keep[index] === 1);
+}
+
+function simplifyClosedRing(points: ProvinceMapPoint[], tolerance: number) {
+  if (points.length < 4 || !(tolerance > 0)) return points;
+  const normalized = [...points];
+  if (pointDistanceSquared(normalized[0], normalized[normalized.length - 1]) < 0.0001) normalized.pop();
+  if (normalized.length < 4) return normalized;
+
+  let splitIndex = 1;
+  let splitDistance = 0;
+  for (let index = 1; index < normalized.length; index += 1) {
+    const distance = pointDistanceSquared(normalized[0], normalized[index]);
+    if (distance > splitDistance) {
+      splitDistance = distance;
+      splitIndex = index;
+    }
+  }
+  const toleranceSquared = tolerance * tolerance;
+  const first = simplifyOpenPoints(normalized.slice(0, splitIndex + 1), toleranceSquared);
+  const second = simplifyOpenPoints([...normalized.slice(splitIndex), normalized[0]], toleranceSquared);
+  const merged = [...first, ...second.slice(1, -1)];
+  return merged.length >= 3 ? merged : normalized;
+}
+
+function simplifiedRingPath(value: unknown, projection: ProvinceMapProjection, tolerance: number) {
+  return pathForProjectedRing(simplifyClosedRing(projectedRing(value, projection), tolerance));
 }
 
 export function provinceGeometryPath(geometry: unknown, projection: ProvinceMapProjection) {
@@ -127,9 +198,29 @@ export function provinceGeometryPath(geometry: unknown, projection: ProvinceMapP
   return '';
 }
 
+export function provinceGeometrySimplifiedPath(
+  geometry: unknown,
+  projection: ProvinceMapProjection,
+  tolerance: number,
+) {
+  if (!geometry || typeof geometry !== 'object') return '';
+  const candidate = geometry as { type?: string; coordinates?: unknown };
+  if (candidate.type === 'Polygon' && Array.isArray(candidate.coordinates)) {
+    return candidate.coordinates
+      .map((ring) => simplifiedRingPath(ring, projection, tolerance))
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (candidate.type === 'MultiPolygon' && Array.isArray(candidate.coordinates)) {
+    return candidate.coordinates.flatMap((polygon) => (
+      Array.isArray(polygon)
+        ? polygon.map((ring) => simplifiedRingPath(ring, projection, tolerance)).filter(Boolean)
+        : []
+    )).join(' ');
+  }
+  return '';
+}
+
 export function projectProvinceRing(value: unknown, projection: ProvinceMapProjection) {
-  if (!Array.isArray(value)) return [] as ProvinceMapPoint[];
-  return value
-    .filter(isCoordinate)
-    .map((coordinate) => projection.project(coordinate));
+  return projectedRing(value, projection);
 }

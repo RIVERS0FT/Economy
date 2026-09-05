@@ -93,6 +93,7 @@ for (const text of [
   "'server/test'",
   "'tests/browser'",
   'verifyCandidates',
+  'itDomains',
   'DOMAIN_BROWSER_BASELINES',
   'COMPOSED_VERIFY_ENTRYPOINTS',
   'verificationNeedsDependencies',
@@ -134,6 +135,11 @@ if (marketPlan.browser.mode !== 'selected' || marketPlan.browser.tests.length ==
 if (hasDtCommand(marketPlan, 'node', ['scripts/verify-market-page-layout-regional.mjs'])) failures.push('targeted DT 不得绕过市场正式组合 verifier 执行内部地区检查');
 if (!hasDtCommand(marketPlan, 'node', ['scripts/verify-market-page-layout.mjs'])) failures.push('市场页面改动必须通过正式 market-page-layout 入口验证');
 
+const frontendProvincePlan = selectCiPlan(['src/components/provinces/UsMainlandMap.tsx']);
+if (frontendProvincePlan.mode !== 'targeted') failures.push('纯前端战略地图改动必须使用 targeted CI');
+if (frontendProvincePlan.it.tests.length !== 0) failures.push('纯前端战略地图改动不得仅凭 province/map 域扩散服务器 IT');
+if (frontendProvincePlan.browser.mode !== 'selected' || frontendProvincePlan.browser.tests.length === 0) failures.push('纯前端战略地图改动必须选择相关 Playwright ST');
+
 const facilityPlan = selectCiPlan(['src/pages/GlobalBuildingsPage.tsx']);
 if (facilityPlan.mode !== 'targeted') failures.push('建筑页面改动必须使用 targeted CI');
 if (!hasDtCommand(facilityPlan, 'npm', ['run', 'generate:facility-artwork'])) failures.push('建筑域 targeted DT 必须先生成工厂运行时缩略图');
@@ -161,6 +167,10 @@ const bankingPlan = selectCiPlan(['server/src/banking.js']);
 if (bankingPlan.mode !== 'targeted') failures.push('银行服务端改动必须使用 targeted CI');
 if (!hasDtCommand(bankingPlan, 'npm', ['run', 'server:check'])) failures.push('服务端 targeted DT 必须执行服务器语法检查');
 if (!bankingPlan.it.tests.some((path) => /bank/i.test(path))) failures.push('银行服务端改动必须选择相关 IT');
+
+const serverProvincePlan = selectCiPlan(['server/src/provinces.js']);
+if (serverProvincePlan.mode !== 'targeted') failures.push('地区服务端改动必须使用 targeted CI');
+if (!serverProvincePlan.it.tests.some((path) => /province/i.test(path))) failures.push('地区服务端改动必须继续选择相关 IT');
 
 const docsPlan = selectCiPlan(['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md']);
 if (docsPlan.mode !== 'targeted') failures.push('纯设计文档改动不应默认触发完整 CI');
@@ -240,6 +250,7 @@ requireCiDesignText('IT（Integration Test）', 'CI 执行设计必须定义 IT'
 requireCiDesignText('ST（System Test）', 'CI 执行设计必须定义 ST');
 requireCiDesignText('DT 最低覆盖率固定为', 'CI 执行设计必须锁定 DT coverage');
 requireCiDesignText('IT 最低覆盖率固定为', 'CI 执行设计必须锁定 IT coverage');
+requireCiDesignText('Targeted IT 的领域扩散只允许从本次变更中的', 'CI 执行设计必须锁定 targeted IT 的服务端领域来源');
 requireCiDesignText('最终 `build` 聚合 Job 只做门禁汇总', 'CI 执行设计必须锁定稳定 required build 聚合门禁');
 requireCiDesignText('targeted 模式必须把选择器已经确定的同一组 Playwright spec 交给四个 shard', 'CI 执行设计必须保持 targeted ST 选择器唯一权威');
 requireCiDesignText('不得通过提高 Job 超时', 'CI 执行设计必须禁止通过延长超时掩盖浏览器失败');

@@ -223,8 +223,21 @@ requireAll('tests/browser/mobile-workspace-overlay.spec.ts', [
   'expect(geometry.sheetBackdropFilter).not.toBe(\'none\');',
   'expect(geometry.statusIsTopmost).toBe(true);',
   "expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');",
-  "expect(navigation).toHaveAttribute('data-navigation-returning', 'true');",
+  "element.addEventListener('animationstart', recordReturn);",
+  "event.target !== element || event.animationName !== 'mobile-bottom-navigation-return'",
+  "element.dataset.testReturnAnimationState = element.dataset.navigationReturning ?? 'missing';",
+  "element.removeEventListener('animationstart', recordReturn);",
+  "expect(navigation).toHaveAttribute('data-test-return-animation-started', 'true');",
+  "expect(navigation).toHaveAttribute('data-test-return-animation-state', 'true');",
+  "expect(navigation).toHaveAttribute('data-test-return-animation-sheet-present', 'false');",
+  "expect(navigation).toHaveAttribute('data-navigation-instance-probe', 'stable');",
+  "expect(navigation).toHaveAttribute('data-navigation-returning', 'false');",
 ]);
+const mobileOverlayTest = read('tests/browser/mobile-workspace-overlay.spec.ts');
+const animationListenerIndex = mobileOverlayTest.indexOf("element.addEventListener('animationstart', recordReturn);");
+const closeClickIndex = mobileOverlayTest.indexOf("page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();");
+assert.ok(animationListenerIndex >= 0 && closeClickIndex > animationListenerIndex,
+  '移动导航必须先记录真实动画事件，再关闭页面，不能在多次跨进程断言后读取已结束的过渡态');
 
 requireAll('tests/browser/mobile-sheet-release-stability.spec.ts', [
   'half-distance release starts closing from the exact finger position without a jump',
