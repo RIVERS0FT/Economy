@@ -80,7 +80,7 @@
     "test:coverage:it": "node scripts/run-code-coverage.mjs it",
     "test:coverage": "npm run test:coverage:dt && npm run test:coverage:it",
     "server:test": "npm run test:it",
-    "test:browser": "playwright test",
+    "test:browser": "node scripts/run-browser-tests.mjs",
     "test:st": "npm run test:browser",
     "validate:dt": "node scripts/verify-contract-renewal-economic-events.mjs && npm run verify:provincial-economy && npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run test:coverage:dt && tsc && vite build",
     "validate:it": "npm run test:coverage:it",

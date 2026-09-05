@@ -139,7 +139,7 @@
 
 ## 11. 性能测量与逐帧诊断
 
-- 性能门禁和瓶颈剖析是两个独立采样过程。`map-zoom-transient.spec.ts` 保持真实场景、既有视口和输入序列，等待 raster-ready 后比较空帧与交互采样；预算固定为 `empty×2+8ms`，不得通过隐藏摄影、氛围、Chrome、关闭正式毛玻璃、降低视口或剔除慢样本获得通过。
+- 性能门禁和瓶颈剖析是两个独立采样过程。`map-zoom-transient.spec.ts` 保持真实场景、既有视口和输入序列，等待 raster-ready 后比较空帧与交互采样；预算固定为 `empty×2+8ms`，不得通过隐藏摄影、氛围、Chrome、关闭正式毛玻璃、降低视口或剔除慢样本获得通过。 定量门禁不得与其他 Playwright worker 并发采样；标准浏览器 runner 必须先完成同 shard 的功能／视觉测试，再在独立 Playwright 进程中以 `workers=1` 运行该门禁。该隔离不得替代或放宽固定预算，也不得改变正式场景；其目的仅是移除同机测试 worker 对软件 Viz/compositor 的非产品竞争。
 - Camera 性能测试文件和逐帧剖析文件在文件顶层配置 `trace: { mode: 'retain-on-failure', screenshots: false, snapshots: true, sources: true }`，保留动作与 DOM 诊断但不录制 screencast；其他视觉测试继续使用原有录制配置。`non-obvious reason`：截图录制会给变化中的画面额外引入读回与合成工作，而空白静止帧不承担同等开销，因而不能把录制成本混入产品性能门禁。不得把 worker 级 trace 配置放进 `test.describe`。
 - 门禁必须保留每个空帧和交互样本，以 `map-camera-frame-budget.json` 附件记录输入到 RAF、同步派发与等待 RAF 三种耗时。输入到 RAF 和 RAF 时间戳间隔不是物理屏幕呈现时长，也不是 GPU 执行时长；报告必须使用准确名称，不得将其直接标成每帧渲染耗时。
 - `map-camera-frame-diagnostics.spec.ts` 使用独立 CDP Tracing 采集 Viz／GPU／Skia、主线程与栅格线程事件，在同一次连续输入内分开记录冷启动、预热和稳定段，并给每个采样窗口写入开始／结束标记。阶段间不得插入跨进程调试查询或等待，避免 Camera settle 污染稳定段。剖析数据用于定位工作所在阶段，不作为无剖析门禁的等价性能数值。

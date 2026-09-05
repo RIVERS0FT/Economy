@@ -102,13 +102,14 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - targeted 模式把同一组已选 Playwright spec 交给全部配置 shard，并通过 `--shard=N/总数` 确定性分配；不得漏跑分片、删除相关基线或另建手工测试清单。
 - full fallback 模式同样使用配置的全部分片覆盖完整 Playwright 集合，与 `main` 部署前的完整浏览器门禁保持同一执行模型。
 - targeted 浏览器 runner 通过 `ECONOMY_PLAYWRIGHT_SHARD=N/总数` 控制 Playwright 分片；该变量只允许控制分片，不得改变选择器计划本身。
+- `npm run test:browser` 必须通过统一 Node runner 执行。普通功能／视觉测试继续按既有 shard 并发，但定量 Camera 性能门禁必须从并发集合排除，并在包含该地图 spec 的无 shard 完整运行或最终 shard 结束后，以独立 Playwright 进程和 `workers=1` 执行一次。targeted 计划不包含该地图 spec 时不得额外扩散性能测试。`non-obvious reason`：同一 GitHub runner 上其他 Playwright worker 会竞争软件 Viz/compositor 线程，对变化帧的影响显著大于空帧，从而污染 `empty` 对照；隔离只改变采样调度，不改变场景、断言、预算、浏览器或产品代码。
 
 ## 6. main 部署门禁
 
 `main` 的部署工作流继续保留独立 `build` 与 `browser-test`：
 
 - 部署 `build` 通过 `npm run build` 执行完整 DT、完整 DT coverage、完整 IT 与完整 IT coverage；
-- 部署 `browser-test` 四分片执行完整 ST-browser；
+- 部署 `browser-test` 四分片执行完整 ST-browser；统一浏览器 runner 在最终 shard 中把定量 Camera 性能门禁独立为 `workers=1` 的 Playwright 进程，预算与场景保持不变；
 - `deploy` 只有在上述两类验证都成功后才允许上传和切换生产版本；
 - 部署完成后继续运行 ST-production acceptance，验证服务健康、正式域名、公网入口、账号／注册／游戏 API 与数据库只读完整性边界。
 - 正式域名的公网页面、健康 API 与游戏 API 必须继续通过真实 `game.riversoft.top` DNS 与 HTTPS 验证，不得使用 `--resolve`、`--connect-to` 或固定 Host/IP 绕过公网 DNS。仅当 `curl` 未获得任何 HTTP 状态（`000`，包括瞬时 DNS／传输失败）时允许最多 3 次、间隔 1 秒的有界重试，单次连接超时 2 秒、总耗时 3 秒；一旦正式域名返回非预期 HTTP 状态必须立即失败，不得重试掩盖应用／代理错误。该重试不得改变 `ECONOMY_DEPLOY_VERIFY_START` 后 45 秒真实健康检查门槛。
