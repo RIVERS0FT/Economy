@@ -90,7 +90,7 @@ check('src/components/ui/SafeTooltip.tsx', [
   'createPortal', 'useWorkspaceFloatingLayer', 'useWorkspaceTooltipLayer', 'SAFE_FLOATING_GAP = 8',
   'supportsTopLayerPopover()', 'showTopLayerPopover(tooltip)', 'hideTopLayerPopover(tooltip)',
   "popover={topLayerActive ? 'manual' : undefined}", 'role="tooltip"',
-  'floatingLayer.getBoundingClientRect()', 'const portalTarget = tooltipLayer',
+  'floatingLayer?.getBoundingClientRect()', 'const portalTarget = tooltipLayer',
 ]);
 check('src/components/provinces/UsMainlandMap.tsx', [
   'useWorkspaceTooltipLayer()', 'supportsTopLayerPopover()',
@@ -333,7 +333,7 @@ check('src/styles/viewport.css', [
   'top: calc(', 'bottom: calc(', 'overflow: clip;',
   `  .signed-in-shell__body {
     position: relative;
-    z-index: 0;
+    z-index: auto;
     order: 1;`,
   `  .mobile-page-overlay {
     position: relative;
@@ -341,7 +341,7 @@ check('src/styles/viewport.css', [
     order: 1;`,
   `  .workspace-floating-layer {
     position: absolute;
-    z-index: 1;
+    z-index: auto;
     order: 2;`,
 ]);
 check('src/styles/mobile-detail-sheet.css', [
@@ -422,13 +422,16 @@ check('tests/browser/admin-runtime.spec.ts', [
 check('tests/browser/game-three-layer.spec.ts', [
   'bodyIndex: shellChildren.indexOf(body)',
   'chromeIndex: shellChildren.indexOf(chromeOverlay)',
-  "expect(layout.bodyZ).toBe('0')",
+  "expect(layout.bodyZ).toBe('auto')",
   "expect(layout.mapZ).toBe('20')",
   "expect(layout.uiZ).toBe('30')",
   'expect(visual.mapContainsLensBar).toBe(true)',
   "expect(layout.pageZ).toBe('1')",
   "expect(layout.strategicChromeZ).toBe('auto')",
-  "expect(layout.floatingLayerZ).toBe('4')",
+  "expect(layout.floatingLayerZ).toBe('auto')",
+  "expect(layout.tooltipZ).toBe('3001')",
+  "expect(layout.tooltipEvents).toBe('none')",
+  'expect(layout.tooltipInsideFloatingLayer).toBe(true)',
 ]);
 check('tests/browser/shell-floating-safe-zone.spec.ts', [
   'market-runtime-test.html?scenario=active',

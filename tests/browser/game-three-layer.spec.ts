@@ -136,9 +136,10 @@ test.describe('signed-in game four-layer scene stack', () => {
       const pageOverlay = document.querySelector<HTMLElement>('.mobile-page-overlay');
       const workspaceStrategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
       const workspaceFloatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
+      const tooltipLayer = document.querySelector<HTMLElement>('[data-workspace-tooltip-layer="true"]');
       const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
       if (!shell || !body || !workspace || !primaryCard || !mapLayer || !uiLayer || !pageOverlay
-        || !workspaceStrategicChrome || !workspaceFloatingLayer || !chromeOverlay) {
+        || !workspaceStrategicChrome || !workspaceFloatingLayer || !tooltipLayer || !chromeOverlay) {
         throw new Error('mobile game overlay fixture is incomplete');
       }
       const shellChildren = [...shell.children];
@@ -158,6 +159,9 @@ test.describe('signed-in game four-layer scene stack', () => {
         pageZ: getComputedStyle(pageOverlay).zIndex,
         strategicChromeZ: getComputedStyle(workspaceStrategicChrome).zIndex,
         floatingLayerZ: getComputedStyle(workspaceFloatingLayer).zIndex,
+        tooltipZ: getComputedStyle(tooltipLayer).zIndex,
+        tooltipEvents: getComputedStyle(tooltipLayer).pointerEvents,
+        tooltipInsideFloatingLayer: tooltipLayer.parentElement === workspaceFloatingLayer,
         chromeZ: getComputedStyle(chromeOverlay).zIndex,
         workspaceIsolation: getComputedStyle(workspace).isolation,
         mapIsolation: getComputedStyle(mapLayer).isolation,
@@ -179,14 +183,18 @@ test.describe('signed-in game four-layer scene stack', () => {
     expect(layout.pageInsidePrimaryCard).toBe(true);
     expect(layout.strategicChromeIndex).toBe(1);
     expect(layout.floatingLayerIndex).toBe(2);
-    expect(layout.bodyZ).toBe('0');
+    // Structural ancestors must not trap the unique tooltip host below the Sheet.
+    expect(layout.bodyZ).toBe('auto');
     expect(layout.workspaceZ).toBe('auto');
     expect(layout.primaryCardZ).toBe('0');
     expect(layout.mapZ).toBe('20');
     expect(layout.uiZ).toBe('30');
     expect(layout.pageZ).toBe('1');
     expect(layout.strategicChromeZ).toBe('auto');
-    expect(layout.floatingLayerZ).toBe('4');
+    expect(layout.floatingLayerZ).toBe('auto');
+    expect(layout.tooltipZ).toBe('3001');
+    expect(layout.tooltipEvents).toBe('none');
+    expect(layout.tooltipInsideFloatingLayer).toBe(true);
     expect(layout.chromeZ).toBe('3001');
     expect(layout.workspaceIsolation).toBe('auto');
     expect(layout.mapIsolation).toBe('auto');

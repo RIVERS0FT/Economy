@@ -92,22 +92,22 @@ const addCommand = (commands, seen, command, args = []) => {
   commands.push(item);
 };
 
-const getReferenceTokens = (path) => {
+const getReferenceTokens = (path, includeStem = true) => {
   const normalized = normalizePath(path);
   const fileName = basename(normalized);
   const extension = extname(fileName);
   const stem = extension ? fileName.slice(0, -extension.length) : fileName;
   const tokens = new Set([normalized, fileName]);
-  if (stem.length >= 5) tokens.add(stem);
+  if (includeStem && stem.length >= 5) tokens.add(stem);
   if (normalized.startsWith('src/')) tokens.add(normalized.slice('src/'.length));
   if (normalized.startsWith('server/src/')) tokens.add(normalized.slice('server/src/'.length));
   return [...tokens].filter((token) => token.length >= 5);
 };
 
-const candidateReferencesAnyChangedFile = (root, candidate, changedFiles) => {
+const candidateReferencesAnyChangedFile = (root, candidate, changedFiles, includeStem = true) => {
   let content = '';
   try { content = readFileSync(resolve(root, candidate), 'utf8'); } catch { return false; }
-  return changedFiles.some((changedFile) => getReferenceTokens(changedFile).some((token) => content.includes(token)));
+  return changedFiles.some((changedFile) => getReferenceTokens(changedFile, includeStem).some((token) => content.includes(token)));
 };
 
 const isDeploymentAcceptancePath = (path) => DEPLOYMENT_ACCEPTANCE_PATH_PATTERNS.some((pattern) => pattern.test(path));
@@ -263,7 +263,9 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
 
   const selectedServerTests = new Set(executableChanges.filter(isServerTest));
   for (const candidate of serverTestCandidates) {
-    if (isItDomainCandidate(candidate) || isReferenceCandidate(candidate)) selectedServerTests.add(candidate);
+    // Server ESM imports include their extension. A CSS/TS basename stem is not
+    // a direct reference to a same-named server .js module.
+    if (isItDomainCandidate(candidate) || candidateReferencesAnyChangedFile(root, candidate, executableChanges, false)) selectedServerTests.add(candidate);
   }
   plan.it.tests = [...selectedServerTests].sort();
   if (plan.it.tests.length > 0) plan.needsDependencies = true;
@@ -311,7 +313,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
 }
 
 function isReferenceCandidateForSource(root, sourcePath, ...candidateGroups) {
-  return candidateGroups.flat().some((candidate) => candidateReferencesAnyChangedFile(root, candidate, [sourcePath]));
+  return candidateGroups.flat().some((candidate) => candidateReferencesAnyChangedFile(root, candidate, [sourcePath], !isServerSource(sourcePath)));
 }
 
 const runCommand = ({ command, args }) => {

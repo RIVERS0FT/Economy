@@ -74,7 +74,7 @@ function applyChartOption(
   // host DOM itself exists. ECharts fixes the HTML tooltip parent when TooltipHTMLContent
   // is first constructed, so the first setOption must synchronously recover that host.
   if (!tooltipLayer?.isConnected) {
-    tooltipLayer = container.closest('.workspace')
+    tooltipLayer = container.closest('.signed-in-shell')
       ?.querySelector<HTMLElement>('[data-workspace-tooltip-layer="true"]') ?? null;
   }
   chart.setOption(optionWithTooltipLayer(resolvedOption, tooltipLayer), {
@@ -97,6 +97,7 @@ export function EconomyChart({
   style,
   testId,
   updateMode = 'replace',
+  lazyUpdate = true,
   onChartReady,
   onOptionApplied,
   onResize,
@@ -111,6 +112,7 @@ export function EconomyChart({
   style?: CSSProperties;
   testId?: string;
   updateMode?: EconomyChartUpdateMode;
+  lazyUpdate?: boolean;
   onChartReady?: (chart: EChartsType) => void;
   onOptionApplied?: (chart: EChartsType) => void;
   onResize?: (chart: EChartsType, size: EconomyChartSize) => void;
@@ -149,7 +151,7 @@ export function EconomyChart({
     const chart = chartRef.current;
     const container = containerRef.current;
     if (!chart || !container || !hasRenderableSize(container)) return;
-    applyChartOption(chart, container, option, updateMode, true, tooltipLayer);
+    applyChartOption(chart, container, option, updateMode, lazyUpdate, tooltipLayer);
     optionAppliedRef.current = true;
     if (!chartReadyRef.current) {
       chartReadyRef.current = true;
@@ -157,7 +159,7 @@ export function EconomyChart({
       onChartReadyRef.current?.(chart);
     }
     onOptionAppliedRef.current?.(chart);
-  }, [option, tooltipLayer, updateMode]);
+  }, [option, tooltipLayer, updateMode, lazyUpdate]);
 
   useEffect(() => {
     const container = containerRef.current;
