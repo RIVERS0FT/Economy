@@ -594,7 +594,7 @@ Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号
 - 正式 SQLite 必须保持 `auto_vacuum=INCREMENTAL`；普通玩家事务不得执行 `incremental_vacuum`。每周一北京时间 02:30 执行受限维护，每批固定 1,024 页、单次最多四批。迁移备份使用紧凑 gzip SQLite 快照并通过 `VACUUM INTO` 消除 freelist；解压后的 `auto_vacuum` 必须保持 `INCREMENTAL`。最多保留最近 5 个迁移族，迁移工作空间至少为预计有效数据两倍再加 512 MiB，删除临时 SQLite 前显式关闭全部连接。Windows 本地行为验证与 Linux 正式部署共用同一实现，分段存储 V2 首次迁移前必须创建 `economy-pre-storage-v2`。
 - API 代码继续使用 `rsync --delete-before` 完整替换，同步 `server/` 时必须排除 `runtime/`。固定 Node runtime 完全匹配时必须复用且不得重新下载或上传；正式运行时固定 Node 24.4.0。旧哈希资源至少保留 400 天，发布时最后原子替换 `index.html`。
 - CI 的事件、测试选择、聚合门禁和构建产物流转统一由 `CI_EXECUTION_DESIGN.md` 负责；本文不维护第二份 PR／push 拓扑。正式发布必须使用已验证的同一源码，不得用手工成功状态替代真实检查。
-- 部署 SSH 主机密钥不得依赖单次 `ssh-keyscan`，最多尝试 5 次；连接验证失败必须在数据库备份、文件上传和服务变更之前终止。成功步骤日志不得上传；失败摘要使用 `economy-failure-summary.txt`，禁止重新扫描或拼接成功步骤日志，不得再为单次构建失败创建临时诊断工作流。生产验收同时包含发布前远端验收和发布后公网验收，`ECONOMY_DEPLOY_VERIFY_START` 之后的 45 秒真实健康检查门槛保持不变。
+- 部署 SSH 主机密钥不得依赖单次 `ssh-keyscan`，最多尝试 5 次；连接验证失败必须在数据库备份、文件上传和服务变更之前终止。成功步骤日志不得上传；失败摘要使用 `economy-failure-summary.txt`，禁止重新扫描或拼接成功步骤日志，不得再为单次构建失败创建临时诊断工作流。服务安装阶段只确认 `systemd active + 127.0.0.1:3002 TCP` 已监听，避免业务事件循环正在处理长事务时把“已启动但暂时繁忙”误判为“服务未启动”；安装器不得用 HTTP `/health` 复制正式健康门禁。真实 HTTP 健康唯一由紧随其后的发布前远端验收执行。生产验收同时包含发布前远端验收和发布后公网验收，`ECONOMY_DEPLOY_VERIFY_START` 之后的 45 秒真实健康检查门槛保持不变。
 - 压力测试继续报告 p50／p90／p95／p99，并验证高负载不会突破请求超时和事件循环容量边界。
 
 ### 实现映射补充
