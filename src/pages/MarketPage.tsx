@@ -480,7 +480,7 @@ export function MarketPage({
   }
 
   const detailContent = (
-    <div className="market-page-surface market-detail-surface">
+    <div className="market-page-surface market-detail-surface" key={`${game.userId}:${game.saveEpoch ?? 0}:${model.selectedProvinceId}:${activeAssetKind}:${assetId}`}>
       {!selectedProduct ? <Panel className="widget market-detail-hero">
         <span className="market-detail-hero__artwork" aria-hidden="true">
           {selectedFacility ? <FacilityIcon facilityTypeId={selectedFacility.id} /> : <FactoryIcon />}
