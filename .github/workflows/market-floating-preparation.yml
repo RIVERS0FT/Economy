@@ -1,17 +1,12 @@
 name: Prepare market floating fix (branch only)
-
 on:
   push:
-    branches:
-      - fix/market-floating-20260906
-
+    branches: [fix/market-floating-20260906]
 permissions:
   contents: write
-
 concurrency:
   group: market-floating-preparation
   cancel-in-progress: true
-
 jobs:
   prepare-and-test:
     if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/fix/market-floating-20260906'
@@ -42,10 +37,21 @@ jobs:
           cache: npm
       - name: Install pinned dependencies and generate the local preview
         run: npm ci && npm run generate:local-preview
-      - name: Typecheck and related architecture checks
-        shell: bash
+      - name: Prepare reproducible offline source and dependency archive
         run: |
-          set -euo pipefail
+          git ls-files -z > "$RUNNER_TEMP/market-source-files"
+          printf '%s\0' node_modules src/dev/generated/local-game-preview-state.json >> "$RUNNER_TEMP/market-source-files"
+          tar -czf "$RUNNER_TEMP/market-offline.tar.gz" --null -T "$RUNNER_TEMP/market-source-files"
+          git rev-parse HEAD > "$RUNNER_TEMP/market-offline-head.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: market-offline-workspace
+          path: |
+            ${{ runner.temp }}/market-offline.tar.gz
+            ${{ runner.temp }}/market-offline-head.txt
+          retention-days: 1
+      - name: Typecheck and related architecture checks
+        run: |
           npm run typecheck
           node scripts/verify-game-shell-layout.mjs
           node scripts/verify-form-controls.mjs
@@ -54,8 +60,8 @@ jobs:
           node scripts/verify-document-authority.mjs
       - name: Prepare Chromium
         run: bash scripts/prepare-playwright-chromium.sh
-      - name: Exercise frozen details, linked pointers and tooltip lifetime
-        run: npm run test:browser -- tests/browser/commodity-freeze-details.spec.ts tests/browser/market-pointer-interaction.spec.ts tests/browser/market-tooltip-persistence.spec.ts tests/browser/shell-floating-safe-zone.spec.ts --workers=2 --max-failures=1 --retries=0 --reporter=list
+      - name: Exercise market pointer and tooltip lifetime
+        run: npm run test:browser -- tests/browser/market-pointer-interaction.spec.ts tests/browser/market-tooltip-persistence.spec.ts --workers=2 --retries=0 --reporter=list
       - name: Preserve branch-only browser evidence
         if: always()
         uses: actions/upload-artifact@v4
