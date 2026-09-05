@@ -146,6 +146,7 @@ const profitSource = read('src/utils/recipeProfitAnalysis.ts');
 const presentationSource = read('src/utils/facilityProfitPresentation.ts');
 const analysisSource = read('src/components/facilities/FacilityRecipeProfitAnalysis.tsx');
 const selectorSource = read('src/pages/production/ProductionFacilityDetail.tsx');
+const sharedCardSource = read('src/components/buildings/BuildingClusterCard.tsx');
 const marketPageSource = read('src/pages/MarketPage.tsx');
 const marketCommodityRowSource = read('src/components/market/MarketCommodityRow.tsx');
 const contextSource = read('src/components/facilities/FacilityRecipeProfitContext.tsx');
@@ -219,17 +220,24 @@ for (const text of [
   '不计玩家库存、挂单深度和交易手续费',
 ]) assert.ok(presentationSource.includes(text), `共享单厂利润展示模型缺少: ${text}`);
 for (const text of [
-  'className={`facility-cluster-profit is-${profit.tone}`}',
-  '{profit.visibleValue}',
+  '<BuildingClusterCard',
+  'profitValue={profit.visibleValue}',
+  'profitTone={profit.tone}',
   '每分钟平均利润：${profit.accessibleValue}',
-  'title={`${type.name}单厂平均利润／分钟；${profit.detail}`}',
-]) assert.ok(selectorSource.includes(text), `工厂选择卡利润数字缺少: ${text}`);
+  'profitTitle={`${type.name}单厂平均利润／分钟；${profit.detail}`}',
+]) assert.ok(selectorSource.includes(text), `工厂选择卡利润接入缺少: ${text}`);
+for (const text of [
+  'className={`facility-cluster-profit is-${profitTone}`}',
+  'title={profitTitle}',
+  '{profitValue}',
+]) assert.ok(sharedCardSource.includes(text), `共享建筑卡利润数字缺少: ${text}`);
 const selectorCardSource = selectorSource.slice(
   selectorSource.indexOf('export function FacilityClusterSelectorCard'),
   selectorSource.indexOf('export function FacilityClusterInformation'),
 );
 for (const forbiddenText of ['<CurrencyAmount', '/分']) {
   assert.equal(selectorCardSource.includes(forbiddenText), false, `工厂选择卡利润不得显示: ${forbiddenText}`);
+  assert.equal(sharedCardSource.includes(forbiddenText), false, `共享建筑卡利润不得额外显示: ${forbiddenText}`);
 }
 for (const removedText of [
   '市场利润分析',

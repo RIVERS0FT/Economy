@@ -2,7 +2,7 @@
 
 ## 1. 职责边界
 
-本文只负责地区建筑页工厂卡片、二级详情、共享标题轨道以及生产状态胶囊／开关的场景几何。建造和生产语义归 `INDUSTRY_AND_PRODUCTION_DESIGN.md`，页面归属归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，通用控件归 `UI_DESIGN_SYSTEM.md`。
+本文只负责地区建筑页工业／商业卡片、二级详情、共享标题轨道以及运行状态胶囊／开关的场景几何。建造和生产语义归 `INDUSTRY_AND_PRODUCTION_DESIGN.md`，页面归属归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，通用控件归 `UI_DESIGN_SYSTEM.md`。
 
 ## 2. 当前规则
 
@@ -32,3 +32,11 @@
 - 建设卡和工厂详情都保持普通文档流，不使用建筑页场景 sticky，也不建立第二纵向滚动根。
 
 - 地区工厂详情不再从 `BuildingsPage` 打开专用 `MobileFacilityDetailSheet`；页面唯一纵向滚动视口继续由 `PageLayout` 管理，建设卡和详情不得创建自己的纵向滚动条。
+
+## 6. 商业建筑同构展示
+
+地区已拥有商业建筑与工业建筑共用 `BuildingClusterCard` 纯展示组件和本文的选择卡几何、状态颜色、整卡按钮、键盘焦点与二级详情规则；商业不得复制第二套网格、卡片、遮罩或响应式断点。商业详情共用 `MobileDetailSummary`、状态胶囊、紧凑开关、利润展示区和线性周期轨道，不创建独立滚动根或专用 Sheet。开关和状态区沿用工业摘要同一行的几何。
+
+商业卡片与详情字段归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，插画与共享组件边界归 `UI_DESIGN_SYSTEM.md`，营业意图、周期锁定与消费规则归 `COMMERCIAL_BUILDINGS_DESIGN.md`；视觉共用不得带入工业满员率、配方或资产资格。
+
+`tests/browser/commercial-buildings-layout.spec.ts` 对照工业基线验证 320px 起的三列比例、整卡和键盘导航、摘要与开关高度、长名称与大数量、异常与停止状态、权威周期和请求失败行为。

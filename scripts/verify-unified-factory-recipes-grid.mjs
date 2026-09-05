@@ -121,15 +121,24 @@ const selectorCardSource = detail.slice(
   detail.indexOf('export function FacilityClusterInformation'),
 );
 for (const text of [
-  'className="facility-cluster-selector-card"',
-  'data-ui-interactive="surface"',
-  'data-status={group.status}',
-  'className="facility-cluster-name"',
+  '<BuildingClusterCard',
+  'status={group.status}',
+  'count={group.count}',
   '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />',
-  'className={`facility-cluster-profit is-${profit.tone}`}',
-  'className="facility-cluster-count"',
+  'profitValue={profit.visibleValue}',
+  'profitTone={profit.tone}',
   'resolveFacilityProfitPresentation({',
-]) assert.equal(selectorCardSource.includes(text), true, `工厂卡结构缺少: ${text}`);
+]) assert.equal(selectorCardSource.includes(text), true, `工厂卡数据接入缺少: ${text}`);
+const sharedBuildingCard = read('src/components/buildings/BuildingClusterCard.tsx');
+for (const text of [
+  '<button', 'type="button"', 'facility-cluster-selector-card',
+  'data-ui-interactive="surface"', 'data-status={status}',
+  'aria-label={ariaLabel}', 'onSelect(event.currentTarget)',
+  'className="facility-cluster-name"',
+  'className={`facility-cluster-profit is-${profitTone}`}',
+  'className="facility-cluster-count"', '<CompactNumber value={count}',
+]) assert.equal(sharedBuildingCard.includes(text), true, `共享建筑卡结构缺少: ${text}`);
+assert.ok(read('src/pages/CommercePage.tsx').includes('<BuildingClusterCard'), '商业与工业必须共用同一展示组件');
 assert.equal(selectorCardSource.includes('×'), false, '工厂选择卡数量不得显示乘号');
 assert.equal(selectorCardSource.includes(' x '), false, '工厂选择卡数量不得显示字母 x');
 
