@@ -309,7 +309,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
   }
   const isWrite = Boolean(init?.method && init.method !== 'GET' && init.method !== 'HEAD');
-  if (isWrite) installIdempotentGameWriteFetch();
+  let manualCommodity = false;
+      if (isWrite && path === '/orders' && typeof init?.body === 'string') {
+        try {
+          const body = JSON.parse(init.body);
+          manualCommodity = body?.assetKind === 'commodity' && !body.execution
+            && (body.side === 'buy' || body.side === 'sell');
+        } catch { /* Let the server reject an invalid request body. */ }
+      }
+      if (isWrite) installIdempotentGameWriteFetch();
   const timedSignal = isWrite ? null : createTimedSignal(init?.signal, DEFAULT_READ_TIMEOUT_MS);
   try {
     const response = await fetch(`${GAME_API_BASE}${path}`, {
@@ -330,7 +338,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         markPageSaveEpochStale(message);
         throw new SaveEpochPageMismatchError(message);
       }
-      if (isWrite && isUnconfirmedWriteStatus(response.status)) {
+      if (manualCommodity && isUnconfirmedWriteStatus(response.status)) {
         throw new GameApiError(response.status, WRITE_RESULT_UNCONFIRMED_MESSAGE, WRITE_RESULT_UNCONFIRMED);
       }
       throw new GameApiError(response.status, message, code);
@@ -346,7 +354,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (reason instanceof GameWriteUnconfirmedError) {
       throw new GameApiError(408, reason.message, reason.code);
     }
-    if (timedSignal?.didTimeout() && reason instanceof Error && reason.name === 'AbortError') {
+    if ((timedSignal?.didTimeout() || (isWrite && !init?.signal?.aborted))
+      && reason instanceof Error && reason.name === 'AbortError') {
       throw new GameApiError(408, '游戏服务器响应超时，请稍后重试');
     }
     if (isBrowserNetworkError(reason)) {

@@ -308,6 +308,7 @@ export function installIdempotentGameWriteFetch() {
           signal: init.signal,
           validateSuccess: isOrder ? isConfirmedActionResult : undefined,
           onConfirming: () => notify('confirming'),
+          preserveTransportError: !deduplicate,
         });
         const reconciliation = reconcileActionDelivery(response, payload);
         if (immediateIntent) {

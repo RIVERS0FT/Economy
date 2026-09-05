@@ -74,3 +74,29 @@ test('a request already aborted before send is not retried into a new economic a
     { timeoutMs: 50, signal: controller.signal }), { name: 'AbortError' });
   assert.equal(calls, 0);
 });
+
+test('HTML gateway errors preserve status and do not cause automatic session resubmission', async () => {
+  let calls = 0;
+  const result = await fetchConfirmedGameWrite(async () => {
+    calls += 1;
+    return new Response('<html>upstream unavailable</html>', { status: 502, headers: { 'Content-Type': 'text/html' } });
+  }, '/session', init, { timeoutMs: null, preserveTransportError: true });
+  assert.equal(calls, 1);
+  assert.equal(result.response.status, 502);
+  assert.equal(result.payload, undefined);
+  assert.equal(await result.response.text(), '<html>upstream unavailable</html>');
+});
+
+test('generic writes keep the native error type after two attempts while retaining uncertainty', async () => {
+  const failure = new TypeError('Failed to fetch');
+  let calls = 0;
+  await assert.rejects(fetchConfirmedGameWrite(async () => { calls += 1; throw failure; }, '/generic', init,
+    { timeoutMs: 50, preserveTransportError: true }), (error) => error === failure);
+  assert.equal(calls, 2);
+});
+
+test('generic completed JSON responses do not require a commodity action schema', async () => {
+  const result = await fetchConfirmedGameWrite(async () => Response.json({ ok: true }), '/session', init,
+    { timeoutMs: null, preserveTransportError: true });
+  assert.deepEqual(result.payload, { ok: true });
+});

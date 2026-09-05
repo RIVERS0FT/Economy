@@ -21,6 +21,7 @@ interface WriteAttemptOptions {
   signal?: AbortSignal | null;
   validateSuccess?: (payload: unknown) => boolean;
   onConfirming?: () => void;
+  preserveTransportError?: boolean;
 }
 
 export function isConfirmedActionResult(payload: unknown): boolean {
@@ -55,7 +56,11 @@ async function completeAttempt(nativeFetch: typeof fetch, input: RequestInfo | U
       const text = await source.text();
       let payload: unknown;
       try { payload = JSON.parse(text); }
-      catch { throw new TypeError('Incomplete game write receipt'); }
+      catch {
+        // Gateways and authentication errors may return HTML. A known HTTP
+        // error is not a broken successful action receipt or permission to retry.
+        if (source.ok) throw new TypeError('Incomplete game write receipt');
+      }
       if (source.ok && options.validateSuccess && !options.validateSuccess(payload)) {
         throw new TypeError('Invalid game action receipt');
       }
@@ -89,5 +94,6 @@ export async function fetchConfirmedGameWrite(nativeFetch: typeof fetch, input: 
       if (attemptIndex === 0) options.onConfirming?.();
     }
   }
+  if (options.preserveTransportError) throw lastFailure;
   throw new GameWriteUnconfirmedError(lastFailure);
 }
