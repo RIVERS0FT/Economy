@@ -373,13 +373,10 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   const restoreFrameRef = useRef<number | null>(null);
   bucketCountRef.current = safeBuckets.length;
 
-  const handleChartReady = useCallback((chartInstance: EChartsType) => {
-    chartInstanceRef.current = chartInstance;
-  }, []);
-
-  const restoreActiveTooltip = useCallback((chartInstance: EChartsType) => {
+  const scheduleActiveTooltip = useCallback((chartInstance: EChartsType | null = chartInstanceRef.current) => {
     if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
-    if (!pointerInsideRef.current || hoveredBucketIndexRef.current === null) return;
+    restoreFrameRef.current = null;
+    if (!chartInstance || !pointerInsideRef.current || hoveredBucketIndexRef.current === null) return;
     restoreFrameRef.current = requestAnimationFrame(() => {
       restoreFrameRef.current = null;
       if (!pointerInsideRef.current || hoveredBucketIndexRef.current === null) return;
@@ -390,6 +387,15 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       chartInstance.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex });
     });
   }, []);
+
+  const handleChartReady = useCallback((chartInstance: EChartsType) => {
+    chartInstanceRef.current = chartInstance;
+    scheduleActiveTooltip(chartInstance);
+  }, [scheduleActiveTooltip]);
+
+  const restoreActiveTooltip = useCallback((chartInstance: EChartsType) => {
+    scheduleActiveTooltip(chartInstance);
+  }, [scheduleActiveTooltip]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -403,13 +409,16 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     if (!insideDataArea) {
       pointerInsideRef.current = false;
       hoveredBucketIndexRef.current = null;
+      if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
+      restoreFrameRef.current = null;
       chartInstanceRef.current?.dispatchAction({ type: 'hideTip' });
       return;
     }
     pointerInsideRef.current = true;
     const ratio = Math.min(1, Math.max(0, (pointerX - geometry.left) / plotWidth));
     hoveredBucketIndexRef.current = Math.min(safeBuckets.length - 1, Math.floor(ratio * safeBuckets.length));
-  }, [geometry.left, geometry.right, geometry.top, geometry.volumeBottom, geometry.width, plotWidth, safeBuckets.length]);
+    scheduleActiveTooltip();
+  }, [geometry.left, geometry.right, geometry.top, geometry.volumeBottom, geometry.width, plotWidth, safeBuckets.length, scheduleActiveTooltip]);
 
   const handlePointerLeave = useCallback(() => {
     pointerInsideRef.current = false;
