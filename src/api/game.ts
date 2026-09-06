@@ -26,6 +26,13 @@ let suppressedProductionSettlementBasisId: string | null = null;
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
 const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
 const marketDetailCache = new Map<string, MarketDetail>();
+const marketDetailInflight = new Map<string, Promise<MarketDetail>>();
+const marketDetailRefreshGeneration = new Map<string, number>();
+let marketDetailCacheEpoch = 0;
+
+function marketDetailKey(provinceId: string, assetKind: AssetKind, assetId: string) {
+  return `${provinceId}:${assetKind}:${assetId}`;
+}
 
 function rememberMarketDetail(key: string, detail: MarketDetail) {
   marketDetailCache.delete(key);
@@ -36,6 +43,17 @@ function rememberMarketDetail(key: string, detail: MarketDetail) {
     marketDetailCache.delete(oldestKey);
   }
   return detail;
+}
+
+function clearMarketDetailDelivery() {
+  marketDetailCacheEpoch += 1;
+  marketDetailCache.clear();
+  marketDetailInflight.clear();
+  marketDetailRefreshGeneration.clear();
+}
+
+export function peekMarketDetail(provinceId: string, assetKind: AssetKind, assetId: string) {
+  return marketDetailCache.get(marketDetailKey(provinceId, assetKind, assetId)) ?? null;
 }
 
 export class SaveEpochPageMismatchError extends Error {
@@ -120,7 +138,7 @@ export function getPageSaveEpochErrorMessage() {
 
 export function resetGameStateDelivery() {
   stateDeliveryCache.reset();
-  marketDetailCache.clear();
+  clearMarketDetailDelivery();
   pendingProductionSettlement = null;
   resetServerClock();
 }
@@ -473,13 +491,13 @@ export async function getGameState(revision?: number | null, signal?: AbortSigna
   }
 }
 
-export async function getMarketDetail(
+async function fetchMarketDetailOnce(
   provinceId: string,
   assetKind: AssetKind,
   assetId: string,
-  signal?: AbortSignal,
-): Promise<MarketDetail> {
-  const key = `${provinceId}:${assetKind}:${assetId}`;
+  epoch: number,
+) {
+  const key = marketDetailKey(provinceId, assetKind, assetId);
   const cached = marketDetailCache.get(key);
   const search = new URLSearchParams({ provinceId, assetKind, assetId });
   if (cached?.revision) search.set('revision', cached.revision);
@@ -489,13 +507,58 @@ export async function getMarketDetail(
     marketDetailRevision: string;
     unchanged: boolean;
     marketDetail?: MarketDetail;
-  }>(`/market-detail?${search.toString()}`, { method: 'GET', signal });
+  }>(`/market-detail?${search.toString()}`, { method: 'GET' });
+  if (epoch !== marketDetailCacheEpoch) throw new DOMException('市场详情请求已过期', 'AbortError');
   acceptServerNow(Number(payload.serverNow));
   if (payload.unchanged && cached) return rememberMarketDetail(key, cached);
   if (!payload.marketDetail) {
     throw new GameApiError(502, '服务器未返回市场详情', 'MARKET_DETAIL_MISSING');
   }
   return rememberMarketDetail(key, payload.marketDetail);
+}
+
+function refreshMarketDetail(
+  provinceId: string,
+  assetKind: AssetKind,
+  assetId: string,
+) {
+  const key = marketDetailKey(provinceId, assetKind, assetId);
+  marketDetailRefreshGeneration.set(key, (marketDetailRefreshGeneration.get(key) ?? 0) + 1);
+  const inflight = marketDetailInflight.get(key);
+  if (inflight) return inflight;
+
+  const epoch = marketDetailCacheEpoch;
+  const refresh = (async () => {
+    const firstGeneration = marketDetailRefreshGeneration.get(key) ?? 0;
+    let detail = await fetchMarketDetailOnce(provinceId, assetKind, assetId, epoch);
+    if (epoch !== marketDetailCacheEpoch) throw new DOMException('市场详情请求已过期', 'AbortError');
+    if ((marketDetailRefreshGeneration.get(key) ?? 0) !== firstGeneration) {
+      detail = await fetchMarketDetailOnce(provinceId, assetKind, assetId, epoch);
+    }
+    return detail;
+  })().finally(() => {
+    if (marketDetailInflight.get(key) === refresh) marketDetailInflight.delete(key);
+  });
+  marketDetailInflight.set(key, refresh);
+  return refresh;
+}
+
+export function prefetchMarketDetail(provinceId: string, assetKind: AssetKind, assetId: string) {
+  const key = marketDetailKey(provinceId, assetKind, assetId);
+  if (marketDetailCache.has(key) || marketDetailInflight.has(key)) return;
+  void refreshMarketDetail(provinceId, assetKind, assetId).catch(() => {});
+}
+
+export async function getMarketDetail(
+  provinceId: string,
+  assetKind: AssetKind,
+  assetId: string,
+  signal?: AbortSignal,
+): Promise<MarketDetail> {
+  // Callers use their AbortSignal only to ignore stale React results. The shared
+  // network request intentionally survives view churn so polling cannot cancel it.
+  void signal;
+  return refreshMarketDetail(provinceId, assetKind, assetId);
 }
 
 export async function getFacilityBuildProcurementQuote(
