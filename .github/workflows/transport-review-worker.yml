@@ -1,0 +1,41 @@
+name: Transport documentation reference sync
+on:
+  push:
+    branches: [feat/transport-trip-fuel-20260906]
+    paths: [.github/workflows/transport-review-worker.yml]
+permissions:
+  contents: write
+jobs:
+  sync:
+    if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/feat/transport-trip-fuel-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Synchronize documentation references without duplicating business rules
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = path.read_text()
+          for old, new in [('周期距离与费用', '全线距离、每趟运费与燃料商品消耗'), ('在待保存区域比较同一路线三种方式的建线投入、周期费用、容量、耗时与当前库存下的预计增益及等待原因，允许切换方式后再创建。', '在待保存区域比较同一路线三种方式的每趟运费、燃料商品消耗、容量、耗时与当前库存下的预计增益及等待原因，允许切换方式后再创建；一次性建线费仅在创建确认区域展示当前选择方式的实际金额。'), ('周期运输费、周期燃料费', '每趟运费、燃料商品消耗')]:
+              assert text.count(old) == 1, old
+              text = text.replace(old, new)
+          path.write_text(text)
+          path = Path('docs/TRANSPORT_NETWORK_GEOMETRY_DESIGN.md')
+          text = path.read_text()
+          old = '建线费、周期运输费、燃料、周期距离和耗时'
+          assert text.count(old) == 1
+          path.write_text(text.replace(old, '建线费、每趟运费、燃料商品消耗、全线距离和耗时'))
+      - name: Commit final terminology reference sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/TRANSPORT_NETWORK_GEOMETRY_DESIGN.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs: align transport navigation and geometry references with trip fuel'
+          git push origin HEAD:"$GITHUB_REF_NAME"
