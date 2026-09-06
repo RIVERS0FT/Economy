@@ -103,7 +103,7 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
           itemClassName="facility-formula-input-item" quantityLabel="营业消耗" requiredForNextCycle={nextCycle.required} usableForNextCycle={nextCycle.usable}
           onOpenProductMarket={onOpenProductMarket} /> : <span className="facility-formula-empty">{settlement.locked ? '结算明细待确认' : '预计明细待确认'}</span>}
         outputs={<div className="facility-formula-output-group commercial-settlement-revenue">
-          <div className="facility-formula-item-card facility-formula-money-card">
+          <div className="facility-formula-money-card">
             <div className="facility-formula-output-item"><strong>{money(settlement.revenue)}</strong></div>
           </div>
         </div>}
