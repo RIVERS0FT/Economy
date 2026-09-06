@@ -19,7 +19,7 @@ export function estimateTransportRoute(game, route, now, provinceById = new Map(
     capacity,
     ...planTransportCycle({
       game, traversal: transportTraversalStopIds(route), capacity,
-      cycleCost: cycle.totalCost, durationMs, now,
+      cycleCost: cycle.transportFee, fuelQuantity: cycle.fuelPurchased, durationMs, now,
       atInTransitLimit: inTransitCount >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER,
     }),
   };
@@ -58,7 +58,7 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
         ...plan,
       };
       (finalVisit ? finalServices : services).push(command);
-    } else if (hasSlot) {
+    } else if (hasSlot && !route.deletionPending) {
       const estimate = estimateTransportRoute(game, route, now, provinceById);
       if (estimate.reason !== 'ready') continue;
       starts.push({

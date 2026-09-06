@@ -247,7 +247,8 @@ export interface TransportStopPlanEntry {
 
 export interface TransportManifestItem {
   productId: string;
-  destinationProvinceId: string;
+  /** Only delivered history has a destination; active cargo is not preassigned. */
+  destinationProvinceId?: string;
   quantity: number;
 }
 
@@ -271,12 +272,23 @@ export interface TransportRoute {
   cycleDistanceKm?: number;
   cycleTransportFee?: number;
   cycleFuelCost?: number;
+  cycleFuelQuantity?: number;
+  deletionPending?: boolean;
   cycleCost?: number;
   createdAt: number;
   updatedAt: number;
 }
 
+export interface TransportNodeHistoryEntry {
+  visitIndex: number;
+  provinceId: string;
+  servicedAt: number;
+  unload: Array<{ productId: string; quantity: number }>;
+  load: Array<{ productId: string; quantity: number }>;
+}
+
 export interface TransportShipment {
+  nodeHistory?: TransportNodeHistoryEntry[];
   /** Server-owned parameters locked when this cycle starts. */
   policySnapshot?: import('../shared/transport-policy.js').TransportCyclePolicy;
   deliveredQuantity?: number;
@@ -720,7 +732,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState extends CommercialStateFields {
-  version: 41;
+  version: 42;
   userId: number;
   playerName: string;
   startingProvinceId: string;

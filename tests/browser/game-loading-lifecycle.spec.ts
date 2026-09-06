@@ -1,3 +1,4 @@
+import { CURRENT_CLIENT_STATE_VERSION } from '../../server/shared/economy-state-version.js';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 async function json(route: Route, body: unknown, status = 200) {
@@ -19,7 +20,7 @@ function fullStateDelivery(revision = 1) {
     },
     patches: {
       catalog: {
-        version: 41,
+        version: CURRENT_CLIENT_STATE_VERSION,
         products: [{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 1 }],
         facilityTypes: [{ id: 'farm', name: '农场', category: 'raw' }],
         commercialBuildingTypes: [{ id: 'convenience-store', name: '便利店' }],
@@ -79,7 +80,7 @@ function brokenCatalogDelivery(revision = 2) {
       leaderboard: 'leader-00001',
     },
     patches: {
-      catalog: { version: 41 },
+      catalog: { version: CURRENT_CLIENT_STATE_VERSION },
     },
   };
 }

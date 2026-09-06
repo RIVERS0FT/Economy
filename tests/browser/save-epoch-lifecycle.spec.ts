@@ -1,3 +1,4 @@
+import { CURRENT_CLIENT_STATE_VERSION } from '../../server/shared/economy-state-version.js';
 import { expect, test, type Route } from '@playwright/test';
 
 async function json(route: Route, body: unknown, status = 200) {
@@ -19,7 +20,7 @@ function fullStateDelivery(saveEpoch: number, revision = 1) {
     },
     patches: {
       catalog: {
-        version: 41,
+        version: CURRENT_CLIENT_STATE_VERSION,
         products: [{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 1 }],
         facilityTypes: [{
           id: 'farm',

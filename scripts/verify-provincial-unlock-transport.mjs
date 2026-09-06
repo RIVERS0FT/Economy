@@ -37,6 +37,7 @@ const localPreview = read('src/app/LocalGamePreviewApp.tsx');
 const provincePage = read('src/pages/ProvincePage.tsx');
 const warehousePanel = read('src/components/warehouse/WarehouseInventoryPanel.tsx');
 const transportPage = read('src/pages/TransportPage.tsx');
+const transportPresentation = transportPage + read('src/transport/TransportEconomics.tsx') + read('src/game-guide/gameConcepts.ts');
 const transportCoordinator = read('src/transport/useOnlineTransport.ts');
 const routeDraft = read('src/components/shell/TransportRouteDraftContext.tsx');
 const pageStack = read('src/navigation/playerPageStack.ts');
@@ -70,15 +71,15 @@ for (const text of [
   '起始州与目的州相同即为环线',
   '起始州与目的州不相同即固定为往返路线',
   '运输费和燃料仅按距离收取，一次性结算',
-  '周期运输费 = 完整周期距离 × 运输方式 transportFeePerKm',
-  '整周期燃料量 = 完整周期距离 × 运输方式 fuelPerKm',
+  '每趟运费 = 全线距离 × 运输方式 transportFeePerKm',
+  '每趟燃料数量 = ceil(全线距离 × 运输方式 fuelPerKm)',
   '服务器不再遍历全部商品和全部交付节点寻找“最优货物”',
   '车辆每到一个节点都进入 `docked` 停靠态',
   '玩家离线 10 分钟或 10 天，单次恢复都最多完成当前一段',
   '`transportRoutes` 与进行中／历史 `transportShipments` 均属于玩家私有运输状态',
   '每名玩家最多保存 50 条路线',
   '同时真正处于 `in-transit` 的运输最多 20 笔',
-  '运输周期参数快照',
+  '运输参数快照',
 ]) requireText(warehouseDesign, text, `仓库设计缺少节点循环运输规则：${text}`);
 
 for (const text of [
@@ -91,8 +92,8 @@ for (const text of [
   '起终点相同',
   '固定往返',
   '节点装卸',
-  '周期运输费',
-  '周期燃料费',
+  '每趟运费',
+  '每趟燃料',
 ]) requireText(pageDesign, text, `页面设计缺少新运输页面规则：${text}`);
 
 for (const text of [
@@ -141,7 +142,7 @@ for (const text of [
   'capacity: 200', 'capacity: 2000', 'capacity: 300',
   'timeFactor: 1.0', 'timeFactor: 1.5', 'timeFactor: 0.25',
   'departureSeconds: 10', 'departureSeconds: 45', 'departureSeconds: 15',
-  'TRANSPORT_POLICY_VERSION = 2',
+  'TRANSPORT_POLICY_VERSION = 3',
 ]) requireText(transportPolicy, text, `共享运输策略缺少：${text}`);
 forbidText(transportPolicy, 'unitCostPerKm', '共享运输策略不得恢复按货量计费。');
 forbidText(transportPolicy, 'fixedCost:', '共享运输策略不得恢复每段固定运输费。');
@@ -160,7 +161,7 @@ for (const text of [
   "payload.operation === 'node-service'",
   "shipment.status = 'docked'",
   'migrateTransportWorld',
-  "creditPopulationEmployment(world, cycleCost.totalCost, 'transportService')",
+  "creditPopulationEmployment(world, cycleCost.transportFee, 'transportService')",
   "message: '路线创建后不可修改，请删除后重新建立'",
 ]) requireText(transport, text, `运输模块缺少：${text}`);
 for (const text of [
@@ -244,12 +245,12 @@ for (const text of [
   'isTransportRouteClosed',
   'TRANSPORT_WAITING_LABELS',
   '节点装卸',
-  '周期距离',
-  '周期运输费',
-  '周期燃料费',
-  '周期总费用',
-  '客户端离线时车辆最多到达当前下一节点',
-]) requireText(transportPage, text, `运输页缺少新周期/节点状态或行程业务语义：${text}`);
+  '全线距离',
+  '每趟运费',
+  '每趟燃料',
+  '本趟已付运费',
+  '离线最多完成当前一段',
+]) requireText(transportPresentation, text, `运输页缺少新趟次/节点状态或行程业务语义：${text}`);
 forbidText(transportPage, 'dispatchTransportRoute', '运输页不得恢复手动发运动作。');
 forbidText(transportPage, 'ToggleField', '运输页不得恢复自动发运开关。');
 forbidText(transportPage, 'IntegerInput', '运输路线不得恢复固定运输数量输入。');
@@ -294,9 +295,17 @@ if (warehousePanel.includes('WarehouseTransportPanel')) failures.push('仓库不
 if (warehousePanel.includes('warehouse-product-card-in-transit')) failures.push('仓库商品卡不得显示在途数量；在途信息唯一归属运输功能。');
 forbidText(provincePage, 'model.unlockProvince(', '州页不得恢复地区解锁动作。');
 
+for (const text of ['建线投入', 'transport-route-auto-note', 'useNow(game.lastProcessedAt']) {
+  forbidText(transportPage, text, `运输页面不得恢复重复投入、说明墙或整页秒级时钟：${text}`);
+}
+requireText(transport, 'entry.quantity + propulsion', '动力燃料和装货燃料必须联合校验。');
+requireText(transport, 'deletionPending', '必须保留完成本趟后删除。');
+requireText(transportPolicy, 'Math.ceil(distanceKm * fuelPerKm)', '燃料必须整趟向上取整。');
+requireText(provinceMap, 'entry.destinationName ?', '运输地图货物没有实际目的地时不能显示空箭头或猜测目的地。');
+
 if (failures.length) {
   console.error(`州级经济与节点循环运输验证失败：\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('州级经济与节点循环运输验证通过：路线业务行程仍按环线／往返结算，地图只使用单一正式几何；客户端装卸、距离计费、整周期燃料预付、单段离线到站与私有状态切片均已锁定。');
+console.log('州级经济与节点循环运输验证通过：路线业务行程仍按环线／往返结算，地图只使用单一正式几何；客户端装卸、距离计费、整趟燃料商品预扣、单段离线到站与私有状态切片均已锁定。');

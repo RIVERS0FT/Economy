@@ -140,18 +140,12 @@
 
 .transport-route-name-editor {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: end;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
 }
 
-.transport-route-auto-note {
-  margin: var(--space-4) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-}
 
 .transport-route-editor-actions {
   display: flex;
@@ -203,12 +197,12 @@
 .transport-manifest-list > li {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: var(--space-2);
 }
 
-.transport-manifest-list > li > span:last-child {
+.transport-manifest-list[data-delivered-history='true'] > li > span:last-child {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
@@ -217,7 +211,7 @@
   text-align: right;
 }
 
-.transport-manifest-list > li > span:last-child svg {
+.transport-manifest-list[data-delivered-history='true'] > li > span:last-child svg {
   flex: 0 0 auto;
 }
 
@@ -228,7 +222,10 @@
 
 @container transport-page (max-width: 640px) {
   .transport-route-summary-grid,
-  .transport-shipment-meta,
+  .transport-shipment-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .transport-route-name-editor {
     grid-template-columns: 1fr;
   }
@@ -243,7 +240,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .transport-manifest-list > li > span:last-child {
+  .transport-manifest-list[data-delivered-history='true'] > li > span:last-child {
     grid-column: 1 / -1;
     justify-content: flex-start;
     text-align: left;
@@ -312,4 +309,92 @@
 .transport-shipment-meta strong {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.transport-route-card .transport-route-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.transport-route-detail-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.transport-route-mode,
+.transport-node-time {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.transport-route-rules,
+.transport-fuel,
+.transport-node-cargo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.transport-fuel {
+  display: inline-flex;
+  flex-wrap: nowrap;
+}
+
+.transport-fuel .product-artwork {
+  width: 1.25em;
+  height: 1.25em;
+  flex: 0 0 1.25em;
+}
+
+.transport-route-card-heading > .ui-status-tag {
+  max-width: 55%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.transport-history-details > summary {
+  cursor: pointer;
+  line-height: 1.6;
+}
+
+.transport-history-details > summary > * {
+  margin-right: var(--space-3);
+}
+
+.transport-history-details[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
+.transport-node-records {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.transport-node-records > li {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.transport-node-cargo > small {
+  color: var(--color-text-muted);
+}
+
+.transport-manifest-list[data-delivered-history='true'] > li {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+@container transport-page (max-width: 420px) {
+  .transport-manifest-list[data-delivered-history='true'] > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .transport-manifest-list[data-delivered-history='true'] > li > span:last-child {
+    grid-column: 1 / -1;
+  }
 }

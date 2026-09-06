@@ -1,6 +1,8 @@
+// Retained only for legacy cash-fuel snapshots. New trips consume inventory.
 export const TRANSPORT_FUEL_UNIT_PRICE = 1;
+export const TRANSPORT_FUEL_PRODUCT_ID = 'industrial-fuel';
 export const TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000;
-export const TRANSPORT_POLICY_VERSION = 2;
+export const TRANSPORT_POLICY_VERSION = 3;
 export const TRANSPORT_MIN_NET_GAIN = 1;
 export const TRANSPORT_COST_MARGIN = 0.2;
 
@@ -56,7 +58,8 @@ export function createTransportCyclePolicy(mode) {
     capacity: definition.capacity,
     transportFeePerKm: definition.transportFeePerKm,
     fuelPerKm: definition.fuelPerKm,
-    fuelUnitPrice: TRANSPORT_FUEL_UNIT_PRICE,
+    fuelUnitPrice: 0,
+    fuelProductId: TRANSPORT_FUEL_PRODUCT_ID,
     secondsPerKm: TRANSPORT_BASE_SECONDS_PER_KM * definition.timeFactor,
     departureSeconds: definition.departureSeconds,
   };
@@ -74,7 +77,8 @@ export function isTransportCyclePolicy(policy) {
     && Number.isSafeInteger(policy.capacity) && policy.capacity > 0
     && ['transportFeePerKm', 'fuelPerKm', 'fuelUnitPrice', 'secondsPerKm', 'departureSeconds']
       .every((key) => Number.isFinite(policy[key]) && policy[key] >= 0)
-    && policy.secondsPerKm > 0);
+    && policy.secondsPerKm > 0
+    && (policy.version < 3 || (policy.fuelProductId === TRANSPORT_FUEL_PRODUCT_ID && policy.fuelUnitPrice === 0)));
 }
 
 export function transportCyclePolicyForShipment(shipment) {
@@ -87,4 +91,10 @@ export function transportPolicyDurationMs(policy, distanceKm) {
   const distance = Number(distanceKm);
   if (!isTransportCyclePolicy(policy) || !Number.isFinite(distance) || distance < 0) return 0;
   return Math.max(1_000, Math.round((policy.departureSeconds + distance * policy.secondsPerKm) * 1000));
+}
+
+/** Round once after summing the unrounded full-trip distance, never per leg. */
+export function transportFuelQuantity(distanceKm, fuelPerKm) {
+  if (!Number.isFinite(distanceKm) || distanceKm < 0 || !Number.isFinite(fuelPerKm) || fuelPerKm < 0) return 0;
+  return Math.ceil(distanceKm * fuelPerKm);
 }

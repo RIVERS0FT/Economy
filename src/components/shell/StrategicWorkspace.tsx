@@ -173,10 +173,11 @@ export function StrategicMapStage({ model, lens }: {
           mode: shipment.mode,
           arrivesAt: shipment.arrivesAt,
           legPlan: shipment.legPlan || [],
-          cargo: (shipment.manifest || []).filter((entry) => !delivered.has(entry.destinationProvinceId)).map((entry) => ({
+          cargo: (shipment.manifest || []).filter((entry) => !entry.destinationProvinceId || !delivered.has(entry.destinationProvinceId)).map((entry) => ({
             productName: productById.get(entry.productId)?.name ?? entry.productId,
             quantity: entry.quantity,
-            destinationName: provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId,
+            destinationName: entry.destinationProvinceId
+              ? provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId : undefined,
           })),
         };
       });

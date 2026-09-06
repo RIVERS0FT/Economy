@@ -1,6 +1,7 @@
 import {
   TRANSPORT_BASE_SECONDS_PER_KM,
   TRANSPORT_FUEL_UNIT_PRICE,
+  transportFuelQuantity,
   TRANSPORT_MODE_POLICY,
   createTransportCyclePolicy,
   transportPolicyDurationMs,
@@ -131,14 +132,14 @@ export function transportCycleCost(
     return { distanceKm: 0, transportFee: 0, fuelPurchased: 0, fuelCost: 0, totalCost: 0 };
   }
   const transportFee = Math.round(distanceKm * definition.transportFeePerKm * 1_000_000) / 1_000_000;
-  const fuelPurchased = Math.round(distanceKm * definition.fuelPerKm * 1_000_000) / 1_000_000;
-  const fuelCost = Math.round(fuelPurchased * TRANSPORT_FUEL_UNIT_PRICE * 1_000_000) / 1_000_000;
+  const fuelPurchased = transportFuelQuantity(distanceKm, definition.fuelPerKm);
+  const fuelCost = 0;
   return {
     distanceKm,
     transportFee,
     fuelPurchased,
     fuelCost,
-    totalCost: Math.round((transportFee + fuelCost) * 1_000_000) / 1_000_000,
+    totalCost: transportFee,
   };
 }
 
@@ -150,12 +151,6 @@ export function transportCost(mode: TransportModeId, distanceKm: number) {
   ) / 1_000_000);
 }
 
-export function transportFuelCost(mode: TransportModeId, distanceKm: number) {
-  const definition = TRANSPORT_MODES[mode];
-  if (!definition) return 0;
-  const fuel = definition.fuelPerKm * Math.max(0, distanceKm);
-  return Math.max(0, Math.round(fuel * TRANSPORT_FUEL_UNIT_PRICE * 1_000_000) / 1_000_000);
-}
 
 export function transportDurationMs(mode: TransportModeId, distanceKm: number) {
   const definition = TRANSPORT_MODES[mode];

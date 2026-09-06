@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applyAction, createWorld, ensurePlayer } from '../src/domain.js';
 import { processTransportWorld } from '../src/transport.js';
+import { inventoryForProvince } from '../src/provinces.js';
 
 const now = 1_700_000_000_000;
 const user = { id: 91, email: 'transport-empty@example.com', name: 'Transport Empty' };
@@ -10,6 +11,7 @@ test('new empty node-cycle shipment is never reinterpreted as a legacy shipment'
   const world = createWorld(now);
   const player = ensurePlayer(world, user, now);
   player.credits = 100_000;
+  inventoryForProvince(player, 'industrial-fuel', '110000').available = 10000;
   player.startingProvinceChosen = true;
   player.startingProvinceId = '110000';
   player.unlockedProvinces = ['110000', '130000'];
