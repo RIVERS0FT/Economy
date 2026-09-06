@@ -68,6 +68,7 @@ for (const width of [320, 390, 720, 1440]) {
 }
 
 test('commercial cards show per-building profit while running settlement keeps only the primary result', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
   await openCommerce(page);
   const first = page.locator('.commercial-building-card').first();
   await expect(first.locator('.facility-cluster-profit')).toContainText('0.50');
@@ -83,17 +84,37 @@ test('commercial cards show per-building profit while running settlement keeps o
   await expect(revenueCard.locator('.facility-formula-meta-icon')).toHaveCount(0);
   const inputGeometry = await settlement.locator('.facility-formula-item-group').first().evaluate((element) => {
     const style = getComputedStyle(element);
-    return { display: style.display, minHeight: style.minHeight, padding: style.padding, radius: style.borderRadius, shadow: style.boxShadow };
+    return { display: style.display, minHeight: style.minHeight, padding: style.padding, radius: style.borderRadius };
   });
   const revenueGeometry = await revenueCard.evaluate((element) => {
     const style = getComputedStyle(element);
-    return { display: style.display, minHeight: style.minHeight, padding: style.padding, radius: style.borderRadius, shadow: style.boxShadow };
+    return { display: style.display, minHeight: style.minHeight, padding: style.padding, radius: style.borderRadius };
   });
   expect(revenueGeometry).toEqual(inputGeometry);
   const meta = settlement.locator('.facility-formula-meta');
   await expect(meta).toHaveCount(1);
   await expect(meta.locator('.facility-formula-meta-unit')).toHaveCount(2);
-  expect(await meta.evaluate((element) => getComputedStyle(element).borderRadius)).toBe(inputGeometry.radius);
+  const revenueSurface = await revenueCard.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { borderColor: style.borderColor, backgroundColor: style.backgroundColor, backgroundImage: style.backgroundImage, boxShadow: style.boxShadow, radius: style.borderRadius };
+  });
+  const fundingSurface = await meta.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { borderColor: style.borderColor, backgroundColor: style.backgroundColor, backgroundImage: style.backgroundImage, boxShadow: style.boxShadow, radius: style.borderRadius };
+  });
+  expect(revenueSurface).toEqual(fundingSurface);
+  const revenueColor = await revenueCard.locator('.currency-amount').evaluate((element) => getComputedStyle(element).color);
+  const fundingColor = await meta.locator('.facility-formula-meta-unit.is-cost').evaluate((element) => getComputedStyle(element).color);
+  expect(revenueColor).toBe(fundingColor);
+  const revenueIcon = await revenueCard.locator('.currency-amount__icon').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { width: style.width, height: style.height };
+  });
+  const fundingIcon = await meta.locator('.facility-formula-meta-unit.is-cost .facility-formula-meta-icon').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { width: style.width, height: style.height };
+  });
+  expect(revenueIcon).toEqual(fundingIcon);
   await expect(settlement.locator('.facility-formula-side-label')).toHaveCount(0);
   for (const label of ['已投入商品', '锁定收入', '本周期等效营业数量', '本周期锁定收入', '本周期锁定商品价值', '本周期已付运营成本', '本周期锁定利润']) {
     await expect(page.getByText(label, { exact: true })).toHaveCount(0);

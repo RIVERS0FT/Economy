@@ -54,9 +54,15 @@ test('commercial settlement keeps one revenue money icon and one combined cycle-
   assert.doesNotMatch(detail, /CreditsIcon/);
   assert.match(detail, /<CurrencyAmount>/);
   assert.match(css, /--facility-formula-item-radius:/);
+  assert.match(css, /--facility-formula-money-color: var\(--color-warning\);/);
+  assert.match(css, /--facility-formula-money-icon-size: 1rem;/);
   assert.match(css, /\.facility-formula-item-group,\n\.facility-formula-money-card \{/);
-  assert.match(css, /\.facility-formula-meta \{[\s\S]*border-radius: var\(--facility-formula-item-radius\);/);
-  assert.match(css, /\.facility-formula-meta-unit\.is-cost \{[\s\S]*border-left: 1px solid var\(--color-divider\);/);
+  assert.match(css, /\.facility-formula-money-card \{[\s\S]*background: var\(--facility-formula-money-background\);[\s\S]*box-shadow: var\(--facility-formula-money-shadow\);/);
+  assert.match(css, /\.facility-formula-meta \{[\s\S]*border-radius: var\(--facility-formula-item-radius\);[\s\S]*background: var\(--facility-formula-money-background\);[\s\S]*box-shadow: var\(--facility-formula-money-shadow\);/);
+  assert.match(css, /\.facility-formula-money-card \.currency-amount__icon \{[\s\S]*width: var\(--facility-formula-money-icon-size\);/);
+  assert.match(css, /\.facility-formula-meta-unit\.is-cost \{[\s\S]*border-left: 1px solid var\(--color-divider\);[\s\S]*color: var\(--facility-formula-money-color\);/);
   assert.match(geometry, /商业收入只显示金额组件自身的一个资金图标/);
+  assert.match(geometry, /资金底座.*以投入资金数据带为视觉基准/);
+  assert.match(geometry, /资金图标.*固定同一尺寸.*金额文字.*统一使用投入资金颜色/);
   assert.match(geometry, /周期与成本继续保留在同一条操作数据带中，不拆成两个卡片/);
 });
