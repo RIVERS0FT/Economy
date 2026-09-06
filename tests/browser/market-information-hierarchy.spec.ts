@@ -22,7 +22,7 @@ test('market catalog shows daily price and real trade metrics without orderbook 
   await openGlobalMarket(page);
   const header = page.locator('.global-market-goods-header');
   await expect(header).toBeVisible();
-  for (const label of ['商品', '24h成交量', '今日价格', '24h价格变化']) {
+  for (const label of ['商品', '24h成交量', '地区均价', '24h价格变化']) {
     await expect(header.getByText(label, { exact: true })).toBeVisible();
   }
   for (const label of ['卖单量', '买单量', '挂单差额', '挂单状态']) {
@@ -65,7 +65,7 @@ test('regional market detail exposes daily-price immediate trading only', async 
   await expect(detail.locator('.market-detail-hero')).toHaveCount(0);
   await expect(detail.locator('.market-immediate-trade-card')).toBeVisible();
   await expect(detail.locator('.market-detail-trade-summary')).toHaveClass(/ui-entity-card/);
-  for (const label of ['今日价格', '今日成交量', '可用库存', '冻结库存']) {
+  for (const label of ['今日官方价', '今日成交量', '可用库存', '冻结库存']) {
     await expect(detail.locator('.market-detail-trade-summary').getByText(label, { exact: true })).toBeVisible();
   }
   await expect(detail.locator('.market-contract-summary-card')).toHaveCount(0);

@@ -16,7 +16,7 @@ export function BuildingTypeFilter({ value, onChange }: {
 }) {
   return (
     <details className="global-market-filter-disclosure building-type-filter">
-      <summary><span>筛选</span><small>{value === 'all' ? '默认折叠' : '1 项已启用'}</small></summary>
+      <summary><span>筛选</span>{value !== 'all' ? <small>1 项已启用</small> : null}</summary>
       <div className="global-market-filter-row" aria-label="建筑筛选">
         <div className="global-market-filter-group" role="group" aria-label="建筑分类">
           {BUILDING_KIND_OPTIONS.map((option) => (

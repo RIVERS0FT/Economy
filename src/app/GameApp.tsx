@@ -1,3 +1,4 @@
+import { tutorialFacility } from '../game-guide/tutorialContext';
 import { useMemo, type ReactNode } from 'react';
 import type { AuthUser } from '../types';
 import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
@@ -51,8 +52,10 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       return result;
     },
     buildFacility: async (facilityTypeId = model.selectedFacilityTypeId, quantity = 1, procurement) => {
+      const provinceId = model.selectedProvinceId;
+      const baseline = tutorialFacility(model.game, { facilityTypeId, provinceId })?.lifetimeOutput ?? 0;
       const result = await model.buildFacility(facilityTypeId, quantity, procurement);
-      if (result.ok) tutorial.recordBuildSubmit(facilityTypeId);
+      if (result.ok) tutorial.recordBuildSubmit(facilityTypeId, provinceId, baseline);
       return result;
     },
     startResearch: async (technologyId) => {
@@ -61,8 +64,9 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       return result;
     },
     startFacility: async (facilityTypeId) => {
+      const provinceId = model.selectedProvinceId;
       const result = await model.startFacility(facilityTypeId);
-      if (result.ok) tutorial.recordFacilityStartClick(facilityTypeId);
+      if (result.ok) tutorial.recordFacilityStartClick(facilityTypeId, provinceId);
       return result;
     },
   }), [model, pollingModel, tutorial]);

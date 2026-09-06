@@ -1,5 +1,6 @@
 import { useOperationNotifications } from '../../src/hooks/useOperationNotifications';
 import { installIdempotentGameWriteFetch } from '../../src/api/idempotentGameWriteFetch';
+import { TutorialProgressHarness } from './TutorialProgressHarness';
 import { TradeConfirmationHarness } from './TradeConfirmationHarness';
 import { GlobalBuildingsPage } from '../../src/pages/GlobalBuildingsPage';
 import { GlobalMarketPage } from '../../src/pages/GlobalMarketPage';
@@ -1896,12 +1897,12 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
 function TradeConfirmationRuntime() {
   const [tab, setTab] = useState<TabId>('market');
   const base = useMemo(() => buildOverviewModel(tab, setTab), [tab]);
-  return <TradeConfirmationHarness base={base} />;
+  return view === 'tutorial-progress' ? <TutorialProgressHarness base={base} /> : <TradeConfirmationHarness base={base} />;
 }
 
 Object.assign(window, { __installGameWriteCoordinator: installIdempotentGameWriteFetch });
 
-const runtimeView = view === 'trade-confirmation' ? <TradeConfirmationRuntime /> : view === 'unified-buildings' ? <CommerceHarness scope="global" />
+const runtimeView = ['trade-confirmation', 'tutorial-progress'].includes(view) ? <TradeConfirmationRuntime /> : view === 'unified-buildings' ? <CommerceHarness scope="global" />
   : view === 'regional-buildings' ? <CommerceHarness scope="regional" /> : view === 'commerce' ? <CommerceHarness /> : view === 'overview'
     ? <OverviewHarness />
     : view === 'map'

@@ -54,7 +54,7 @@ for (const stepId of ['start-research', 'review-contracts', 'make-bank-deposit',
 forbidText(controller, 'game.stats.', '教程不得读取玩家全局累计统计');
 requireText(controller, "updateCurrentRun('set-auto-sell', 'autoSellSettings'", '保存工厂自动经营后必须推进兼容步骤');
 requireText(controller, 'FACTORY_AUTO_OPERATION_SAVED_EVENT', '教程必须监听工厂自动经营保存事件');
-requireText(controller, 'facilityOutputProductId(model, detail.facilityTypeId)', '教程必须从本轮工厂当前生产配置绑定产成品');
+requireText(controller, 'facilityOutputProductId(model, detail.facilityTypeId, detail.provinceId)', '教程必须从本轮工厂当前生产配置绑定产成品');
 requireText(controller, "window.addEventListener(FACTORY_AUTO_OPERATION_SAVED_EVENT, handleSaved)", '教程必须只在成功保存工厂自动经营后推进');
 forbidText(controller, 'requestAutoSellPanel', '教程不得再打开已删除的商品自动交易设置面板');
 requireText(controller, "current.currentStep !== 'complete-sale'", '自动出售成交必须只推进当前第五步');
@@ -92,9 +92,9 @@ requireText(facilityAutoOperation, 'announceFactoryAutoOperationSaved({', '工�
 requireText(facilityAutoOperation, 'if (response.result.ok)', '失败的工厂策略保存不得推进教程');
 for (const text of [
   'const result = await model.buildFacility(facilityTypeId, quantity, procurement);',
-  'if (result.ok) tutorial.recordBuildSubmit(facilityTypeId);',
+  'if (result.ok) tutorial.recordBuildSubmit(facilityTypeId, provinceId, baseline);',
   'const result = await model.startFacility(facilityTypeId);',
-  'if (result.ok) tutorial.recordFacilityStartClick(facilityTypeId);',
+  'if (result.ok) tutorial.recordFacilityStartClick(facilityTypeId, provinceId);',
   'const result = await model.startResearch(technologyId);',
   'if (result.ok) tutorial.recordResearchStart();',
   'const result = await model.bankDeposit(amount);',
@@ -105,7 +105,7 @@ forbidText(gameApp, 'onAutoSellPolicyEnabled:', '教程不得再由商品级自�
 forbidText(gameApp, 'tutorial.recordWorkClick', '基础工作移除后不得继续推进教程');
 forbidText(gameApp, 'tutorial.recordSellOrderSubmit', '教程不得继续把手动卖单作为自动经营步骤');
 requireText(autoTrade, 'quantity > (previous[key] || 0)', '自动出售步骤必须只由服务器确认实际自动出售成交后推进，初次同步或无实际成交不得推进');
-requireText(autoTrade, 'handlers.onSale?.(key.slice(prefix.length));', '统一自动交易控制器必须把实际自动出售成交回传教程');
+requireText(autoTrade, 'handlers.onSale?.(key.slice(separator + 1), key.slice(0, separator));', '统一自动交易控制器必须把实际自动出售成交回传教程');
 requireText(autoSellCompat, "from '../auto-trade/useOnlineAutoTrade'", '旧自动出售 hook 入口必须转发到统一自动交易控制器');
 
 requireText(guide, "variant?: 'panel' | 'outliner'", '教程组件必须同时支持普通面板与战略追踪器紧凑模式');
@@ -198,3 +198,7 @@ requireText(chromeDesign, '地图／普通页面 < 移动教程 < 根 Sheet < �
 requireText(chromeDesign, 'Outliner 变体不得带独立 `.panel` 外壳', '外壳权威设计必须锁定教程不嵌套第二层玻璃卡');
 
 console.log('Tutorial verification passed.');
+
+requireText(controller, 'tutorialFacility(game, run.context)', '教程生产必须绑定地区与工厂');
+requireText(controller, "group.status !== 'running' || group.participatingCount <= 0", '自动确认只能接受真实运行');
+requireText(gameShell, 'pushPlayerPage(sourceTutorial.targetLocation)', '教程必须使用现有页面返回栈');

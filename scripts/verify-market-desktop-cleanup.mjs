@@ -13,7 +13,7 @@ const forbidText = (source, text, message) => { if (source.includes(text)) failu
 for (const token of [
   '<section className="market-trade-card market-immediate-trade-card">',
   'function MarketImmediateTradeEntry({',
-  '<small>今日价格</small>',
+  '<small>今日官方价</small>',
   '<small>今日成交量</small>',
   '<small>可用库存</small>',
   '<CommodityFreezeDisclosure',

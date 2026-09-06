@@ -76,7 +76,7 @@ requireText(
 );
 requireText(
   gameApp,
-  'if (result.ok) tutorial.recordBuildSubmit(facilityTypeId);',
+  'if (result.ok) tutorial.recordBuildSubmit(facilityTypeId, provinceId, baseline);',
   'tutorial wrapper success-gated advancement',
 );
 forbidText(

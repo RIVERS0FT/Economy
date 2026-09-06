@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { CompactNumber } from '../ui/CompactNumber';
 import { ChevronIcon } from '../icons/GameIcons';
 import { OperationMethodIcon } from '../icons/OperationMethodIcons';
@@ -94,7 +95,7 @@ function ProductPlanDetail({
       </span>
       <span className="production-config-metric-row">
         <span className="production-config-metric is-neutral">周期 {seconds(plan.cycleMs)}</span>
-        <span className="production-config-metric is-neutral">成本 {<CompactNumber value={plan.operatingCost} />}</span>
+        <span className="production-config-metric is-neutral">成本 {<CurrencyAmount>{plan.operatingCost}</CurrencyAmount>}</span>
       </span>
     </span>
   );
@@ -119,7 +120,7 @@ function MethodPlanDetail({
           周期 {seconds(plan.cycleMs)}{metricDirection(plan.cycleMs, currentPlan.cycleMs)}
         </span>
         <span className={`production-config-metric is-${costTone}`}>
-          成本 {<CompactNumber value={plan.operatingCost} />}{metricDirection(plan.operatingCost, currentPlan.operatingCost)}
+          成本 {<CurrencyAmount>{plan.operatingCost}</CurrencyAmount>}{metricDirection(plan.operatingCost, currentPlan.operatingCost)}
         </span>
         <span className={`production-config-metric is-${outputTone}`}>
           产出 ×{<CompactNumber value={plan.output.quantity} />}{metricDirection(plan.output.quantity, currentPlan.output.quantity)}

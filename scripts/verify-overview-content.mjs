@@ -81,10 +81,14 @@ requireAll(paths.overview, [
   'label="可支配资产"',
   'label="冻结资产"',
   'label="贷款负债"',
-  'theoreticalDailyOutput',
+  'overviewOperations(game)',
+  'openFacilities(status)',
+  'overview-operation-links',
   'home-grid',
 ]);
 forbidAll(paths.overview, [
+  'theoreticalDailyOutput',
+  '理论日产量',
   'GameGuideStrip',
   'StrategicOutliner',
   'overview-mobile-tutorial',

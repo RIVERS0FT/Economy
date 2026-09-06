@@ -25,6 +25,7 @@ export function FacilityOperatingDiagnostics({
   markets,
   credits,
   onOpenContracts,
+  onOpenProductMarket,
 }: {
   recipe: FacilityRecipeDefinition;
   productionCount: number;
@@ -33,6 +34,7 @@ export function FacilityOperatingDiagnostics({
   markets: Record<string, ProductMarketState>;
   credits: number;
   onOpenContracts: (productId: string) => void;
+  onOpenProductMarket?: (productId: string) => void;
 }) {
   const productNames = new Map(products.map((product) => [product.id, product.name]));
   const diagnosis = buildFacilityOperatingDiagnosis({
@@ -67,7 +69,7 @@ export function FacilityOperatingDiagnostics({
             <div key={item.productId}>
               <ProductArtwork productId={item.productId} />
               <span><strong>{productNames.get(item.productId) ?? item.productId}</strong><small>每周期需 {<CompactNumber value={item.requiredPerCycle} />} · 可用 {<CompactNumber value={item.available} />}</small></span>
-              <span>{cyclesLabel(item.supportedCycles)}{item.shortfallThisCycle > 0 ? ` · 缺 ${formatNumber(item.shortfallThisCycle)}` : ''}</span>
+              <span>{cyclesLabel(item.supportedCycles)}{item.shortfallThisCycle > 0 ? ` · 缺 ${formatNumber(item.shortfallThisCycle)}` : ''}{item.shortfallThisCycle > 0 && onOpenProductMarket ? <Button variant="text" aria-label={`采购${productNames.get(item.productId) ?? item.productId}`} onClick={() => onOpenProductMarket(item.productId)}>前往采购</Button> : null}</span>
             </div>
           ))}
         </div>

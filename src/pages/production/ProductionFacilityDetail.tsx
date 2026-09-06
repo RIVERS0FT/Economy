@@ -478,6 +478,7 @@ export function FacilityClusterDetailBody({
         onOpenProductMarket={openProductDetail}
       />
       <FacilityOperatingDiagnostics
+        onOpenProductMarket={openProductDetail}
         recipe={recipeState.activeRecipe}
         productionCount={operatingScope.count}
         products={products}

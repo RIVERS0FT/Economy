@@ -69,7 +69,7 @@ test('regional commodity detail keeps daily price and immediate trade in direct 
   await expectEntityCardSurface(page, '.market-detail-product-icon-card');
   await expectEntityCardSurface(page, '.market-detail-trade-summary');
   const visibleTradeSummary = await page.locator('.market-detail-trade-summary > span:visible small').allTextContents();
-  expect(visibleTradeSummary).toEqual(['今日价格', '今日成交量', '可用库存', '冻结库存']);
+  expect(visibleTradeSummary).toEqual(['今日官方价', '今日成交量', '可用库存', '冻结库存']);
 
   await expect(page.locator('.market-immediate-trade-card')).toBeVisible();
   await expect(page.locator('.market-immediate-trade-card .widget-heading')).toHaveCount(0);
@@ -118,7 +118,7 @@ test('regional commodity daily-price detail stays readable on mobile', async ({ 
   await expect(page.locator('.market-detail-product-artwork[data-product-artwork="wheat"]')).toBeVisible();
   await expectEntityCardSurface(page, '.market-detail-trade-summary');
   const tradeSummary = await page.locator('.market-detail-trade-summary > span:visible small').allTextContents();
-  expect(tradeSummary).toEqual(['今日价格', '今日成交量', '可用库存', '冻结库存']);
+  expect(tradeSummary).toEqual(['今日官方价', '今日成交量', '可用库存', '冻结库存']);
 });
 
 test('regional commodity detail marks the chart unavailable when its first detail request fails', async ({ page }) => {

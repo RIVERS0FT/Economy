@@ -97,6 +97,7 @@ for (const side of ['buy', 'sell']) {
       fixture.resolve({ ok: false, message: '交易结果尚未确认，请勿重复交易。', code: 'WRITE_RESULT_UNCONFIRMED' });
     });
     await expect(submit).toHaveText('确认交易结果');
+    await expect(page.locator('.notification-island--warning, .notification-toast--warning')).toContainText('交易结果尚未确认');
     await expect(submit).toBeEnabled();
     await submit.click();
     const calls = await page.evaluate(() => (window as unknown as { __tradeFixture: { calls: () => unknown[][] } }).__tradeFixture.calls());
@@ -104,7 +105,8 @@ for (const side of ['buy', 'sell']) {
     expect(calls[1]).toEqual(calls[0]);
     expect(calls[0].slice(0, 4)).toEqual(['commodity', 'machinery', side, 2]);
     await page.evaluate(() => (window as unknown as { __tradeFixture: { resolve: (value: unknown) => void } }).__tradeFixture.resolve({ ok: true, message: '成交完成' }));
-    await expect(page.locator('.market-trade-feedback')).toHaveText('成交完成');
+    await expect(page.locator('.market-trade-feedback')).toHaveCount(0);
+    await expect(page.locator('.notification-island, .notification-toast').filter({ hasText: '成交完成' })).toBeVisible();
     await expect(page.locator('.market-side-switch button').first()).toBeEnabled();
     expect(await page.locator('.market-immediate-trade').evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
   });
@@ -122,8 +124,28 @@ test('notification failure cannot turn a confirmed commodity purchase back into 
   await page.evaluate(() => {
     (window as unknown as { __tradeFixture: { resolve: (value: unknown) => void } }).__tradeFixture.resolve({ ok: true, message: '成交完成' });
   });
-  await expect(page.locator('.market-trade-feedback')).toHaveText('成交完成');
+  await expect(page.locator('.market-trade-feedback')).toHaveCount(0);
   await expect(page.locator('.market-submit-order')).toContainText('立即买入');
   await expect(page.locator('.market-side-switch button').first()).toBeEnabled();
   expect(errors).toEqual([]);
 });
+
+for (const ok of [true, false]) {
+  test(`receipt ${ok ? 'success' : 'failure'} uses notification without changing trade geometry`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('runtime-test.html?view=trade-confirmation&scenario=activity');
+    const form = page.locator('.market-immediate-trade');
+    const submit = page.locator('.market-submit-order');
+    await expect(form).toBeVisible();
+    await submit.scrollIntoViewIfNeeded();
+    const before = await form.boundingBox();
+    await submit.click();
+    await page.evaluate((ok) => (window as unknown as { __tradeFixture: { resolve: (result: unknown) => void } }).__tradeFixture.resolve({ ok, message: ok ? '成交完成' : '价格已变化' }), ok);
+    await expect(page.locator('.notification-island, .notification-toast').filter({ hasText: ok ? '成交完成' : '价格已变化' })).toBeVisible();
+    await expect(submit).toBeEnabled();
+    const after = await form.boundingBox();
+    expect(after?.height).toBeCloseTo(before!.height, 0);
+    expect(after?.width).toBeCloseTo(before!.width, 0);
+    await expect(page.locator('.market-trade-feedback')).toHaveCount(0);
+  });
+}

@@ -3,16 +3,17 @@ import { transportCyclePolicyForShipment } from '../../shared/transport-policy.j
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { ChevronIcon } from '../components/icons/GameIcons';
 import { useTransportRouteDraft } from '../components/shell/TransportRouteDraftContext';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { TextInput } from '../components/ui/FormControls';
 import { GameConcept } from '../components/ui/GameConcept';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { Button, PageLayout, StatusTag, WidgetHeading } from '../components/ui/layout';
 import type { TransportModeId, TransportRoute, TransportShipment, TransportTripType } from '../types';
-import { formatCurrency } from '../utils/formatters';
 import { estimateTransportRoute } from '../transport/transportPlanning.js';
 import { TransportForecast, TransportFuel, TransportLoad, TransportModeComparison, transportWaitingLabel } from '../transport/TransportEconomics';
 import { TransportShipmentProgress } from '../transport/TransportShipmentProgress';
+import { transportRecovery } from '../transport/transportRecovery';
 import { useTransportForecastNow } from '../transport/useTransportForecastNow';
 import {
   isTransportRouteClosed,
@@ -233,7 +234,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   function shipmentFuel(shipment: TransportShipmentView) {
     return transportCyclePolicyForShipment(shipment).fuelProductId
       ? <TransportFuel quantity={Number(shipment.fuelPurchased || 0)} />
-      : <span>旧制燃料费 {formatCurrency(Number(shipment.fuelCost || 0))}</span>;
+      : <span>旧制燃料费 <CurrencyAmount>{Number(shipment.fuelCost || 0)}</CurrencyAmount></span>;
   }
 
   function nodeRecords(shipment: TransportShipmentView) {
@@ -264,7 +265,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         <details className="transport-history-details">
           <summary>
             <strong>{new Date(timestamp).toLocaleString()}</strong>
-            <span>运费 {formatCurrency(Number(shipment.transportFee ?? shipment.cost))}</span>
+            <span>运费 <CurrencyAmount>{Number(shipment.transportFee ?? shipment.cost)}</CurrencyAmount></span>
             {shipmentFuel(shipment)}
             <span>交货 <CompactNumber value={Number(shipment.deliveredQuantity || 0)} /></span>
           </summary>
@@ -280,7 +281,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         </div>
         <TransportLoad shipment={shipment} />
         <div className="transport-shipment-meta">
-          <span><small>本趟已付运费</small><strong>{formatCurrency(Number(shipment.transportFee ?? shipment.cost))}</strong></span>
+          <span><small>本趟已付运费</small><strong><CurrencyAmount>{Number(shipment.transportFee ?? shipment.cost)}</CurrencyAmount></strong></span>
           <span><small><GameConcept concept="transport-fuel">本趟已扣燃料</GameConcept></small><strong>{shipmentFuel(shipment)}</strong></span>
           <span><small>已交货数量</small><strong><CompactNumber value={Number(shipment.deliveredQuantity || 0)} /></strong></span>
           <span><small>{shipment.status === 'docked' ? '停靠时间' : '预计到站'}</small><strong>{new Date(timestamp).toLocaleString()}</strong></span>
@@ -302,7 +303,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         <span><small>行程</small><strong>{routeTripLabel(routeDraft)}</strong></span>
         <span><small>运输方式</small><strong>{TRANSPORT_MODES[routeDraft.mode]?.name ?? routeDraft.mode}</strong></span>
         <span><small>站点</small><strong>{transportRouteStopIds(routeDraft).length}</strong></span>
-        <span><small>一次性建线费</small><strong>{formatCurrency(transportRouteSetupCost(routeDraft, routeDraft.mode, provinceById))}</strong></span>
+        <span><small>一次性建线费</small><strong><CurrencyAmount>{transportRouteSetupCost(routeDraft, routeDraft.mode, provinceById)}</CurrencyAmount></strong></span>
       </div>
       <TransportModeComparison
         game={game} route={routeDraft} now={now} provinceById={provinceById}
@@ -335,6 +336,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     const routeMode = TRANSPORT_MODES[detailRoute.mode];
     const cycleCost = cycleCostFor(detailRoute);
     const detailEstimate = routeEstimates.get(detailRoute.id) ?? estimateTransportRoute(game, detailRoute, now, provinceById);
+    const recovery = transportRecovery(detailEstimate.reason, detailRoute.sourceProvinceId);
 
     return (
       <PageLayout title={visibleRouteName(detailRoute)}>
@@ -377,7 +379,10 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
             {activeShipment ? (
               <ul className="transport-shipment-list">{shipmentCard(activeShipment, true)}</ul>
             ) : (
-              <TransportForecast estimate={detailEstimate} />
+              <>
+                <TransportForecast estimate={detailEstimate} />
+                {recovery && pageNavigation ? <Button variant="text" onClick={() => pageNavigation.pushPage(recovery.location)}>{recovery.label}</Button> : null}
+              </>
             )}
           </section>
 
@@ -429,7 +434,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                       {routePath(route)}
                       <div className="transport-route-summary-grid">
                         <span><small>全线距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
-                        <span><small>下一趟预计增益</small><strong>{estimate.netGain === null ? '待条件满足' : formatCurrency(estimate.netGain)}</strong></span>
+                        <span><small>下一趟预计增益</small><strong>{estimate.netGain === null ? '待条件满足' : <CurrencyAmount>{estimate.netGain}</CurrencyAmount>}</strong></span>
                       </div>
                       {activeShipment ? <><span className="transport-route-next-stop"><TransportShipmentProgress shipment={activeShipment} provinceById={provinceById} referenceNow={game.lastProcessedAt} /></span><TransportLoad shipment={activeShipment} /></> : null}
                     </button>
