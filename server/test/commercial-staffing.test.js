@@ -14,7 +14,22 @@ function setup(count = 2) {
   const world = createWorld(now);
   const player = ensurePlayer(world, user, now);
   player.credits = 100_000;
-  action(world, 'build', now, { quantity: count });
+  player.commercialBuildingGroups = [{
+    commercialTypeId: type.id,
+    provinceId,
+    count,
+    participatingCount: 0,
+    enabled: false,
+    status: 'stopped',
+    statusReason: 'manual',
+    staffingRateBps: 10_000,
+    staffingUpdatedAt: now,
+    staffingBatchCarryBps: 0,
+    lifetimeRevenue: 0,
+    lifetimeProfit: 0,
+    lifetimeGoodsConsumed: 0,
+  }];
+  ensureCommercialPlayer(player, now);
   const group = player.commercialBuildingGroups[0];
   for (const input of type.consumptionInputs) {
     inventoryForProvince(player, input.productId, provinceId).available = 1000;

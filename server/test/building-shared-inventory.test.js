@@ -3,7 +3,6 @@ import test from 'node:test';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { FACILITY_TYPE_CATALOG } from '../src/industry-catalog.js';
 import { migrateFacilityGroupWorld } from '../src/facility-groups.js';
-import { applyCommercialBuildingAction } from '../src/commercial-buildings.js';
 import { buildingFreezeSource, reconcileBuildingInputFreezes } from '../src/building-input-freezes.js';
 import { freezeCommodity, frozenForSource, assertCommodityFreezeInvariant } from '../src/commodity-freezes.js';
 import { inventoryForProvince, provinceScopedKey } from '../src/provinces.js';
@@ -15,9 +14,21 @@ function setup(commercialTypeId) {
   const world = createWorld(now);
   const player = ensurePlayer(world, user, now);
   player.credits = 100_000;
-  applyCommercialBuildingAction(world, user, { operation: 'build', provinceId, commercialTypeId, quantity: 3 }, now + 1);
-  const commerce = player.commercialBuildingGroups.find((group) => group.commercialTypeId === commercialTypeId);
-  Object.assign(commerce, { enabled: true, status: 'running', staffingRateBps: 10_000, staffingUpdatedAt: now });
+  player.commercialBuildingGroups = [{
+    commercialTypeId,
+    provinceId,
+    count: 3,
+    participatingCount: 3,
+    enabled: true,
+    status: 'running',
+    staffingRateBps: 10_000,
+    staffingUpdatedAt: now,
+    staffingBatchCarryBps: 0,
+    lifetimeRevenue: 0,
+    lifetimeProfit: 0,
+    lifetimeGoodsConsumed: 0,
+  }];
+  const commerce = player.commercialBuildingGroups[0];
   return { world, player, commerce };
 }
 

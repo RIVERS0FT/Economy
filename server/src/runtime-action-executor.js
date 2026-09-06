@@ -101,6 +101,13 @@ function createActionAcknowledgement(result, revision) {
   });
 }
 
+function suppressInitialBootstrapForAction(action, payload) {
+  if (action === 'pauseFacility' || action === 'setFacilityRecipe' || action === 'setFacilityRecipes') return true;
+  if (action === 'placeOrder' && payload?.execution === 'factory-auto-operation-policy') return true;
+  return action === 'commercialBuilding'
+    && (payload?.operation === 'stop' || payload?.operation === 'auto-operation');
+}
+
 function cancelRuntimeCommodityOrder(world, user, orderId, now, { processWorld = true } = {}) {
   const candidate = orderById(world, orderId);
   if (
@@ -290,26 +297,32 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     ensurePlayerBankAccount(player, now);
     ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: !store.scheduledProcessing });
     ensurePlayerWeeklyCashSettlement(player, now);
-    const contractsBeforeCycles = structuredClone(world.productionContracts || []);
-    settleProductionForAction(
-      world,
-      Number(user.id),
-      payload?.productionSettlement,
-      now,
-    );
-    store.captureContractAuditTransition(contractsBeforeCycles, world, {
-      actorUserId: Number(user.id), triggerType: 'production_output_reserve', action, requestKey, now,
-    });
-    if (!store.scheduledProcessing) {
-      store.processWorldIfDue(world, now, Number(user.id), {
-        force: false,
-        forceDomains: [],
-        auditTrigger: 'action_preprocess',
+    const suppressInitialBootstrap = suppressInitialBootstrapForAction(action, payload);
+    if (suppressInitialBootstrap) player.__suppressInitialAutoOperationBootstrap = true;
+    try {
+      const contractsBeforeCycles = structuredClone(world.productionContracts || []);
+      settleProductionForAction(
+        world,
+        Number(user.id),
+        payload?.productionSettlement,
+        now,
+      );
+      store.captureContractAuditTransition(contractsBeforeCycles, world, {
+        actorUserId: Number(user.id), triggerType: 'production_output_reserve', action, requestKey, now,
       });
+      if (!store.scheduledProcessing) {
+        store.processWorldIfDue(world, now, Number(user.id), {
+          force: false,
+          forceDomains: [],
+          auditTrigger: 'action_preprocess',
+        });
+      }
+      settlePlayerWeeklyCashOnLogin(world, world.players[String(user.id)], now, {
+        processWorld: !store.scheduledProcessing,
+      });
+    } finally {
+      if (suppressInitialBootstrap) delete player.__suppressInitialAutoOperationBootstrap;
     }
-    settlePlayerWeeklyCashOnLogin(world, world.players[String(user.id)], now, {
-      processWorld: !store.scheduledProcessing,
-    });
 
     const { gameResult, playerBeforeAction, contractsBeforeAction } = executeActionBody(
       store,

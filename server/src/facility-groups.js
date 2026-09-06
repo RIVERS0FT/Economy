@@ -1,7 +1,7 @@
 import { activeProductionRecipe, legacyProductionOperatingCost, PRODUCTION_BALANCE_VERSION } from './production-balance.js';
 import { buildingAvailableInput, buildingFreezeSource, reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { consumeBuildingCommodity } from './commodity-freezes.js';
-import { completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from './cycle-auto-operation.js';
+import { bootstrapBuildingAutoOperation, completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from './cycle-auto-operation.js';
 import {
   applyAction,
   createClientState,
@@ -442,6 +442,7 @@ function createGroup(typeId, overrides = {}, now = Date.now()) {
     lifetimeOutput: Math.max(0, Number(overrides.lifetimeOutput ?? overrides.completedQuantity ?? 0)),
     activeRecipeId: recipeFor(type, activeRecipeId)?.id,
     ...(Number.isSafeInteger(overrides.cycleRecordedLifetimeOutput) ? { cycleRecordedLifetimeOutput: overrides.cycleRecordedLifetimeOutput } : {}),
+    ...(overrides.autoOperationBootstrapPending === true ? { autoOperationBootstrapPending: true } : {}),
   };
 }
 
@@ -749,6 +750,7 @@ function startGroupRuntime(world, group, count, now) {
   group.enabled = true;
   group.status = 'running';
   delete group.statusReason;
+  delete group.autoOperationBootstrapPending;
   group.participatingCount = count;
   group.cycleStartedAt = now;
   group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
@@ -1034,6 +1036,10 @@ export function processFacilityGroupWorld(world, now = Date.now(), { migrate = t
   removeSystemFacilityOrders(world);
   for (const player of Object.values(world.players || {})) {
     ensureWarehouse(player);
+    const bootstrapProvinceIds = new Set((player.facilityGroups || [])
+      .filter((group) => group.enabled && group.status !== 'running' && group.autoOperationBootstrapPending === true)
+      .map((group) => normalizeProvinceId(group.provinceId)));
+    for (const provinceId of bootstrapProvinceIds) bootstrapBuildingAutoOperation(world, player, now, provinceId);
     const completed = [];
     for (const group of player.facilityGroups || []) processGroup(world, player, group, now, completed);
     for (const event of completed) recordCompletedIndustrialOutput(world, player, event.group, event.productId, event.output, now);
@@ -1058,6 +1064,8 @@ function buildFacilityGroup(world, userId, payload, now) {
   if (!type) return result(false, '工厂类型不存在');
   const quantity = normalizePositiveInteger(payload.quantity ?? 1, 100);
   if (!quantity) return result(false, '建造数量必须为 1 到 100 的整数');
+  const existingGroup = groupFor(player, type.id, false, now, provinceId);
+  const firstBuild = !existingGroup || existingGroup.count < 1;
   const totalCost = multiplyMoneyByInteger(type.buildCost, quantity);
   if (totalCost === null) return result(false, '建造资金超出系统可表示范围');
   if (!Array.isArray(type.buildInputs)) return result(false, '工厂建造材料目录无效');
@@ -1086,7 +1094,19 @@ function buildFacilityGroup(world, userId, payload, now) {
     ) + item.quantity;
   }
   creditPopulationEmployment(world, totalCost, 'construction');
-  addPurchasedGroup(world, player, type.id, quantity, now, provinceId);
+  const group = addPurchasedGroup(world, player, type.id, quantity, now, provinceId);
+  if (firstBuild) {
+    group.autoOperationBootstrapPending = true;
+    group.enabled = true;
+    bootstrapBuildingAutoOperation(world, player, now, provinceId);
+    reconcileFacilityGroup(world, player, group, now);
+    return result(
+      true,
+      group.status === 'running'
+        ? `${quantity} 座${type.name}已建成并默认开启运行`
+        : `${quantity} 座${type.name}已建成并默认开启运行意图，当前条件不足，满足后将自动启动`,
+    );
+  }
   return result(true, `${quantity} 座${type.name}已建成并加入同类工厂集群`);
 }
 
@@ -1096,6 +1116,9 @@ function startFacilityGroup(world, userId, payload, now) {
   const group = type ? groupFor(player, type.id, false, now, payload.provinceId) : null;
   if (!type || !group || availableGroupCount(world, player, group) < 1) return result(false, '工厂集群不存在或没有可用生产权');
   group.enabled = true;
+  if (group.status !== 'running' && group.autoOperationBootstrapPending === true) {
+    bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
+  }
   reconcileFacilityGroup(world, player, group, now);
   if (group.status === 'running') {
     return result(true, `${type.name}已开启生产，${group.participatingCount} 座未冻结工厂参与当前周期`);
@@ -1583,6 +1606,7 @@ function clientGroup(world, player, group, now) {
     cycleWageMultiplierBps: _cycleWageMultiplierBps,
     cycleStaffingRateBps: _legacyCycleStaffingRateBps,
     cycleRecordedLifetimeOutput: _cycleRecordedLifetimeOutput,
+    autoOperationBootstrapPending: _autoOperationBootstrapPending,
     productionWageCarryNumerator: _productionWageCarryNumerator,
     productionEmploymentTotalMicros: _productionEmploymentTotalMicros,
     productionEmploymentAllocatedMicros: _productionEmploymentAllocatedMicros,

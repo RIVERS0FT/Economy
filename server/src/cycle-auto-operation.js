@@ -78,15 +78,76 @@ export function quoteBuildingAutoProcurement(world, player, plan, batchIndex, no
   return { netProfitMicros: netProfit, marketCostMicros: marketCost, operatingCostMicros: operating, inputs };
 }
 
-function trade(world, player, provinceId, productId, side, quantity, now) {
+function trade(world, player, provinceId, productId, side, quantity, now, executionPrefix = 'cycle-auto') {
   if (!quantity) return null;
   const result = applySettledCommodityOrder(world, { id: player.userId }, {
     provinceId, productId, side, quantity, assetKind: 'commodity',
   }, now);
-  if (!result?.ok) throw new Error(result?.message || '周期自动交易失败');
+  if (!result?.ok) throw new Error(result?.message || '自动经营交易失败');
   const record = world.orders?.at(-1);
-  if (record?.ownerId === player.userId && record?.productId === productId) record.execution = `cycle-auto-${side}`;
+  if (record?.ownerId === player.userId && record?.productId === productId) record.execution = `${executionPrefix}-${side}`;
   return result;
+}
+
+function isInitialAutoOperationPlan(player, plan) {
+  if (!plan?.group?.enabled || !plan?.policy?.enabled
+    || plan.group.autoOperationBootstrapPending !== true) return false;
+  const cursorKey = `${plan.kind}:${plan.sourceId}`;
+  if (Number(player.autoOperationCycleCursors?.[cursorKey] || 0) > 0) return false;
+  if (plan.kind === 'commercial') return !plan.group.cycleActive && plan.group.status !== 'running';
+  return plan.group.status !== 'running';
+}
+
+function procureBuildingPlans(
+  world,
+  player,
+  plans,
+  now,
+  { initialOnly = false, executionPrefix = 'cycle-auto' } = {},
+) {
+  // Do not spend the cash needed to run the first prepared cycle of other active buildings.
+  const operatingReserve = plans.reduce((sum, plan) => sum + (total(plan.operatingCost, plan.batches[0]?.effectiveCount || 0) ?? 0n), 0n);
+  const blocked = new Set();
+  let changed = false;
+  for (let batch = 0; batch < 5; batch += 1) {
+    for (const plan of plans) {
+      const key = `${plan.kind}:${plan.sourceId}`;
+      if (!plan.policy.enabled || blocked.has(key) || !plan.batches[batch]) continue;
+      if (initialOnly && !isInitialAutoOperationPlan(player, plan)) continue;
+      if (plan.batches[batch].effectiveCount === 0) continue; // Staffing recovery needs no goods.
+      const quote = quoteBuildingAutoProcurement(world, player, plan, batch, now);
+      if (!quote || quote.netProfitMicros <= 0n
+        || (money(player.credits) ?? 0n) < quote.marketCostMicros + operatingReserve) {
+        blocked.add(key);
+        continue;
+      }
+      // All inputs were priced and funded before any purchase; outer economic transaction is atomic.
+      for (const input of quote.inputs) {
+        if (!input.quantity) continue;
+        for (const allocation of input.allocations) consumePreparedDailySupply(world, player.userId, allocation, now);
+        trade(world, player, plan.provinceId, input.productId, 'buy', input.marketQuantity, now, executionPrefix);
+        freezeCommodity(inventoryForProvince(player, input.productId, plan.provinceId), plan.kind, plan.sourceId, input.quantity);
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
+/**
+ * Purchase-only first-cycle bootstrap. It never writes a cycle cursor and never performs auto-sale.
+ * Eligibility is an explicit first-construction marker; old/migrated or transferred groups never infer it from zero output.
+ */
+export function bootstrapBuildingAutoOperation(world, player, now, provinceId) {
+  // Runtime action preprocessing may temporarily suppress bootstrap so a stop/configuration action cannot buy first.
+  // This transient flag is deleted before the player action is executed and is never persisted.
+  if (player?.__suppressInitialAutoOperationBootstrap === true) return false;
+  const selectedProvinceId = normalizeProvinceId(provinceId);
+  const plans = reconcileBuildingInputFreezes(world, player, now, selectedProvinceId);
+  return procureBuildingPlans(world, player, plans, now, {
+    initialOnly: true,
+    executionPrefix: 'bootstrap-auto',
+  });
 }
 
 export function recordCompletedIndustrialOutput(world, player, group, productId, output, now) {
@@ -100,6 +161,7 @@ export function recordCompletedIndustrialOutput(world, player, group, productId,
 /** Called only after a real, committed-in-this-transaction cycle result, never by a client timer. */
 export function completeBuildingCycleAutoOperation(world, player, group, kind, completedAt, now) {
   if (!Number.isFinite(completedAt) || completedAt <= 0 || completedAt > now) return false;
+  delete group.autoOperationBootstrapPending;
   const sourceId = buildingFreezeSource(group, kind);
   const cursorKey = `${kind}:${sourceId}`;
   if (Number(player.autoOperationCycleCursors?.[cursorKey] || 0) >= completedAt) return false;
@@ -125,29 +187,5 @@ export function completeBuildingCycleAutoOperation(world, player, group, kind, c
     changed = true;
   }
 
-  // Do not spend the cash needed to run the first prepared cycle of other active buildings.
-  const operatingReserve = plans.reduce((sum, plan) => sum + (total(plan.operatingCost, plan.batches[0]?.effectiveCount || 0) ?? 0n), 0n);
-  const blocked = new Set();
-  for (let batch = 0; batch < 5; batch += 1) {
-    for (const plan of plans) {
-      const key = `${plan.kind}:${plan.sourceId}`;
-      if (!plan.policy.enabled || blocked.has(key) || !plan.batches[batch]) continue;
-      if (plan.batches[batch].effectiveCount === 0) continue; // Staffing recovery needs no goods.
-      const quote = quoteBuildingAutoProcurement(world, player, plan, batch, now);
-      if (!quote || quote.netProfitMicros <= 0n
-        || (money(player.credits) ?? 0n) < quote.marketCostMicros + operatingReserve) {
-        blocked.add(key);
-        continue;
-      }
-      // All inputs were priced and funded before any purchase; outer economic transaction is atomic.
-      for (const input of quote.inputs) {
-        if (!input.quantity) continue;
-        for (const allocation of input.allocations) consumePreparedDailySupply(world, player.userId, allocation, now);
-        trade(world, player, provinceId, input.productId, 'buy', input.marketQuantity, now);
-        freezeCommodity(inventoryForProvince(player, input.productId, provinceId), plan.kind, plan.sourceId, input.quantity);
-        changed = true;
-      }
-    }
-  }
-  return changed;
+  return procureBuildingPlans(world, player, plans, now) || changed;
 }

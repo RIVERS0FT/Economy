@@ -1,7 +1,7 @@
 import { productionCostBoundary } from './production-balance.js';
 import { consumeCommodityFreeze, frozenForSource } from './commodity-freezes.js';
 import { reconcileBuildingInputFreezes } from './building-input-freezes.js';
-import { completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from './cycle-auto-operation.js';
+import { bootstrapBuildingAutoOperation, completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from './cycle-auto-operation.js';
 import {
   applyProductionUsageToResources,
   createProductionSettlementBasisId,
@@ -518,6 +518,10 @@ export function applyProductionSettlementClaim(world, userId, claim, now = Date.
   // A catch-up settles only cycles backed by the original snapshot. New purchases never backfill past downtime.
   for (const event of completed) recordCompletedIndustrialOutput(world, player, event.group, event.entry.recipe.output.productId, event.output, now);
   for (const event of completed) completeBuildingCycleAutoOperation(world, player, event.group, 'production', event.completedAt, now);
+  const bootstrapProvinceIds = new Set((player.facilityGroups || [])
+    .filter((group) => group?.enabled && group.status === 'error' && group.autoOperationBootstrapPending === true)
+    .map((group) => normalizeProvinceId(group.provinceId)));
+  for (const provinceId of bootstrapProvinceIds) bootstrapBuildingAutoOperation(world, player, now, provinceId);
   const currentResources = mutableResourcesFromBasis(createProductionSettlementBasis(world, userId, settleThrough));
   recoverEnabledErrorGroups(world, player, now, currentResources);
   reconcileBuildingInputFreezes(world, player, now);
