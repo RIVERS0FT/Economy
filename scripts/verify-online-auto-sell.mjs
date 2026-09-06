@@ -20,21 +20,27 @@ for (const token of ['model.onlineAutoBuy(', 'model.onlineAutoSell(', 'setInterv
 }
 for (const path of ['server/src/production-settlement.js', 'server/src/facility-groups.js', 'server/src/commercial-buildings.js']) {
   requireText(path, 'completeBuildingCycleAutoOperation');
-}
-for (const path of ['server/src/facility-groups.js', 'server/src/commercial-buildings.js']) {
   requireText(path, 'bootstrapBuildingAutoOperation');
 }
 for (const token of ['quoteBuildingAutoProcurement', 'netProfitMicros <= 0n', 'calculateCumulativeMarketSellFee',
   'reconcileBuildingInputFreezes', 'freezeCommodity', 'autoOperationCycleCursors', 'applySettledCommodityOrder',
   'quotePreparedDailySupply', 'consumePreparedDailySupply', 'bootstrapBuildingAutoOperation',
-  'initialOnly: true', "executionPrefix: 'bootstrap-auto'"]) {
+  'initialOnly: true', "executionPrefix: 'bootstrap-auto'", '__suppressInitialAutoOperationBootstrap']) {
   requireText('server/src/cycle-auto-operation.js', token);
+}
+for (const token of ["action === 'pauseFacility'", "action === 'setFacilityRecipe'", "action === 'setFacilityRecipes'",
+  "payload?.execution === 'factory-auto-operation-policy'", "payload?.operation === 'stop'", "payload?.operation === 'auto-operation'",
+  '__suppressInitialAutoOperationBootstrap']) {
+  requireText('server/src/runtime-action-executor.js', token);
 }
 for (const token of ['首周期原料 bootstrap', '不出售地区商品', '不写 `autoOperationCycleCursors`', '后续权威推进可以重新尝试']) {
   requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', token);
 }
 for (const token of ['首次建设默认开启营业意图', '玩家已手动停止的集群不得因扩建自动重启']) {
   requireText('docs/COMMERCIAL_BUILDINGS_DESIGN.md', token);
+}
+for (const token of ['默认开启运行意图 `enabled = true`', '首次建设后默认保持停止', '玩家正在关闭运行、切换配方或关闭／修改自动经营策略的动作前置结算不得抢先触发 bootstrap']) {
+  requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', token);
 }
 for (const token of ['MODE_PRICE_MULTIPLIERS', 'intent.keepOutput', 'intent.extraProtected']) {
   forbidText('server/src/factory-auto-operation.js', token);
@@ -60,4 +66,4 @@ forbidText('server/src/cycle-auto-operation.js', 'provinceAutoSaleEnabled');
 requireText('server/src/world-storage-v2.js', 'autoSaleRegions');
 forbidText('server/src/world-storage-v2.js', 'player.provinceAutoSaleEnabled?.[provinceId]');
 requireText('src/auto-trade/useOnlineAutoTrade.ts', 'state.saveEpoch !== saveEpoch');
-console.log('周期自动经营检查通过：首周期 bootstrap 只采购且不伪造完成，常规出售与后续采购仍由真实完成事件驱动。');
+console.log('周期自动经营检查通过：首周期 bootstrap 只采购且不伪造完成，停止/配置动作不会抢先采购，常规出售与后续采购仍由真实完成事件驱动。');
