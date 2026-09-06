@@ -37,7 +37,9 @@ for (const token of [
   'migrateCommercialWorld',
   'processCommercialWorld(world, now)',
   'commercialBuildingTypes: clone(COMMERCIAL_BUILDING_TYPE_CATALOG)',
-  'commercialBuildingGroups: clone(player?.commercialBuildingGroups || [])',
+  'publicCommercialBuildingGroup',
+  'autoOperationBootstrapPending: _autoOperationBootstrapPending',
+  'commercialBuildingGroups: (player?.commercialBuildingGroups || []).map(publicCommercialBuildingGroup)',
 ]) assert.ok(domain.includes(token), `商业状态投影缺少: ${token}`);
 
 assert.ok(runtime.includes("action === 'commercialBuilding'"));
