@@ -30,7 +30,11 @@ jobs:
           s=s.replace("    assert s.count(old)==count, (path, 'anchor count', s.count(old), old[:120])", "    if s.count(old)!=count:\n        failures.append((path, 'anchor count', s.count(old), old[:120])); print('PATCH_MISMATCH', failures[-1], flush=True); return")
           s=s.replace("    assert n==count, (path, 'pattern count', n, pattern)", "    if n!=count:\n        failures.append((path, 'pattern count', n, pattern)); print('PATCH_MISMATCH', failures[-1], flush=True); return")
           s=s.replace(r"r'  function notify\(message: string\) \{.*?\n  \}\n\n  async function showResult\(.*?\n  \}\n'", r"r'  function notify\(message: string\) \{.*?\n  \}\n  async function showResult\([^\n]*\n'")
+          s=s.replace(r"replace(p, '    notice,\n', '    notice,\n    noticeEvents,\n')", "replace(p, '    tab, setTab, notice,', '    tab, setTab, notice, noticeEvents,')", 1)
           s=s.replace("print('SCOPED PATCH APPLIED', flush=True)", "assert not failures, failures\nprint('SCOPED PATCH APPLIED', flush=True)")
           p.write_text(s)
+          q=Path('src/components/facilities/FacilityAutoOperationControls.tsx')
+          t=q.read_text().replace('      if (response.result.ok) {\n        const state', '      if (response.result.ok) {\n        const confirmedPolicy = authorityPolicy(group);\n        if (isCurrent() && confirmedPolicy !== sourcePolicy) setDraft(confirmedPolicy);\n        const state')
+          q.write_text(t)
           PY
           python3 .operation-notifications-edit.py
