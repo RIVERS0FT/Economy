@@ -514,7 +514,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         axisLabel: {
           color: chartColor.secondary,
           fontSize: Math.max(11, rootFontSize * 0.75),
-          rotate: variant === 'compact' ? 0 : 45,
+          rotate: 0,
           hideOverlap: true,
           margin: 10,
           formatter: (value: number) => formatMarketAxisTime(value),
