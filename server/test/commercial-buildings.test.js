@@ -26,11 +26,11 @@ function typeFor(id) {
   return type;
 }
 
-test('commercial building consumes local goods and settles a fixed locked profit without market volume', () => {
+test('first commercial build starts immediately and keeps locked profit independent from later market prices', () => {
   const { world, player } = setup();
   const type = typeFor('convenience-store');
-  inventoryForProvince(player, 'food', california).available = 1;
-  inventoryForProvince(player, 'beverage', california).available = 1;
+  inventoryForProvince(player, 'food', california).available = 2;
+  inventoryForProvince(player, 'beverage', california).available = 2;
   const foodMarket = world.markets[provinceScopedKey(california, 'food')];
   const beverageMarket = world.markets[provinceScopedKey(california, 'beverage')];
   foodMarket.officialPrice = 15;
@@ -42,22 +42,18 @@ test('commercial building consumes local goods and settles a fixed locked profit
     operation: 'build', provinceId: california, commercialTypeId: type.id, quantity: 1,
   }, now + 1);
   assert.equal(built.ok, true);
-  assert.equal(player.credits, 10_000 - type.buildCost);
   const group = player.commercialBuildingGroups.find((candidate) => candidate.commercialTypeId === type.id);
   assert.ok(group);
-  assert.equal(group.enabled, false);
-  group.autoOperationPolicy = { enabled: false, inputCoverageCycles: 2 }; // Isolate locked settlement from cycle procurement.
-
-  const started = applyCommercialBuildingAction(world, user, {
-    operation: 'start', provinceId: california, commercialTypeId: type.id,
-  }, now + 2);
-  assert.equal(started.ok, true);
+  assert.equal(group.enabled, true);
   assert.equal(group.status, 'running');
+  assert.equal(group.cycleActive, true);
+  assert.equal(player.credits, 10_000 - type.buildCost - type.operatingCost);
   assert.equal(inventoryForProvince(player, 'food', california).available, 0);
   assert.equal(inventoryForProvince(player, 'beverage', california).available, 0);
   assert.equal(group.pendingProfit, type.profitPerCycle);
   const lockedRevenue = group.pendingRevenue;
   assert.equal(lockedRevenue, 15 + 18 + type.operatingCost + type.profitPerCycle);
+  group.autoOperationPolicy = { enabled: false, inputCoverageCycles: 2 }; // Isolate locked settlement from completion-driven trading.
 
   // The cycle is locked at start. Later price changes cannot rewrite this cycle's stable margin.
   foodMarket.officialPrice = 30;
@@ -68,52 +64,54 @@ test('commercial building consumes local goods and settles a fixed locked profit
   assert.equal(group.lifetimeRevenue, lockedRevenue);
   assert.equal(player.stats.commercialProfitIssued, type.profitPerCycle);
   assert.equal(player.stats.commercialGoodsConsumed, 2);
-  assert.equal(group.status, 'error');
-  assert.equal(group.statusReason, 'insufficient_input');
   assert.equal(foodMarket.todayBuyQuantity, foodBuyBefore);
   assert.equal(foodMarket.todaySellQuantity, foodSellBefore);
 });
 
-test('commercial auto operation recovers after missing local goods are restored', () => {
+test('commercial first-cycle bootstrap retries after funds recover without another start click', () => {
   const { world, player } = setup();
   const type = typeFor('clothing-store');
+  const clothingMarket = world.markets[provinceScopedKey(california, 'clothing')];
+  const buyBefore = Number(clothingMarket.todayBuyQuantity || 0);
+  player.credits = type.buildCost + type.operatingCost;
+
   assert.equal(applyCommercialBuildingAction(world, user, {
     operation: 'build', provinceId: california, commercialTypeId: type.id, quantity: 1,
   }, now + 1).ok, true);
-  assert.equal(applyCommercialBuildingAction(world, user, {
-    operation: 'start', provinceId: california, commercialTypeId: type.id,
-  }, now + 2).ok, true);
   const group = player.commercialBuildingGroups.find((candidate) => candidate.commercialTypeId === type.id);
   assert.equal(group.status, 'error');
   assert.equal(group.statusReason, 'insufficient_input');
   assert.equal(group.enabled, true);
+  assert.equal(Number(clothingMarket.todayBuyQuantity || 0), buyBefore);
 
-  inventoryForProvince(player, 'clothing', california).available = 1;
+  player.credits += 1_000;
   processCommercialWorld(world, now + 3);
   assert.equal(group.status, 'running');
   assert.equal(group.participatingCount, 1);
-  assert.equal(inventoryForProvince(player, 'clothing', california).available, 0);
+  assert.ok(Number(clothingMarket.todayBuyQuantity || 0) > buyBefore);
+  assert.equal(Object.keys(player.autoOperationCycleCursors || {}).length, 0, 'bootstrap must not fake a completed-cycle cursor');
 });
 
-test('commercial building never consumes inventory from another province', () => {
+test('commercial first-cycle bootstrap buys only in the building province', () => {
   const { world, player } = setup();
   const type = typeFor('restaurant');
   inventoryForProvince(player, 'prepared-meal', california).available = 100;
   inventoryForProvince(player, 'beverage', california).available = 100;
+  const californiaMealMarket = world.markets[provinceScopedKey(california, 'prepared-meal')];
+  const alabamaMealMarket = world.markets[provinceScopedKey(alabama, 'prepared-meal')];
+  const californiaBuyBefore = Number(californiaMealMarket.todayBuyQuantity || 0);
+  const alabamaBuyBefore = Number(alabamaMealMarket.todayBuyQuantity || 0);
 
   assert.equal(applyCommercialBuildingAction(world, user, {
     operation: 'build', provinceId: alabama, commercialTypeId: type.id, quantity: 1,
   }, now + 1).ok, true);
-  assert.equal(applyCommercialBuildingAction(world, user, {
-    operation: 'start', provinceId: alabama, commercialTypeId: type.id,
-  }, now + 2).ok, true);
   const group = player.commercialBuildingGroups.find((candidate) => (
     candidate.commercialTypeId === type.id && candidate.provinceId === alabama
   ));
-  assert.equal(group.status, 'error');
-  assert.equal(group.statusReason, 'insufficient_input');
+  assert.equal(group.status, 'running');
   assert.equal(inventoryForProvince(player, 'prepared-meal', california).available, 100);
-  assert.equal(inventoryForProvince(player, 'prepared-meal', alabama).available, 0);
+  assert.equal(Number(californiaMealMarket.todayBuyQuantity || 0), californiaBuyBefore);
+  assert.ok(Number(alabamaMealMarket.todayBuyQuantity || 0) > alabamaBuyBefore);
 });
 
 test('stopping during an invested cycle keeps the locked settlement but prevents renewal', () => {
@@ -123,9 +121,6 @@ test('stopping during an invested cycle keeps the locked settlement but prevents
   applyCommercialBuildingAction(world, user, {
     operation: 'build', provinceId: california, commercialTypeId: type.id, quantity: 1,
   }, now + 1);
-  applyCommercialBuildingAction(world, user, {
-    operation: 'start', provinceId: california, commercialTypeId: type.id,
-  }, now + 2);
   const group = player.commercialBuildingGroups.find((candidate) => candidate.commercialTypeId === type.id);
   const lockedRevenue = group.pendingRevenue;
   const stockAfterStart = inventoryForProvince(player, 'clothing', california);
@@ -145,4 +140,27 @@ test('stopping during an invested cycle keeps the locked settlement but prevents
   assert.equal(group.status, 'stopped');
   assert.equal(group.participatingCount, 0);
   assert.equal(inventoryForProvince(player, 'clothing', california).available, inventoryAfterStart);
+});
+
+test('expanding a manually stopped commercial group does not restart it', () => {
+  const { world, player } = setup();
+  const type = typeFor('clothing-store');
+  inventoryForProvince(player, 'clothing', california).available = 2;
+  assert.equal(applyCommercialBuildingAction(world, user, {
+    operation: 'build', provinceId: california, commercialTypeId: type.id, quantity: 1,
+  }, now + 1).ok, true);
+  const group = player.commercialBuildingGroups.find((candidate) => candidate.commercialTypeId === type.id);
+  assert.equal(applyCommercialBuildingAction(world, user, {
+    operation: 'stop', provinceId: california, commercialTypeId: type.id,
+  }, now + 2).ok, true);
+  processCommercialWorld(world, Number(group.cycleCompletesAt));
+  assert.equal(group.enabled, false);
+  assert.equal(group.status, 'stopped');
+
+  assert.equal(applyCommercialBuildingAction(world, user, {
+    operation: 'build', provinceId: california, commercialTypeId: type.id, quantity: 1,
+  }, Number(group.staffingUpdatedAt || now) + 1).ok, true);
+  assert.equal(group.count, 2);
+  assert.equal(group.enabled, false);
+  assert.equal(group.status, 'stopped');
 });
