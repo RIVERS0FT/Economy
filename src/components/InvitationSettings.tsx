@@ -1,3 +1,4 @@
+import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { CompactNumber } from './ui/CompactNumber';
 import { useEffect, useState } from 'react';
 import { getInvitationSummary, type InvitationSummary } from '../api/invitations';
@@ -16,17 +17,17 @@ function statusLabel(status: string) {
   return '已撤销';
 }
 
-export function InvitationSettings() {
+export function InvitationSettings({ notify }: { notify: LoadedGameViewModel['notify'] }) {
   const [summary, setSummary] = useState<InvitationSummary | null>(null);
-  const [status, setStatus] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
 
   async function load() {
     try {
       setSummary(await getInvitationSummary());
-      setStatus('');
+      setLoadError('');
     } catch (reason) {
-      setStatus(reason instanceof Error ? reason.message : '无法读取邀请信息');
+      setLoadError(reason instanceof Error ? reason.message : '无法读取邀请信息');
     } finally {
       setLoading(false);
     }
@@ -37,9 +38,9 @@ export function InvitationSettings() {
   async function copyText(value: string, success: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setStatus(success);
+      notify(success, 'success');
     } catch {
-      setStatus('无法自动复制，请手动选择并复制');
+      notify('无法自动复制，请手动选择并复制', 'error');
     }
   }
 
@@ -52,13 +53,13 @@ export function InvitationSettings() {
           text: `一起来经营你的经济帝国。首次创建 Economy 玩家档案时完成邀请，分享者可获得 ${summary.rewardGems} 宝石。`,
           url: summary.shareUrl,
         });
-        setStatus('分享链接已发送');
+        notify('分享链接已发送', 'success');
         return;
       }
       await copyText(summary.shareUrl, '分享链接已复制');
     } catch (reason) {
       if (reason instanceof DOMException && reason.name === 'AbortError') return;
-      setStatus('无法分享邀请链接');
+      notify('无法分享邀请链接', 'error');
     }
   }
 
@@ -112,8 +113,7 @@ export function InvitationSettings() {
             </div>
           ) : null}
         </>
-      ) : <p>{loading ? '正在读取邀请信息…' : '邀请信息暂时不可用'}</p>}
-      {status ? <small role="status">{status}</small> : null}
+      ) : <p>{loading ? '正在读取邀请信息…' : loadError || '邀请信息暂时不可用'}</p>}
     </Panel>
   );
 }

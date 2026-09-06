@@ -11,6 +11,7 @@ import {
   normalizeNotificationRecords,
   notificationStorageKey,
   type NotificationRecord,
+  type NotificationInput,
   type NotificationTone,
   type PendingNotificationItem,
 } from '../notifications/notificationCenter';
@@ -87,6 +88,8 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
   const toastSequenceRef = useRef(0);
   const toastTimersRef = useRef(new Map<string, number>());
   const lastNoticeRef = useRef('');
+  const consumedEventsRef = useRef(new Set<string>());
+  const [notificationOwnerId, setNotificationOwnerId] = useState(model.user.id);
   const pendingKeysRef = useRef<Set<string> | null>(null);
   const pendingItems = useMemo(
     () => derivePendingNotificationItems(game),
@@ -132,11 +135,12 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
     toastTimersRef.current.set(toastId, timer);
   }, [removeToast]);
 
-  const addNotification = useCallback((title: string) => {
-    const tone = inferNotificationTone(title);
+  const addNotification = useCallback((input: NotificationInput) => {
+    const { title } = input;
+    const tone = input.tone ?? inferNotificationTone(title);
     setNotifications((current) => appendNotification(
       current,
-      { title, tone },
+      { ...input, title, tone },
       panelOpenRef.current,
     ));
     enqueueToast(title, tone);
@@ -168,10 +172,14 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
     clearToasts();
     lastNoticeRef.current = '';
     pendingKeysRef.current = null;
-    setNotifications(loadNotifications(model.user.id));
+    const stored = loadNotifications(model.user.id);
+    consumedEventsRef.current = new Set(stored.map((item) => item.id));
+    setNotificationOwnerId(model.user.id);
+    setNotifications(stored);
   }, [clearToasts, model.user.id]);
 
   useEffect(() => {
+    if (notificationOwnerId !== model.user.id) return;
     try {
       window.localStorage.setItem(
         notificationStorageKey(model.user.id),
@@ -180,9 +188,19 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
     } catch {
       // Notification history is optional and must never block gameplay.
     }
-  }, [model.user.id, notifications]);
+  }, [model.user.id, notificationOwnerId, notifications]);
 
   useEffect(() => {
+    if (model.noticeEvents !== undefined) {
+      for (const event of model.noticeEvents) {
+        if (event.userId !== model.user.id || consumedEventsRef.current.has(event.id)) continue;
+        consumedEventsRef.current.add(event.id);
+        addNotification(event);
+      }
+      consumedEventsRef.current = new Set(model.noticeEvents.filter((event) => event.userId === model.user.id).map((event) => event.id));
+      return;
+    }
+    // Compatibility for older read-only models. Real game actions always supply event IDs.
     const notice = model.notice.trim();
     if (!notice) {
       lastNoticeRef.current = '';
@@ -190,8 +208,8 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
     }
     if (lastNoticeRef.current === notice) return;
     lastNoticeRef.current = notice;
-    addNotification(notice);
-  }, [addNotification, model.notice]);
+    addNotification({ title: notice });
+  }, [addNotification, model.notice, model.noticeEvents, model.user.id]);
 
   useEffect(() => {
     const nextKeys = new Set(pendingItems.map((item) => item.key));

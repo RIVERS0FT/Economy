@@ -1,3 +1,4 @@
+import { useOperationNotifications } from '../../src/hooks/useOperationNotifications';
 import { installIdempotentGameWriteFetch } from '../../src/api/idempotentGameWriteFetch';
 import { TradeConfirmationHarness } from './TradeConfirmationHarness';
 import { GlobalBuildingsPage } from '../../src/pages/GlobalBuildingsPage';
@@ -1806,6 +1807,7 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
   const [marketViewMode, setMarketViewMode] = useState<'catalog' | 'detail'>('catalog');
   const fixtureNow = useMemo(() => Date.now(), []);
   const base = useMemo(() => buildOverviewModel(tab, setTab), [tab]);
+  const feedback = useOperationNotifications(base.user.id);
   const types = [
     { id: 'convenience-store', name: '便利店', profitPerCycle: 2.5, consumptionInputs: [{ productId: 'food', quantity: 1 }, { productId: 'beverage', quantity: 1 }] },
     { id: 'fresh-market', name: '生鲜超市', profitPerCycle: 3.2, consumptionInputs: [{ productId: 'fruit', quantity: 2 }] },
@@ -1839,6 +1841,8 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
   });
   Object.assign(window, {
     __setCommercialProvince: setProvinceId,
+    __operationNotify: feedback.notify,
+    __operationShowResult: feedback.showResult,
     __updateCommercialGroup: (commercialTypeId: string, patch: Partial<CommercialBuildingGroup>) => {
       setGroups((previous) => previous.map((group) => group.commercialTypeId === commercialTypeId && group.provinceId === provinceId ? { ...group, ...patch } : group));
     },
@@ -1860,7 +1864,8 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     '110000': { machinery: inventory(580), food: inventory(1), beverage: inventory(0), steel: inventory(100) },
     '120000': { machinery: inventory(10), food: inventory(50), beverage: inventory(50), steel: inventory(20) },
   };
-  const model = { ...base, selectedProvinceId: provinceId, selectedProvince: provinces.find((province) => province.id === provinceId) ?? provinces[0],
+  const model = { ...base, ...feedback, selectedProvinceId: provinceId, selectedProvince: provinces.find((province) => province.id === provinceId) ?? provinces[0],
+    refresh: async () => { Object.assign(window, { __operationRefreshMode: 'authoritative' }); },
     setSelectedProvinceId: setProvinceId, marketAssetId, marketViewMode,
     showMarketCatalog: () => setMarketViewMode('catalog'),
     selectMarketAsset: (_kind: AssetKind, productId: string, navigate = true) => {

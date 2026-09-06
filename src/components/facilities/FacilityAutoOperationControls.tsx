@@ -86,6 +86,8 @@ export function FacilityAutoOperationControls({
       });
       if (!response.result.ok && isCurrent()) setDraft(authorityPolicy(group));
       if (response.result.ok) {
+        const confirmedPolicy = authorityPolicy(group);
+        if (isCurrent() && confirmedPolicy !== sourcePolicy) setDraft(confirmedPolicy);
         const state = getStateAuthoritySnapshot().state;
         announceFactoryAutoOperationSaved({
           userId: Number(state?.userId || 0),

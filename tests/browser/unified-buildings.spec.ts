@@ -152,7 +152,8 @@ test('failed commercial policy save preserves the authoritative setting', async 
   await page.route('**/economy-api/game/commercial-buildings', (route) => route.fulfill({ json: { result: { ok: false, message: '自动经营策略无效' } } }));
   await openConvenienceDetail(page);
   const auto = page.getByRole('checkbox', { name: /^(开启|关闭)自动经营$/ });
-  await auto.click(); await expect(page.getByRole('alert')).toHaveText('自动经营策略无效');
+  await auto.click(); await expect(page.locator('.notification-toast--error, .notification-island--error')).toContainText('自动经营策略无效');
+  await expect(page.locator('.building-detail-page [role="alert"], .commercial-action-error')).toHaveCount(0);
   await expect(auto).toBeChecked(); await expect(auto).toBeEnabled();
   await expect(page.locator('.facility-information-summary .ui-switch')).toBeChecked();
   await expect(page.getByRole('checkbox', { name: /本地区自动出售/ })).toHaveCount(0);

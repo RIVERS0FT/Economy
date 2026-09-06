@@ -2,6 +2,7 @@ import type { CommercialAutoOperationPolicy } from '../types/commercial';
 export interface CommercialBuildingActionResult {
   ok: boolean;
   message: string;
+  code?: string;
 }
 
 export type CommercialBuildingOperation = 'build' | 'start' | 'stop' | 'auto-operation';
@@ -42,8 +43,11 @@ export async function runCommercialBuildingAction(
   if (!response.ok) {
     return {
       ok: false,
-      message: String(payload.message || '商业建筑操作失败，请刷新后重试'),
+      message: String(payload.result?.message || payload.message || '商业建筑操作失败，请刷新后重试'),
+      ...(response.status >= 500 || response.status === 408 ? { code: 'ACTION_RESULT_UNCONFIRMED' } : {}),
     };
   }
-  return payload.result ?? { ok: false, message: '服务器未返回商业建筑操作结果' };
+  return payload.result && typeof payload.result.ok === 'boolean' && typeof payload.result.message === 'string'
+    ? payload.result
+    : { ok: false, code: 'ACTION_RESULT_UNCONFIRMED', message: '服务器未返回商业建筑操作结果' };
 }
