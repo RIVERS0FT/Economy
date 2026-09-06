@@ -8,6 +8,7 @@ import {
 } from './ProductionFacilityDetail';
 
 export function MobileFacilityDetailSheet({
+  feedback,
   entry,
   products,
   inventories,
@@ -47,6 +48,7 @@ export function MobileFacilityDetailSheet({
         onToggle={onToggle}
       />
       <FacilityClusterDetailBody
+        feedback={feedback}
         entry={entry}
         products={products}
         inventories={inventories}

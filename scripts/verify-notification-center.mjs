@@ -332,4 +332,21 @@ assert.match(uiDesign, /`48px` 工具轨道和 `44×44px` 触控目标/);
 assert.match(uiDesign, /不得缩回旧测试夹具的 `36px`/);
 assert.match(uiDesign, /Sheet 自身承担唯一移动毛玻璃模糊/);
 
+// Receipt identity, not receipt text or time proximity, determines duplication.
+const firstReceipt = { id: 'operation-a', title: '设置已更新', tone: 'success', createdAt: 900_000 };
+const secondReceipt = { ...firstReceipt, id: 'operation-b' };
+const receiptHistory = appendNotification(appendNotification([], firstReceipt), secondReceipt);
+assert.equal(receiptHistory.length, 2, 'independent identical receipts must both be retained');
+assert.strictEqual(appendNotification(receiptHistory, firstReceipt), receiptHistory, 'replaying one event must not duplicate history');
+assert.equal(receiptHistory[0].tone, 'success', 'explicit operation outcome must determine tone');
+for (const path of ['src/components/buildings/BuildingAutoOperationSection.tsx', 'src/components/facilities/FacilityAutoOperationControls.tsx', 'src/pages/CommercePage.tsx']) {
+  assert.doesNotMatch(read(path), /facility-auto-operation__message|commercial-action-error|setActionError|setMessage/);
+}
+assert.doesNotMatch(read('src/components/InvitationSettings.tsx'), /setStatus|<small role="status">/);
+assert.doesNotMatch(read('src/styles/factory-auto-operation.css'), /facility-auto-operation__message/);
+assert.match(read('src/hooks/useOperationNotifications.ts'), /current\.events/);
+assert.match(read('src/hooks/useOperationNotifications.ts'), /result\.ok \? 'success' : 'error'/);
+assert.match(read('src/hooks/useOperationNotifications.ts'), /reportedRef/);
+assert.match(hook, /consumedEventsRef/);
+assert.match(uiDesign, /一次性操作结果不改变正文布局/);
 console.log('notification center verification passed');

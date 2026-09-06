@@ -1,3 +1,4 @@
+import { autoOperationSuccessMessage, reportActionException } from '../notifications/operationFeedback';
 import type { BuildingConstructionDraft } from '../hooks/useBuildingConstructionDraft';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { runCommercialBuildingAction, type CommercialBuildingOperation } from '../api/commercial';
@@ -54,7 +55,6 @@ export function CommercePage({
   const [internalDetailTypeId, setInternalDetailTypeId] = useState('');
   const [pendingAction, setPendingAction] = useState('');
   const pendingActionRef = useRef(false);
-  const [actionError, setActionError] = useState('');
   const activeDetailTypeId = onDetailCommercialTypeChange
     ? detailCommercialTypeId ?? ''
     : internalDetailTypeId;
@@ -88,7 +88,6 @@ export function CommercePage({
     else setInternalDetailTypeId('');
   };
 
-  useEffect(() => { setActionError(''); }, [activeDetailTypeId, model.selectedProvinceId]);
 
   const execute = async (
     key: string,
@@ -100,7 +99,6 @@ export function CommercePage({
     if (pendingActionRef.current) return;
     pendingActionRef.current = true;
     setPendingAction(key);
-    setActionError('');
     try {
       const result = await runCommercialBuildingAction(Number(game.saveEpoch || 0), {
         operation,
@@ -109,10 +107,16 @@ export function CommercePage({
         quantity,
         policy,
       });
-      if (!result.ok) setActionError(result.message);
-      await model.showResult(result);
-    } catch {
-      setActionError('商业建筑操作未能完成确认，请刷新状态后重试。');
+      if (result.code === 'ACTION_RESULT_UNCONFIRMED') {
+        await reportActionException(model, null, operation === 'auto-operation' ? '自动经营设置' : '商业建筑操作');
+      } else {
+        const previousEnabled = game.commercialBuildingGroups?.find((group) => group.provinceId === model.selectedProvinceId && group.commercialTypeId === commercialTypeId)?.autoOperationPolicy?.enabled ?? true;
+        await model.showResult(result.ok && operation === 'auto-operation' && policy
+          ? { ...result, message: autoOperationSuccessMessage(previousEnabled, policy.enabled) }
+          : result);
+      }
+    } catch (reason) {
+      await reportActionException(model, reason, operation === 'auto-operation' ? '自动经营设置' : '商业建筑操作');
     } finally {
       pendingActionRef.current = false;
       setPendingAction('');
@@ -221,7 +225,7 @@ export function CommercePage({
   const detail = selectedGroup && selectedDetailType ? (
     <BuildingDetailPage kind="commercial" name={selectedDetailType.name}
       provinceName={model.selectedProvince?.name || '当前地区'} embedded={embedded} onBack={closeDetail}>
-      {actionError ? <p className="commercial-action-error" role="alert">{actionError}</p> : null}
+
       <CommercialBuildingDetail group={selectedGroup} type={selectedDetailType}
         products={game.products} inventories={game.inventories} inventoryFreezeDetails={game.inventoryFreezeDetails}
         markets={game.markets} now={game.lastProcessedAt}
@@ -235,12 +239,12 @@ export function CommercePage({
     </BuildingDetailPage>
   ) : null;
 
-  if (renderPart === 'build') return <>{actionError ? <p className="commercial-action-error" role="alert">{actionError}</p> : null}{buildCard}</>;
+  if (renderPart === 'build') return <>{buildCard}</>;
   if (renderPart === 'cards') return <>{buildingCards}</>;
   if (selectedGroup && selectedDetailType) return detail;
 
   const content = <>
-    {actionError ? <p className="commercial-action-error" role="alert">{actionError}</p> : null}
+
     {selectedGroup && selectedDetailType ? detail : (
       <div className="regional-buildings-management commercial-buildings-management">
         {buildCard}

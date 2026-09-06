@@ -1,3 +1,4 @@
+import type { OperationFeedback } from '../../notifications/operationFeedback';
 import { BuildingStaffingProgress } from '../../components/buildings/BuildingStaffingProgress';
 import { BuildingClusterCard } from '../../components/buildings/BuildingClusterCard';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
@@ -52,6 +53,7 @@ export interface FacilityClusterEntry {
 }
 
 export interface FacilityClusterDetailSharedProps {
+  feedback: OperationFeedback;
   entry: FacilityClusterEntry;
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
@@ -384,6 +386,7 @@ export function FacilityClusterInformation({
 }
 
 export function FacilityClusterDetailBody({
+  feedback,
   entry,
   products,
   inventories,
@@ -425,7 +428,7 @@ export function FacilityClusterDetailBody({
   return (
     <>
       <section className="facility-production-settings mobile-detail-section" aria-label="生产配置">
-        <FacilityAutoOperationControls group={group}>
+        <FacilityAutoOperationControls group={group} feedback={feedback}>
           {({ policy, saving, updatePolicy }: FacilityAutoOperationController) => (
             <FacilityProductionConfigControls
               className="facility-production-settings-grid"
@@ -489,6 +492,7 @@ export function FacilityClusterDetailBody({
 
 
 export function FacilityClusterDetailContent({
+  feedback,
   entry,
   products,
   inventories,
@@ -512,6 +516,7 @@ export function FacilityClusterDetailContent({
         onToggle={onToggle}
       />
       <FacilityClusterDetailBody
+        feedback={feedback}
         entry={entry}
         products={products}
         inventories={inventories}
