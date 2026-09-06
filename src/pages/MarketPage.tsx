@@ -310,7 +310,7 @@ export function MarketPage({
       ? cachedMarketDetail
       : null;
   const marketDetailPending = Boolean(marketDetailLoading && !selectedMarketDetail);
-  const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail && !selectedMarket);
+  const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail);
   const marketChartUnavailable = marketDetailPending || marketDetailUnavailable;
   const marketDetailRefreshToken = [
     selectedMarket?.lastTradeAt ?? '',
