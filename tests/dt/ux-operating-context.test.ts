@@ -56,3 +56,9 @@ test('transport recovery navigates to the origin fuel market or bank without pla
   assert.deepEqual(transportRecovery('insufficient-funds', 'CA')?.location, { type: 'tab', tab: 'bank' });
   for (const reason of ['ready', 'price-boundary', 'quotes-not-ready', 'insufficient-profit']) assert.equal(transportRecovery(reason, 'CA'), null);
 });
+
+test('legacy tutorial context never redirects non-factory steps back to a factory', () => {
+  for (const step of ['start-research', 'review-contracts', 'make-bank-deposit', 'review-leaderboard'] as const) {
+    assert.equal(tutorialTargetLocation(step, { facilityTypeId: 'farm' }, '110000'), undefined);
+  }
+});

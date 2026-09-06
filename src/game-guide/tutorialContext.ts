@@ -14,7 +14,7 @@ export function tutorialTargetLocation(
   step: TutorialStepId, context: TutorialRunContext, provinceId: string,
 ): PlayerPageLocation | undefined {
   const targetProvince = context.provinceId;
-  if (step !== 'build-facility' && !targetProvince && context.facilityTypeId) {
+  if (['start-facility', 'complete-production', 'set-auto-sell', 'complete-sale'].includes(step) && !targetProvince && context.facilityTypeId) {
     return step === 'complete-sale' && context.productId
       ? { type: 'global-market-product', productId: context.productId }
       : { type: 'global-building', facilityTypeId: context.facilityTypeId };

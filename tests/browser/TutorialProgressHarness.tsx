@@ -21,7 +21,7 @@ export function TutorialProgressHarness({ base }: { base: LoadedGameViewModel })
       setGroups({ '110000': [snapshot('110000', status, 0)], '120000': [snapshot('120000', 'running', 100)] });
       tutorial.recordBuildSubmit(factoryId, '110000', 0);
     },
-    production: (provinceId: string, output: number) => setGroups((current) => ({ ...current, [provinceId]: [snapshot(provinceId, 'running', output)] })),
+    production: (provinceId: string, output: number, status: FacilityGroup['status'] = 'running') => setGroups((current) => ({ ...current, [provinceId]: [snapshot(provinceId, status, output)] })),
     selectProvince: setSelectedProvinceId,
     restart: tutorial.restart,
   } });

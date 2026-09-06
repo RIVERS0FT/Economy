@@ -29,7 +29,7 @@ test('blocked first factory stays at running confirmation until its own server s
   await expect(progress).toHaveAttribute('data-step', 'start-facility');
   await page.evaluate(() => (window as any).__tutorialFixture.production('120000', 101));
   await expect(progress).toHaveAttribute('data-step', 'start-facility');
-  await page.evaluate(() => (window as any).__tutorialFixture.production('110000', 1));
+  await page.evaluate(() => (window as any).__tutorialFixture.production('110000', 1, 'error'));
   await expect(progress).toHaveAttribute('data-step', 'set-auto-sell');
 });
 

@@ -224,7 +224,8 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
       if (!group) return;
       const baseline = run.context.productionBaseline;
       if (run.currentStep === 'start-facility') {
-        if (group.status !== 'running' || group.participatingCount <= 0) return;
+        const completedCycle = baseline !== undefined && group.lifetimeOutput > baseline;
+        if (!completedCycle && (group.status !== 'running' || group.participatingCount <= 0)) return;
         updateCurrentRun('start-facility', 'facilityStartClicks', {
           provinceId: group.provinceId,
           productionBaseline: baseline ?? group.lifetimeOutput,
