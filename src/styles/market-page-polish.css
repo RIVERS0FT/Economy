@@ -625,6 +625,7 @@
 
 .market-chart-card__content {
   min-width: 0;
+  margin: calc(var(--primary-surface-inset) * -0.5);
 }
 
 .market-chart-card.is-unavailable .market-chart-card__content {
