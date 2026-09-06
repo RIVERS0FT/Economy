@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { EconomyState } from '../../src/types/index.ts';
+import type { EconomyState } from '../../src/types.ts';
 import { authoritativeCountdownDeadlines } from '../../src/utils/authoritativeCountdowns.ts';
 import { commercialCycleProgress, commercialProfitPerMinute } from '../../src/utils/commercialPresentation.ts';
 
