@@ -3,7 +3,7 @@ import { subscribeCommodityWriteProgress } from '../api/commodityWriteProgress';
 import { WRITE_RESULT_UNCONFIRMED } from '../api/gameWriteConfirmation';
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getMarketDetail } from '../api/game';
+import { getMarketDetail, peekMarketDetail, prefetchMarketDetail } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import {
@@ -295,12 +295,20 @@ export function MarketPage({
   const selectedMarket = selectedProductMarket ?? selectedFacilityMarket;
   const assetName = selectedProduct?.name ?? selectedFacility?.name ?? '资产';
   const assetId = selectedProduct?.id ?? selectedFacility?.id ?? activeAssetId;
-  const selectedMarketDetail = marketDetail
-    && marketDetail.provinceId === model.selectedProvinceId
-    && marketDetail.assetKind === activeAssetKind
-    && marketDetail.assetId === assetId
-    ? marketDetail
+  const cachedMarketDetail = assetId
+    ? peekMarketDetail(model.selectedProvinceId, activeAssetKind, assetId)
     : null;
+  const marketDetailMatches = (detail: MarketDetail | null) => Boolean(
+    detail
+    && detail.provinceId === model.selectedProvinceId
+    && detail.assetKind === activeAssetKind
+    && detail.assetId === assetId
+  );
+  const selectedMarketDetail = marketDetailMatches(marketDetail)
+    ? marketDetail
+    : marketDetailMatches(cachedMarketDetail)
+      ? cachedMarketDetail
+      : null;
   const marketDetailPending = Boolean(marketDetailLoading && !selectedMarketDetail);
   const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail && !selectedMarket);
   const marketChartUnavailable = marketDetailPending || marketDetailUnavailable;
@@ -310,6 +318,8 @@ export function MarketPage({
     selectedMarket?.tradeVolume24h ?? '',
     selectedProductMarket?.officialPrice ?? '',
     selectedProductMarket?.nextPriceAt ?? '',
+    selectedProductMarket?.todayBuyQuantity ?? '',
+    selectedProductMarket?.todaySellQuantity ?? '',
   ].join('|');
 
   useEffect(() => {
@@ -464,6 +474,7 @@ export function MarketPage({
                 marketPrice={entry.marketPrice}
                 trend={entry.trend}
                 ariaLabel={`查看${entry.name}详情`}
+                onPrefetch={() => prefetchMarketDetail(model.selectedProvinceId, entry.kind, entry.id)}
                 onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}
               />
             </li>
