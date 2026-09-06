@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { CURRENT_CLIENT_STATE_VERSION } from '../../server/shared/economy-state-version.js';
 
 type HarnessWindow = Window & {
   __operationShowResult: (result: { ok: boolean; message: string } | Promise<{ ok: boolean; message: string }>) => Promise<void>;
@@ -7,9 +8,57 @@ type HarnessWindow = Window & {
   __operationRefreshMode?: string;
 };
 
+async function initializeIndustrialSession(page: Page) {
+  // Exercise the normal state-delivery path; never bypass the production epoch guard.
+  await page.route('**/economy-api/game/state**', (route) => route.fulfill({ json: {
+    revision: 1, unchanged: false, serverNow: Date.now(),
+    partitionRevisions: {
+      catalog: 'catalog-0001', player: 'player-00001', market: 'market-00001',
+      auction: 'auction-0001', contract: 'contract-0001', leaderboard: 'leader-00001',
+    },
+    patches: {
+      catalog: {
+        version: CURRENT_CLIENT_STATE_VERSION,
+        products: [{ id: 'machinery', name: '机械', category: 'industrial', basePrice: 5 }],
+        facilityTypes: [{
+          id: 'machine-factory', name: '机械厂', category: 'industrial', complexity: 'C1',
+          buildCost: 100, buildTimeMs: 0, cycleMs: 300_000, operatingCost: 1, inputs: [],
+          output: { productId: 'machinery', quantity: 1 }, systemValue: 100,
+          defaultRecipeId: 'machine-standard', recipes: [{
+            id: 'machine-standard', name: '标准', cycleMs: 300_000, operatingCost: 1,
+            inputs: [], output: { productId: 'machinery', quantity: 1 },
+          }],
+        }],
+        commercialBuildingTypes: [{ id: 'convenience-store', name: '便利店' }],
+        researchLevels: [{ id: 'C1', rank: 1, cost: 0, durationMs: 0 }],
+        provinces: [{ id: '110000', name: '加利福尼亚', shortName: 'CA', mapName: 'California', longitude: -119.4179, latitude: 36.7783 }],
+        defaultProvinceId: '110000',
+      },
+      player: {
+        userId: 123, saveEpoch: 3, playerName: '测试玩家', registeredAt: 1_800_000_000_000,
+        credits: 10_000, frozenCredits: 0, inventories: {}, provinceInventories: {}, facilityGroups: [], stats: {},
+        factoryAutoOperationPolicies: { '110000:machine-factory': { enabled: true, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } },
+      },
+      market: { orders: [], markets: {} }, auction: { assetAuctions: [] },
+      contract: { productionContracts: [] }, leaderboard: { leaderboard: [] },
+    },
+  } }));
+  const epoch = await page.evaluate(async () => {
+    const apiPath = '/src/api/game.ts';
+    const sessionPath = '/src/api/gameWriteSession.ts';
+    const api = await import(apiPath);
+    const session = await import(sessionPath);
+    session.beginGameWriteSession(123);
+    const response = await api.getGameState();
+    return response.state?.saveEpoch;
+  });
+  expect(epoch).toBe(3);
+}
+
 async function openDetail(page: Page, kind: 'industrial' | 'commercial') {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('runtime-test.html?view=regional-buildings&scenario=activity');
+  if (kind === 'industrial') await initializeIndustrialSession(page);
   await page.getByRole('tab', { name: kind === 'industrial' ? '工业' : '商业', exact: true }).click();
   await page.locator('.unified-building-list > .facility-cluster-selector-card').first().click();
   await expect(page.locator(`.building-detail-page[data-building-kind="${kind}"]`)).toBeVisible();
@@ -59,6 +108,10 @@ for (const width of [320, 1440]) {
       await page.route(kind === 'industrial' ? '**/economy-api/game/orders' : '**/economy-api/game/commercial-buildings', async (route) => {
         requests += 1;
         const payload = route.request().postDataJSON();
+        if (kind === 'industrial') {
+          expect(route.request().headers()['x-economy-save-epoch']).toBe('3');
+          expect(payload.execution).toBe('factory-auto-operation-policy');
+        }
         await gate;
         if (kind === 'commercial') {
           await page.evaluate((policy) => (window as HarnessWindow).__updateCommercialGroup('convenience-store', { autoOperationPolicy: policy }), payload.policy);
@@ -81,15 +134,19 @@ for (const width of [320, 1440]) {
 
     test(`${kind} rejected save preserves layout and authoritative settings at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1000 });
-      await page.route(kind === 'industrial' ? '**/economy-api/game/orders' : '**/economy-api/game/commercial-buildings', (route) => (
-        route.fulfill({ json: { revision: 1, result: { ok: false, message: '设置不可用' } } })
-      ));
+      let requests = 0;
+      await page.route(kind === 'industrial' ? '**/economy-api/game/orders' : '**/economy-api/game/commercial-buildings', (route) => {
+        requests += 1;
+        if (kind === 'industrial') expect(route.request().headers()['x-economy-save-epoch']).toBe('3');
+        return route.fulfill({ json: { revision: 1, result: { ok: false, message: '设置不可用' } } });
+      });
       const auto = await openDetail(page, kind);
       const before = await geometry(page);
       await auto.click();
       await expect(page.locator('.notification-toast--error, .notification-island--error')).toContainText('设置不可用');
       await expect(auto).toBeEnabled();
       await expect(auto).toBeChecked();
+      expect(requests).toBe(1);
       await expectGeometryUnchanged(page, before);
     });
   }
