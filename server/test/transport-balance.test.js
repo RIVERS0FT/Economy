@@ -153,6 +153,7 @@ test('paid policy survives serialization and does not reprice after a market cha
   const policy = { ...original.policySnapshot };
   const restored = JSON.parse(JSON.stringify(world));
   migrateTransportWorld(restored);
+  for (const market of Object.values(restored.markets || {})) market.officialPrice = 9999;
   const shipment = restored.transportShipments[0];
   const restoredPlayer = restored.players[String(user.id)];
   const credits = restoredPlayer.credits;
