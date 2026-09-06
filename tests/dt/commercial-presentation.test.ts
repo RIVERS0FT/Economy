@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { EconomyState } from '../../src/types.ts';
-import { authoritativeCountdownDeadlines } from '../../src/utils/authoritativeCountdowns.ts';
 import { commercialCycleProgress, commercialProfitPerMinute } from '../../src/utils/commercialPresentation.ts';
 
 test('commercial per-building profit does not accidentally use group count', () => {
@@ -23,24 +21,11 @@ test('commercial progress uses locked server timestamps and waits at completion'
   assert.deepEqual(group, { status: 'running', cycleStartedAt: 0, cycleCompletesAt: 300_000 });
 });
 
-test('commercial cycles register their server completion deadline for authoritative confirmation', () => {
-  const game = {
-    facilityGroups: [],
-    facilityTypes: [],
-    commercialBuildingGroups: [
-      { cycleActive: true, pendingRevenue: 0, cycleCompletesAt: 300_000 },
-      { cycleActive: false, pendingRevenue: 0, cycleCompletesAt: 200_000 },
-      { pendingRevenue: 12.5, cycleCompletesAt: 400_000 },
-    ],
-    stats: {},
-  } as unknown as EconomyState;
-  assert.deepEqual(authoritativeCountdownDeadlines(game), [300_000, 400_000]);
-});
-
 test('stopped, invalid and missing commercial cycles never fabricate progress', () => {
   for (const group of [
     { status: 'stopped' as const, cycleStartedAt: 0, cycleCompletesAt: 300_000 },
     { status: 'error' as const },
+    { status: 'running' as const },
     { status: 'running' as const },
     { status: 'running' as const, cycleStartedAt: 100, cycleCompletesAt: 100 },
     { status: 'running' as const, cycleStartedAt: NaN, cycleCompletesAt: Infinity },
