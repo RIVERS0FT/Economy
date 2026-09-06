@@ -49,7 +49,7 @@ for (const viewport of [
   { width: 1440, height: 900, label: 'desktop' },
   { width: 390, height: 844, label: 'mobile' },
 ] as const) {
-  test(`market date labels stay horizontal, unclipped and compact on ${viewport.label}`, async ({ page }) => {
+  test(`market date labels stay horizontal, inside plot ends and compact on ${viewport.label}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto('market-runtime-test.html?scenario=active');
 
@@ -59,9 +59,12 @@ for (const viewport of [
 
     const inspection = await chart.evaluate((element) => {
       const wrapper = element as HTMLElement;
+      const wrapperRect = wrapper.getBoundingClientRect();
       const svg = wrapper.querySelector<SVGSVGElement>('.economy-chart__canvas svg');
       if (!svg) throw new Error('market chart svg is missing');
-      const canvasRect = svg.getBoundingClientRect();
+      const axisLeft = Number(wrapper.dataset.axisLeft);
+      const axisRight = Number(wrapper.dataset.axisRight);
+      if (![axisLeft, axisRight].every(Number.isFinite)) throw new Error('market plot inset contract is missing');
       const dateLabels = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
         .filter((node) => /^\d{2}\/\d{2}$/.test(node.textContent?.trim() ?? ''))
         .map((node) => {
@@ -76,8 +79,8 @@ for (const viewport of [
         })
         .sort((left, right) => left.left - right.left);
       return {
-        canvasLeft: canvasRect.left,
-        canvasRight: canvasRect.right,
+        plotLeft: wrapperRect.left + axisLeft,
+        plotRight: wrapperRect.right - axisRight,
         dateLabels,
         timeLabelHeight: Number(wrapper.dataset.timeLabelHeight),
       };
@@ -90,14 +93,32 @@ for (const viewport of [
     }
     const firstLabel = inspection.dateLabels[0];
     const lastLabel = inspection.dateLabels[inspection.dateLabels.length - 1];
-    expect(firstLabel.left).toBeGreaterThanOrEqual(inspection.canvasLeft + 0.5);
-    expect(lastLabel.right).toBeLessThanOrEqual(inspection.canvasRight - 0.5);
-    expect(inspection.timeLabelHeight).toBeLessThanOrEqual(32);
+    expect(firstLabel.left).toBeGreaterThanOrEqual(inspection.plotLeft - 1);
+    expect(lastLabel.right).toBeLessThanOrEqual(inspection.plotRight + 1);
+    expect(inspection.timeLabelHeight).toBeLessThanOrEqual(28);
 
-    const cardInsets = await chartCard.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(Number.parseFloat);
+    const insets = await chartCard.evaluate((element) => {
+      const card = element as HTMLElement;
+      const content = card.querySelector<HTMLElement>('.market-chart-card__content');
+      if (!content) throw new Error('market chart card content is missing');
+      const style = getComputedStyle(card);
+      const cardRect = card.getBoundingClientRect();
+      const contentRect = content.getBoundingClientRect();
+      const cardInsets = [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(Number.parseFloat);
+      const borders = [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth].map(Number.parseFloat);
+      const effectiveInsets = [
+        contentRect.top - cardRect.top - borders[0],
+        cardRect.right - borders[1] - contentRect.right,
+        cardRect.bottom - borders[2] - contentRect.bottom,
+        contentRect.left - cardRect.left - borders[3],
+      ];
+      return { cardInsets, effectiveInsets };
     });
-    expect(Math.max(...cardInsets) - Math.min(...cardInsets)).toBeLessThanOrEqual(0.5);
+    expect(Math.max(...insets.cardInsets) - Math.min(...insets.cardInsets)).toBeLessThanOrEqual(0.5);
+    expect(Math.max(...insets.effectiveInsets) - Math.min(...insets.effectiveInsets)).toBeLessThanOrEqual(1);
+    for (let index = 0; index < insets.cardInsets.length; index += 1) {
+      expect(insets.effectiveInsets[index]).toBeGreaterThanOrEqual(3);
+      expect(insets.effectiveInsets[index]).toBeLessThan(insets.cardInsets[index] - 2);
+    }
   });
 }

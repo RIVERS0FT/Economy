@@ -122,20 +122,6 @@
   z-index: 4;
 }
 
-.market-chart-section-label {
-  position: absolute;
-  z-index: 5;
-  padding: 2px 5px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  background: var(--color-surface-control);
-  font-size: var(--font-size-xs);
-  font-weight: 650;
-  line-height: 1.2;
-  pointer-events: none;
-}
-
 .market-chart-footer {
   display: grid;
   justify-items: center;
@@ -145,7 +131,6 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
 }
-
 
 .market-chart-x-axis-title {
   min-height: 16px;

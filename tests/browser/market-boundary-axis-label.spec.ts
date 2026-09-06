@@ -29,7 +29,7 @@ async function inspectBoundaryLabels(chart: Locator) {
     }
 
     const boundaryY = wrapperRect.top + priceBottom;
-    const axisLabelRight = wrapperRect.left + axisLeft + 4;
+    const plotLeft = wrapperRect.left + axisLeft;
     const tickLabelPattern = /^(?:\d{1,3}(?:,\d{3})*|\d+(?:\.\d+)?[KMBT])$/;
     const labels = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
       .map((text) => {
@@ -38,20 +38,24 @@ async function inspectBoundaryLabels(chart: Locator) {
           text: text.textContent?.trim() ?? '',
           top: rect.top,
           bottom: rect.bottom,
+          left: rect.left,
           right: rect.right,
           height: rect.height,
         };
       })
-      .filter((label) => tickLabelPattern.test(label.text) && label.right <= axisLabelRight)
+      .filter((label) => tickLabelPattern.test(label.text))
       .filter((label) => Math.abs((label.top + label.bottom) / 2 - boundaryY) <= Math.max(12, label.height));
 
+    const priceMinMatches = labels.filter((label) => label.text === priceMinLabel);
     return {
       owner: wrapper.dataset.sharedBoundaryLabelOwner,
+      yAxisLabelsInside: wrapper.dataset.yAxisLabelsInside,
       volumeMaxLabelVisible: wrapper.dataset.volumeMaxLabelVisible,
       priceMinLabel,
       volumeMaxLabel,
       boundaryLabels: labels.map((label) => label.text),
-      priceMinMatches: labels.filter((label) => label.text === priceMinLabel).length,
+      priceMinMatches: priceMinMatches.length,
+      priceMinInside: priceMinMatches.length === 1 && priceMinMatches[0].left >= plotLeft - 1,
     };
   });
 }
@@ -59,8 +63,10 @@ async function inspectBoundaryLabels(chart: Locator) {
 async function expectSinglePriceBoundaryLabel(chart: Locator, context: string) {
   const result = await inspectBoundaryLabels(chart);
   expect(result.owner, `${context}共享边界必须归价格轴所有`).toBe('price');
+  expect(result.yAxisLabelsInside, `${context}纵轴刻度必须位于绘图区内部`).toBe('true');
   expect(result.volumeMaxLabelVisible, `${context}成交量最大刻度必须声明为隐藏`).toBe('false');
   expect(result.priceMinMatches, `${context}价格轴最小刻度必须保留`).toBe(1);
+  expect(result.priceMinInside, `${context}价格轴最小刻度必须位于 Grid 内部`).toBe(true);
   expect(result.boundaryLabels, `${context}共享边界只能存在一项纵轴刻度`).toEqual([result.priceMinLabel]);
 }
 
@@ -84,8 +90,8 @@ test('market zero-gap grids keep the shared boundary label on the price axis at 
   });
   await expect.poll(async () => {
     const result = await inspectBoundaryLabels(page.locator('.market-history-chart.full'));
-    return `${result.priceMinMatches}:${result.boundaryLabels.length}:${result.owner}:${result.volumeMaxLabelVisible}`;
-  }).toBe('1:1:price:false');
+    return `${result.priceMinMatches}:${result.boundaryLabels.length}:${result.owner}:${result.volumeMaxLabelVisible}:${result.yAxisLabelsInside}`;
+  }).toBe('1:1:price:false:true');
   await expectSinglePriceBoundaryLabel(page.locator('.market-history-chart.full'), '125% 根字号移动端');
   expect(pageErrors).toEqual([]);
 });
