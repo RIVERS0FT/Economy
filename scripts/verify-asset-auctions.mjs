@@ -286,7 +286,7 @@ requireText('scripts/verify-production-deployment.sh', [
   'database-incremental',
   'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
 ]);
-requireText('docs/README.md', ['客户端状态版本：41', '世界状态版本：33']);
+requireText('docs/README.md', ['客户端状态版本：42', '世界状态版本：33']);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '发布费计费基数为 `max(起拍价, 保留价)`',
   '卖方成交手续费为成交总价的精确 1%',

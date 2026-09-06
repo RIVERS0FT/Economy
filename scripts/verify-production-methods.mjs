@@ -114,4 +114,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：26 类工厂均使用四种具名制度与语义图标，旧制度只参与等参数存档迁移，共享制度定义、固定精度、研发校验、独立移动视口门禁与客户端版本 41 均已锁定。');
+console.log('生产方式验证通过：26 类工厂均使用四种具名制度与语义图标，旧制度只参与等参数存档迁移，共享制度定义、固定精度、研发校验、独立移动视口门禁与客户端版本 42 均已锁定。');
