@@ -24,8 +24,8 @@ test('market detail delivery keeps a bounded SWR cache, one in-flight request, a
 
   assert.equal(
     api.split('detail = await fetchMarketDetailOnce(provinceId, assetKind, assetId, epoch);').length - 1,
-    1,
-    '单次在途请求之后最多只能追加一次尾随刷新',
+    2,
+    '市场详情刷新必须只保留一次初始请求和最多一次尾随刷新调用点',
   );
 });
 
