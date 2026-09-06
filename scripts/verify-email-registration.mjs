@@ -148,7 +148,7 @@ for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册�
   requireText('src/components/InvitationSettings.tsx', text);
 }
 for (const text of ['填写好友邀请码', 'claimInvitation']) forbidText('src/components/InvitationSettings.tsx', text);
-requireText('src/pages/GemShopPage.tsx', '<InvitationSettings />');
+requireText('src/pages/GemShopPage.tsx', '<InvitationSettings notify={model.notify} />');
 forbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');
 
 for (const text of [
