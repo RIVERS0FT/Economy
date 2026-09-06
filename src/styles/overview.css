@@ -277,8 +277,8 @@
 }
 
 .overview-summary-card {
-  height: var(--overview-summary-card-height);
-  min-height: 0;
+  min-height: var(--overview-summary-card-height);
+  height: auto;
   display: flex;
   flex-direction: column;
 }
@@ -459,4 +459,26 @@
   .overview-mobile-tutorial {
     display: block;
   }
+}
+
+.overview-operation-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: auto;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+.overview-core-data .ui-button,
+.overview-operation-links .ui-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+.overview-core-data .ui-button .game-icon,
+.overview-operation-links .ui-button .game-icon {
+  width: 1em;
+  height: 1em;
 }

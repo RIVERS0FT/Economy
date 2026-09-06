@@ -5,7 +5,9 @@ import {
   type TutorialCompletionState,
 } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
-import { subscribeStateAuthoritySlice } from '../app/stateDelivery.js';
+import { tutorialFacility, tutorialTargetLocation } from './tutorialContext';
+import type { PlayerPageLocation } from '../navigation/playerPageStack';
+import { getStateAuthoritySnapshot, subscribeStateAuthoritySlice } from '../app/stateDelivery.js';
 import { tutorialStepDefinition, TUTORIAL_STEPS } from './tutorialDefinition';
 import {
   FACTORY_AUTO_OPERATION_SAVED_EVENT,
@@ -44,10 +46,11 @@ export interface GameTutorialController {
   hide: () => void;
   /** @deprecated Compatibility alias. Restarting is the only supported way to show a skipped tutorial. */
   show: () => void;
+  targetLocation?: PlayerPageLocation;
   openCurrentTarget: () => void;
-  recordBuildSubmit: (facilityTypeId: string) => void;
-  recordFacilityStartClick: (facilityTypeId: string) => void;
-  recordAutoSellCompletion: (productId: string) => void;
+  recordBuildSubmit: (facilityTypeId: string, provinceId?: string, productionBaseline?: number) => void;
+  recordFacilityStartClick: (facilityTypeId: string, provinceId?: string) => void;
+  recordAutoSellCompletion: (productId: string, provinceId?: string) => void;
   recordResearchStart: () => void;
   recordBankDeposit: () => void;
 }
@@ -84,9 +87,11 @@ function advanceRun(
   };
 }
 
-function facilityOutputProductId(model: LoadedGameViewModel, facilityTypeId: string) {
-  const group = model.game.facilityGroups.find((candidate) => candidate.facilityTypeId === facilityTypeId);
-  const type = model.game.facilityTypes.find((candidate) => candidate.id === facilityTypeId);
+function facilityOutputProductId(model: LoadedGameViewModel, facilityTypeId: string, provinceId: string) {
+  const snapshot = getStateAuthoritySnapshot().state;
+  const game = snapshot?.userId === model.user.id ? snapshot : model.game;
+  const group = tutorialFacility(game, { facilityTypeId, provinceId });
+  const type = game.facilityTypes.find((candidate) => candidate.id === facilityTypeId);
   if (!group || !type) return null;
   const directRecipe = type.recipes.find((recipe) => recipe.id === group.activeRecipeId);
   if (directRecipe) return directRecipe.output.productId;
@@ -211,18 +216,28 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
   }, [model, serverStatus?.completedVersion, userId]);
 
   useEffect(() => {
-    if (!run || run.currentStep !== 'complete-production') return undefined;
-    const facilityTypeId = run.context.facilityTypeId;
-    const baseline = run.context.productionBaseline;
-    if (!facilityTypeId || baseline === undefined) return undefined;
+    if (!run || !['start-facility', 'complete-production'].includes(run.currentStep)) return undefined;
     const confirmProduction = () => {
-      const group = model.game.facilityGroups.find((item) => item.facilityTypeId === facilityTypeId);
-      if (!group || group.lifetimeOutput <= baseline) return;
-      updateCurrentRun('complete-production', 'productionCompletions');
+      const snapshot = getStateAuthoritySnapshot().state;
+      const game = snapshot?.userId === userId ? snapshot : model.game;
+      const group = tutorialFacility(game, run.context);
+      if (!group) return;
+      const baseline = run.context.productionBaseline;
+      if (run.currentStep === 'start-facility') {
+        const completedCycle = baseline !== undefined && group.lifetimeOutput > baseline;
+        if (!completedCycle && (group.status !== 'running' || group.participatingCount <= 0)) return;
+        updateCurrentRun('start-facility', 'facilityStartClicks', {
+          provinceId: group.provinceId,
+          productionBaseline: baseline ?? group.lifetimeOutput,
+        });
+        return;
+      }
+      if (baseline === undefined || group.lifetimeOutput <= baseline) return;
+      updateCurrentRun('complete-production', 'productionCompletions', { provinceId: group.provinceId });
     };
     confirmProduction();
     return subscribeStateAuthoritySlice('player.production', confirmProduction);
-  }, [model, run, updateCurrentRun]);
+  }, [model, run, updateCurrentRun, userId]);
 
   useEffect(() => {
     if (!run || run.currentStep !== 'review-contracts' || model.tab !== 'contracts') return;
@@ -257,27 +272,36 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     model.setTab(tutorialStepDefinition(run.currentStep).targetTab);
   }, [model, run]);
 
-  const recordBuildSubmit = useCallback((facilityTypeId: string) => {
-    updateCurrentRun('build-facility', 'buildSubmits', { facilityTypeId });
-  }, [updateCurrentRun]);
+  const recordBuildSubmit = useCallback((facilityTypeId: string, provinceId = model.selectedProvinceId, productionBaseline = 0) => {
+    updateCurrentRun('build-facility', 'buildSubmits', { facilityTypeId, provinceId, productionBaseline });
+  }, [model.selectedProvinceId, updateCurrentRun]);
 
-  const recordFacilityStartClick = useCallback((facilityTypeId: string) => {
-    const group = model.game.facilityGroups.find((item) => item.facilityTypeId === facilityTypeId);
+  const recordFacilityStartClick = useCallback((facilityTypeId: string, provinceId = model.selectedProvinceId) => {
+    if (run?.context.facilityTypeId !== facilityTypeId || (run.context.provinceId && run.context.provinceId !== provinceId)) return;
+    const snapshot = getStateAuthoritySnapshot().state;
+    const group = tutorialFacility(snapshot?.userId === userId ? snapshot : model.game, { facilityTypeId, provinceId });
     updateCurrentRun('start-facility', 'facilityStartClicks', {
       facilityTypeId,
-      productionBaseline: Number(group?.lifetimeOutput || 0),
+      provinceId,
+      productionBaseline: run.context.productionBaseline ?? Number(group?.lifetimeOutput || 0),
     });
-  }, [model, updateCurrentRun]);
+  }, [model, run, updateCurrentRun, userId]);
 
   useEffect(() => {
     if (!run || run.currentStep !== 'set-auto-sell') return undefined;
     const handleSaved = (event: Event) => {
       const detail = (event as CustomEvent<FactoryAutoOperationSavedDetail>).detail;
       if (Number(detail?.userId) !== Number(userId) || !detail?.facilityTypeId) return;
-      const productId = facilityOutputProductId(model, detail.facilityTypeId);
+      if (run.context.facilityTypeId !== detail.facilityTypeId
+        || (run.context.provinceId && run.context.provinceId !== detail.provinceId)) return;
+      const snapshot = getStateAuthoritySnapshot().state;
+      if (snapshot?.userId !== userId
+        || (snapshot as { factoryAutoOperationPolicies?: Record<string, { enabled: boolean }> }).factoryAutoOperationPolicies?.[`${detail.provinceId}:${detail.facilityTypeId}`]?.enabled === false) return;
+      const productId = facilityOutputProductId(model, detail.facilityTypeId, detail.provinceId);
       if (!productId) return;
       updateCurrentRun('set-auto-sell', 'autoSellSettings', {
         facilityTypeId: detail.facilityTypeId,
+        provinceId: detail.provinceId,
         productId,
         autoSellStartedAt: Date.now(),
       });
@@ -286,18 +310,21 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     return () => window.removeEventListener(FACTORY_AUTO_OPERATION_SAVED_EVENT, handleSaved);
   }, [model, run, updateCurrentRun, userId]);
 
-  const recordAutoSellCompletion = useCallback((productId: string) => {
+  const recordAutoSellCompletion = useCallback((productId: string, provinceId?: string) => {
     setRun((current) => {
+      const targetProvince = current?.context.provinceId ?? (current ? tutorialFacility(model.game, current.context)?.provinceId : undefined);
       if (
         !current
+        || !targetProvince || targetProvince !== provinceId
         || current.currentStep !== 'complete-sale'
         || current.context.productId !== productId
+        || (current.context.provinceId && current.context.provinceId !== provinceId)
       ) return current;
       const next = advanceRun(current, 'complete-sale', 'saleCompletions');
       if (next !== current) saveTutorialRun(userId, next);
       return next;
     });
-  }, [userId]);
+  }, [model.game, userId]);
 
   const recordResearchStart = useCallback(() => {
     updateCurrentRun('start-research', 'researchStarts');
@@ -307,6 +334,7 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     updateCurrentRun('make-bank-deposit', 'bankDeposits');
   }, [updateCurrentRun]);
 
+  const targetLocation = run ? tutorialTargetLocation(run.currentStep, run.context, model.selectedProvinceId) : undefined;
   const currentStep = run ? tutorialStepDefinition(run.currentStep) : null;
   const currentStepIndex = run ? TUTORIAL_STEP_IDS.indexOf(run.currentStep) + 1 : 0;
   const serverCompleted = (serverStatus?.completedVersion || 0) >= CURRENT_TUTORIAL_VERSION
@@ -337,6 +365,7 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     hide: skip,
     show: restart,
     openCurrentTarget,
+    targetLocation,
     recordBuildSubmit,
     recordFacilityStartClick,
     recordAutoSellCompletion,
@@ -345,6 +374,7 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
   }), [
     currentStep,
     currentStepIndex,
+    targetLocation,
     openCurrentTarget,
     ready,
     recordAutoSellCompletion,

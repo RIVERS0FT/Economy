@@ -56,7 +56,7 @@ export function useOperationNotifications(userId: number, initialMessage = '') {
     if (activeUserRef.current !== userId || reportedRef.current.has(source) || reportedRef.current.has(result)) return;
     reportedRef.current.add(source);
     reportedRef.current.add(result);
-    notify(result.message, result.code === 'ACTION_RESULT_UNCONFIRMED' ? 'warning' : result.ok ? 'success' : 'error');
+    notify(result.message, (result.code === 'ACTION_RESULT_UNCONFIRMED' || result.code === 'WRITE_RESULT_UNCONFIRMED') ? 'warning' : result.ok ? 'success' : 'error');
   }, [notify, userId]);
 
   return {

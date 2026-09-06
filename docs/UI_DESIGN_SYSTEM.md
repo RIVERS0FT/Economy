@@ -7,8 +7,8 @@
 - 深色、稳定、专业的金融与产业经营氛围；
 - 信息密度高但层级清晰；
 - 玩家可见固定文案统一使用中文；
-- 绿色表示主要操作、增长、买入和正常；
-- 红色表示卖出、损失、危险和错误；
+- 绿色表示主要操作、增长、买入和正常，动作必须有名称、状态必须有文字，颜色不代替语义；
+- 红色表示卖出、损失、危险和错误；正常卖出必须明确为交易动作，不使用删除确认、危险图标或错误提示冒充成交状态；
 - 金色表示价格、等待和施工；
 - 蓝色表示信息；
 - 桌面适合持续观察，移动端适合单手操作并尊重安全区；
@@ -122,6 +122,8 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 ### 3.2 输入方式与共享交互状态
 
 所有 React 根入口通过 `src/app/interactionBootstrap.ts` 维护 `mouse`／`touch`／`keyboard` 输入方式；共享视觉由 `src/styles/interaction-states.css` 收束。交互表面声明 `data-ui-interactive="surface"`，鼠标 hover 必须同时满足输入方式与 `hover: hover`／`pointer: fine`，触摸产生的浏览器粘滞 `:hover` 不得改变可见样式；输入方式为 `keyboard` 时必须显示明确的 `:focus-visible` 焦点。防回退由 `scripts/verify-interaction-modality.mjs` 与 `tests/browser/input-modality.spec.ts` 锁定。
+
+生产方案收起态继续遵守纯图标规则，不为识别性优化新增方案名称、参数摘要或下拉箭头；地区标题导航的紧凑触控几何继续保持本文件现有例外，不得借本轮经营流程改进扩大命中盒或标题高度。
 
 ## 4. 开关焦点环与点击区域
 

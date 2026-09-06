@@ -44,7 +44,7 @@ export function useOnlineAutoTrade(
   model: LoadedGameViewModel,
   callbacks: {
     onAutoSellPolicyEnabled?: (productId: string) => void;
-    onSale?: (productId: string) => void;
+    onSale?: (productId: string, provinceId?: string) => void;
   } = {},
 ): OnlineAutoTradeController {
   const latest = useRef({ model, callbacks });
@@ -62,10 +62,12 @@ export function useOnlineAutoTrade(
       const previous = counts;
       counts = { ...next };
       if (!previous) return; // Initial synchronization is not a new sale.
-      const { model: current, callbacks: handlers } = latest.current;
-      const prefix = `${current.selectedProvinceId}:`;
+      const { callbacks: handlers } = latest.current;
       for (const [key, quantity] of Object.entries(next)) {
-        if (key.startsWith(prefix) && quantity > (previous[key] || 0)) handlers.onSale?.(key.slice(prefix.length));
+        const separator = key.indexOf(':');
+        if (separator > 0 && quantity > (previous[key] || 0)) {
+          handlers.onSale?.(key.slice(separator + 1), key.slice(0, separator));
+        }
       }
     });
   }, [userId, saveEpoch]);

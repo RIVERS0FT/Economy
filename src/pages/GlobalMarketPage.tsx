@@ -314,7 +314,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
           <details className="global-market-filter-disclosure">
             <summary>
               <span>筛选</span>
-              <small>{activeRegionalFilterCount > 0 ? `${activeRegionalFilterCount} 项已启用` : '默认折叠'}</small>
+              {activeRegionalFilterCount > 0 ? <small>{activeRegionalFilterCount} 项已启用</small> : null}
             </summary>
             <div className="global-market-filter-row" aria-label={`${selectedGlobalProduct.name}地区行情筛选`}>
               <div className="global-market-filter-group" role="group" aria-label="地区市场状态">
@@ -377,7 +377,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
         <details className="global-market-filter-disclosure">
           <summary>
             <span>筛选</span>
-            <small>{activeCatalogFilterCount > 0 ? `${activeCatalogFilterCount} 项已启用` : '默认折叠'}</small>
+            {activeCatalogFilterCount > 0 ? <small>{activeCatalogFilterCount} 项已启用</small> : null}
           </summary>
           <div className="global-market-filter-row" aria-label="全局商品筛选">
             <div className="global-market-filter-group" role="group" aria-label="商品分类">
@@ -410,7 +410,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
             columns={[
               { label: '商品', sortKey: 'name', defaultDirection: 'asc' },
               { label: '24h成交量', sortKey: 'volume24h', defaultDirection: 'desc' },
-              { label: '今日价格', sortKey: 'market-price', defaultDirection: 'desc' },
+              { label: '地区均价', description: '对有今日官方报价的地区取算术平均；缺少报价的地区不参与计算。这是地区比较指标，不是可执行成交价，实际交易以目标地区今日官方价为准。', sortKey: 'market-price', defaultDirection: 'desc' },
               { label: '24h价格变化', sortKey: 'price-change24h', defaultDirection: 'desc' },
               { key: 'chevron', label: '' },
             ]}

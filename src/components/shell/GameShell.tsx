@@ -92,7 +92,7 @@ export function GameShell({ model, children, offline = false }: {
     model.setTab('bank');
   }, [model.setTab]);
   const pagePresentation = STRATEGIC_PAGE_PRESENTATION[model.tab];
-  const tutorial = (model as LoadedGameViewModel & { tutorial?: GameTutorialController }).tutorial;
+  const sourceTutorial = (model as LoadedGameViewModel & { tutorial?: GameTutorialController }).tutorial;
   const playerName = game.playerName.trim() || '玩家';
 
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
@@ -230,6 +230,13 @@ export function GameShell({ model, children, offline = false }: {
     pageHistoryRef.current = appendPlayerPageHistory(pageHistoryRef.current, current);
     applyPlayerPageLocation(location);
   }, [applyPlayerPageLocation]);
+
+  const tutorial = useMemo(() => sourceTutorial ? {
+    ...sourceTutorial,
+    openCurrentTarget: () => sourceTutorial.targetLocation
+      ? pushPlayerPage(sourceTutorial.targetLocation)
+      : sourceTutorial.openCurrentTarget(),
+  } : undefined, [sourceTutorial, pushPlayerPage]);
 
   const replacePlayerPage = useCallback((location: PlayerPageLocation) => {
     applyPlayerPageLocation(location);

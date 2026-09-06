@@ -5,7 +5,7 @@ async function assertInstantMarket(page: import('@playwright/test').Page) {
   await expect(detail).toBeVisible();
   await expect(detail.locator('.market-immediate-trade-card')).toBeVisible();
   const summary = detail.locator('.market-trade-summary');
-  await expect(summary.getByText('今日价格', { exact: true })).toBeVisible();
+  await expect(summary.getByText('今日官方价', { exact: true })).toBeVisible();
   await expect(summary.getByText('今日成交量', { exact: true })).toBeVisible();
   await expect(summary.getByText('可用库存', { exact: true })).toBeVisible();
   await expect(summary.getByText('冻结库存', { exact: true })).toBeVisible();

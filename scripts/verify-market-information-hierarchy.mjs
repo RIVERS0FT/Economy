@@ -72,7 +72,7 @@ for (const token of [
   'className="market-detail-product-icon-card ui-entity-card"',
   '<ProductArtwork productId={selectedProduct.id} className="market-detail-product-artwork" />',
   'className="market-trade-summary market-detail-trade-summary ui-entity-card"',
-  '<small>今日价格</small>',
+  '<small>今日官方价</small>',
   '<small>今日成交量</small>',
   '<small>可用库存</small>',
   '<CommodityFreezeDisclosure',

@@ -88,7 +88,7 @@ for (const token of [
 ]) forbidText(marketPage, token, `玩家商品市场不得恢复挂单玩法: ${token}`);
 
 for (const token of [
-  '<small>今日价格</small>',
+  '<small>今日官方价</small>',
   '<small>今日成交量</small>',
   '<small>可用库存</small>',
   '<CommodityFreezeDisclosure',

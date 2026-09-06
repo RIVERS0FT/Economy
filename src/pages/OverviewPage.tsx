@@ -1,4 +1,8 @@
 import { useMemo } from 'react';
+import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
+import { FACILITY_STATUS_LABELS, type FacilityStatusFilter } from '../navigation/playerPageStack';
+import { overviewOperations } from '../utils/overviewOperations';
+import { ChevronIcon } from '../components/icons/GameIcons';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { GemIcon } from '../components/icons/GemIcon';
@@ -24,16 +28,15 @@ export function OverviewPage({ model }: OverviewPageProps) {
     showResult,
     setTab,
   } = model;
-  const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
-
-  const theoreticalDailyOutput = useMemo(() => game.facilityGroups.reduce((sum, group) => {
-    if (group.status !== 'running' || group.participatingCount <= 0) return sum;
-    const facilityType = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
-    const recipe = facilityType?.recipes.find((item) => item.id === group.activeRecipeId)
-      ?? facilityType?.recipes[0];
-    if (!recipe || recipe.cycleMs <= 0) return sum;
-    return sum + Math.floor((86_400_000 / recipe.cycleMs) * recipe.output.quantity * group.participatingCount);
-  }, 0), [game.facilityGroups, game.facilityTypes]);
+  const pageNavigation = usePlayerPageNavigation();
+  const operations = useMemo(() => overviewOperations(game), [game.facilityGroups, game.provinceFacilityGroups,
+    game.commercialBuildingGroups, game.transportRoutes, game.productionContractSummary, game.provinces]);
+  const openFacilities = (facilityStatus?: FacilityStatusFilter) => pageNavigation
+    ? pageNavigation.pushPage({ type: 'tab', tab: 'buildings', buildingKind: 'industrial', facilityStatus })
+    : setTab('buildings');
+  const openCommercial = () => pageNavigation
+    ? pageNavigation.pushPage({ type: 'tab', tab: 'buildings', buildingKind: 'commercial' })
+    : setTab('buildings');
 
   const claimedCheckInDates = new Set(game.checkIn.claimedDateKeys);
   const claimCompletesWeek = game.checkIn.weeklyBonusEligible
@@ -108,18 +111,19 @@ export function OverviewPage({ model }: OverviewPageProps) {
 
           <div className="overview-summary-row">
             <Panel className="widget production-summary overview-summary-card">
-              <WidgetHeading title="生产摘要" action={<Button variant="text" onClick={() => setTab('buildings')}>管理建筑</Button>} />
+              <WidgetHeading title="生产摘要" action={<Button variant="text" onClick={() => openFacilities()}>管理建筑</Button>} />
               <DataList className="compact overview-core-data">
-                <DataRow label="工厂总数" value={<CompactNumber value={totalFacilities} />} tone="info" />
-                <DataRow label="正在运行" value={<CompactNumber value={derived.runningFacilities} />} tone="success" />
-                <DataRow label="生产受阻" value={<CompactNumber value={derived.blockedFacilities} />} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
-                <DataRow label="主动停工" value={<CompactNumber value={derived.stoppedFacilities} />} tone={derived.stoppedFacilities ? 'warning' : 'neutral'} />
-                <DataRow label="理论日产量" value={<CompactNumber value={theoreticalDailyOutput} />} tone="info" />
+                <DataRow label="工厂总数" value={<Button variant="text" aria-label="查看全部工业建筑" onClick={() => openFacilities()}><CompactNumber value={operations.facilities.total} /><ChevronIcon direction="right" /></Button>} tone="info" />
+                {(['running', 'error', 'stopped'] as const).map((status) => (
+                  <DataRow key={status} label={FACILITY_STATUS_LABELS[status]}
+                    value={<Button variant="text" aria-label={`查看${FACILITY_STATUS_LABELS[status]}的工厂`} onClick={() => openFacilities(status)}><CompactNumber value={operations.facilities[status]} /><ChevronIcon direction="right" /></Button>}
+                    tone={status === 'running' ? 'success' : operations.facilities[status] > 0 ? status === 'error' ? 'danger' : 'warning' : 'neutral'} />
+                ))}
               </DataList>
-              <div className="overview-production-footnote">
-                <span>施工 {<CompactNumber value={derived.constructingFacilities} />}</span>
-                <span>新增工厂直接加入运行</span>
-                <span>生产配置立即生效</span>
+              <div className="overview-operation-links" aria-label="其他经营摘要">
+                <Button variant="text" onClick={openCommercial}>商业建筑 <CompactNumber value={operations.commercialCount} /><ChevronIcon direction="right" /></Button>
+                <Button variant="text" onClick={() => setTab('transport')}>运输路线 <CompactNumber value={operations.routeCount} /><ChevronIcon direction="right" /></Button>
+                <Button variant="text" onClick={() => setTab('contracts')}>进行中合同 <CompactNumber value={operations.activeContracts} /><ChevronIcon direction="right" /></Button>
               </div>
             </Panel>
 

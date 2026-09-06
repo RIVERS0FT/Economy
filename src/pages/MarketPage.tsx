@@ -97,7 +97,6 @@ function MarketImmediateTradeEntry({
 }) {
   const [quantityDraft, setQuantityDraft] = useState(String(orderQuantity));
   const [tradePhase, setTradePhase] = useState<'idle' | 'submitting' | 'confirming' | 'unconfirmed'>('idle');
-  const [tradeFeedback, setTradeFeedback] = useState('');
   const tradePending = useRef(false);
   const pendingTrade = useRef<{ side: OrderSide; quantity: number; price: number } | null>(null);
   const controlsLocked = tradePhase !== 'idle';
@@ -144,16 +143,17 @@ function MarketImmediateTradeEntry({
     pendingTrade.current = snapshot;
     tradePending.current = true;
     setTradePhase(confirming ? 'confirming' : 'submitting');
-    setTradeFeedback('');
     try {
       const result = await placeAssetOrder('commodity', assetId, snapshot.side, snapshot.quantity, snapshot.price);
-      setTradeFeedback(result.message);
       if (result.code === WRITE_RESULT_UNCONFIRMED) setTradePhase('unconfirmed');
       else { pendingTrade.current = null; setTradePhase('idle'); }
       void Promise.resolve().then(() => showResult(result)).catch(() => {});
     } catch {
       setTradePhase('unconfirmed');
-      setTradeFeedback('交易结果尚未确认，请勿重复交易；请确认原交易结果。');
+      void Promise.resolve().then(() => showResult({
+        ok: false, code: WRITE_RESULT_UNCONFIRMED,
+        message: '交易结果尚未确认，请勿重复交易；请确认原交易结果。',
+      })).catch(() => {});
     } finally { tradePending.current = false; }
   }
 
@@ -231,7 +231,6 @@ function MarketImmediateTradeEntry({
           : tradePhase === 'submitting' ? (orderSide === 'buy' ? '正在买入…' : '正在卖出…')
             : orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`}
       </Button>
-      {tradeFeedback ? <small className="ui-helper-text market-trade-feedback" role={tradePhase === 'unconfirmed' ? 'alert' : 'status'}>{tradeFeedback}</small> : null}
     </section>
   );
 }
@@ -515,7 +514,7 @@ export function MarketPage({
             <ProductArtwork productId={selectedProduct.id} className="market-detail-product-artwork" />
           </div>
           <div className="market-trade-summary market-detail-trade-summary ui-entity-card" aria-label="交易摘要">
-            <span><small>今日价格</small><strong><CurrencyAmount>{formatCurrency(officialPrice ?? selectedProduct.basePrice)}</CurrencyAmount></strong></span>
+            <span><small>今日官方价</small><strong><CurrencyAmount>{formatCurrency(officialPrice ?? selectedProduct.basePrice)}</CurrencyAmount></strong></span>
             <span><small>今日成交量</small><strong><CompactNumber value={todayVolume} /></strong></span>
             <span><small>可用库存</small><strong><CompactNumber value={selectedInventory.available} /></strong></span>
             <CommodityFreezeDisclosure key={`${model.selectedProvinceId}:${selectedProduct.id}`} quantity={selectedInventory.frozen} entries={game.inventoryFreezeDetails?.[selectedProduct.id]} />

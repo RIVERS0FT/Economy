@@ -51,6 +51,8 @@ const PAGE_AUTHORITY_DEPENDENCIES: Record<TabId, readonly StateAuthorityDependen
     'player.assets',
     'player.production',
     'player.progression',
+    'player.misc',
+    'contract',
   ],
   map: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
   province: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],

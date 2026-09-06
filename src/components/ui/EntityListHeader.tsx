@@ -1,3 +1,4 @@
+import { SafeTooltip } from './SafeTooltip';
 import { ChevronIcon } from '../icons/GameIcons';
 import '../../styles/entity-list-header.css';
 
@@ -11,6 +12,7 @@ export interface EntityListSortState<SortKey extends string> {
 export interface EntityListHeaderColumn<SortKey extends string> {
   key?: string;
   label: string;
+  description?: string;
   sortKey?: SortKey;
   defaultDirection?: EntityListSortDirection;
 }
@@ -50,6 +52,22 @@ export function EntityListHeader<SortKey extends string>({
           : isActive
             ? sortState?.direction === 'asc' ? 'ascending' as const : 'descending' as const
             : 'none' as const;
+        const content = isSortable ? (
+          <button
+            type="button"
+            className="entity-list-header__sort"
+            onClick={() => onSortChange(nextEntityListSort(
+              column.sortKey!,
+              sortState,
+              column.defaultDirection ?? 'asc',
+            ))}
+          >
+            <span>{column.label}</span>
+            <span className="entity-list-header__indicator" aria-hidden="true">
+              <ChevronIcon direction={isActive && sortState.direction === 'asc' ? 'up' : 'down'} />
+            </span>
+          </button>
+        ) : column.label;
         return (
           <span
             className="entity-list-header__cell"
@@ -57,22 +75,7 @@ export function EntityListHeader<SortKey extends string>({
             role="columnheader"
             aria-sort={ariaSort}
           >
-            {isSortable ? (
-              <button
-                type="button"
-                className="entity-list-header__sort"
-                onClick={() => onSortChange(nextEntityListSort(
-                  column.sortKey!,
-                  sortState,
-                  column.defaultDirection ?? 'asc',
-                ))}
-              >
-                <span>{column.label}</span>
-                <span className="entity-list-header__indicator" aria-hidden="true">
-                  <ChevronIcon direction={isActive && sortState.direction === 'asc' ? 'up' : 'down'} />
-                </span>
-              </button>
-            ) : column.label}
+            {column.description ? <SafeTooltip content={column.description}>{content}</SafeTooltip> : content}
           </span>
         );
       })}

@@ -26,6 +26,7 @@ export interface TutorialRunStats {
 }
 
 export interface TutorialRunContext {
+  provinceId?: string;
   facilityTypeId?: string;
   productionBaseline?: number;
   productId?: string;
@@ -129,6 +130,7 @@ function normalizeRun(value: unknown): LocalTutorialRun | null {
       bankDeposits: Math.max(0, Number(stats.bankDeposits || 0)),
     },
     context: {
+      provinceId: typeof raw.context?.provinceId === 'string' ? raw.context.provinceId : undefined,
       facilityTypeId: typeof raw.context?.facilityTypeId === 'string' ? raw.context.facilityTypeId : undefined,
       productionBaseline: Number.isFinite(Number(raw.context?.productionBaseline))
         ? Number(raw.context?.productionBaseline)

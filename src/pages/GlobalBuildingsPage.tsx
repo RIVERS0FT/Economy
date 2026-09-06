@@ -20,7 +20,8 @@ import {
 } from '../components/ui/EntityListHeader';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
-import { PageLayout, Panel } from '../components/ui/layout';
+import { FACILITY_STATUS_LABELS } from '../navigation/playerPageStack';
+import { Button, PageLayout, Panel } from '../components/ui/layout';
 import {
   resolveFacilityProfitPresentation,
   type FacilityProfitTone,
@@ -97,7 +98,7 @@ function productionMethodGroupForType(type: FacilityTypeDefinition) {
 
 
 export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
-  const [buildingFilter, setBuildingFilter] = useBuildingTypeFilter(`${model.game.userId}:global`);
+  const [storedBuildingFilter, setBuildingFilter] = useBuildingTypeFilter(`${model.game.userId}:global`);
   const [selectedCommercialTypeId, setSelectedCommercialTypeId] = useState<string | null>(null);
   const [selectedGlobalFacilityTypeId, setSelectedGlobalFacilityTypeId] = useState<string | null>(null);
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
@@ -114,6 +115,15 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   });
   const pageNavigation = usePlayerPageNavigation();
   const stackedLocation = pageNavigation?.currentLocation;
+  const facilityStatus = stackedLocation && 'facilityStatus' in stackedLocation ? stackedLocation.facilityStatus : undefined;
+  const buildingFilter = facilityStatus ? 'industrial' : stackedLocation?.type === 'tab' && stackedLocation.buildingKind
+    ? stackedLocation.buildingKind : storedBuildingFilter;
+  const scopeControl = facilityStatus ? (
+    <div className="global-market-filter-row" aria-label="工厂状态筛选">
+      <span>{FACILITY_STATUS_LABELS[facilityStatus]}</span>
+      <Button variant="text" onClick={() => pageNavigation?.replacePage({ type: 'tab', tab: 'buildings', buildingKind: 'industrial' })}>清除状态筛选</Button>
+    </div>
+  ) : null;
   const game = model.game;
   const provinces = operationalProvinces(model);
 
@@ -186,9 +196,9 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     }> = [];
 
     for (const province of provinces) {
-      const group = (game.provinceFacilityGroups?.[province.id] ?? [])
+      const group = (game.provinceFacilityGroups?.[province.id] ?? game.facilityGroups.filter((group) => group.provinceId === province.id))
         .find((candidate) => candidate.facilityTypeId === type.id);
-      if (!group) continue;
+      if (!group || (facilityStatus && group.status !== facilityStatus)) continue;
 
       const count = Math.max(0, Number(group.count || 0));
       if (count <= 0) continue;
@@ -287,6 +297,8 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     game.lastProcessedAt,
     game.products,
     game.provinceFacilityGroups,
+    game.facilityGroups,
+    facilityStatus,
     game.provinceMarkets,
     game.research?.completedTechnologyIds,
     provinces,
@@ -325,10 +337,10 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   const facilityProvinceRows = useMemo(() => {
     if (!selectedGlobalFacilityTypeId || !selectedGlobalFacility) return [];
     return provinces.flatMap((province, catalogIndex) => {
-      const group = (game.provinceFacilityGroups?.[province.id] ?? [])
+      const group = (game.provinceFacilityGroups?.[province.id] ?? game.facilityGroups.filter((group) => group.provinceId === province.id))
         .find((candidate) => candidate.facilityTypeId === selectedGlobalFacilityTypeId);
       const count = Math.max(0, Number(group?.count || 0));
-      if (!group || count <= 0) return [];
+      if (!group || count <= 0 || (facilityStatus && group.status !== facilityStatus)) return [];
 
       const scope = currentFormulaScope(group, game.lastProcessedAt);
       const recipeState = resolveFacilityDetailRecipeState({ group, type: selectedGlobalFacility });
@@ -388,6 +400,8 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     game.lastProcessedAt,
     game.products,
     game.provinceFacilityGroups,
+    game.facilityGroups,
+    facilityStatus,
     game.provinceMarkets,
     game.research?.completedTechnologyIds,
     provinces,
@@ -419,7 +433,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     setFacilityDetailTypeId(null);
     setActiveProvinceId(null);
     setSelectedGlobalFacilityTypeId(facilityTypeId);
-    pageNavigation?.pushPage({ type: 'global-building', facilityTypeId });
+    pageNavigation?.pushPage({ type: 'global-building', facilityTypeId, facilityStatus });
   };
 
   const openRegionalFacility = (provinceId: string) => {
@@ -432,6 +446,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       host: 'buildings',
       provinceId,
       facilityTypeId: selectedGlobalFacilityTypeId,
+      facilityStatus,
     });
   };
 
@@ -624,6 +639,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                       host: 'buildings',
                       provinceId: activeProvince.id,
                       facilityTypeId: nextFacilityTypeId,
+                      facilityStatus,
                     });
                   } else if (!nextFacilityTypeId) {
                     pageNavigation.onBack();
@@ -651,6 +667,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
           data-global-scope="buildings"
           data-global-facility-type-id={selectedGlobalFacilityTypeId}
         >
+          {scopeControl}
           {facilityProvinceRows.length > 0 ? (
             <section className="entity-list-surface global-facility-region-surface">
               <EntityListHeader
@@ -741,7 +758,11 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   return (
     <PageLayout title="建筑">
       <div className="global-operation-page global-buildings-page" data-global-scope="buildings">
-        <BuildingTypeFilter value={buildingFilter} onChange={setBuildingFilter} />
+        <BuildingTypeFilter value={buildingFilter} onChange={(value) => {
+          setBuildingFilter(value);
+          pageNavigation?.replacePage({ type: 'tab', tab: 'buildings' });
+        }} />
+        {scopeControl}
         <section className="entity-list-surface global-facility-catalog" aria-label="全局建筑目录">
           {sortedFacilityRows.length > 0 ? (
             <>
