@@ -131,18 +131,19 @@ export function StrategicMapStage({ model, lens }: {
   const highlightedRouteId = routeDraft?.highlightedRouteId ?? null;
   const routeOverlays = useMemo<ProvinceMapRouteOverlay[]>(() => {
     const overlays: ProvinceMapRouteOverlay[] = [];
-    if (model.tab === 'transport') {
-      for (const route of transportRoutes) {
-        const stops = transportRouteStopIds(route);
-        if (stops.length < 2) continue;
-        overlays.push({
-          id: `saved-${route.mode}-${route.id}`,
-          routeId: route.id,
-          mode: route.mode,
-          stops,
-          kind: route.id === highlightedRouteId ? 'highlight' : 'saved',
-        });
-      }
+    let highlightedOverlay: ProvinceMapRouteOverlay | null = null;
+    for (const route of transportRoutes) {
+      const stops = transportRouteStopIds(route);
+      if (stops.length < 2) continue;
+      const overlay: ProvinceMapRouteOverlay = {
+        id: `saved-${route.mode}-${route.id}`,
+        routeId: route.id,
+        mode: route.mode,
+        stops,
+        kind: route.id === highlightedRouteId ? 'highlight' : 'saved',
+      };
+      if (overlay.kind === 'highlight') highlightedOverlay = overlay;
+      else overlays.push(overlay);
     }
     if (routeDraft?.draft && draftStops.length >= 2) {
       overlays.push({
@@ -152,8 +153,9 @@ export function StrategicMapStage({ model, lens }: {
         kind: 'draft',
       });
     }
+    if (highlightedOverlay) overlays.push(highlightedOverlay);
     return overlays;
-  }, [draftStops, highlightedRouteId, model.tab, routeDraft?.draft, transportRoutes]);
+  }, [draftStops, highlightedRouteId, routeDraft?.draft, transportRoutes]);
 
   const shipmentOverlays = useMemo<ProvinceMapShipmentOverlay[]>(() => {
     return ((model.game.transportShipments || []) as ShipmentView[])
