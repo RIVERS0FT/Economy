@@ -2,6 +2,8 @@ import {
   TRANSPORT_BASE_SECONDS_PER_KM,
   TRANSPORT_FUEL_UNIT_PRICE,
   TRANSPORT_MODE_POLICY,
+  createTransportCyclePolicy,
+  transportPolicyDurationMs,
 } from '../../shared/transport-policy.js';
 import type { ProvinceDefinition, TransportModeId, TransportTripType } from '../types';
 
@@ -15,6 +17,7 @@ export const TRANSPORT_MODES: Record<TransportModeId, {
   fuelPerKm: number;
   capacity: number;
   timeFactor: number;
+  departureSeconds: number;
   tone: 'neutral' | 'info' | 'warning';
 }> = {
   road: { ...TRANSPORT_MODE_POLICY.road, tone: 'neutral' },
@@ -157,7 +160,24 @@ export function transportFuelCost(mode: TransportModeId, distanceKm: number) {
 export function transportDurationMs(mode: TransportModeId, distanceKm: number) {
   const definition = TRANSPORT_MODES[mode];
   if (!definition) return 0;
-  return Math.max(1_000, Math.round(distanceKm * TRANSPORT_BASE_SECONDS_PER_KM * definition.timeFactor * 1000));
+  return transportPolicyDurationMs(createTransportCyclePolicy(mode), Math.max(0, distanceKm));
+}
+
+export function transportCycleDurationMs(
+  route: TransportRouteStopsInput,
+  mode: TransportModeId,
+  provinceById: Map<string, ProvinceDefinition>,
+) {
+  const stops = transportTraversalStopIds(route);
+  if (stops.length < 2) return 0;
+  let durationMs = 0;
+  for (let index = 0; index < stops.length - 1; index += 1) {
+    const from = provinceById.get(stops[index]);
+    const to = provinceById.get(stops[index + 1]);
+    if (!from || !to) return 0;
+    durationMs += transportDurationMs(mode, provinceDistanceKm(from, to));
+  }
+  return durationMs;
 }
 
 export function formatTransportDuration(ms: number) {
