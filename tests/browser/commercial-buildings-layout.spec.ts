@@ -156,8 +156,10 @@ test('commercial switch prevents repeated requests and preserves an invested cyc
 for (const failure of ['network', 'server'] as const) {
   test(`commercial ${failure} failure leaves the authoritative switch intact`, async ({ page }) => {
     const errors: string[] = [];
+    let requests = 0;
     page.on('pageerror', (error) => errors.push(error.message));
     await page.route('**/economy-api/game/commercial-buildings', async (route) => {
+      requests += 1;
       if (failure === 'network') await route.abort('failed');
       else await route.fulfill({ json: { result: { ok: false, message: '运营资金不足' } } });
     });
@@ -165,9 +167,14 @@ for (const failure of ['network', 'server'] as const) {
     await page.locator('.commercial-building-card').first().click();
     const control = page.locator('.facility-information-summary .ui-switch');
     await control.click();
-    await expect(page.getByRole('alert')).toBeVisible();
+    const tone = failure === 'network' ? 'warning' : 'error';
+    await expect(page.locator(`.notification-toast--${tone}, .notification-island--${tone}`)).toContainText(
+      failure === 'network' ? '商业建筑操作结果未确认' : '运营资金不足',
+    );
+    await expect(page.locator('.commercial-cluster-detail-page [role="alert"], .commercial-action-error')).toHaveCount(0);
     await expect(control).toBeEnabled();
     await expect(control).toBeChecked();
+    expect(requests).toBe(1);
     expect(errors).toEqual([]);
   });
 }

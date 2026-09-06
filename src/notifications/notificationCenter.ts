@@ -18,6 +18,7 @@ export interface NotificationRecord {
 }
 
 export interface NotificationInput {
+  id?: string;
   title: string;
   message?: string;
   tone?: NotificationTone;
@@ -178,17 +179,10 @@ export function appendNotification(
   if (!title) return current;
   const createdAt = Number.isFinite(input.createdAt) ? Number(input.createdAt) : Date.now();
   const message = normalizedString(input.message) || undefined;
-  const first = current[0];
-  if (
-    first
-    && first.title === title
-    && first.message === message
-    && Math.abs(createdAt - first.createdAt) < 750
-  ) {
-    return current;
-  }
+  const id = normalizedString(input.id) || nextNotificationId(createdAt);
+  if (current.some((item) => item.id === id)) return current;
   const record: NotificationRecord = {
-    id: nextNotificationId(createdAt),
+    id,
     title,
     message,
     tone: input.tone ?? inferNotificationTone(title),

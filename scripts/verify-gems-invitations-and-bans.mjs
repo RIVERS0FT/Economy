@@ -45,8 +45,8 @@ for (const text of [
   'invitee_user_id INTEGER NOT NULL UNIQUE',
   "source IN ('share_link', 'manual_code')",
   'CREATE TABLE IF NOT EXISTS economy_gem_ledger',
-  'CREATE TABLE IF NOT EXISTS economy_ip_ban_incidents',
   'CREATE TABLE IF NOT EXISTS economy_account_bans',
+  'CREATE TABLE IF NOT EXISTS economy_ip_ban_incidents',
   'ECONOMY_ACCOUNT_BANNED',
   'reportDuplicateRegistrationIpInTransaction',
   'processNewRegistrationInTransaction',
@@ -88,7 +88,7 @@ for (const text of ['填写好友邀请码', '确认填写', 'claimInvitation', 
 for (const text of ['claimInvitation', 'claimExpiresAt', 'claimedInvitation', '/claim']) {
   forbidText('src/api/invitations.ts', text);
 }
-for (const text of ["import { InvitationSettings }", '<InvitationSettings />', '邀请好友获得宝石']) {
+for (const text of ["import { InvitationSettings }", '<InvitationSettings notify={model.notify} />', '邀请好友获得宝石']) {
   requireText('src/pages/GemShopPage.tsx', text);
 }
 forbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');

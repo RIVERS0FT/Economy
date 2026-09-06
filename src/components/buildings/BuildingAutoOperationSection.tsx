@@ -2,12 +2,11 @@ import type { ReactNode } from 'react';
 import { SwitchControl } from '../ui/layout';
 import '../../styles/factory-auto-operation.css';
 
-export function BuildingAutoOperationSection({ label, enabled, disabled, onChange, message, children }: {
+export function BuildingAutoOperationSection({ label, enabled, disabled, onChange, children }: {
   label: ReactNode;
   enabled: boolean;
   disabled: boolean;
   onChange: (enabled: boolean) => void;
-  message?: string;
   children?: ReactNode;
 }) {
   return (
@@ -18,7 +17,6 @@ export function BuildingAutoOperationSection({ label, enabled, disabled, onChang
           disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
       </div>
       {children}
-      {message ? <small className="facility-auto-operation__message" role="status">{message}</small> : null}
     </section>
   );
 }

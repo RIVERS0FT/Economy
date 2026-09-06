@@ -34,7 +34,7 @@ for (const text of [
 for (const text of ['经营模式', '产成品处理', '利润优先', '保供优先', '满足内部需求后出售', '全部保留']) {
   forbidText('src/components/facilities/FacilityAutoOperationControls.tsx', text);
 }
-for (const text of ['<FacilityAutoOperationControls group={group}>', 'GameConcept concept="input-coverage"', '原料保障']) {
+for (const text of ['<FacilityAutoOperationControls group={group} feedback={feedback}>', 'GameConcept concept="input-coverage"', '原料保障']) {
   requireText('src/pages/production/ProductionFacilityDetail.tsx', text);
 }
 forbidText('src/pages/MarketPage.tsx', '<MarketAutoTradePanel');

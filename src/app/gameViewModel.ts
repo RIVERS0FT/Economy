@@ -1,3 +1,5 @@
+import { useOperationNotifications, type OperationNotice } from '../hooks/useOperationNotifications';
+import type { NotificationTone } from '../notifications/notificationCenter';
 import {
   type Dispatch,
   type SetStateAction,
@@ -113,6 +115,7 @@ export interface LoadedGameViewModel {
   selectedProvince: ProvinceDefinition;
   setSelectedProvinceId: (provinceId: string) => void;
   notice: string;
+  noticeEvents?: readonly OperationNotice[];
   selectedFacilityTypeId: string;
   setSelectedFacilityTypeId: Dispatch<SetStateAction<string>>;
   marketAssetKind: AssetKind;
@@ -137,7 +140,7 @@ export interface LoadedGameViewModel {
   facilityShare: number;
   avatarText: string;
   showResult: (result: ActionResult | Promise<ActionResult>) => Promise<void>;
-  notify: (message: string) => void;
+  notify: (message: string, tone?: NotificationTone) => void;
   refresh: (options?: RefreshOptions) => Promise<void>;
   clearLocalTrades: () => void;
   signOut: () => Promise<void>;
@@ -193,7 +196,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [selectedProvinceId, setSelectedProvinceIdState] = useState(() => {
     try { return localStorage.getItem(provincePreferenceKey) || DEFAULT_PROVINCE_ID; } catch { return DEFAULT_PROVINCE_ID; }
   });
-  const [notice, setNotice] = useState('');
+  const { notice, noticeEvents, notify, showResult } = useOperationNotifications(user.id);
   const [selectedFacilityTypeId, setSelectedFacilityTypeId] = useState('farm');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
   const [marketAssetId, setMarketAssetId] = useState('wheat');
@@ -209,7 +212,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const actionsInFlightRef = useRef(0);
   const checkInPendingRef = useRef(false);
   const orderPendingRef = useRef(false);
-  const noticeTimerRef = useRef<number | null>(null);
   const onSignedOutRef = useRef(onSignedOut);
   const playerNameDraft = useServerDraft({
     serverValue: game?.playerName ?? '',
@@ -331,7 +333,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   }, [game, provincePreferenceKey, selectedProvinceId]);
   useEffect(() => () => {
     refreshTaskRef.current?.controller.abort();
-    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
   }, []);
   useEffect(() => {
     if (!game) return undefined;
@@ -478,15 +479,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   }, [handleUnauthorized, selectedProvinceId, syncConfirmedAction]);
 
   const derived = useDerivedGameData(game);
-  function notify(message: string) {
-    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
-    setNotice(message);
-    noticeTimerRef.current = window.setTimeout(() => {
-      noticeTimerRef.current = null;
-      setNotice('');
-    }, 3_000);
-  }
-  async function showResult(actionResult: ActionResult | Promise<ActionResult>) { notify((await actionResult).message); }
   async function signOut() { try { await logout(); } finally { resetGameSession(); onSignedOutRef.current(); } }
 
   if (!game || !scopedGame || !derived) {
@@ -567,7 +559,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     localTrades: localActivity.trades.filter((trade) => (
       (trade.provinceId || DEFAULT_PROVINCE_ID) === selectedProvinceId
     )),
-    tab, setTab, notice,
+    tab, setTab, notice, noticeEvents,
     selectedProvinceId, selectedProvince, setSelectedProvinceId,
     selectedFacilityTypeId, setSelectedFacilityTypeId,
     marketAssetKind, marketAssetId, marketViewMode, showMarketCatalog, selectMarketAsset,

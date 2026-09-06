@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useOperationNotifications } from '../hooks/useOperationNotifications';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import type { LoadedGameViewModel, MarketViewMode } from './gameViewModel';
 import { deriveGameDataSnapshot } from './useDerivedGameData';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
@@ -146,9 +147,8 @@ export function LocalGamePreviewApp() {
   const [orderPrice, setOrderPrice] = useState(3.4);
   const [playerName, setPlayerName] = useState(authorityGame.playerName);
   const [refreshRate, setRefreshRate] = useState('5');
-  const [notice, setNotice] = useState('本地免登录游戏模式：模拟数据不会保存或提交。');
+  const { notice, noticeEvents, notify, showResult } = useOperationNotifications(authorityGame.userId, '本地免登录游戏模式：模拟数据不会保存或提交。');
   const [localTrades, setLocalTrades] = useState(previewTrades);
-  const noticeTimerRef = useRef<number | null>(null);
 
   const game = useMemo(
     () => scopeEconomyState(authorityGame, selectedProvinceId),
@@ -173,23 +173,8 @@ export function LocalGamePreviewApp() {
     };
   }, []);
 
-  useEffect(() => () => {
-    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
-  }, []);
-
-  const notify = useCallback((message: string) => {
-    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
-    setNotice(message);
-    noticeTimerRef.current = window.setTimeout(() => {
-      noticeTimerRef.current = null;
-      setNotice('');
-    }, 3_000);
-  }, []);
 
   const localOnlyAction = useCallback(async () => ({ ok: false, message: PREVIEW_ACTION_MESSAGE }), []);
-  const showResult = useCallback(async (result: ReturnType<typeof localOnlyAction>) => {
-    notify((await result).message);
-  }, [notify]);
   const setTab = useCallback((nextTab: TabId) => {
     if (nextTab === 'market') setMarketViewMode('catalog');
     setTabState(nextTab);
@@ -258,6 +243,7 @@ export function LocalGamePreviewApp() {
     selectedProvince,
     setSelectedProvinceId,
     notice,
+    noticeEvents,
     selectedFacilityTypeId,
     setSelectedFacilityTypeId,
     marketAssetKind,

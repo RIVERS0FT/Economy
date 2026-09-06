@@ -477,6 +477,7 @@ export function BuildingsPage({
     <BuildingDetailPage kind="industrial" name={selectedFacilityEntry.type.name}
       provinceName={model.selectedProvince?.name || '当前地区'} embedded={embedded} onBack={closeFacilityDetail}>
         <FacilityClusterDetailContent
+          feedback={model}
           entry={selectedFacilityEntry}
           products={game.products}
           inventories={game.inventories}

@@ -65,7 +65,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
     const code = giftCode.trim().toUpperCase();
     if (!code) return;
     const result = await model.redeemGift(code);
-    model.notify(result.message);
+    await model.showResult(result);
     if (result.ok) setGiftCode('');
   }
 
@@ -89,7 +89,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
     setExchanging(true);
     try {
       const result = await model.exchangeGems(parsedAmount);
-      model.notify(result.message);
+      await model.showResult(result);
       if (result.ok) {
         setAmountValue(1);
         await load();
@@ -104,7 +104,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
     setRejecting(true);
     try {
       const response = await gameActions.rejectGemShopQuote();
-      model.notify(response.result.message);
+      await model.showResult(response.result);
       if (response.result.ok) await load();
     } catch (reason) {
       model.notify(reason instanceof Error ? reason.message : '无法放弃今日报价');
@@ -143,7 +143,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <div className="gem-shop-main-column">
-          <InvitationSettings />
+          <InvitationSettings notify={model.notify} />
 
           <Panel className="widget gem-shop-history-card">
             <WidgetHeading title="兑换记录" action={summary ? <StatusTag tone="neutral">最近 20 笔</StatusTag> : undefined} />
