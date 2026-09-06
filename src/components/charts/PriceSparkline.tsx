@@ -192,7 +192,7 @@ function estimateMarketAxisLabelWidth(labels: string[], rootFontSize: number) {
   return labels.reduce((widest, label) => {
     const width = Array.from(label).reduce((total, character) => {
       if (/\d/.test(character)) return total + rootFontSize * 0.58;
-      if (/[.,+-]/.test(character)) return total + rootFontSize * 0.34;
+      if (/[.,+\-/]/.test(character)) return total + rootFontSize * 0.34;
       return total + rootFontSize * 0.66;
     }, 0);
     return Math.max(widest, width);
@@ -211,11 +211,14 @@ export function buildMarketChartGeometry(
   const compact = variant === 'compact';
   const mobileAxisTitles = safeWidth <= 720;
   const showXAxisTitle = !compact && !mobileAxisTitles;
-  const top = Math.max(compact ? 10 : 12, (compact ? 12 : 22) * scale);
+  const timeAxisFontSize = Math.max(11, rootFontSize * 0.75);
+  const horizontalTimeLabelWidth = estimateMarketAxisLabelWidth(['00/00'], timeAxisFontSize);
+  const edgeTimeLabelInset = Math.ceil(horizontalTimeLabelWidth / 2 + 4);
+  const top = Math.max(compact ? 8 : 10, (compact ? 10 : 16) * scale);
   const left = mobileAxisTitles
-    ? Math.max(compact ? 42 : 46, axisLabelWidth + 10)
-    : Math.max(compact ? 58 : 68, rootFontSize * (compact ? 3.7 : 4.3), axisLabelWidth + rootFontSize * 2.1);
-  const right = Math.max(12, (compact ? 18 : 24) * scale);
+    ? Math.max(compact ? 42 : 46, axisLabelWidth + 10, edgeTimeLabelInset)
+    : Math.max(compact ? 58 : 68, rootFontSize * (compact ? 3.7 : 4.3), axisLabelWidth + rootFontSize * 2.1, edgeTimeLabelInset);
+  const right = Math.max(edgeTimeLabelInset, (compact ? 18 : 24) * scale);
   let priceHeight = Math.max(compact ? 72 : 112, (compact ? 78 : 208) * scale);
   const priceVolumeGap = 0;
   const minimumVolumeHeight = compact
@@ -224,7 +227,7 @@ export function buildMarketChartGeometry(
   const ratioProtectedVolumeHeight = (0.22 / 0.78) * priceHeight;
   const preferredVolumeHeight = (compact ? 33 : 106) * scale;
   let volumeHeight = Math.max(preferredVolumeHeight, minimumVolumeHeight, ratioProtectedVolumeHeight);
-  const timeLabelHeight = compact ? Math.max(26, rootFontSize * 1.7) : Math.max(44, rootFontSize * 2.75);
+  const timeLabelHeight = Math.max(compact ? 22 : 28, timeAxisFontSize + 12);
   const titleGap = showXAxisTitle ? 8 : 0;
   const titleHeight = showXAxisTitle ? Math.max(16, rootFontSize) : 0;
   const bottomSafeInset = 6;
@@ -516,6 +519,8 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
           fontSize: Math.max(11, rootFontSize * 0.75),
           rotate: 0,
           hideOverlap: true,
+          showMinLabel: true,
+          showMaxLabel: true,
           margin: 10,
           formatter: (value: number) => formatMarketAxisTime(value),
         },
