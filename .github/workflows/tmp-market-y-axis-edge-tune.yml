@@ -1,0 +1,46 @@
+name: Temporary market y-axis endpoint alignment tune
+
+on:
+  push:
+    branches:
+      - fix/market-y-axis-edge-labels
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/market-y-axis-edge-labels
+          fetch-depth: 0
+      - name: Tune endpoint label alignment
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/components/charts/PriceSparkline.tsx')
+          text = path.read_text()
+          old = """    top: { ...shared, padding: [fontSize, 0, 0, 0] },
+    middle: shared,
+    bottom: { ...shared, padding: [0, 0, fontSize, 0] },"""
+          new = """    top: { ...shared, padding: [fontSize + 2, 0, 0, 0] },
+    middle: shared,
+    bottom: { ...shared, padding: [0, 0, fontSize + 2, 0] },"""
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one endpoint rich-text block, got {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          Path('.github/workflows/tmp-market-y-axis-edge-tune.yml').unlink()
+          PY
+      - name: Commit tune
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: separate market shared-boundary labels"
+          git push origin HEAD:fix/market-y-axis-edge-labels
