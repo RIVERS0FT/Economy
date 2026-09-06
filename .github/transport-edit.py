@@ -8,36 +8,60 @@ def replace(path, old, new):
     file.write_text(text.replace(old, new))
 
 
-replace('src/utils/provinceLogistics.ts', 'export function formatTransportDuration(ms: number) {', '''export function formatTransportRate(value: number) {
-  return value.toLocaleString('zh-CN', { maximumFractionDigits: 6, useGrouping: false });
-}
-
-export function formatTransportDuration(ms: number) {''')
-replace('src/components/shell/StrategicWorkspace.tsx', 'import { isTransportRouteClosed, transportRouteSetupCost, transportRouteStopIds }', 'import { formatTransportRate, isTransportRouteClosed, transportRouteSetupCost, transportRouteStopIds }')
-replace('src/components/shell/StrategicWorkspace.tsx', 'definition.transportFeePerKm.toFixed(2)', 'formatTransportRate(definition.transportFeePerKm)')
-replace('src/components/shell/StrategicWorkspace.tsx', 'definition.fuelPerKm.toFixed(2)', 'formatTransportRate(definition.fuelPerKm)')
-replace('tests/dt/transport-planning.test.ts', "import { transportMaintenanceCandidates, estimateTransportRoute }", "import { formatTransportRate } from '../../src/utils/provinceLogistics.ts';\nimport { transportMaintenanceCandidates, estimateTransportRoute }")
-p = Path('tests/dt/transport-planning.test.ts')
-p.write_text(p.read_text() + '''
-
-test('per-kilometer rate labels preserve meaningful fractional precision', () => {
-  assert.equal(formatTransportRate(0.015), '0.015');
-  assert.equal(formatTransportRate(0.005), '0.005');
-  assert.equal(formatTransportRate(0.02), '0.02');
-  assert.equal(formatTransportRate(0.000001), '0.000001');
-  assert.equal(formatTransportRate(1), '1');
-});
-''')
-p = Path('tests/browser/transport-balance.spec.ts')
-p.write_text(p.read_text() + '''
-
-test('transport mode choices display actual fractional road fee and fuel rates', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 });
-  await page.goto('?preview=game');
-  await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
-  await page.locator('.transport-page-footer').getByRole('button', { name: '增加路线', exact: true }).click();
-  await page.locator('.transport-map-picking-bar').getByRole('combobox', { name: '运输方式' }).click();
-  await expect(page.getByRole('option', { name: /公路运输/ })).toContainText('运输费 0.015/公里 · 燃料 0.005/公里');
-});
-''')
-print('Preserved six-digit internal fractional rate display without changing currency formatting.')
+replace('tests/browser/transport-balance.spec.ts', '''    await draft.scrollIntoViewIfNeeded();
+    await expect(draft).toBeVisible();
+    const measurements = await draft.evaluate((element) => ({
+      pageWidth: document.documentElement.scrollWidth,
+      viewport: window.innerWidth,
+      width: element.clientWidth,
+      contentWidth: element.scrollWidth,
+    }));
+    expect(measurements.pageWidth).toBeLessThanOrEqual(measurements.viewport + 1);
+    expect(measurements.contentWidth).toBeLessThanOrEqual(measurements.width + 1);
+    await expect(draft.locator('[data-transport-mode-option="air"]')).toContainText('周期总费用');
+    await expect(draft.locator('[data-transport-mode-option="rail"]')).toContainText('预计周期耗时');''', '''    // Crossing the shell breakpoint can replace the page host. Resolve the
+    // locator again until the complete new layout satisfies the same bounds.
+    await expect(async () => {
+      await expect(draft).toBeVisible();
+      await draft.scrollIntoViewIfNeeded();
+      const measurements = await draft.evaluate((element) => ({
+        pageWidth: document.documentElement.scrollWidth,
+        viewport: window.innerWidth,
+        width: element.clientWidth,
+        contentWidth: element.scrollWidth,
+      }));
+      expect(measurements.pageWidth).toBeLessThanOrEqual(measurements.viewport + 1);
+      expect(measurements.contentWidth).toBeLessThanOrEqual(measurements.width + 1);
+      await expect(draft.locator('[data-transport-mode-option="air"]')).toContainText('周期总费用');
+      await expect(draft.locator('[data-transport-mode-option="rail"]')).toContainText('预计周期耗时');
+    }).toPass({ timeout: 10_000 });''')
+replace('tests/browser/market-chart-safe-zone.spec.ts', '''  await page.setViewportSize(viewport);
+  await expect.poll(async () => {
+    const bounds = await inspectChartGeometry(chart);
+    const usesMobileAxisChrome = bounds.chartWidth <= 720;
+    return {
+      widthChanged: Math.abs(bounds.chartWidth - previousWidth) > 1,
+      responsiveChrome: bounds.mobileAxisTitles === (usesMobileAxisChrome ? 'true' : 'false')
+        && bounds.xAxisTitleVisible === (usesMobileAxisChrome ? 'false' : 'true'),
+      heightSynced: Math.abs(bounds.actualHeight - bounds.declaredHeight) <= 2,
+    };
+  }).toEqual({ widthChanged: true, responsiveChrome: true, heightSynced: true });
+  return inspectChartGeometry(chart);''', '''  await page.setViewportSize(viewport);
+  let bounds!: Awaited<ReturnType<typeof inspectChartGeometry>>;
+  // The responsive host can remount ECharts while the viewport settles. Retry
+  // readiness together with geometry instead of throwing from an early poll.
+  await expect(async () => {
+    await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+    bounds = await inspectChartGeometry(chart);
+    const usesMobileAxisChrome = bounds.chartWidth <= 720;
+    expect({
+      ready: bounds.ready,
+      hasSvg: bounds.hasSvg,
+      widthChanged: Math.abs(bounds.chartWidth - previousWidth) > 1,
+      responsiveChrome: bounds.mobileAxisTitles === (usesMobileAxisChrome ? 'true' : 'false')
+        && bounds.xAxisTitleVisible === (usesMobileAxisChrome ? 'false' : 'true'),
+      heightSynced: Math.abs(bounds.actualHeight - bounds.declaredHeight) <= 2,
+    }).toEqual({ ready: 'true', hasSvg: true, widthChanged: true, responsiveChrome: true, heightSynced: true });
+  }).toPass({ timeout: 10_000 });
+  return bounds;''')
+print('Responsive tests now wait for the active host without weakening geometry or viewport assertions.')
