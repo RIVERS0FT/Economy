@@ -1,3 +1,4 @@
+import { hasCommercialCycle } from '../../shared/commercial-staffing.js';
 import { getAuctionState } from '../auctions/types';
 import { leaderboardsFromGame } from '../leaderboardTypes';
 import type { EconomyState } from '../types';
@@ -20,6 +21,11 @@ export function authoritativeCountdownDeadlines(game: EconomyState): number[] {
       ?? type?.recipes?.[0];
     if (!recipe) continue;
     addDeadline(deadlines, Number(group.cycleStartedAt) + recipe.cycleMs);
+  }
+
+  for (const group of game.commercialBuildingGroups ?? []) {
+    if (!hasCommercialCycle(group)) continue;
+    addDeadline(deadlines, group.cycleCompletesAt);
   }
 
   for (const auction of getAuctionState(game).assetAuctions) {
