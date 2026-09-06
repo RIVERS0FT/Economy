@@ -1,0 +1,64 @@
+name: Apply isolated transport review
+
+on:
+  push:
+    branches: [work/transport-review-20260906]
+    paths:
+      - .github/transport-edit.py
+      - .github/workflows/transport-edit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  review:
+    if: github.ref == 'refs/heads/work/transport-review-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Apply final scoped review edits
+        run: |
+          set -euo pipefail
+          python3 .github/transport-edit.py
+          git rm .github/transport-edit.py .github/workflows/transport-edit.yml
+          git diff --check
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/WAREHOUSE_EXPANSION_DESIGN.md scripts/verify-provincial-unlock-transport.mjs src/transport/TransportEconomics.tsx
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(transport): align pre-payment forecasts and final navigation rules'
+          git push origin HEAD:refs/heads/work/transport-review-20260906
+          git diff --check origin/main...HEAD
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Transport pure and server regressions
+        run: |
+          node --experimental-strip-types --test tests/dt/transport*.test.ts
+          node --test server/test/transport*.test.js
+      - name: Prepare and typecheck
+        run: |
+          npm run generate:local-preview
+          npm run generate:artwork
+          npm run typecheck
+          node scripts/verify-provincial-unlock-transport.mjs
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
+      - name: Transport browser regressions
+        run: npm run test:browser -- tests/browser/transport-balance.spec.ts tests/browser/transport-map-picking.spec.ts tests/browser/transport-route-cost-style-lock.spec.ts
+      - name: Upload browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: transport-review-browser-${{ github.run_id }}
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 1
