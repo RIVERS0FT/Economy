@@ -6,19 +6,27 @@ on:
 permissions:
   contents: read
 jobs:
-  snapshot:
+  validation-tools:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: 29d013b5d9f942d8ed7f905fb00ea4d403d18860
           persist-credentials: false
-      - name: Archive tracked source for isolated inspection
-        run: git archive --format=tar.gz HEAD -o "$RUNNER_TEMP/economy-source.tar.gz"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Archive pinned validation tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/ux-tools/bin"
+          cp "$(command -v node)" "$RUNNER_TEMP/ux-tools/bin/node"
+          tar -czf "$RUNNER_TEMP/economy-tools.tar.gz" node_modules -C "$RUNNER_TEMP" ux-tools
       - uses: actions/upload-artifact@v4
         with:
-          name: economy-ux-source
-          path: ${{ runner.temp }}/economy-source.tar.gz
+          name: economy-ux-tools
+          path: ${{ runner.temp }}/economy-tools.tar.gz
           retention-days: 1
           if-no-files-found: error
