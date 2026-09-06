@@ -1,5 +1,6 @@
 /* Factory production settlement: icon-first material rows, compact operation metadata, and flow progress. */
 .facility-production-formula {
+  --facility-formula-item-radius: calc(var(--radius-control) - 0.2rem);
   min-width: 0;
   position: relative;
   isolation: isolate;
@@ -37,7 +38,6 @@
   text-shadow: 0 1px color-mix(in srgb, var(--color-bg-deep) 84%, transparent);
   white-space: nowrap;
 }
-
 
 .facility-formula-visual {
   min-width: 0;
@@ -106,17 +106,15 @@
   justify-content: flex-end;
 }
 
-.facility-formula-item-group {
-  --ui-interactive-hover-border-color: var(--color-border-strong);
-  --ui-interactive-hover-background: color-mix(in srgb, var(--color-accent-violet) 13%, var(--color-surface-control));
+.facility-formula-item-card {
   min-width: 0;
+  min-height: 2.69rem;
   display: flex;
   align-items: center;
   margin: 0;
   border: 1px solid var(--color-border-strong);
-  border-radius: calc(var(--radius-control) - 0.2rem);
+  border-radius: var(--facility-formula-item-radius);
   padding: 0.42rem 0.55rem;
-  appearance: none;
   color: inherit;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--color-text-primary) 6%, transparent), transparent 42%),
@@ -126,21 +124,33 @@
     inset 0 -2px color-mix(in srgb, var(--color-bg-deep) 54%, transparent);
   font: inherit;
   text-align: inherit;
+}
+
+.facility-formula-item-group {
+  --ui-interactive-hover-border-color: var(--color-border-strong);
+  --ui-interactive-hover-background: color-mix(in srgb, var(--color-accent-violet) 13%, var(--color-surface-control));
+  appearance: none;
   cursor: pointer;
+}
+
+.facility-formula-input .facility-formula-item-card {
+  border-color: color-mix(in srgb, var(--color-info) 24%, var(--color-border));
 }
 
 .facility-formula-input .facility-formula-item-group {
   --ui-interactive-hover-border-color: color-mix(in srgb, var(--color-info) 46%, var(--color-border-strong));
-  border-color: color-mix(in srgb, var(--color-info) 24%, var(--color-border));
+}
+
+.facility-formula-output .facility-formula-item-card {
+  border-color: color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-warning) 8%, transparent), transparent 46%),
+    color-mix(in srgb, var(--color-accent-violet) 10%, var(--color-surface-control));
 }
 
 .facility-formula-output .facility-formula-item-group {
   --ui-interactive-hover-border-color: color-mix(in srgb, var(--color-warning) 50%, var(--color-border-strong));
   --ui-interactive-hover-background: color-mix(in srgb, var(--color-warning) 13%, var(--color-surface-control));
-  border-color: color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--color-warning) 8%, transparent), transparent 46%),
-    color-mix(in srgb, var(--color-accent-violet) 10%, var(--color-surface-control));
 }
 
 .facility-formula-input-item,
@@ -191,7 +201,7 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--color-border);
-  border-radius: calc(var(--radius-control) - 0.2rem);
+  border-radius: var(--facility-formula-item-radius);
   padding: 0 var(--space-3);
   color: var(--color-text-muted);
   background: var(--color-surface-control);
@@ -210,7 +220,7 @@
   justify-content: flex-start;
   gap: 0;
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 76%, var(--color-bg-deep));
-  border-radius: calc(var(--radius-control) - 0.25rem);
+  border-radius: var(--facility-formula-item-radius);
   padding: 0.38rem 0.52rem;
   color: var(--color-text-muted);
   background:
@@ -335,7 +345,6 @@
     align-items: flex-start;
   }
 
-
   .facility-formula-top {
     gap: var(--space-1) var(--space-2);
   }
@@ -344,7 +353,8 @@
     gap: var(--space-1);
   }
 
-  .facility-formula-item-group {
+  .facility-formula-item-card {
+    min-height: 2.23rem;
     padding: 0.34rem 0.42rem;
   }
 
