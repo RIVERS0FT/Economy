@@ -49,25 +49,55 @@ for (const viewport of [
   { width: 1440, height: 900, label: 'desktop' },
   { width: 390, height: 844, label: 'mobile' },
 ] as const) {
-  test(`market date labels stay horizontal on ${viewport.label}`, async ({ page }) => {
+  test(`market date labels stay horizontal, unclipped and compact on ${viewport.label}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto('market-runtime-test.html?scenario=active');
 
-    const chart = page.locator('.market-history-chart.full');
+    const chartCard = page.locator('.market-chart-card');
+    const chart = chartCard.locator('.market-history-chart.full');
     await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
 
-    const rotations = await chart.locator('.economy-chart__canvas svg text').evaluateAll((nodes) => nodes
-      .filter((node) => /^\d{2}\/\d{2}$/.test(node.textContent?.trim() ?? ''))
-      .map((node) => {
-        const matrix = (node as SVGGraphicsElement).getCTM();
-        if (!matrix) return Number.NaN;
-        return Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
-      }));
+    const inspection = await chart.evaluate((element) => {
+      const wrapper = element as HTMLElement;
+      const svg = wrapper.querySelector<SVGSVGElement>('.economy-chart__canvas svg');
+      if (!svg) throw new Error('market chart svg is missing');
+      const canvasRect = svg.getBoundingClientRect();
+      const dateLabels = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
+        .filter((node) => /^\d{2}\/\d{2}$/.test(node.textContent?.trim() ?? ''))
+        .map((node) => {
+          const matrix = node.getCTM();
+          const rect = node.getBoundingClientRect();
+          return {
+            text: node.textContent?.trim() ?? '',
+            left: rect.left,
+            right: rect.right,
+            rotation: matrix ? Math.atan2(matrix.b, matrix.a) * 180 / Math.PI : Number.NaN,
+          };
+        })
+        .sort((left, right) => left.left - right.left);
+      return {
+        canvasLeft: canvasRect.left,
+        canvasRight: canvasRect.right,
+        dateLabels,
+        timeLabelHeight: Number(wrapper.dataset.timeLabelHeight),
+      };
+    });
 
-    expect(rotations.length).toBeGreaterThanOrEqual(2);
-    for (const rotation of rotations) {
-      expect(Number.isFinite(rotation)).toBe(true);
-      expect(Math.abs(rotation)).toBeLessThan(0.5);
+    expect(inspection.dateLabels.length).toBeGreaterThanOrEqual(2);
+    for (const label of inspection.dateLabels) {
+      expect(Number.isFinite(label.rotation)).toBe(true);
+      expect(Math.abs(label.rotation)).toBeLessThan(0.5);
     }
+    const firstLabel = inspection.dateLabels[0];
+    const lastLabel = inspection.dateLabels[inspection.dateLabels.length - 1];
+    expect(firstLabel.left).toBeGreaterThanOrEqual(inspection.canvasLeft + 0.5);
+    expect(lastLabel.right).toBeLessThanOrEqual(inspection.canvasRight - 0.5);
+    expect(inspection.timeLabelHeight).toBeLessThanOrEqual(32);
+
+    const cardInsets = await chartCard.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(Number.parseFloat);
+    });
+    expect(Math.max(...cardInsets) - Math.min(...cardInsets)).toBeLessThanOrEqual(0.5);
   });
 }
