@@ -90,7 +90,7 @@ export interface ProvinceMapShipmentOverlay {
   cargo: Array<{
     productName: string;
     quantity: number;
-    destinationName: string;
+    destinationName?: string;
   }>;
 }
 
@@ -652,7 +652,7 @@ export function UsMainlandMap({
             <span>当前载荷：<CompactNumber value={hoveredShipmentPosition.remainingLoad} /></span>
             {hoveredShipment.cargo.length > 0 ? hoveredShipment.cargo.map((entry, index) => (
               <span key={`${entry.productName}-${entry.destinationName}-${index}`} className="province-map-shipment-tooltip-cargo">
-                {entry.productName} ×<CompactNumber value={entry.quantity} /> → {entry.destinationName}
+                {entry.productName} ×<CompactNumber value={entry.quantity} />{entry.destinationName ? ` → ${entry.destinationName}` : null}
               </span>
             )) : <span>没有剩余货物</span>}
           </div>

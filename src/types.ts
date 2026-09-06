@@ -732,7 +732,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState extends CommercialStateFields {
-  version: 41;
+  version: 42;
   userId: number;
   playerName: string;
   startingProvinceId: string;

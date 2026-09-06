@@ -295,17 +295,17 @@ if (warehousePanel.includes('WarehouseTransportPanel')) failures.push('仓库不
 if (warehousePanel.includes('warehouse-product-card-in-transit')) failures.push('仓库商品卡不得显示在途数量；在途信息唯一归属运输功能。');
 forbidText(provincePage, 'model.unlockProvince(', '州页不得恢复地区解锁动作。');
 
-if (failures.length) {
-  console.error(`州级经济与节点循环运输验证失败：\n- ${failures.join('\n- ')}`);
-  process.exit(1);
-}
-
-console.log('州级经济与节点循环运输验证通过：路线业务行程仍按环线／往返结算，地图只使用单一正式几何；客户端装卸、距离计费、整周期燃料预付、单段离线到站与私有状态切片均已锁定。');
-
 for (const text of ['建线投入', 'transport-route-auto-note', 'useNow(game.lastProcessedAt']) {
   forbidText(transportPage, text, `运输页面不得恢复重复投入、说明墙或整页秒级时钟：${text}`);
 }
 requireText(transport, 'entry.quantity + propulsion', '动力燃料和装货燃料必须联合校验。');
 requireText(transport, 'deletionPending', '必须保留完成本趟后删除。');
 requireText(transportPolicy, 'Math.ceil(distanceKm * fuelPerKm)', '燃料必须整趟向上取整。');
-if (failures.length) throw new Error(failures.join('\n'));
+requireText(provinceMap, 'entry.destinationName ?', '运输地图货物没有实际目的地时不能显示空箭头或猜测目的地。');
+
+if (failures.length) {
+  console.error(`州级经济与节点循环运输验证失败：\n- ${failures.join('\n- ')}`);
+  process.exit(1);
+}
+
+console.log('州级经济与节点循环运输验证通过：路线业务行程仍按环线／往返结算，地图只使用单一正式几何；客户端装卸、距离计费、整趟燃料商品预扣、单段离线到站与私有状态切片均已锁定。');

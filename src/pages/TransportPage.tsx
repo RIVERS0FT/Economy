@@ -216,7 +216,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
 
   function manifestList(shipment: TransportShipmentView) {
     const entries = shipmentManifest(shipment);
-    if (entries.length === 0) return <span className="transport-empty">无车载货物</span>;
+    if (entries.length === 0) return <span className="transport-empty">{shipment.status === 'arrived' ? '无交货记录' : '无车载货物'}</span>;
     return (
       <ul className="transport-manifest-list" data-delivered-history={shipment.status === 'arrived'}>
         {entries.map((entry, index) => (

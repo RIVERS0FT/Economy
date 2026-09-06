@@ -16,7 +16,7 @@ export function TransportGainExplanation({ children = '下一趟预计增益' }:
     <SafeTooltip className="game-concept-anchor" anchorRole="term" anchorTabIndex={0} content={(
       <span className="game-concept-tooltip">
         <strong>相对本地卖出的运输增益</strong>
-        <span>按真实可用库存和今日官方价估计，扣除卖出手续费差额、本趟运费，以及燃料在起点的可售净值。燃料估值不再扣钱；到站不自动出售，也不计入未来产量。</span>
+        <span>按真实可用库存和今日官方价估计，扣除卖出手续费差额、本趟运费，以及燃料在起点的可售净值。燃料估值不再扣钱；这是预计增益，不是已实现现金利润，到站不自动出售，也不计入未来产量。</span>
         <span>新的一趟要求预计增益至少达到 {formatCurrency(TRANSPORT_MIN_NET_GAIN)} 与运费及燃料估值合计的 {TRANSPORT_COST_MARGIN * 100}% 中的较高者。预计跨日调价时等待新报价；已付款的一趟不重复收费。</span>
       </span>
     )}>
