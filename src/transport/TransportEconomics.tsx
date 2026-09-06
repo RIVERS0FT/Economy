@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { transportCyclePolicyForShipment } from '../../shared/transport-policy.js';
+import { TRANSPORT_COST_MARGIN, TRANSPORT_MIN_NET_GAIN, transportCyclePolicyForShipment } from '../../shared/transport-policy.js';
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { SafeTooltip } from '../components/ui/SafeTooltip';
 import { Button, StatusTag } from '../components/ui/layout';
@@ -23,7 +23,7 @@ export function TransportGainExplanation({ children = '下一周期预计增益'
         <span className="game-concept-tooltip">
           <strong>相对本地卖出的运输增益</strong>
           <span>按当前真实可用库存和今日官方价估计，扣除卖出手续费差额及整周期运输费用。不是已实现现金利润，不包含未来产量，也不代表买入后转售利润。到站不会自动出售。</span>
-          <span>新周期要求预计增益至少覆盖 1 普通货币与周期费用 20% 中较高者；预计跨日调价时等待新报价。已付费周期继续完成，不会逐站重复收费。</span>
+          <span>新周期要求预计增益至少达到 {formatCurrency(TRANSPORT_MIN_NET_GAIN)} 与周期费用 {TRANSPORT_COST_MARGIN * 100}% 中的较高者；预计跨日调价时等待新报价。已付费周期继续完成，不会逐站重复收费。</span>
         </span>
       )}
     >
@@ -75,8 +75,10 @@ export function TransportModeComparison({ game, route, now, provinceById, disabl
     <div className="transport-mode-comparison" role="group" aria-label="运输方式比较">
       {(Object.keys(TRANSPORT_MODES) as TransportModeId[]).map((mode) => {
         const candidate = { ...route, mode };
-        const estimate = estimateTransportRoute(game, candidate, now, provinceById);
         const setupCost = transportRouteSetupCost(candidate, mode, provinceById);
+        const creditsAfterSetup = Math.max(0, Math.round((game.credits - setupCost) * 1_000_000) / 1_000_000);
+        const estimate = estimateTransportRoute({ ...game, credits: creditsAfterSetup }, candidate, now, provinceById);
+        const waitingLabel = game.credits < setupCost ? '建线资金不足' : TRANSPORT_WAITING_LABELS[estimate.reason];
         const selected = mode === route.mode;
         return (
           <div className="transport-mode-option" key={mode} data-transport-mode-option={mode} data-selected={selected}>
@@ -90,7 +92,7 @@ export function TransportModeComparison({ game, route, now, provinceById, disabl
               <span><small>预计周期耗时</small><strong>{formatTransportDuration(estimate.durationMs)}</strong></span>
               <span><small><TransportGainExplanation>预计运输增益</TransportGainExplanation></small><strong>{estimate.netGain === null ? '待行情同步' : formatCurrency(estimate.netGain)}</strong></span>
             </div>
-            <StatusTag tone={estimate.reason === 'ready' ? 'info' : 'neutral'}>{TRANSPORT_WAITING_LABELS[estimate.reason]}</StatusTag>
+            <StatusTag tone={estimate.reason === 'ready' ? 'info' : 'neutral'}>{waitingLabel}</StatusTag>
           </div>
         );
       })}
