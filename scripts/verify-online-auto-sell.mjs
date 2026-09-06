@@ -7,7 +7,8 @@ const forbidText = (path, text) => assert.ok(!read(path).includes(text), `${path
 
 // Behavior belongs to integration tests, not duplicated price constants or paragraph wording.
 for (const path of ['server/test/cycle-auto-operation.test.js', 'server/test/commodity-freezes.test.js',
-  'server/test/building-shared-inventory.test.js', 'server/test/commercial-auto-operation.test.js']) {
+  'server/test/building-shared-inventory.test.js', 'server/test/commercial-auto-operation.test.js',
+  'server/test/first-building-auto-start.test.js']) {
   assert.ok(existsSync(path), `缺少周期与冻结行为回归 ${path}`);
 }
 for (const path of ['server/src/online-auto-buy.js', 'server/src/online-auto-sell.js']) {
@@ -20,9 +21,13 @@ for (const token of ['model.onlineAutoBuy(', 'model.onlineAutoSell(', 'setInterv
 for (const path of ['server/src/production-settlement.js', 'server/src/facility-groups.js', 'server/src/commercial-buildings.js']) {
   requireText(path, 'completeBuildingCycleAutoOperation');
 }
+for (const path of ['server/src/facility-groups.js', 'server/src/commercial-buildings.js']) {
+  requireText(path, 'bootstrapBuildingAutoOperation');
+}
 for (const token of ['quoteBuildingAutoProcurement', 'netProfitMicros <= 0n', 'calculateCumulativeMarketSellFee',
   'reconcileBuildingInputFreezes', 'freezeCommodity', 'autoOperationCycleCursors', 'applySettledCommodityOrder',
-'quotePreparedDailySupply', 'consumePreparedDailySupply']) {
+  'quotePreparedDailySupply', 'consumePreparedDailySupply', 'bootstrapBuildingAutoOperation',
+  'initialOnly: true', "executionPrefix: 'bootstrap-auto'"]) {
   requireText('server/src/cycle-auto-operation.js', token);
 }
 for (const token of ['MODE_PRICE_MULTIPLIERS', 'intent.keepOutput', 'intent.extraProtected']) {
@@ -49,4 +54,4 @@ forbidText('server/src/cycle-auto-operation.js', 'provinceAutoSaleEnabled');
 requireText('server/src/world-storage-v2.js', 'autoSaleRegions');
 forbidText('server/src/world-storage-v2.js', 'player.provinceAutoSaleEnabled?.[provinceId]');
 requireText('src/auto-trade/useOnlineAutoTrade.ts', 'state.saveEpoch !== saveEpoch');
-console.log('周期自动经营检查通过：完成事件唯一触发，自动经营自身包含地区非冻结出售，利润计费、来源冻结与客户端只读边界保持。');
+console.log('周期自动经营检查通过：首周期 bootstrap 只采购且不伪造完成，常规出售与后续采购仍由真实完成事件驱动。');
