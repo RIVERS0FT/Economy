@@ -5,7 +5,7 @@ import {
   applyCommercialBuildingAction,
   processCommercialWorld,
 } from '../src/commercial-buildings.js';
-import { createWorld, ensurePlayer } from '../src/domain.js';
+import { createClientState, createWorld, ensurePlayer } from '../src/domain.js';
 import { inventoryForProvince, provinceScopedKey } from '../src/provinces.js';
 
 const user = { id: 77101, email: 'commercial@example.com', name: 'Commercial' };
@@ -84,6 +84,10 @@ test('commercial first-cycle bootstrap retries after funds recover without anoth
   assert.equal(group.statusReason, 'insufficient_input');
   assert.equal(group.enabled, true);
   assert.equal(group.autoOperationBootstrapPending, true);
+  const clientGroup = createClientState(world, user.id, now + 2, { migrate: false }).commercialBuildingGroups
+    .find((candidate) => candidate.commercialTypeId === type.id);
+  assert.ok(clientGroup);
+  assert.equal(Object.hasOwn(clientGroup, 'autoOperationBootstrapPending'), false, 'bootstrap eligibility is server-only state');
   assert.equal(Number(clothingMarket.todayBuyQuantity || 0), buyBefore);
 
   player.credits += 1_000;
