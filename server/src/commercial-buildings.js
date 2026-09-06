@@ -1,6 +1,6 @@
 import { buildingAvailableInput, buildingFreezeSource, reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { consumeBuildingCommodity } from './commodity-freezes.js';
-import { completeBuildingCycleAutoOperation } from './cycle-auto-operation.js';
+import { bootstrapBuildingAutoOperation, completeBuildingCycleAutoOperation } from './cycle-auto-operation.js';
 import { commercialExpansionStaffingRate, commercialStaffingCapacity, hasCommercialCycle, projectCommercialStaffingRate } from '../../shared/commercial-staffing.js';
 import { normalizeCommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
@@ -287,7 +287,10 @@ function processGroup(world, player, group, now) {
     group.participatingCount = 0;
     return;
   }
-  if (cycles < MAX_CATCH_UP_CYCLES) startCycle(world, player, group, type, now);
+  if (cycles < MAX_CATCH_UP_CYCLES) {
+    if (Number(group.lifetimeRevenue || 0) <= 0) bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
+    startCycle(world, player, group, type, now);
+  }
 }
 
 export function processCommercialWorld(world, now = Date.now()) {
@@ -308,6 +311,7 @@ function buildCommercialBuilding(world, userId, payload, now) {
   if (!quantity) return result(false, `建造数量必须为 1 到 ${MAX_BUILD_QUANTITY} 的整数`);
   const provinceId = normalizeProvinceId(payload.provinceId);
   const existingGroup = groupFor(player, type.id, provinceId, false, now);
+  const firstBuild = !existingGroup || existingGroup.count < 1;
   if (existingGroup) processGroup(world, player, existingGroup, now);
   if (!Number.isSafeInteger((existingGroup?.count ?? 0) + quantity)) return result(false, '建筑数量超出系统可表示范围');
   const totalCost = multiplyMoneyByInteger(type.buildCost, quantity);
@@ -324,7 +328,17 @@ function buildCommercialBuilding(world, userId, payload, now) {
   const rate = commitCommercialStaffing(group, now);
   group.count += quantity;
   group.staffingRateBps = commercialExpansionStaffingRate(rate, previousCount, group.count);
-  return result(true, `${quantity} 座${type.name}已建成，默认保持停止营业`);
+  if (firstBuild) {
+    group.enabled = true;
+    processGroup(world, player, group, now);
+    return result(
+      true,
+      hasCommercialCycle(group)
+        ? `${quantity} 座${type.name}已建成并默认开启营业`
+        : `${quantity} 座${type.name}已建成并默认开启营业意图，当前条件不足，满足后将自动启动`,
+    );
+  }
+  return result(true, `${quantity} 座${type.name}已建成并加入同类商业建筑集群`);
 }
 
 function startCommercialBuilding(world, userId, payload, now) {
@@ -336,6 +350,7 @@ function startCommercialBuilding(world, userId, payload, now) {
   if (!group.enabled) commitCommercialStaffing(group, now);
   group.enabled = true;
   if (hasCommercialCycle(group)) return result(true, `${type.name}已保持营业，当前周期继续进行`);
+  if (Number(group.lifetimeRevenue || 0) <= 0) bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
   if (startCycle(world, player, group, type, now)) {
     return result(true, `${type.name}已开始营业，${group.participatingCount} 座建筑参与当前周期`);
   }
