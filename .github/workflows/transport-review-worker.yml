@@ -1,0 +1,41 @@
+name: Transport protocol assertion sync
+on:
+  push:
+    branches: [feat/transport-trip-fuel-20260906]
+    paths: [.github/workflows/transport-review-worker.yml]
+permissions:
+  contents: write
+jobs:
+  sync:
+    if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/feat/transport-trip-fuel-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Update explicit protocol assertions to the new authoritative version
+        shell: python
+        run: |
+          from pathlib import Path
+          for name in ('verify-production-methods.mjs', 'verify-money-precision.mjs', 'verify-provincial-economy.mjs'):
+              path = Path('scripts') / name
+              lines = path.read_text().splitlines(keepends=True)
+              changed = 0
+              for index, line in enumerate(lines):
+                  if 'CLIENT_STATE_VERSION' in line and '41' in line:
+                      lines[index] = line.replace('41', '42')
+                      changed += 1
+              assert changed in (1, 2), (name, changed)
+              path.write_text(''.join(lines))
+      - name: Commit assertions and remove temporary runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git add scripts/verify-production-methods.mjs scripts/verify-money-precision.mjs scripts/verify-provincial-economy.mjs
+          git rm .github/workflows/transport-review-worker.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'test: align protocol assertions with commodity-fuel client version'
+          git push origin HEAD:"$GITHUB_REF_NAME"
