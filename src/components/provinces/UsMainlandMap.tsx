@@ -2,6 +2,7 @@ import { CompactNumber } from '../ui/CompactNumber';
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -24,7 +25,12 @@ import {
   showTopLayerPopover,
   supportsTopLayerPopover,
 } from '../ui/topLayer';
-import { createProvinceMapCamera, type ProvinceMapCameraController } from './provinceMapCamera';
+import {
+  createProvinceMapCamera,
+  PROVINCE_MAP_ZOOM_MAX,
+  PROVINCE_MAP_ZOOM_MIN,
+  type ProvinceMapCameraController,
+} from './provinceMapCamera';
 import { createProvinceMapProjection, provinceGeometryPath } from './provinceMapProjection';
 import { createProvinceMapRasterSnapshot } from './provinceMapRasterSnapshot';
 import {
@@ -48,6 +54,9 @@ import {
 } from './provinceMapWorldOutline';
 
 const MOBILE_MAP_MAX_WIDTH = 720;
+const ROUTE_STROKE_MIN_SCALE = 0.5;
+const BOUNDARY_STROKE_MIN_SCALE = 0.65;
+const ROUTE_STOP_CUTOUT_PADDING = 0.5;
 
 export type ProvinceMapLens = 'political' | 'assets' | 'industry' | 'market' | 'alerts';
 
@@ -133,6 +142,9 @@ const provinceMapLabelSources: ProvinceMapLabelSource[] = mainlandFeatures.map((
   anchor: entry.anchor,
   geometry: entry.geometry,
 }));
+const [routeMaskX, routeMaskY, routeMaskWidth, routeMaskHeight] = provinceMapProjection.viewBox
+  .split(' ')
+  .map((value) => Number(value));
 
 interface ProvinceMapDatum {
   name: string;
@@ -180,6 +192,30 @@ function datumFor(province: ProvinceDefinition, summary: ProvinceAssetSummary | 
 
 function formatGeometryValue(value: number) {
   return Number(value.toFixed(2));
+}
+
+function routeStopRadius(index: number, stopCount: number) {
+  return index === 0 || index === stopCount - 1 ? 5 : 4;
+}
+
+function updateSettledStrokeScales(container: HTMLElement) {
+  const rawZoom = Number(container.dataset.mapZoomCurrent || PROVINCE_MAP_ZOOM_MIN);
+  const zoom = Math.max(
+    PROVINCE_MAP_ZOOM_MIN,
+    Math.min(PROVINCE_MAP_ZOOM_MAX, Number.isFinite(rawZoom) ? rawZoom : PROVINCE_MAP_ZOOM_MIN),
+  );
+  const zoomProgress = (zoom - PROVINCE_MAP_ZOOM_MIN) / Math.max(1, PROVINCE_MAP_ZOOM_MAX - PROVINCE_MAP_ZOOM_MIN);
+  const routeScale = ROUTE_STROKE_MIN_SCALE + (1 - ROUTE_STROKE_MIN_SCALE) * zoomProgress;
+  const boundaryScale = BOUNDARY_STROKE_MIN_SCALE + (1 - BOUNDARY_STROKE_MIN_SCALE) * zoomProgress;
+  const routeValue = routeScale.toFixed(4);
+  const boundaryValue = boundaryScale.toFixed(4);
+  const changed = container.style.getPropertyValue('--province-map-route-stroke-scale') !== routeValue
+    || container.style.getPropertyValue('--province-map-boundary-stroke-scale') !== boundaryValue;
+  container.style.setProperty('--province-map-route-stroke-scale', routeValue);
+  container.style.setProperty('--province-map-boundary-stroke-scale', boundaryValue);
+  container.dataset.mapRouteStrokeScale = routeValue;
+  container.dataset.mapBoundaryStrokeScale = boundaryValue;
+  return changed;
 }
 
 function tooltipRows(datum: ProvinceMapDatum) {
@@ -261,6 +297,7 @@ export function UsMainlandMap({
   shipmentOverlays?: ProvinceMapShipmentOverlay[];
   referenceNow?: number;
 }) {
+  const routeNodeMaskId = `province-map-route-node-mask-${useId().replace(/:/g, '')}`;
   const tooltipLayer = useWorkspaceTooltipLayer();
   const tooltipTopLayerActive = supportsTopLayerPopover() && Boolean(tooltipLayer);
   const data = useMemo(() => provinces.map((province) => datumFor(province, summaries[province.id], lens)), [lens, provinces, summaries]);
@@ -287,15 +324,35 @@ export function UsMainlandMap({
     [routeOverlays],
   );
 
-  const routeOverlaysMarkup = useMemo(() => routeOverlays.map((overlay) => {
+  const routeRenderData = useMemo(() => routeOverlays.flatMap((overlay) => {
     const geometry = routeLayout.byOverlayId.get(overlay.id);
-    if (!geometry || geometry.stopPoints.length < 2 || geometry.segments.length < 1) return null;
+    if (!geometry || geometry.stopPoints.length < 2 || geometry.segments.length < 1) return [];
     const networkSegmentCount = geometry.segments.filter((segment) => segment.networkGeometry).length;
     const geometrySource = overlay.mode === 'air'
       ? 'air'
       : networkSegmentCount === geometry.segments.length
         ? 'network'
         : networkSegmentCount > 0 ? 'mixed' : 'direct';
+    return [{ overlay, geometry, networkSegmentCount, geometrySource }];
+  }), [routeLayout, routeOverlays]);
+
+  const routeNodeCutouts = useMemo(() => {
+    const cutoutByPoint = new Map<string, { x: number; y: number; radius: number }>();
+    for (const entry of routeRenderData) {
+      entry.geometry.stopPoints.forEach((point, index) => {
+        const x = formatGeometryValue(point.x);
+        const y = formatGeometryValue(point.y);
+        const radius = routeStopRadius(index, entry.geometry.stopPoints.length) + ROUTE_STOP_CUTOUT_PADDING;
+        const key = `${x}:${y}`;
+        const existing = cutoutByPoint.get(key);
+        if (!existing || radius > existing.radius) cutoutByPoint.set(key, { x, y, radius });
+      });
+    }
+    return [...cutoutByPoint.values()];
+  }, [routeRenderData]);
+
+  const routePathsMarkup = useMemo(() => routeRenderData.map((entry) => {
+    const { overlay, geometry, networkSegmentCount, geometrySource } = entry;
     return (
       <g
         key={overlay.id}
@@ -309,12 +366,36 @@ export function UsMainlandMap({
         data-route-network-segment-count={networkSegmentCount}
       >
         <path className="province-map-route-path" d={geometry.path} vectorEffect="non-scaling-stroke" />
+      </g>
+    );
+  }), [routeRenderData]);
+
+  const routeNodesMarkup = useMemo(() => routeRenderData.map((entry) => {
+    const { overlay, geometry } = entry;
+    return (
+      <g
+        key={`nodes-${overlay.id}`}
+        className="province-map-route-node-entry"
+        data-route-node-owner-id={overlay.routeId ?? overlay.id}
+        data-route-kind={overlay.kind}
+        data-transport-mode={overlay.mode}
+        data-route-stop-count={overlay.stops.length}
+      >
         {geometry.stopPoints.map((point, index) => (
-          <circle key={`${overlay.id}-stop-${index}`} className="province-map-route-stop" data-stop-index={index} data-stop-first={index === 0 ? 'true' : 'false'} data-stop-last={index === geometry.stopPoints.length - 1 ? 'true' : 'false'} cx={formatGeometryValue(point.x)} cy={formatGeometryValue(point.y)} r={index === 0 || index === geometry.stopPoints.length - 1 ? 5 : 4} />
+          <circle
+            key={`${overlay.id}-stop-${index}`}
+            className="province-map-route-stop"
+            data-stop-index={index}
+            data-stop-first={index === 0 ? 'true' : 'false'}
+            data-stop-last={index === geometry.stopPoints.length - 1 ? 'true' : 'false'}
+            cx={formatGeometryValue(point.x)}
+            cy={formatGeometryValue(point.y)}
+            r={routeStopRadius(index, geometry.stopPoints.length)}
+          />
         ))}
       </g>
     );
-  }), [routeLayout, routeOverlays]);
+  }), [routeRenderData]);
 
   const renderShipmentMarkup = (now: number) => shipmentOverlays.map((shipment) => {
     const position = currentShipmentPosition(shipment, now);
@@ -452,6 +533,7 @@ export function UsMainlandMap({
     cameraRef.current?.destroy();
     cameraRef.current = createProvinceMapCamera(container, surface, { focusBounds: provinceMapMainlandFocusBounds });
     updateViewportMetadata(container);
+    if (updateSettledStrokeScales(container)) rasterRefreshPendingRef.current = true;
     let idleRefreshFrame: number | null = null;
     const queueIdleRefresh = () => {
       if (idleRefreshFrame !== null) return;
@@ -462,12 +544,15 @@ export function UsMainlandMap({
     };
     // Observe only the existing active/idle boundary, never Camera frame writes.
     const settleObserver = new MutationObserver(() => {
-      if (container.dataset.mapZoomActive !== 'true' && rasterRefreshPendingRef.current) queueIdleRefresh();
+      if (container.dataset.mapZoomActive === 'true') return;
+      if (updateSettledStrokeScales(container)) rasterRefreshPendingRef.current = true;
+      if (rasterRefreshPendingRef.current) queueIdleRefresh();
     });
     settleObserver.observe(container, { attributes: true, attributeFilter: ['data-map-zoom-active'] });
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
       updateViewportMetadata(container);
       cameraRef.current?.reset();
+      if (updateSettledStrokeScales(container)) rasterRefreshPendingRef.current = true;
       queueIdleRefresh();
     });
     observer?.observe(container);
@@ -690,7 +775,36 @@ export function UsMainlandMap({
                     );
                   })}
                 </g>
-                <g className="province-map-routes" pointerEvents="none" aria-hidden="true">{routeOverlaysMarkup}</g>
+                <g className="province-map-routes" pointerEvents="none" aria-hidden="true">
+                  <defs>
+                    <mask
+                      id={routeNodeMaskId}
+                      className="province-map-route-node-cutout-mask"
+                      data-route-node-cutout-count={routeNodeCutouts.length}
+                      x={routeMaskX}
+                      y={routeMaskY}
+                      width={routeMaskWidth}
+                      height={routeMaskHeight}
+                      maskUnits="userSpaceOnUse"
+                      maskContentUnits="userSpaceOnUse"
+                      style={{ maskType: 'luminance' }}
+                    >
+                      <rect x={routeMaskX} y={routeMaskY} width={routeMaskWidth} height={routeMaskHeight} fill="white" />
+                      {routeNodeCutouts.map((cutout) => (
+                        <circle
+                          key={`${cutout.x}:${cutout.y}`}
+                          className="province-map-route-node-cutout"
+                          cx={cutout.x}
+                          cy={cutout.y}
+                          r={cutout.radius}
+                          fill="black"
+                        />
+                      ))}
+                    </mask>
+                  </defs>
+                  <g className="province-map-route-path-layer" mask={`url(#${routeNodeMaskId})`}>{routePathsMarkup}</g>
+                  <g className="province-map-route-node-layer">{routeNodesMarkup}</g>
+                </g>
                 <g className="province-map-label-camera" pointerEvents="none" aria-hidden="true">
                   {labels.map((label) => (
                     <g

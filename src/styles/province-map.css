@@ -33,6 +33,8 @@
 }
 
 .province-map-static-viewport {
+  --province-map-route-stroke-scale: .5;
+  --province-map-boundary-stroke-scale: .65;
   position: relative;
   width: 100%;
   height: 100%;
@@ -116,7 +118,7 @@
 .province-map-mainland-seam {
   fill: none;
   stroke: var(--province-map-world-fill);
-  stroke-width: 3.4;
+  stroke-width: calc(3.4px * var(--province-map-boundary-stroke-scale));
   stroke-linejoin: round;
   stroke-linecap: round;
   opacity: 1;
@@ -125,7 +127,7 @@
 .province-map-mainland-outline {
   fill: none;
   stroke: var(--color-map-region-border);
-  stroke-width: 1.2;
+  stroke-width: calc(1.2px * var(--province-map-boundary-stroke-scale));
   stroke-linejoin: round;
   stroke-linecap: round;
   opacity: .72;
@@ -134,7 +136,7 @@
 .province-map-region {
   fill: var(--province-map-area-color, var(--color-map-region-default));
   stroke: var(--province-map-border-color, var(--color-map-region-border));
-  stroke-width: 1;
+  stroke-width: calc(1px * var(--province-map-boundary-stroke-scale));
   stroke-linejoin: round;
   stroke-linecap: round;
   cursor: pointer;
@@ -146,14 +148,14 @@
   html[data-input-modality='mouse'] .province-map-region:hover {
     fill: var(--province-map-area-color, var(--color-map-region-default));
     stroke: var(--color-text-secondary);
-    stroke-width: 1.5;
+    stroke-width: calc(1.5px * var(--province-map-boundary-stroke-scale));
     filter: none;
   }
 
   html[data-input-modality='mouse'] .province-map-region[data-selected='true']:hover {
     fill: var(--province-map-area-color, var(--color-map-region-default));
     stroke: var(--color-text-primary);
-    stroke-width: 3;
+    stroke-width: calc(3px * var(--province-map-boundary-stroke-scale));
     filter: none;
   }
 }
@@ -161,25 +163,27 @@
 .province-map-region[data-selected='true'] {
   fill: var(--province-map-area-color, var(--color-map-region-default));
   stroke: var(--color-text-primary);
-  stroke-width: 2.5;
+  stroke-width: calc(2.5px * var(--province-map-boundary-stroke-scale));
   filter: none;
 }
 
 .province-map-region:focus-visible {
   fill: var(--province-map-area-color, var(--color-map-region-default));
   stroke: var(--color-text-primary);
-  stroke-width: 2.5;
+  stroke-width: calc(2.5px * var(--province-map-boundary-stroke-scale));
   filter: none;
 }
 
-.province-map-routes {
+.province-map-routes,
+.province-map-route-path-layer,
+.province-map-route-node-layer {
   pointer-events: none;
 }
 
 .province-map-route-path {
   fill: none;
   stroke: var(--color-map-label);
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--province-map-route-stroke-scale));
   stroke-linejoin: round;
   stroke-linecap: round;
   opacity: .5;
@@ -206,22 +210,22 @@
 
 .province-map-route[data-route-kind='draft'] .province-map-route-path {
   stroke: var(--color-info);
-  stroke-width: 2.5;
+  stroke-width: calc(2.5px * var(--province-map-route-stroke-scale));
   opacity: .92;
 }
 
-.province-map-route[data-route-kind='draft'] .province-map-route-stop {
+.province-map-route-node-entry[data-route-kind='draft'] .province-map-route-stop {
   fill: var(--color-info);
   opacity: .95;
 }
 
 .province-map-route[data-route-kind='highlight'] .province-map-route-path {
   stroke: var(--color-warning);
-  stroke-width: 3;
+  stroke-width: calc(3px * var(--province-map-route-stroke-scale));
   opacity: .95;
 }
 
-.province-map-route[data-route-kind='highlight'] .province-map-route-stop {
+.province-map-route-node-entry[data-route-kind='highlight'] .province-map-route-stop {
   fill: var(--color-warning);
   opacity: .95;
 }
