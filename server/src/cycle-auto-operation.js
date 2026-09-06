@@ -90,16 +90,12 @@ function trade(world, player, provinceId, productId, side, quantity, now, execut
 }
 
 function isInitialAutoOperationPlan(player, plan) {
-  if (!plan?.group?.enabled || !plan?.policy?.enabled) return false;
+  if (!plan?.group?.enabled || !plan?.policy?.enabled
+    || plan.group.autoOperationBootstrapPending !== true) return false;
   const cursorKey = `${plan.kind}:${plan.sourceId}`;
   if (Number(player.autoOperationCycleCursors?.[cursorKey] || 0) > 0) return false;
-  if (plan.kind === 'commercial') {
-    return !plan.group.cycleActive
-      && plan.group.status !== 'running'
-      && Number(plan.group.lifetimeRevenue || 0) <= 0;
-  }
-  return plan.group.status !== 'running'
-    && Number(plan.group.lifetimeOutput || 0) <= 0;
+  if (plan.kind === 'commercial') return !plan.group.cycleActive && plan.group.status !== 'running';
+  return plan.group.status !== 'running';
 }
 
 function procureBuildingPlans(
@@ -140,7 +136,7 @@ function procureBuildingPlans(
 
 /**
  * Purchase-only first-cycle bootstrap. It never writes a cycle cursor and never performs auto-sale.
- * Once a building has a running cycle or a completed-cycle cursor, normal completion-driven automation owns procurement.
+ * Eligibility is an explicit first-construction marker; old/migrated or transferred groups never infer it from zero output.
  */
 export function bootstrapBuildingAutoOperation(world, player, now, provinceId) {
   // Runtime action preprocessing may temporarily suppress bootstrap so a stop/configuration action cannot buy first.
