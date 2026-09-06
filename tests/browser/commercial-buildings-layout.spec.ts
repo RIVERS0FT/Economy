@@ -75,14 +75,32 @@ test('commercial cards show per-building profit while running settlement keeps o
   await first.press('Enter');
   await expect(page.locator('.facility-average-profit')).toContainText('0.50');
   await expect(page.getByText('集群额定利润／分钟', { exact: true }).locator('..')).toContainText('1.50');
-  await expect(page.locator('.commercial-settlement-revenue')).toContainText('101.25');
-  await expect(page.locator('.commercial-settlement .facility-formula-side-label')).toHaveCount(0);
+  const settlement = page.locator('.commercial-settlement');
+  const revenueCard = settlement.locator('.facility-formula-money-card');
+  await expect(revenueCard).toContainText('101.25');
+  await expect(revenueCard).toHaveCount(1);
+  await expect(revenueCard.locator('.currency-amount__icon')).toHaveCount(1);
+  await expect(revenueCard.locator('.facility-formula-meta-icon')).toHaveCount(0);
+  const inputGeometry = await settlement.locator('.facility-formula-item-group').first().evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { display: style.display, minHeight: style.minHeight, padding: style.padding, radius: style.borderRadius, shadow: style.boxShadow };
+  });
+  const revenueGeometry = await revenueCard.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { display: style.display, minHeight: style.minHeight, padding: style.padding, radius: style.borderRadius, shadow: style.boxShadow };
+  });
+  expect(revenueGeometry).toEqual(inputGeometry);
+  const meta = settlement.locator('.facility-formula-meta');
+  await expect(meta).toHaveCount(1);
+  await expect(meta.locator('.facility-formula-meta-unit')).toHaveCount(2);
+  expect(await meta.evaluate((element) => getComputedStyle(element).borderRadius)).toBe(inputGeometry.radius);
+  await expect(settlement.locator('.facility-formula-side-label')).toHaveCount(0);
   for (const label of ['已投入商品', '锁定收入', '本周期等效营业数量', '本周期锁定收入', '本周期锁定商品价值', '本周期已付运营成本', '本周期锁定利润']) {
     await expect(page.getByText(label, { exact: true })).toHaveCount(0);
   }
-  await expect(page.locator('.commercial-settlement .facility-formula-item-group[data-shortage="true"]')).toHaveCount(2);
-  await expect(page.locator('.commercial-settlement .facility-formula-item-group').first()).toHaveAttribute('aria-label', /库存不足/);
-  await expect(page.locator('.commercial-settlement button.facility-formula-item-group')).toHaveCount(2);
+  await expect(settlement.locator('.facility-formula-item-group[data-shortage="true"]')).toHaveCount(2);
+  await expect(settlement.locator('.facility-formula-item-group').first()).toHaveAttribute('aria-label', /库存不足/);
+  await expect(settlement.locator('button.facility-formula-item-group')).toHaveCount(2);
   await expect(page.getByText('满员率', { exact: true })).toHaveCount(0);
 });
 
