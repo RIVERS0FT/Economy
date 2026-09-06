@@ -92,6 +92,7 @@ test('commercial completion buys and freezes next-cycle goods at official prices
 
 test('missing first commercial inputs use purchase-only bootstrap while legacy direct requests stay disabled', () => {
   const { world, player, group, type } = setup(1);
+  group.autoOperationBootstrapPending = true;
   const before = player.credits;
   const market = world.markets[provinceScopedKey(provinceId, 'food')];
   const buyBefore = Number(market.todayBuyQuantity || 0);
