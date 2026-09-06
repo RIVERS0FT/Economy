@@ -34,7 +34,8 @@ test('market page reuses cached detail, prefetches catalog rows, and refreshes o
   const row = read('src/components/market/MarketCommodityRow.tsx');
   for (const token of [
     'peekMarketDetail(model.selectedProvinceId, activeAssetKind, assetId)',
-    'const marketDetailPending = Boolean(marketDetailLoading && !selectedMarketDetail);',
+    "const shouldLoadMarketDetail = Boolean(facilityAssetId) || marketViewMode === 'detail';",
+    'shouldLoadMarketDetail && !selectedMarketDetail && !marketDetailError',
     'selectedProductMarket?.todayBuyQuantity',
     'selectedProductMarket?.todaySellQuantity',
     'onPrefetch={() => prefetchMarketDetail(model.selectedProvinceId, entry.kind, entry.id)}',
