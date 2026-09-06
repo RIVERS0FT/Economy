@@ -137,7 +137,6 @@ export function FacilityProductionFormula({
 
   return (
     <BuildingSettlementPanel title={<GameConcept concept="production-settlement" />} status={group.status} description={description}
-      inputLabel={<GameConcept concept="production-input" />} outputLabel={<GameConcept concept="production-output" />}
       inputs={inputs.length > 0 ? <RecipeItems items={inputs} productNames={productNames} inventories={inventories}
         multiplier={scope.count} groupClassName="facility-formula-input-group" itemClassName="facility-formula-input-item"
         onOpenProductMarket={onOpenProductMarket} /> : <span className="facility-formula-empty">无</span>}
