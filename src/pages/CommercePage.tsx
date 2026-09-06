@@ -206,7 +206,13 @@ export function CommercePage({
   const openProductDetail = (productId: string) => {
     const current = navigation?.currentLocation;
     if (navigation && current?.type === 'regional-commercial') {
-      navigation.pushPage({ type: 'regional-product', host: current.host === 'buildings' ? 'market' : 'province', provinceId: current.provinceId, productId });
+      model.selectMarketAsset('commodity', productId, false);
+      navigation.pushPage({
+        type: 'regional-product',
+        host: current.host === 'buildings' ? 'buildings' : 'province',
+        provinceId: current.provinceId,
+        productId,
+      });
       return;
     }
     model.selectMarketAsset('commodity', productId);
