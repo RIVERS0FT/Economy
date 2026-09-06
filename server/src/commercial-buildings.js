@@ -217,6 +217,7 @@ function startCycle(world, player, group, type, startedAt) {
     goodsConsumed += input.quantity;
   }
 
+  delete group.autoOperationBootstrapPending;
   group.staffingRateBps = rate;
   group.staffingUpdatedAt = Math.max(Number(group.staffingUpdatedAt) || 0, startedAt);
   group.staffingBatchCarryBps = capacity.carryBps;
@@ -288,7 +289,7 @@ function processGroup(world, player, group, now, { allowInitialBootstrap = true 
     return;
   }
   if (cycles < MAX_CATCH_UP_CYCLES) {
-    if (allowInitialBootstrap && Number(group.lifetimeRevenue || 0) <= 0) {
+    if (allowInitialBootstrap && group.autoOperationBootstrapPending === true) {
       bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
     }
     startCycle(world, player, group, type, now);
@@ -331,6 +332,7 @@ function buildCommercialBuilding(world, userId, payload, now) {
   group.count += quantity;
   group.staffingRateBps = commercialExpansionStaffingRate(rate, previousCount, group.count);
   if (firstBuild) {
+    group.autoOperationBootstrapPending = true;
     group.enabled = true;
     processGroup(world, player, group, now);
     return result(
@@ -352,7 +354,7 @@ function startCommercialBuilding(world, userId, payload, now) {
   if (!group.enabled) commitCommercialStaffing(group, now);
   group.enabled = true;
   if (hasCommercialCycle(group)) return result(true, `${type.name}已保持营业，当前周期继续进行`);
-  if (Number(group.lifetimeRevenue || 0) <= 0) bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
+  if (group.autoOperationBootstrapPending === true) bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
   if (startCycle(world, player, group, type, now)) {
     return result(true, `${type.name}已开始营业，${group.participatingCount} 座建筑参与当前周期`);
   }
