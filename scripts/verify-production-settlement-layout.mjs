@@ -210,7 +210,7 @@ assert.ok(summaryDescriptionStart >= 0, '工厂主信息必须提供插画右侧
 assert.ok(detail.indexOf('className="facility-count-summary"', summaryDescriptionStart) > summaryDescriptionStart, '数量摘要必须位于插画右侧详情区');
 assert.ok(detail.indexOf('<FacilityRecipeProfitAnalysis', summaryDescriptionStart) > summaryDescriptionStart, '平均利润必须位于插画右侧详情区');
 assert.ok(detail.indexOf('<FacilityStaffingSummary entry={entry} now={liveNow} />', summaryDescriptionStart) > summaryDescriptionStart, '满员率必须位于插画右侧详情区');
-assert.equal(detail.includes('<strong>生产设置</strong>'), false, '生产配置不得恢复可见“生产设置”标题');
+assert.equal(detail.includes('<strong>生产设置</strong>'), false, '工厂详情不得恢复可见“生产设置”标题');
 for (const text of [
   '.facility-information-details > .facility-average-profit',
   '.facility-information-details > .facility-staffing-summary',
@@ -336,12 +336,12 @@ for (const text of [
   "`regional-facility`",
   "`regional-product`",
   '不得先进入商品全局详情、商品目录或一级市场中间态',
-  '不得根据生产配方语义自动推断采购／出售方向',
+  '不得根据生产配方或商业消费语义自动推断采购／出售方向',
   '进入商品详情后即时交易数量重置为 `1`',
   '成交价格只读取服务器当日 `officialPrice`',
-  '不得由生产配方或来源页面预填自定义价格',
+  '不得由来源页面预填自定义价格',
   '不得自动提交交易',
-  '不得改写建筑页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态',
+  '不得改写建筑页建设工厂类型、数量、配方、作业制度、商业营业设置或任何服务器权威生产／经营状态',
 ]) assert.equal(pageDesign.includes(text), true, `生产本地商品导航权威设计缺少: ${text}`);
 
 for (const text of [
