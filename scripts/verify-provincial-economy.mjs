@@ -97,7 +97,7 @@ assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINC
 assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.mapName, 'California', '旧默认地区必须原位映射为加利福尼亚州');
 assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.capitalName, '萨克拉门托', '加利福尼亚州必须记录首府萨克拉门托');
 assert.equal(PROVINCE_CATALOG.find((province) => province.mapName === 'Georgia')?.capitalMapName, 'Atlanta', '佐治亚州必须记录首府 Atlanta');
-assert.equal(CURRENT_CLIENT_STATE_VERSION, 41, '州级状态协议必须使用客户端版本 41');
+assert.equal(CURRENT_CLIENT_STATE_VERSION, 42, '州级状态协议必须使用客户端版本 42');
 assert.equal(AUTHORITATIVE_WORLD_VERSION, 33, '州级持久化必须使用世界版本 33');
 
 const provinceTypes = read('src/types.ts');

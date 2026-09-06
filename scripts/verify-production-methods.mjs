@@ -62,8 +62,8 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 
 assert.ok(sharedDefinitions.has('precision-fertilization'), '跨工厂共享制度缺少农场／果园样本');
 assert.ok(sharedDefinitions.has('automated-assembly'), '跨工厂共享制度缺少工业装配样本');
-assert.equal(CURRENT_CLIENT_STATE_VERSION, 41);
-assert.equal(MIN_COMPATIBLE_CLIENT_STATE_VERSION, 41);
+assert.equal(CURRENT_CLIENT_STATE_VERSION, 42);
+assert.equal(MIN_COMPATIBLE_CLIENT_STATE_VERSION, 42);
 
 const productionSource = read('server/src/production-methods.js');
 const legacySource = read('server/src/legacy-production-methods.js');
