@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from 'react';
+import { useContext, useMemo } from 'react';
 import regionCatalog from '../../../shared/provinces.json';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import type { GameTutorialController } from '../../game-guide/useGameTutorial';
@@ -115,7 +115,6 @@ export function StrategicMapStage({ model, lens }: {
 }) {
   const state = strategicMapState(model);
   const routeDraft = useContext(TransportRouteDraftContext);
-  const [savingRoute, setSavingRoute] = useState(false);
   const provinceById = useMemo(() => new Map(state.provinces.map((province) => [province.id, province])), [state.provinces]);
   const productById = useMemo(() => new Map(model.game.products.map((product) => [product.id, product])), [model.game.products]);
   const setSelectedProvinceId = typeof model.setSelectedProvinceId === 'function' ? model.setSelectedProvinceId : () => {};
@@ -132,18 +131,19 @@ export function StrategicMapStage({ model, lens }: {
   const highlightedRouteId = routeDraft?.highlightedRouteId ?? null;
   const routeOverlays = useMemo<ProvinceMapRouteOverlay[]>(() => {
     const overlays: ProvinceMapRouteOverlay[] = [];
-    if (model.tab === 'transport') {
-      for (const route of transportRoutes) {
-        const stops = transportRouteStopIds(route);
-        if (stops.length < 2) continue;
-        overlays.push({
-          id: `saved-${route.mode}-${route.id}`,
-          routeId: route.id,
-          mode: route.mode,
-          stops,
-          kind: route.id === highlightedRouteId ? 'highlight' : 'saved',
-        });
-      }
+    let highlightedOverlay: ProvinceMapRouteOverlay | null = null;
+    for (const route of transportRoutes) {
+      const stops = transportRouteStopIds(route);
+      if (stops.length < 2) continue;
+      const overlay: ProvinceMapRouteOverlay = {
+        id: `saved-${route.mode}-${route.id}`,
+        routeId: route.id,
+        mode: route.mode,
+        stops,
+        kind: route.id === highlightedRouteId ? 'highlight' : 'saved',
+      };
+      if (overlay.kind === 'highlight') highlightedOverlay = overlay;
+      else overlays.push(overlay);
     }
     if (routeDraft?.draft && draftStops.length >= 2) {
       overlays.push({
@@ -153,8 +153,9 @@ export function StrategicMapStage({ model, lens }: {
         kind: 'draft',
       });
     }
+    if (highlightedOverlay) overlays.push(highlightedOverlay);
     return overlays;
-  }, [draftStops, highlightedRouteId, model.tab, routeDraft?.draft, transportRoutes]);
+  }, [draftStops, highlightedRouteId, routeDraft?.draft, transportRoutes]);
 
   const shipmentOverlays = useMemo<ProvinceMapShipmentOverlay[]>(() => {
     return ((model.game.transportShipments || []) as ShipmentView[])
@@ -186,28 +187,15 @@ export function StrategicMapStage({ model, lens }: {
     : null;
   const draftClosed = Boolean(routeDraft?.draft && isTransportRouteClosed(routeDraft.draft));
 
-  async function createDraftRoute() {
-    if (!routeDraft?.draft || savingRoute) return;
+  async function finishDraftSelection() {
+    if (!routeDraft?.draft) return;
     const draft = routeDraft.draft;
     const stops = transportRouteStopIds(draft);
     if (!draft.sourceProvinceId || !draft.destinationProvinceId || stops.length < 2) {
       await model.showResult({ ok: false, message: '请先在地图上选择完整运输路线' });
       return;
     }
-    setSavingRoute(true);
-    try {
-      const result = await model.createTransportRoute({
-        sourceProvinceId: draft.sourceProvinceId,
-        destinationProvinceId: draft.destinationProvinceId,
-        viaProvinceIds: draft.viaProvinceIds,
-        mode: draft.mode,
-      });
-      await model.showResult(result);
-      if (result.ok) routeDraft.closeDraft();
-      else routeDraft.finishPicking();
-    } finally {
-      setSavingRoute(false);
-    }
+    routeDraft.finishPicking();
   }
 
   return (
@@ -245,7 +233,6 @@ export function StrategicMapStage({ model, lens }: {
             <SelectInput
               label="运输方式"
               value={routeDraft.draft?.mode ?? 'road'}
-              disabled={savingRoute}
               onChange={(event) => routeDraft.updateDraft({ mode: event.target.value as TransportModeId })}
             >
               <option value="road">公路运输</option>
@@ -258,10 +245,10 @@ export function StrategicMapStage({ model, lens }: {
             <strong>{draftStops.length >= 2 ? formatCurrency(draftSetupCost) : '选择完整路线后计算'}</strong>
           </div>
           <div className="transport-map-picking-actions">
-            <button type="button" onClick={routeDraft.closeLoop} disabled={savingRoute || draftStops.length < 2 || draftClosed}>闭环</button>
-            <button type="button" onClick={routeDraft.resetStops} disabled={savingRoute || draftStops.length === 0}>重置站点</button>
-            <button type="button" className="is-primary" onClick={() => void createDraftRoute()} disabled={savingRoute || draftStops.length < 2}>{savingRoute ? '创建中…' : '完成选择'}</button>
-            <button type="button" onClick={routeDraft.cancelPicking} disabled={savingRoute}>取消</button>
+            <button type="button" onClick={routeDraft.closeLoop} disabled={draftStops.length < 2 || draftClosed}>闭环</button>
+            <button type="button" onClick={routeDraft.resetStops} disabled={draftStops.length === 0}>重置站点</button>
+            <button type="button" className="is-primary" onClick={() => void finishDraftSelection()} disabled={draftStops.length < 2}>完成选择</button>
+            <button type="button" onClick={routeDraft.cancelPicking}>取消</button>
           </div>
         </div>
       ) : null}

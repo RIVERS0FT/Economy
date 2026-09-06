@@ -9,6 +9,9 @@ import { Button, PageLayout, StatusTag, WidgetHeading } from '../components/ui/l
 import { useNow } from '../hooks/useNow';
 import type { TransportModeId, TransportRoute, TransportShipment, TransportTripType } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { estimateTransportRoute } from '../transport/transportPlanning.js';
+import { TRANSPORT_WAITING_LABELS } from '../transport/transportPlanner.js';
+import { TransportForecast, TransportLoad, TransportModeComparison } from '../transport/TransportEconomics';
 import {
   formatTransportDuration,
   isTransportRouteClosed,
@@ -50,8 +53,8 @@ function shipmentManifest(shipment: TransportShipmentView): ManifestEntry[] {
   return Array.isArray(shipment.manifest) ? shipment.manifest : [];
 }
 
-function routeRuntimeLabel(shipment: TransportShipmentView | undefined) {
-  if (!shipment) return '等待在线规划';
+function routeRuntimeLabel(shipment: TransportShipmentView | undefined, waitingReason: keyof typeof TRANSPORT_WAITING_LABELS) {
+  if (!shipment) return TRANSPORT_WAITING_LABELS[waitingReason];
   return shipment.status === 'docked' ? '节点装卸' : '运输中';
 }
 
@@ -79,6 +82,10 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       .filter((shipment) => shipment.status !== 'arrived' && shipment.routeId)
       .map((shipment) => [String(shipment.routeId), shipment]),
   ), [shipments]);
+
+  const routeEstimates = useMemo(() => new Map(routes.map((route) => [
+    route.id, estimateTransportRoute(game, route, now, provinceById),
+  ])), [game, now, provinceById]);
 
   const currentLocation = pageNavigation?.currentLocation;
   const detailRouteId = currentLocation?.type === 'transport-route' ? currentLocation.routeId : null;
@@ -252,8 +259,10 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           <span><small>周期总费用</small><strong>{formatCurrency(shipment.cost)}</strong></span>
           <span><small>运输费</small><strong>{formatCurrency(Number(shipment.transportFee || 0))}</strong></span>
           <span><small>燃料费</small><strong>{formatCurrency(Number(shipment.fuelCost || 0))}</strong></span>
+          <span><small>已交货数量</small><strong><CompactNumber value={Number(shipment.deliveredQuantity || 0)} /></strong></span>
           <span><small>{active ? shipment.status === 'docked' ? '停靠时间' : '预计到站' : '完成时间'}</small><strong>{new Date(timestamp).toLocaleString()}</strong></span>
         </div>
+        {active ? <TransportLoad shipment={shipment} /> : null}
         <div className="transport-shipment-cargo">
           <small>{active ? '当前车载' : '周期运输记录'}</small>
           {manifestList(shipment)}
@@ -275,6 +284,10 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         <span><small>站点</small><strong>{transportRouteStopIds(routeDraft).length}</strong></span>
         <span><small>一次性建线费</small><strong>{formatCurrency(transportRouteSetupCost(routeDraft, routeDraft.mode, provinceById))}</strong></span>
       </div>
+      <TransportModeComparison
+        game={game} route={routeDraft} now={now} provinceById={provinceById}
+        disabled={Boolean(pendingAction)} onSelect={(mode) => setDraft({ ...routeDraft, mode })}
+      />
       <div className="transport-route-editor-actions">
         <Button variant="primary" disabled={Boolean(pendingAction)} onClick={() => void saveRouteDraft()}>创建路线</Button>
         <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={closeDraft}>取消</Button>
@@ -301,6 +314,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     const history = routeShipments.filter((shipment) => shipment.status === 'arrived');
     const routeMode = TRANSPORT_MODES[detailRoute.mode];
     const cycleCost = cycleCostFor(detailRoute);
+    const detailEstimate = routeEstimates.get(detailRoute.id) ?? estimateTransportRoute(game, detailRoute, now, provinceById);
 
     return (
       <PageLayout title={visibleRouteName(detailRoute)}>
@@ -308,7 +322,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           <section className="transport-page-section transport-route-detail-panel">
             <WidgetHeading
               title="路线设置"
-              action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{routeRuntimeLabel(activeShipment ?? undefined)}</StatusTag>}
+              action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{routeRuntimeLabel(activeShipment ?? undefined, detailEstimate.reason)}</StatusTag>}
             />
             <div className="transport-route-name-editor">
               <TextInput
@@ -330,7 +344,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
             <div className="transport-route-summary-grid">
               <span><small>行程</small><strong>{routeTripLabel(detailRoute)}</strong></span>
               <span><small>运输方式</small><strong>{routeMode?.name ?? detailRoute.mode}</strong></span>
-              <span><small>最大载荷</small><strong><CompactNumber value={routeMode?.capacity ?? 0} /></strong></span>
+              <span><small>新周期最大载荷</small><strong><CompactNumber value={routeMode?.capacity ?? 0} /></strong></span>
               <span><small>站点</small><strong>{transportRouteStopIds(detailRoute).length}</strong></span>
               <span><small>周期距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
               <span><small>周期运输费</small><strong>{formatCurrency(cycleCost.transportFee)}</strong></span>
@@ -338,6 +352,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               <span><small>周期总费用</small><strong>{formatCurrency(cycleCost.totalCost)}</strong></span>
               <span><small>建线投入</small><strong>{formatCurrency(Number(detailRoute.setupCost || 0))}</strong></span>
             </div>
+            <TransportForecast estimate={detailEstimate} />
             <p className="transport-route-auto-note">起终点相同时按环线运行；起终点不同时按保存路径到达终点后沿原路返回。运输费和整周期燃料费都只按完整周期距离计算，并只在从起点启动新周期时一次性扣除。</p>
             <p className="transport-route-auto-note">在线客户端在每个停靠节点根据最新库存和州级行情自动决定装卸；服务器只校验真实库存、车辆容量、节点位置和资产守恒。客户端离线时车辆最多到达当前下一节点，并停靠等待重新上线。</p>
             <p className="transport-route-auto-note">路线创建后不可修改路径或运输方式；需要调整时请删除后重新建立并再次支付建线费。</p>
@@ -347,11 +362,11 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           </section>
 
           <section className="transport-page-section transport-route-current-panel">
-            <WidgetHeading title="当前运输" />
+            <WidgetHeading title="运输结算" />
             {activeShipment ? (
               <ul className="transport-shipment-list">{shipmentCard(activeShipment, true)}</ul>
             ) : (
-              <p className="transport-empty">当前没有运行中的运输周期；在线客户端发现可运输机会后会从起点启动新周期。</p>
+              <p className="transport-empty">当前没有运行中的运输周期；在线客户端仅在完整周期预计增益达到安全余量后启动。</p>
             )}
           </section>
 
@@ -382,6 +397,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                   const activeShipment = activeByRouteId.get(route.id);
                   const stops = transportRouteStopIds(route);
                   const cycleCost = cycleCostFor(route);
+                  const estimate = routeEstimates.get(route.id) ?? estimateTransportRoute(game, route, now, provinceById);
                   return (
                     <button
                       type="button"
@@ -397,7 +413,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                     >
                       <div className="transport-route-card-heading">
                         <strong>{visibleRouteName(route)}</strong>
-                        <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{routeRuntimeLabel(activeShipment)}</StatusTag>
+                        <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{routeRuntimeLabel(activeShipment, estimate.reason)}</StatusTag>
                       </div>
                       {routePath(route)}
                       <div className="transport-route-summary-grid">
@@ -406,7 +422,9 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                         <span><small>周期距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
                         <span><small>周期费用</small><strong>{formatCurrency(cycleCost.totalCost)}</strong></span>
                         <span><small>建线投入</small><strong>{formatCurrency(Number(route.setupCost || 0))}</strong></span>
+                        <span><small>下一周期预计增益</small><strong>{estimate.netGain === null ? '待行情同步' : formatCurrency(estimate.netGain)}</strong></span>
                       </div>
+                      {activeShipment ? <><TransportLoad shipment={activeShipment} /><span className="transport-route-next-stop">{shipmentProgress(activeShipment)}</span></> : null}
                     </button>
                   );
                 })}

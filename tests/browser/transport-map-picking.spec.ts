@@ -45,9 +45,8 @@ test('transport route editor picks ordered stops directly on the strategic map a
   await expect(map).toHaveAttribute('data-route-picking', 'false');
   await expect(pickingBar).toHaveCount(0);
 
-  // The account-free preview rejects all writes, so the failed direct-create
-  // attempt preserves the draft in the transport page for a retry instead of
-  // pretending a server route was created.
+  // Finishing map selection is read-only: the preserved draft allows comparing
+  // all three modes before the explicit create action can charge any funds.
   const pendingDraft = page.locator('.transport-route-draft-panel');
   await expect(pendingDraft).toBeVisible();
   await expect(pendingDraft.locator('.transport-route-path-stop')).toHaveCount(4);

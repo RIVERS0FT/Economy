@@ -119,17 +119,23 @@ async function resizeAndInspectChart(
   previousWidth: number,
 ) {
   await page.setViewportSize(viewport);
-  await expect.poll(async () => {
-    const bounds = await inspectChartGeometry(chart);
+  let bounds!: Awaited<ReturnType<typeof inspectChartGeometry>>;
+  // The responsive host can remount ECharts while the viewport settles. Retry
+  // readiness together with geometry instead of throwing from an early poll.
+  await expect(async () => {
+    await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+    bounds = await inspectChartGeometry(chart);
     const usesMobileAxisChrome = bounds.chartWidth <= 720;
-    return {
+    expect({
+      ready: bounds.ready,
+      hasSvg: bounds.hasSvg,
       widthChanged: Math.abs(bounds.chartWidth - previousWidth) > 1,
       responsiveChrome: bounds.mobileAxisTitles === (usesMobileAxisChrome ? 'true' : 'false')
         && bounds.xAxisTitleVisible === (usesMobileAxisChrome ? 'false' : 'true'),
       heightSynced: Math.abs(bounds.actualHeight - bounds.declaredHeight) <= 2,
-    };
-  }).toEqual({ widthChanged: true, responsiveChrome: true, heightSynced: true });
-  return inspectChartGeometry(chart);
+    }).toEqual({ ready: 'true', hasSvg: true, widthChanged: true, responsiveChrome: true, heightSynced: true });
+  }).toPass({ timeout: 10_000 });
+  return bounds;
 }
 
 for (const viewport of marketChartViewports) {

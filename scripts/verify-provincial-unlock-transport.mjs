@@ -78,7 +78,7 @@ for (const text of [
   '`transportRoutes` 与进行中／历史 `transportShipments` 均属于玩家私有运输状态',
   '每名玩家最多保存 50 条路线',
   '同时真正处于 `in-transit` 的运输最多 20 笔',
-  '客户端状态版本保持 40，世界状态版本保持 32',
+  '运输周期参数快照',
 ]) requireText(warehouseDesign, text, `仓库设计缺少节点循环运输规则：${text}`);
 
 for (const text of [
@@ -86,7 +86,7 @@ for (const text of [
   '`transport-route`',
   '运输记录唯一显示在对应路线页面',
   '路线名称允许单独修改',
-  '创建前的路线只能通过唯一常驻战略地图编辑',
+  '创建前的路线节点只能通过唯一常驻战略地图编辑',
   '不得显示手动“发运”按钮',
   '起终点相同',
   '固定往返',
@@ -134,12 +134,14 @@ requireText(provinceAccess, 'player.unlockedProvinces = PROVINCE_CATALOG.map((pr
 
 for (const text of [
   "id: 'road'", "id: 'rail'", "id: 'air'",
-  'setupFixedCost: 100', 'setupFixedCost: 1000', 'setupFixedCost: 500',
-  'setupCostPerKm: 0.02', 'setupCostPerKm: 0.15', 'setupCostPerKm: 0.05',
-  'transportFeePerKm: 0.02', 'transportFeePerKm: 0.17', 'transportFeePerKm: 0.27',
-  'fuelPerKm: 0.01', 'fuelPerKm: 0.08', 'fuelPerKm: 0.13',
-  'capacity: 100', 'capacity: 2000', 'capacity: 500',
-  'timeFactor: 1.0', 'timeFactor: 2.0', 'timeFactor: 0.25',
+  'setupFixedCost: 80', 'setupFixedCost: 1200', 'setupFixedCost: 2400',
+  'setupCostPerKm: 0.02', 'setupCostPerKm: 0.10', 'setupCostPerKm: 0.08',
+  'transportFeePerKm: 0.015', 'transportFeePerKm: 0.02', 'transportFeePerKm: 0.22',
+  'fuelPerKm: 0.005', 'fuelPerKm: 0.01', 'fuelPerKm: 0.08',
+  'capacity: 200', 'capacity: 2000', 'capacity: 300',
+  'timeFactor: 1.0', 'timeFactor: 1.5', 'timeFactor: 0.25',
+  'departureSeconds: 10', 'departureSeconds: 45', 'departureSeconds: 15',
+  'TRANSPORT_POLICY_VERSION = 2',
 ]) requireText(transportPolicy, text, `共享运输策略缺少：${text}`);
 forbidText(transportPolicy, 'unitCostPerKm', '共享运输策略不得恢复按货量计费。');
 forbidText(transportPolicy, 'fixedCost:', '共享运输策略不得恢复每段固定运输费。');
@@ -229,9 +231,9 @@ for (const text of [
   "['catalog', 'player.assets', 'player.misc', 'market.quotes']",
   'gameActions.startTransportCycle',
   'gameActions.serviceTransportNode',
-  'routeHasFutureOpportunity',
-  'planUnload',
-  'planLoad',
+  'createTransportCoordinator',
+  'transportMaintenanceCandidates',
+  'estimateServerNow',
 ]) requireText(transportCoordinator, text, `在线运输协调器缺少：${text}`);
 forbidText(transportCoordinator, 'setInterval', '在线运输协调器不得新增轮询器。');
 
@@ -240,7 +242,7 @@ for (const text of [
   "currentLocation?.type === 'transport-route'",
   'routeTripLabel',
   'isTransportRouteClosed',
-  '等待在线规划',
+  'TRANSPORT_WAITING_LABELS',
   '节点装卸',
   '周期距离',
   '周期运输费',
