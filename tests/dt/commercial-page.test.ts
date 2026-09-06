@@ -45,3 +45,18 @@ test('commercial economics, inventory intent and page owners remain documented i
   assert.match(ui, /BuildingSettlementPanel/);
   assert.match(ui, /BuildingTypeFilter/);
 });
+
+test('commercial settlement keeps one revenue money icon and one combined cycle-cost card geometry', () => {
+  const detail = read('src/components/commercial/CommercialBuildingDetail.tsx');
+  const css = read('src/styles/facility-production-formula.css');
+  const geometry = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
+  assert.match(detail, /className="facility-formula-money-card"/);
+  assert.doesNotMatch(detail, /CreditsIcon/);
+  assert.match(detail, /<CurrencyAmount>/);
+  assert.match(css, /--facility-formula-item-radius:/);
+  assert.match(css, /\.facility-formula-item-group,\n\.facility-formula-money-card \{/);
+  assert.match(css, /\.facility-formula-meta \{[\s\S]*border-radius: var\(--facility-formula-item-radius\);/);
+  assert.match(css, /\.facility-formula-meta-unit\.is-cost \{[\s\S]*border-left: 1px solid var\(--color-divider\);/);
+  assert.match(geometry, /商业收入只显示金额组件自身的一个资金图标/);
+  assert.match(geometry, /周期与成本继续保留在同一条操作数据带中，不拆成两个卡片/);
+});
