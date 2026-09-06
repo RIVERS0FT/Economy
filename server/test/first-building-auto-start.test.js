@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FACILITY_TYPE_CATALOG, createWorld, ensurePlayer } from '../src/domain.js';
-import { applyFacilityGroupAction, processFacilityGroupWorld } from '../src/facility-groups.js';
+import { applyFacilityGroupAction } from '../src/facility-groups.js';
+import { settleProductionForPlayerServerSide } from '../src/production-settlement.js';
 import { DEFAULT_PROVINCE_ID, inventoryForProvince, provinceScopedKey } from '../src/provinces.js';
 
 const user = { id: 77201, email: 'first-building@example.test', name: 'First Building' };
@@ -59,7 +60,7 @@ test('first industrial build defaults to running and bootstraps inputs without a
   assert.equal(bootstrapBuys.reduce((sum, order) => sum + Number(order.quantity || 0), 0), recipe.inputs[0].quantity * 2);
 });
 
-test('industrial first-cycle bootstrap retries after funds recover during authoritative processing', () => {
+test('industrial first-cycle bootstrap retries after funds recover during lazy authoritative settlement', () => {
   const { world, player } = setup();
   const mill = facility('mill');
   const recipe = mill.recipes.find((candidate) => candidate.id === mill.defaultRecipeId) || mill.recipes[0];
@@ -83,7 +84,7 @@ test('industrial first-cycle bootstrap retries after funds recover during author
   assert.equal(Number(wheatMarket.todayBuyQuantity || 0), buyBefore);
 
   player.credits += 100;
-  processFacilityGroupWorld(world, now + 2, { migrate: false });
+  assert.equal(settleProductionForPlayerServerSide(world, user.id, now + 2).ok, true);
   assert.equal(group.enabled, true);
   assert.equal(group.status, 'running');
   assert.equal(group.participatingCount, 1);
