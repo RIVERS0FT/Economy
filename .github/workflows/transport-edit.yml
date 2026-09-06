@@ -1,0 +1,51 @@
+name: Apply isolated transport edits
+
+on:
+  push:
+    branches: [work/transport-balance-20260906]
+    paths:
+      - .github/transport-edit.py
+      - .github/workflows/transport-edit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/work/transport-balance-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Apply exact scoped source edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/transport-edit.py
+          git rm .github/transport-edit.py .github/workflows/transport-edit.yml
+          git diff --check
+          git add src/components/shell/StrategicWorkspace.tsx src/pages/TransportPage.tsx src/styles/transport-page.css docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md tests/browser/transport-map-picking.spec.ts server/test/transport-balance.test.js
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(transport): review modes before charging and display cycle economics'
+          git push origin HEAD:refs/heads/work/transport-balance-20260906
+          git show --stat --oneline HEAD
+      - name: Transport pure logic regression
+        run: node --experimental-strip-types --test tests/dt/transport*.test.ts
+      - name: Transport server integration regression
+        run: node --test server/test/transport*.test.js
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Prepare generated preview and artwork
+        run: npm run generate:local-preview && npm run generate:artwork
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Existing transport invariant verification
+        run: node scripts/verify-provincial-unlock-transport.mjs
