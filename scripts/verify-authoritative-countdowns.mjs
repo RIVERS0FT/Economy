@@ -45,6 +45,9 @@ if (failures.length === 0) {
   for (const text of [
     "group.status !== 'running'",
     'Number(group.cycleStartedAt) + recipe.cycleMs',
+    'game.commercialBuildingGroups ?? []',
+    'hasCommercialCycle(group)',
+    'group.cycleCompletesAt',
     "auction.status === 'open'",
     'auction.endsAt',
     'leaderboardsFromGame(game)?.period.endsAt',
@@ -183,6 +186,8 @@ if (failures.length === 0) {
     '`serverNow`',
     '共享单调服务器时钟',
     '`src/utils/authoritativeCountdowns.ts`',
+    '商业建筑营业周期结束 `commercialBuildingGroups[].cycleCompletesAt`',
+    '商业营业周期必须进入统一注册表',
     '每 `1,000ms` 继续确认',
     '浏览器从后台恢复可见时立即重新判断截止时间',
     '游戏启动与已就绪 authority 生命周期',
