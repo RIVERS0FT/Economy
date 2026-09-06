@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import {
   saveFactoryAutoOperationPolicy,
   type FactoryAutoOperationPolicyInput,
@@ -8,6 +8,7 @@ import {
   subscribeStateAuthorityDependencies,
 } from '../../app/stateDelivery.js';
 import { announceFactoryAutoOperationSaved } from '../../game-guide/tutorialEvents';
+import { autoOperationSuccessMessage, reportActionException, type OperationFeedback } from '../../notifications/operationFeedback';
 import type { FacilityGroup } from '../../types';
 import { GameConcept } from '../ui/GameConcept';
 import { BuildingAutoOperationSection } from '../buildings/BuildingAutoOperationSection';
@@ -41,9 +42,11 @@ export type FacilityAutoOperationController = {
 
 export function FacilityAutoOperationControls({
   group,
+  feedback,
   children,
 }: {
   group: FacilityGroup;
+  feedback: OperationFeedback;
   children: (controller: FacilityAutoOperationController) => ReactNode;
 }) {
   const subscribe = useCallback((listener: () => void) => (
@@ -56,19 +59,32 @@ export function FacilityAutoOperationControls({
   );
   const [draft, setDraft] = useState<FactoryAutoOperationPolicyInput>(sourcePolicy);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const requestRef = useRef<{ key: string } | null>(null);
+  const activeKeyRef = useRef<string | null>(policyKey(group));
+  const key = policyKey(group);
 
   useEffect(() => {
-    setDraft(sourcePolicy);
-  }, [sourcePolicy, group.facilityTypeId, group.provinceId]);
+    activeKeyRef.current = key;
+    if (requestRef.current?.key !== key) setDraft(sourcePolicy);
+    setSaving(requestRef.current?.key === key);
+    return () => { activeKeyRef.current = null; };
+  }, [sourcePolicy, key]);
 
   const save = async (nextPolicy: FactoryAutoOperationPolicyInput) => {
+    if (requestRef.current?.key === key || group.count < 1) return;
+    const request = { key };
+    requestRef.current = request;
+    const successMessage = autoOperationSuccessMessage(draft.enabled, nextPolicy.enabled);
+    setDraft(nextPolicy);
     setSaving(true);
-    setMessage('');
+    const isCurrent = () => activeKeyRef.current === key && requestRef.current === request;
     try {
       const response = await saveFactoryAutoOperationPolicy(group.provinceId, group.facilityTypeId, nextPolicy);
-      setMessage(response.result.message || (response.result.ok ? '自动经营策略已保存' : '自动经营策略保存失败'));
-      if (!response.result.ok) setDraft(authorityPolicy(group));
+      await feedback.showResult({
+        ...response.result,
+        message: response.result.ok ? successMessage : response.result.message || '自动经营设置保存失败',
+      });
+      if (!response.result.ok && isCurrent()) setDraft(authorityPolicy(group));
       if (response.result.ok) {
         const state = getStateAuthoritySnapshot().state;
         announceFactoryAutoOperationSaved({
@@ -78,22 +94,22 @@ export function FacilityAutoOperationControls({
         });
       }
     } catch (reason) {
-      setDraft(authorityPolicy(group));
-      setMessage(reason instanceof Error ? reason.message : '自动经营策略保存失败');
+      await reportActionException(feedback, reason, '自动经营设置');
+      if (isCurrent()) setDraft(authorityPolicy(group));
     } finally {
-      setSaving(false);
+      if (isCurrent()) setSaving(false);
+      if (requestRef.current === request) requestRef.current = null;
     }
   };
 
   const updatePolicy = (nextPolicy: FactoryAutoOperationPolicyInput) => {
-    setDraft(nextPolicy);
     void save(nextPolicy);
   };
 
   return (
     <BuildingAutoOperationSection label={<GameConcept concept="factory-auto-operation">自动经营</GameConcept>}
       enabled={draft.enabled} disabled={group.count < 1 || saving}
-      onChange={(enabled) => updatePolicy({ ...draft, enabled })} message={message}>
+      onChange={(enabled) => updatePolicy({ ...draft, enabled })}>
       {children({ policy: draft, saving, updatePolicy })}
     </BuildingAutoOperationSection>
   );
