@@ -26,6 +26,8 @@ jobs:
           TARGET_BRANCH: fix/first-building-auto-start
         run: |
           set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch origin main "$BACKUP_BRANCH" "$TARGET_BRANCH"
           test "$(git rev-parse origin/main)" = "$BASE_SHA"
           git checkout -B rebuilt-first-building-auto-start origin/main
@@ -71,7 +73,6 @@ jobs:
                       return paragraph
               raise AssertionError(f'missing paragraph prefix: {prefix}')
 
-          # COMMERCIAL_BUILDINGS_DESIGN: keep #800 behavior and retain #801 balance/compatibility paragraph.
           path = 'docs/COMMERCIAL_BUILDINGS_DESIGN.md'
           backup = show(BACKUP, path)
           main = show(MAIN, path)
@@ -82,7 +83,6 @@ jobs:
               merged = merged.replace(anchor, anchor + '\n\n' + balance_para, 1)
           write(path, merged)
 
-          # INDUSTRY_AND_PRODUCTION_DESIGN: start from #801 and reapply only #800 first-build semantics.
           path = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'
           backup = show(BACKUP, path)
           merged = show(MAIN, path)
@@ -92,17 +92,14 @@ jobs:
               '服务端允许单次建设 1～100 座并按数量安全相乘。',
           ]:
               merged = replace_line_with_prefix(merged, prefix, line_with_prefix(backup, prefix))
-
           first_build_rule = line_with_prefix(backup, '- 玩家首次建设使某州某类型集群从 `0 → >0` 时，服务器默认设置 `enabled = true`；')
           if first_build_rule not in merged:
               anchor = line_with_prefix(merged, '- 玩家打开开关后，`enabled = true`。')
               merged = merged.replace(anchor, first_build_rule + '\n' + anchor, 1)
-
           bootstrap_rule = line_with_prefix(backup, '- 尚未建立首周期且自动经营开启时，原料不足可以按 `WAREHOUSE_EXPANSION_DESIGN.md` 执行 purchase-only bootstrap；')
           if bootstrap_rule not in merged:
               anchor = line_with_prefix(merged, '- 资金、原料、仓库或可用工厂不足时状态为 `error`。')
               merged = merged.replace(anchor, anchor + '\n' + bootstrap_rule, 1)
-
           guard_rules = [
               line_with_prefix(backup, '- 首次建设后默认保持停止，或要求首次缺料必须由玩家手动买入后才能开始首周期；'),
               line_with_prefix(backup, '- 让首周期 bootstrap 出售地区商品、写入完成游标、伪造完成周期或补造异常期间产出；'),
@@ -113,7 +110,6 @@ jobs:
               merged = merged.replace(anchor, anchor + '\n' + '\n'.join(guard_rules), 1)
           write(path, merged)
 
-          # facility-groups: preserve #801 production-cost migration and add #800 private bootstrap eligibility/entry points.
           path = 'server/src/facility-groups.js'
           backup = show(BACKUP, path)
           merged = show(MAIN, path)
@@ -122,17 +118,14 @@ jobs:
               'import { completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from',
               line_with_prefix(backup, 'import { bootstrapBuildingAutoOperation, completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from'),
           )
-
           marker_line = line_with_prefix(backup, '    ...(overrides.autoOperationBootstrapPending === true ?')
           if marker_line not in merged:
               anchor = line_with_prefix(merged, '    ...(Number.isSafeInteger(overrides.cycleRecordedLifetimeOutput) ?')
               merged = merged.replace(anchor, anchor + '\n' + marker_line, 1)
-
           if '  delete group.autoOperationBootstrapPending;\n' not in merged:
               start = merged.index('function startGroupRuntime(world, group, count, now) {')
               pos = merged.index('  delete group.statusReason;\n', start) + len('  delete group.statusReason;\n')
               merged = merged[:pos] + '  delete group.autoOperationBootstrapPending;\n' + merged[pos:]
-
           scan_start = backup.index('    const bootstrapProvinceIds = new Set((player.facilityGroups || [])')
           scan_end_line = '    for (const provinceId of bootstrapProvinceIds) bootstrapBuildingAutoOperation(world, player, now, provinceId);\n'
           scan_end = backup.index(scan_end_line, scan_start) + len(scan_end_line)
@@ -141,7 +134,6 @@ jobs:
               func = merged.index('export function processFacilityGroupWorld(')
               anchor_pos = merged.index('    ensureWarehouse(player);\n', func) + len('    ensureWarehouse(player);\n')
               merged = merged[:anchor_pos] + scan_block + merged[anchor_pos:]
-
           existing_line = line_with_prefix(backup, '  const existingGroup = groupFor(player, type.id, false, now, provinceId);')
           first_line = line_with_prefix(backup, '  const firstBuild = !existingGroup || existingGroup.count < 1;')
           if existing_line not in merged:
@@ -149,7 +141,6 @@ jobs:
               quantity_line = line_with_prefix(merged[func:], "  if (!quantity) return result(false, '建造数量必须为 1 到 100 的整数');")
               pos = merged.index(quantity_line, func) + len(quantity_line)
               merged = merged[:pos] + '\n' + existing_line + '\n' + first_line + merged[pos:]
-
           block_start = backup.index('  const group = addPurchasedGroup(world, player, type.id, quantity, now, provinceId);')
           block_end_line = '  return result(true, `${quantity} 座${type.name}已建成并加入同类工厂集群`);\n'
           block_end = backup.index(block_end_line, block_start) + len(block_end_line)
@@ -159,7 +150,6 @@ jobs:
               if main_tail not in merged:
                   raise AssertionError('missing main build tail')
               merged = merged.replace(main_tail, desired_build_tail, 1)
-
           start_func = merged.index('function startFacilityGroup(world, userId, payload, now) {')
           bootstrap_start = backup.index("  if (group.status !== 'running' && group.autoOperationBootstrapPending === true) {", backup.index('function startFacilityGroup(world, userId, payload, now) {'))
           bootstrap_end_marker = '  reconcileFacilityGroup(world, player, group, now);\n'
@@ -168,14 +158,12 @@ jobs:
           if start_bootstrap_block.strip() not in merged:
               reconcile_pos = merged.index(bootstrap_end_marker, start_func)
               merged = merged[:reconcile_pos] + start_bootstrap_block + merged[reconcile_pos:]
-
           client_marker = line_with_prefix(backup, '    autoOperationBootstrapPending: _autoOperationBootstrapPending,')
           if client_marker not in merged:
               client_func = merged.index('function clientGroup(world, player, group, now) {')
               anchor = line_with_prefix(merged[client_func:], '    cycleRecordedLifetimeOutput: _cycleRecordedLifetimeOutput,')
               pos = merged.index(anchor, client_func) + len(anchor)
               merged = merged[:pos] + '\n' + client_marker + merged[pos:]
-
           for required in [
               "import { activeProductionRecipe, legacyProductionOperatingCost, PRODUCTION_BALANCE_VERSION } from './production-balance.js';",
               'productionBalanceVersion: PRODUCTION_BALANCE_VERSION,',
@@ -187,7 +175,6 @@ jobs:
                   raise AssertionError(f'facility-groups lost required token: {required}')
           write(path, merged)
 
-          # production-settlement: keep #801 cost boundary and restore pending-bootstrap retry after lazy settlement.
           path = 'server/src/production-settlement.js'
           backup = show(BACKUP, path)
           merged = show(MAIN, path)
@@ -210,7 +197,6 @@ jobs:
                   raise AssertionError(f'production-settlement lost required token: {required}')
           write(path, merged)
 
-          # Commercial regression suite: take #800 first-build coverage and append #801 old-cycle-profit migration coverage.
           path = 'server/test/commercial-buildings.test.js'
           backup = show(BACKUP, path).rstrip() + '\n'
           main = show(MAIN, path)
@@ -245,7 +231,5 @@ jobs:
             server/test/c1-input-balance-migration.test.js
           npm run build
 
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'fix: 首次建筑默认运行并补齐首周期原料'
           git push --force-with-lease="refs/heads/$TARGET_BRANCH:$BASE_SHA" origin "HEAD:refs/heads/$TARGET_BRANCH"
