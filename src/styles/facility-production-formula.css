@@ -106,7 +106,8 @@
   justify-content: flex-end;
 }
 
-.facility-formula-item-card {
+.facility-formula-item-group,
+.facility-formula-money-card {
   min-width: 0;
   min-height: 2.69rem;
   display: flex;
@@ -133,15 +134,12 @@
   cursor: pointer;
 }
 
-.facility-formula-input .facility-formula-item-card {
+.facility-formula-input .facility-formula-item-group {
+  --ui-interactive-hover-border-color: color-mix(in srgb, var(--color-info) 46%, var(--color-border-strong));
   border-color: color-mix(in srgb, var(--color-info) 24%, var(--color-border));
 }
 
-.facility-formula-input .facility-formula-item-group {
-  --ui-interactive-hover-border-color: color-mix(in srgb, var(--color-info) 46%, var(--color-border-strong));
-}
-
-.facility-formula-output .facility-formula-item-card {
+.facility-formula-output :is(.facility-formula-item-group, .facility-formula-money-card) {
   border-color: color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--color-warning) 8%, transparent), transparent 46%),
@@ -353,7 +351,8 @@
     gap: var(--space-1);
   }
 
-  .facility-formula-item-card {
+  .facility-formula-item-group,
+  .facility-formula-money-card {
     min-height: 2.23rem;
     padding: 0.34rem 0.42rem;
   }
