@@ -413,7 +413,7 @@ export function FacilityClusterDetailBody({
     if (currentLocation?.type === 'regional-facility' && pageNavigation) {
       pageNavigation.pushPage({
         type: 'regional-product',
-        host: currentLocation.host === 'province' ? 'province' : 'market',
+        host: currentLocation.host === 'province' ? 'province' : 'buildings',
         provinceId: currentLocation.provinceId,
         productId,
       });

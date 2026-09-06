@@ -18,7 +18,7 @@ export function commercialSettlementPresentation(group: CommercialBuildingGroup,
       profit: amount(group.pendingProfit),
       count: group.participatingCount,
       effectiveCount: amount(group.pendingEffectiveCount),
-      label: '本周期锁定收入',
+      label: '本周期收入',
     };
   }
   const rate = projectCommercialStaffingRate(group, now);

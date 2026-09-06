@@ -23,7 +23,8 @@ for (const width of [320, 390, 720, 1440]) {
     await expect(cycle).toBeVisible();
     await expect(page.locator('.facility-information-summary .facility-staffing-summary')).toHaveCount(1);
     await expect(page.locator('.commercial-settlement .facility-staffing-summary')).toHaveCount(0);
-    await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).toContainText('5.00');
+    await expect(page.getByText('本周期锁定利润', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.commercial-settlement-revenue')).toContainText('101.25');
     const box = await staffing.boundingBox();
     expect(box).not.toBeNull();
     const style = await staffing.evaluate((element) => {
@@ -49,25 +50,29 @@ test('staffing changes never overwrite an invested commercial cycle or claim loc
   page.on('request', (request) => { if (request.method() === 'POST') mutations.push(request.url()); });
   await openDetail(page);
   const progress = page.getByRole('progressbar', { name: '便利店满员率', exact: true });
+  const settlementRevenue = page.locator('.commercial-settlement-revenue');
   await patch(page, { staffingRateBps: 5000, staffingUpdatedAt: Date.now(), enabled: false, status: 'running', count: 100 });
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
   await expect(progress).toContainText('下降中');
-  await expect(page.getByText('本周期等效营业数量', { exact: true }).locator('..')).toContainText('2');
-  await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).toContainText('5.00');
+  await expect(settlementRevenue).toContainText('101.25');
+  for (const label of ['本周期等效营业数量', '本周期锁定收入', '本周期锁定商品价值', '本周期已付运营成本', '本周期锁定利润']) {
+    await expect(page.getByText(label, { exact: true })).toHaveCount(0);
+  }
   await patch(page, { staffingRateBps: 0, staffingUpdatedAt: Date.now() });
   await expect(progress).toHaveAttribute('aria-valuenow', '0');
   await expect(progress).toContainText('已降至最低');
-  await expect(page.getByText('本周期锁定收入', { exact: true }).locator('..')).toContainText('101.25');
+  await expect(settlementRevenue).toContainText('101.25');
   await expect(page.getByText('累计营业收入', { exact: true }).locator('..')).toContainText('200.00');
   expect(mutations).toEqual([]);
 });
 
-test('missing staffing is unknown and does not fabricate full efficiency or locked details', async ({ page }) => {
+test('missing staffing is unknown without fabricating a visible locked-detail list', async ({ page }) => {
   await openDetail(page);
   await patch(page, { staffingRateBps: null, staffingUpdatedAt: null, pendingEffectiveCount: null });
   const staffing = page.getByRole('progressbar', { name: '便利店满员率', exact: true });
   await expect(staffing).not.toHaveAttribute('aria-valuenow');
   await expect(staffing).toContainText('满员率待同步');
-  await expect(page.getByText('本周期等效营业数量', { exact: true }).locator('..')).toContainText('—');
-  await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).toContainText('5.00');
+  await expect(page.getByText('本周期等效营业数量', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('本周期锁定利润', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.commercial-settlement-revenue')).toContainText('101.25');
 });

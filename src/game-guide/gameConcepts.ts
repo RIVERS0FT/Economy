@@ -21,7 +21,7 @@ export const GAME_CONCEPTS = {
   },
   'commercial-settlement': {
     label: '经营结算',
-    description: '服务器在周期开始时锁定已投入商品、商品价值、运营成本和固定利润；完成后返还商品价值与运营成本并发放固定利润。运行中显示锁定值，未运行时仅显示下一周期预估。',
+    description: '营业周期开始后，本周期商品消耗、运营成本与营业收入即确定；周期完成时由服务器结算收入。未营业时仅显示下一周期预估。',
   },
   'factory-auto-operation': {
     label: '自动经营',

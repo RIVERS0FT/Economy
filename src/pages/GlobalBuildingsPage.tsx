@@ -57,6 +57,10 @@ const EmbeddedBuildingsPage = lazy(() => import('./BuildingsPage').then((module)
   default: module.BuildingsPage,
 })));
 
+const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
+  default: module.MarketPage,
+})));
+
 function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
   return model.game.provinces;
 }
@@ -148,6 +152,28 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       setFacilityDetailTypeId(null);
     }
   }, [stackedLocation]);
+
+  useEffect(() => {
+    if (stackedLocation?.type !== 'regional-product' || stackedLocation.host !== 'buildings') return;
+    if (model.selectedProvinceId !== stackedLocation.provinceId) {
+      model.setSelectedProvinceId(stackedLocation.provinceId);
+      return;
+    }
+    if (
+      model.marketViewMode === 'detail'
+      && model.marketAssetKind === 'commodity'
+      && model.marketAssetId === stackedLocation.productId
+    ) return;
+    model.selectMarketAsset('commodity', stackedLocation.productId, false);
+  }, [
+    model.marketAssetId,
+    model.marketAssetKind,
+    model.marketViewMode,
+    model.selectedProvinceId,
+    model.selectMarketAsset,
+    model.setSelectedProvinceId,
+    stackedLocation,
+  ]);
 
   const facilityRows = useMemo(() => game.facilityTypes.flatMap((type, catalogIndex) => {
     let totalCount = 0;
@@ -502,6 +528,36 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     setActiveProvinceId(null);
     pageNavigation?.pushPage({ type: 'global-commercial', commercialTypeId });
   };
+
+  if (stackedLocation?.type === 'regional-product' && stackedLocation.host === 'buildings') {
+    const product = game.products.find((candidate) => candidate.id === stackedLocation.productId);
+    const province = provinces.find((candidate) => candidate.id === stackedLocation.provinceId);
+    const detailReady = Boolean(product && province)
+      && model.selectedProvinceId === stackedLocation.provinceId
+      && model.marketViewMode === 'detail'
+      && model.marketAssetKind === 'commodity'
+      && model.marketAssetId === stackedLocation.productId;
+    return (
+      <PageLayout
+        title={product && province
+          ? <RegionalEntityPageTitle entityName={product.name} regionName={province.name} />
+          : '商品详情'}
+      >
+        <div
+          className="global-operation-page global-buildings-page"
+          data-global-scope="buildings"
+          data-drilldown-province-id={stackedLocation.provinceId}
+          data-drilldown-product-id={stackedLocation.productId}
+        >
+          {detailReady ? (
+            <Suspense fallback={<Panel className="empty-state"><span role="status">正在加载地区商品详情…</span></Panel>}>
+              <EmbeddedMarketPage model={model} embedded />
+            </Suspense>
+          ) : <Panel className="empty-state"><span role="status">正在加载地区商品详情…</span></Panel>}
+        </div>
+      </PageLayout>
+    );
+  }
 
   if (selectedCommercialType) {
     return <GlobalCommercialBuildingPage model={model} type={selectedCommercialType} activeProvinceId={activeProvinceId}

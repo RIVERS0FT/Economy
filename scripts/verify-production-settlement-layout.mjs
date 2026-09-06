@@ -31,7 +31,6 @@ for (const text of [
   'facility-formula-meta-unit is-cost',
   'className="facility-formula-output-side"',
   'className="facility-formula-output"',
-  'className="facility-formula-side-label"',
   'className="facility-formula-inventory"',
   '<ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />',
   '<WarehouseIcon className="facility-formula-meta-icon" />',
@@ -53,6 +52,9 @@ for (const forbidden of [
   '<strong>{formatNumber(quantity)} ×</strong>',
   'facility-formula-center',
   'facility-formula-separator',
+  'facility-formula-side-label',
+  'inputLabel=',
+  'outputLabel=',
   'className="facility-formula-visual" aria-hidden="true"',
 ]) assert.equal(formula.includes(forbidden), false, `生产结算不得包含: ${forbidden}`);
 
@@ -208,7 +210,7 @@ assert.ok(summaryDescriptionStart >= 0, '工厂主信息必须提供插画右侧
 assert.ok(detail.indexOf('className="facility-count-summary"', summaryDescriptionStart) > summaryDescriptionStart, '数量摘要必须位于插画右侧详情区');
 assert.ok(detail.indexOf('<FacilityRecipeProfitAnalysis', summaryDescriptionStart) > summaryDescriptionStart, '平均利润必须位于插画右侧详情区');
 assert.ok(detail.indexOf('<FacilityStaffingSummary entry={entry} now={liveNow} />', summaryDescriptionStart) > summaryDescriptionStart, '满员率必须位于插画右侧详情区');
-assert.equal(detail.includes('<strong>生产设置</strong>'), false, '生产配置不得恢复可见“生产设置”标题');
+assert.equal(detail.includes('<strong>生产设置</strong>'), false, '工厂详情不得恢复可见“生产设置”标题');
 for (const text of [
   '.facility-information-details > .facility-average-profit',
   '.facility-information-details > .facility-staffing-summary',
@@ -227,7 +229,7 @@ for (const text of [
   'usePlayerPageNavigation()',
   "currentLocation?.type === 'regional-facility'",
   "type: 'regional-product'",
-  "host: currentLocation.host === 'province' ? 'province' : 'market'",
+  "host: currentLocation.host === 'province' ? 'province' : 'buildings'",
   'provinceId: currentLocation.provinceId,',
   'pageNavigation.pushPage({',
   'onOpenProductMarket={openProductDetail}',
@@ -333,13 +335,13 @@ for (const text of [
   '工厂详情“生产结算”的投入／产出物资槽是当前州本地商品详情的直接导航入口',
   "`regional-facility`",
   "`regional-product`",
-  '不得先进入商品全局详情或商品目录',
-  '不得根据生产配方语义自动推断采购／出售方向',
+  '不得先进入商品全局详情、商品目录或一级市场中间态',
+  '不得根据生产配方或商业消费语义自动推断采购／出售方向',
   '进入商品详情后即时交易数量重置为 `1`',
   '成交价格只读取服务器当日 `officialPrice`',
-  '不得由生产配方或来源页面预填自定义价格',
+  '不得由来源页面预填自定义价格',
   '不得自动提交交易',
-  '不得改写建筑页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态',
+  '不得改写建筑页建设工厂类型、数量、配方、作业制度、商业营业设置或任何服务器权威生产／经营状态',
 ]) assert.equal(pageDesign.includes(text), true, `生产本地商品导航权威设计缺少: ${text}`);
 
 for (const text of [
@@ -347,4 +349,4 @@ for (const text of [
   '移动端工厂卡点击行为与桌面一致',
 ]) assert.equal(buildingLayoutDesign.includes(text), true, `地区工厂详情布局设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、无标题生产配置、插画右侧经营指标、本地商品详情导航、按钮圆角进度、资产入口同行与几何防回退验证通过。');
+console.log('生产结算商品 PNG、无投入产出侧标题、无标题生产配置、插画右侧经营指标、建筑上下文本地商品详情导航、按钮圆角进度、资产入口同行与几何防回退验证通过。');
