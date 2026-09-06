@@ -421,6 +421,7 @@ function createGroup(typeId, overrides = {}, now = Date.now()) {
     lifetimeOutput: Math.max(0, Number(overrides.lifetimeOutput ?? overrides.completedQuantity ?? 0)),
     activeRecipeId: recipeFor(type, activeRecipeId)?.id,
     ...(Number.isSafeInteger(overrides.cycleRecordedLifetimeOutput) ? { cycleRecordedLifetimeOutput: overrides.cycleRecordedLifetimeOutput } : {}),
+    ...(overrides.autoOperationBootstrapPending === true ? { autoOperationBootstrapPending: true } : {}),
   };
 }
 
@@ -728,6 +729,7 @@ function startGroupRuntime(world, group, count, now) {
   group.enabled = true;
   group.status = 'running';
   delete group.statusReason;
+  delete group.autoOperationBootstrapPending;
   group.participatingCount = count;
   group.cycleStartedAt = now;
   group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
@@ -1014,7 +1016,7 @@ export function processFacilityGroupWorld(world, now = Date.now(), { migrate = t
   for (const player of Object.values(world.players || {})) {
     ensureWarehouse(player);
     const bootstrapProvinceIds = new Set((player.facilityGroups || [])
-      .filter((group) => group.enabled && group.status !== 'running' && Number(group.lifetimeOutput || 0) <= 0)
+      .filter((group) => group.enabled && group.status !== 'running' && group.autoOperationBootstrapPending === true)
       .map((group) => normalizeProvinceId(group.provinceId)));
     for (const provinceId of bootstrapProvinceIds) bootstrapBuildingAutoOperation(world, player, now, provinceId);
     const completed = [];
@@ -1073,6 +1075,7 @@ function buildFacilityGroup(world, userId, payload, now) {
   creditPopulationEmployment(world, totalCost, 'construction');
   const group = addPurchasedGroup(world, player, type.id, quantity, now, provinceId);
   if (firstBuild) {
+    group.autoOperationBootstrapPending = true;
     group.enabled = true;
     bootstrapBuildingAutoOperation(world, player, now, provinceId);
     reconcileFacilityGroup(world, player, group, now);
@@ -1092,7 +1095,7 @@ function startFacilityGroup(world, userId, payload, now) {
   const group = type ? groupFor(player, type.id, false, now, payload.provinceId) : null;
   if (!type || !group || availableGroupCount(world, player, group) < 1) return result(false, '工厂集群不存在或没有可用生产权');
   group.enabled = true;
-  if (group.status !== 'running' && Number(group.lifetimeOutput || 0) <= 0) {
+  if (group.status !== 'running' && group.autoOperationBootstrapPending === true) {
     bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
   }
   reconcileFacilityGroup(world, player, group, now);
@@ -1325,7 +1328,7 @@ export function validateFacilityAuctionTransferQuantity(world, userId, typeId, q
   ) {
     return result(false, '拍卖工厂冻结数量不足');
   }
-  return result(true, '工厂拍卖数量有效');
+  return result(true, '拍卖工厂冻结数量有效');
 }
 
 export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity, now = Date.now(), provinceId = DEFAULT_PROVINCE_ID) {
@@ -1582,6 +1585,7 @@ function clientGroup(world, player, group, now) {
     cycleWageMultiplierBps: _cycleWageMultiplierBps,
     cycleStaffingRateBps: _legacyCycleStaffingRateBps,
     cycleRecordedLifetimeOutput: _cycleRecordedLifetimeOutput,
+    autoOperationBootstrapPending: _autoOperationBootstrapPending,
     productionWageCarryNumerator: _productionWageCarryNumerator,
     productionEmploymentTotalMicros: _productionEmploymentTotalMicros,
     productionEmploymentAllocatedMicros: _productionEmploymentAllocatedMicros,
