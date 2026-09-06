@@ -21,5 +21,16 @@ jobs:
         with:
           node-version: 24.4.0
           cache: npm
-      - name: Inspect or apply the scoped patch
-        run: python3 .operation-notifications-edit.py
+      - name: Apply and verify the scoped patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.operation-notifications-edit.py')
+          s=p.read_text().replace("import re, subprocess\n", "import re, subprocess\nfailures=[]\n")
+          s=s.replace("    assert s.count(old)==count, (path, 'anchor count', s.count(old), old[:120])", "    if s.count(old)!=count:\n        failures.append((path, 'anchor count', s.count(old), old[:120])); print('PATCH_MISMATCH', failures[-1], flush=True); return")
+          s=s.replace("    assert n==count, (path, 'pattern count', n, pattern)", "    if n!=count:\n        failures.append((path, 'pattern count', n, pattern)); print('PATCH_MISMATCH', failures[-1], flush=True); return")
+          s=s.replace(r"r'  function notify\(message: string\) \{.*?\n  \}\n\n  async function showResult\(.*?\n  \}\n'", r"r'  function notify\(message: string\) \{.*?\n  \}\n  async function showResult\([^\n]*\n'")
+          s=s.replace("print('SCOPED PATCH APPLIED', flush=True)", "assert not failures, failures\nprint('SCOPED PATCH APPLIED', flush=True)")
+          p.write_text(s)
+          PY
+          python3 .operation-notifications-edit.py
