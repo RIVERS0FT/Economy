@@ -31,9 +31,16 @@ jobs:
         run: |
           set -euo pipefail
           for job in 101426793230 101426793247; do
-            gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/$job/logs" > "$RUNNER_TEMP/shard-$job.log"
+            curl --fail --silent --show-error --location --header "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/jobs/$job/logs" --output "$RUNNER_TEMP/shard-$job.log"
             echo "=== Failed shard $job ==="
-            grep -n -E 'Error:|failed|flaky|retry|Timed out|Expected:|Received:|Call log:|at .*spec.ts' "$RUNNER_TEMP/shard-$job.log" | tail -100 || true
+            python3 - "$RUNNER_TEMP/shard-$job.log" <<'PY'
+          import re, sys
+          from pathlib import Path
+          text = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
+          lines = text.splitlines()
+          selected = [line for line in lines if re.search(r'Error:|failed|flaky|retry|Timed out|Expected:|Received:|Call log:|at .*spec.ts', line)]
+          print('\n'.join(selected[-100:]))
+          PY
           done
       - name: Apply final scoped rate display edits
         run: |
