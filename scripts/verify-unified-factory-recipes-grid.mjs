@@ -190,8 +190,6 @@ for (const text of [
   '<FacilityGroupProgress group={group} type={type} now={now} />',
   'import { GameConcept }',
   'title={<GameConcept concept="production-settlement" />}',
-  '<GameConcept concept="production-input" />',
-  '<GameConcept concept="production-output" />',
 ]) assert.equal(formula.includes(text), true, `生产公式缺少: ${text}`);
 for (const forbidden of [
   'function recipeDescription',
@@ -201,6 +199,9 @@ for (const forbidden of [
   'facility-formula-summary',
   'facility-formula-next-cycle',
   'facility-formula-scope',
+  'facility-formula-side-label',
+  'inputLabel=',
+  'outputLabel=',
   '<strong>生产结算</strong>',
 ]) assert.equal(formula.includes(forbidden), false, `生产公式不应包含: ${forbidden}`);
 
@@ -292,4 +293,4 @@ for (const text of [
   '移动端工厂卡点击行为与桌面一致',
 ]) assert.equal(buildingLayoutDesign.includes(text), true, `地区建筑权威设计缺少: ${text}`);
 
-console.log('统一工厂配方与地区卡片验证通过：目录顺序、三列 4:5 工厂卡、二级详情、无标题生产配置、游戏名词解释与共享移动基础设施均已锁定。');
+console.log('统一工厂配方与地区卡片验证通过：目录顺序、三列 4:5 工厂卡、二级详情、无投入产出侧标题、无标题生产配置、游戏名词解释与共享移动基础设施均已锁定。');
