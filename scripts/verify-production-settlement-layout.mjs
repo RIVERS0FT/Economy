@@ -31,7 +31,6 @@ for (const text of [
   'facility-formula-meta-unit is-cost',
   'className="facility-formula-output-side"',
   'className="facility-formula-output"',
-  'className="facility-formula-side-label"',
   'className="facility-formula-inventory"',
   '<ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />',
   '<WarehouseIcon className="facility-formula-meta-icon" />',
@@ -53,6 +52,9 @@ for (const forbidden of [
   '<strong>{formatNumber(quantity)} ×</strong>',
   'facility-formula-center',
   'facility-formula-separator',
+  'facility-formula-side-label',
+  'inputLabel=',
+  'outputLabel=',
   'className="facility-formula-visual" aria-hidden="true"',
 ]) assert.equal(formula.includes(forbidden), false, `生产结算不得包含: ${forbidden}`);
 
@@ -227,7 +229,7 @@ for (const text of [
   'usePlayerPageNavigation()',
   "currentLocation?.type === 'regional-facility'",
   "type: 'regional-product'",
-  "host: currentLocation.host === 'province' ? 'province' : 'market'",
+  "host: currentLocation.host === 'province' ? 'province' : 'buildings'",
   'provinceId: currentLocation.provinceId,',
   'pageNavigation.pushPage({',
   'onOpenProductMarket={openProductDetail}',
@@ -347,4 +349,4 @@ for (const text of [
   '移动端工厂卡点击行为与桌面一致',
 ]) assert.equal(buildingLayoutDesign.includes(text), true, `地区工厂详情布局设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、无标题生产配置、插画右侧经营指标、本地商品详情导航、按钮圆角进度、资产入口同行与几何防回退验证通过。');
+console.log('生产结算商品 PNG、无投入产出侧标题、无标题生产配置、插画右侧经营指标、建筑上下文本地商品详情导航、按钮圆角进度、资产入口同行与几何防回退验证通过。');
