@@ -76,7 +76,7 @@ for (const token of [
   '<small>可用库存</small>',
   '<CommodityFreezeDisclosure',
   'const marketDetailPending = Boolean(marketDetailLoading && !selectedMarketDetail);',
-  'const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail && !selectedMarket);',
+  'const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail);',
   'const marketChartUnavailable = marketDetailPending || marketDetailUnavailable;',
   'className={`widget market-chart-card ui-entity-card${marketChartUnavailable ?',
   'className="market-chart-card__content" aria-disabled={marketChartUnavailable || undefined}',
@@ -116,7 +116,7 @@ for (const token of [
 for (const token of [
   'page content buttons and entity cards use the shared small radius',
   'recent local trades heading keeps clear action on the same row on narrow screens',
-  'market detail keeps snapshot history when the detail refresh fails',
+  'market detail failure does not fabricate history from summary',
 ]) requireText(marketRuntimeSpec, token, 'market browser regression');
 for (const token of [
   'orderBook.bids',
