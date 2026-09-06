@@ -71,13 +71,14 @@
 - 运行时路线数据模型和 DOM 诊断属性不得保留 `laneOwnerId`、`laneOffset`、`laneCountByEdge`、`byLaneOwnerId`、`data-route-lane-*` 或 `returnPath` 等车道／返程副线字段；路线身份只由 `routeId`／overlay id 表达，单条 overlay 直接持有唯一 `path` 与正式 segment points。
 - 非闭环往返路线到达终点后只反转同一条正式几何；地图只显示一条路线。运输 marker 查询反向段时允许对原 segment points 反序，但不得创建第二份可见 path。
 - 公路使用连续实线，铁路使用轨道节奏虚线，航空使用间隔更大的航线虚线。草稿和高亮只改变强调色／粗细／透明度，不改变方式线型和 path `d`。
-- 地图只渲染玩家实际保存路线、草稿和对应在途标记，不绘制全国完整 1128×2 首府对路网集合。
+- 玩家实际保存路线组成战略地图常驻路网：`StrategicMapStage` 挂载期间，无论当前一级页或详情页属于运输、地区、市场、建筑或其他玩家页面，都必须持续挂载全部有效 saved overlay；不得用 `model.tab` 或页面位置条件隐藏已保存路线。草稿和对应在途标记按各自生命周期叠加；仍不得绘制全国完整 1128×2 首府对物理路网集合。
 
 ## 6. 路线高亮
 
 - 运输路线身份以 `routeId` 为唯一键。运输一级页路线按钮 hover 和 focus 必须设置当前 `highlightedRouteId`；离开／blur 清除临时高亮。
 - 进入 `transport-route` 详情页后，该详情的 `routeId` 必须持续作为高亮来源，离开详情页时清除。
 - 每条已保存路线在地图中只允许挂载一个路线 overlay／path。高亮必须在这一个实例上把 `kind` 或等价视觉状态切换为强调态，并继续使用与保存态完全相同的 `path d`；不得额外挂载同几何高亮副本、偏移副本或第二套路线规划。
+- 路线绘制层级固定为普通 saved → draft → highlight。多条路线共享同一物理区段时，当前高亮路线必须最后绘制以覆盖普通共线路段；该层级只改变 DOM 绘制顺序和样式，不得改变 `path d`、生成第二条高亮 path 或引入车道偏移。
 
 ## 7. 地图专属表面材质
 
@@ -118,6 +119,7 @@
 - 公路／铁路共享同一中心线、地面运输首府直线正式几何；
 - 运输路线强制并排、车道数据结构、laneOffset 或返程第二条线；
 - 航空首府直线正式显示和直线运动；
+- 按 `model.tab` 或页面导航状态隐藏玩家已保存路线，导致战略地图跨页切换时路网消失；
 - hover／详情高亮通过复制或偏移第二条路线实现；
 - 地图镜头栏或运输选路面板恢复毛玻璃。
 
@@ -126,10 +128,12 @@
 - `src/components/provinces/provinceMapCamera.ts`：唯一 Camera 数学状态、固定 world bounds、焦点反求、固定 preload viewBox、raster-ready active Canvas-only transform、snapshot 缺失时 live-SVG Surface fallback、settle 单次 viewBox 提交和输入仲裁。
 - `src/components/provinces/provinceMapRasterSnapshot.ts`：只负责在 idle 从唯一权威 SVG 克隆计算后样式、应用 active 世界 LOD 并异步生成固定 preload viewBox 的 CanvasImageSource；必须支持 `createImageBitmap → Image.decode()` 解码回退和正确 Blob URL 生命周期，不得包含 Camera 状态或输入逻辑。
 - `src/components/provinces/provinceMapRouteLayout.ts`：公路／铁路中心线复用、航空抛物线、反向 segment 和同源运动采样。
+- `src/components/shell/StrategicWorkspace.tsx`：无页面条件构建全部已保存路线 overlay；草稿位于普通路线之上，高亮路线最后绘制；只传递既有路线身份和站点，不拥有第二套路线几何。
 - `src/components/provinces/UsMainlandMap.tsx`：唯一静态 SVG 世界、路线和 marker 挂载；拥有唯一非交互 `.province-map-camera-raster` 缓存，并只在 idle／内容／尺寸变化时刷新。
 - `src/pages/TransportPage.tsx` 与 `TransportRouteDraftContext`：路线 hover／focus／详情高亮身份。
 - `src/styles/province-map.css` 与 `src/styles/strategic-map-rendering.css`：idle 矢量层级、raster-ready 时只提升 Canvas、fallback 时才提升 Surface、SVG/Canvas 可见性切换、active/idle 世界背景 LOD、无滤镜热路径、三种方式线型和地图专属实体表面；CSS 不拥有逐帧 Camera transform 值。
 - `scripts/verify-provincial-economy.mjs`、`scripts/verify-province-map-raster-snapshot.mjs`、`scripts/verify-transport-route-lanes.mjs` 与 `scripts/verify-province-map-focus.mjs`：结构防回退。
+- `tests/dt/transport-route-map-overlays.test.ts`：锁定已保存路线不再受运输页签条件限制，并验证普通路线、草稿、高亮的最终绘制顺序。
 - `tests/browser/map-zoom-transient.spec.ts`：正式性能测量前必须等待 `data-map-raster-ready='true'`；同帧 wheel burst 在 raster-ready active 阶段必须是 `0` 次根 SVG `viewBox` 变化、`0` 次 Camera Surface style 变化、`1` 次 raster Canvas style 变化、`0` 次诊断属性变化；同时锁定 path/glyph 静态、active Canvas `opacity:1`、live SVG `opacity:0`、Surface `transform:none / will-change:auto`、settle 后 Canvas `opacity:0` 与 SVG `opacity:1`，并按第 11 节继续以同浏览器空帧中位数验证 `empty×2+8ms` 的输入到 RAF 间隔预算。
 - `tests/browser/map-raster-lifecycle.spec.ts`：使用真实 SVG 解码与可控制的完成屏障，在 Camera active 期间释放迟到结果；必须验证 Canvas 尺寸／revision／ready 不变、fallback 不切换、过期资源释放，以及无需额外业务更新即可在 settle 后生成新快照。不得用固定 sleep 猜测解码先后。
 - `tests/browser/province-map-world-boundary.spec.ts`：锁定闲置态 10m 土地填充、同源 110m 背景描边、10m 美国本土最终轮廓及背景描边复杂度预算；所有边界重复拖拽比较必须先等待 Camera settle，再以最终 viewBox 验证固定 world bounds，不得把 transient 帧误当 settled 边界。
