@@ -17,6 +17,7 @@ const user = { id: 251, email: 'transport-balance@example.com', name: 'Transport
 const round = (value) => Math.round(value * 1_000_000) / 1_000_000;
 function fixture(mode = 'road') {
   const world = createWorld(now);
+  world.transportShipments = [];
   const player = ensurePlayer(world, user, now);
   player.credits = 100000;
   const created = applyCreateTransportRoute(world, user, {
