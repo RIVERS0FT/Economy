@@ -20,7 +20,7 @@
 - `.province-map-camera-raster` 是唯一允许存在的 active 临时栅格层。它必须位于同一个 `.province-map-camera-surface` 内、与权威 SVG 同尺寸，是不接收输入的 Canvas，只缓存**由当前权威 SVG 派生的完整世界快照**；不得拥有 center、zoom、world bounds、投影、路线几何或独立时间状态，不得响应点击／拖动／滚轮，也不得成为第二套 Camera。
 - 栅格快照只能在 idle／settled 阶段、标签布局完成后或真实内容／容器变化后异步生成；生成过程不得位于 Camera RAF、pointermove、wheel burst 或运输 `500ms` 叶子时钟热路径内。快照使用固定 preload world viewBox，像素倍率限制在 `1–2× devicePixelRatio` 范围，不根据逻辑 zoom 扩大纹理尺寸。
 - 异步快照在发起和完成两个阶段都必须检查 Camera 是否 idle，并使用 generation 拒绝过期结果。`non-obvious reason`：请求时 idle 不代表解码完成时仍 idle；迟到结果不得在 active 中修改 Canvas 像素尺寸、绘制内容、ready、revision 或切换当前 fallback 承载层。手势期间的内容变化或解码完成只标记合并后的待刷新任务，旧结果仍须释放；观察既有 `data-map-zoom-active` 的 idle 边界后，从最新权威 SVG 重新生成一次。排队后再次进入 active 时继续延后，不得用逐帧轮询、额外输入监听或第二 Camera 实现。组件清理必须断开边界观察、取消排队的刷新 RAF、使旧 generation 失效；所有已解码资源均须在 `finally` 中释放，包括绘制异常和过期结果。
-- 栅格快照必须继承当前 SVG 的计算后填充、描边、字体和标签布局；其中非交互世界土地允许直接采用现有 1:110m active LOD 填充。48 州经营面、州名、路线和最终美国轮廓仍来源于同一权威 SVG，不得为快照建立第二份业务几何模型。
+- 栅格快照必须继承当前 SVG 的计算后填充、描边、字体和标签布局；其中非交互世界土地允许直接采用现有 1:110m active LOD 填充。48 州经营面、州名、路线、路线节点裁切 mask 和最终美国轮廓仍来源于同一权威 SVG，不得为快照建立第二份业务几何模型。
 - SVG Blob 解码优先使用 `createImageBitmap`，但浏览器拒绝 SVG Blob 解码时必须自动回退到 `Image` + `decode()`；不得因为存在 `createImageBitmap` 就让其失败直接终止整次快照生成。Blob URL 必须保留到图片完成解码、绘制并释放后才 revoke，避免提前销毁导致 `snapshot-failed`。
 - `us-atlas` 州 path、世界大陆 path、中文州名基础布局、公路／铁路投影折线在模块初始化或真实容器尺寸变化之外不得重新生成。手势期间所有州 path `d`、世界 path `d`、州名基础中心和 glyph `transform` 必须保持不变。
 - `.province-map-camera-surface` 是唯一世界宿主，但在 **raster-ready 正式 active 路径中必须保持 `transform:none / will-change:auto`**；只有 `.province-map-camera-raster` 接收瞬时合成 transform。Canvas idle／settled 必须恢复 `transform:none / will-change:auto / opacity:0`，不得把完整世界长期显示为可缩放纹理。
@@ -46,6 +46,7 @@
 - 同一任务中的多次 wheel／pointermove 必须合并为下一帧的一次 transient transform 写入。active 热路径不得同时写 transform 与 `viewBox`，不得每帧改 Canvas 尺寸、重新截图或更新 raster revision。
 - 输入 settle 使用单一 deadline 与单一定时器。只要仍有待提交 RAF，本轮不得先进入 idle；deadline 到达且 RAF 已清空后，必须 **一次性** 把 current Camera 提交为根 `.province-map-world-svg` 的最终 `viewBox`，同时清除 Surface 与 Canvas 两个可能的 transient transform、SVG 临时透明度和 active 状态。settle 后 Surface 与 Canvas 均恢复 `transform:none / will-change:auto`，Canvas 恢复 `opacity:0`，SVG 恢复 `opacity:1`。
 - reset 和真实容器 resize 可以直接提交新的 settled `viewBox`，并必须同时清除两个 transient transform 与 SVG 临时透明度。空白双击／双触回到动态 `1×` 美国居中视场。移动双指的 click 抑制窗口继续只负责输入仲裁，不复制 Camera。
+- settled／reset／真实 resize 边界允许根据最终逻辑 zoom 一次更新路线和州界的 CSS 描边尺度，并据此刷新下一张 idle 栅格快照；不得把这组 CSS custom property 写入 Camera RAF、wheel／pointermove 热路径。active 阶段继续统一缩放上一次 settled 快照，不为路线或州界建立第二条逐帧缩放通道；停手后立即由最终 SVG 描边尺度校正。
 - `data-map-raster-ready`、`data-map-raster-revision`、像素尺寸与 preload viewBox 只在初始化、idle 快照完成、真实内容／容器变化和 active/idle 边界同步；不得为了展示每一帧的 current 值而重新生成快照或写诊断属性。
 
 ## 4. 字体与矢量清晰度
@@ -59,7 +60,7 @@
 ### 4.1 州面视觉交互
 
 - 战略地图州面交互固定采用“镜头底色 + 中性轮廓”分层。政治／资产／工业／市场／异常镜头只决定现有州 path 的底色和业务边界色；hover、focus 和 selected 不得用其他业务状态色覆盖底色，也不得复制第二条州面几何。
-- 普通鼠标 hover 使用 `--color-text-secondary` 的 `1.5px` 中性描边；selected 使用 `--color-text-primary` 的 `2.5px` 描边；selected 同时 hover 时提升为 `3px`。视觉优先级固定为“选中悬浮 > 选中 > 普通悬浮 > 默认”，所有状态继续保持 `filter:none`。
+- 州界基准视觉宽度继续以默认 `1px`、普通 hover `1.5px`、selected／focus `2.5px`、selected+hover `3px` 表达优先级，但 settled 屏幕宽度必须随逻辑倍率变细到变粗。令 `t = clamp((zoom - 1) / 3, 0, 1)`，则 `boundaryStrokeScale = 0.65 + 0.35 × t`；上述各状态宽度和美国本土 seam／最终外轮廓都乘该尺度。`1×` 默认州界因此约为 `0.65px`，`4×` 恢复现有全强度；世界大陆低对比 110m 海岸描边不参与该州界尺度。
 - 交互视觉只由同一静态 SVG path 的 CSS `:hover`／`:focus-visible` 和外部 `data-selected` 驱动；不得使用 pointermove React state、ECharts emphasis/select、重新布局州名或复制 Camera。
 
 ## 5. 运输路线几何和运动
@@ -71,6 +72,9 @@
 - 运行时路线数据模型和 DOM 诊断属性不得保留 `laneOwnerId`、`laneOffset`、`laneCountByEdge`、`byLaneOwnerId`、`data-route-lane-*` 或 `returnPath` 等车道／返程副线字段；路线身份只由 `routeId`／overlay id 表达，单条 overlay 直接持有唯一 `path` 与正式 segment points。
 - 非闭环往返路线到达终点后只反转同一条正式几何；地图只显示一条路线。运输 marker 查询反向段时允许对原 segment points 反序，但不得创建第二份可见 path。
 - 公路使用连续实线，铁路使用轨道节奏虚线，航空使用间隔更大的航线虚线。草稿和高亮只改变强调色／粗细／透明度，不改变方式线型和 path `d`。
+- 路线基准宽度继续为 saved `2px`、draft `2.5px`、highlight `3px`，但 settled 屏幕宽度随逻辑倍率变化。令与州界相同的 `t = clamp((zoom - 1) / 3, 0, 1)`，则 `routeStrokeScale = 0.5 + 0.5 × t`；三种路线宽度统一乘该尺度，因此 `1×` 为 `1 / 1.25 / 1.5px`，`4×` 恢复 `2 / 2.5 / 3px`。该尺度只改变描边，不改变运输方式 dash 节奏和 `path d`。
+- 所有路线 path 必须先进入统一的 path 层，path 层再使用一个同源 SVG luminance mask 对当前全部路线节点位置挖透明孔；孔径不得小于节点可见圆盘。节点层必须最后绘制，位于所有 saved／draft／highlight path 之后。这样路线在进入节点可见区域时已被真正裁掉，即使节点填充或整体 opacity 为半透明，也不得透出下面的路线颜色；不得用“把节点改成不透明色”替代几何裁切。
+- 节点裁切只作用于最终渲染像素，不允许截短、重算或复制正式路线 `path d`。多个 overlay 在同一坐标共享节点时，mask cutout 必须按坐标合并并采用足够覆盖最大节点的半径；节点身份和每条路线的节点 DOM 仍保持独立。
 - 玩家实际保存路线组成战略地图常驻路网：`StrategicMapStage` 挂载期间，无论当前一级页或详情页属于运输、地区、市场、建筑或其他玩家页面，都必须持续挂载全部有效 saved overlay；不得用 `model.tab` 或页面位置条件隐藏已保存路线。草稿和对应在途标记按各自生命周期叠加；仍不得绘制全国完整 1128×2 首府对物理路网集合。
 
 ## 6. 路线高亮
@@ -78,7 +82,7 @@
 - 运输路线身份以 `routeId` 为唯一键。运输一级页路线按钮 hover 和 focus 必须设置当前 `highlightedRouteId`；离开／blur 清除临时高亮。
 - 进入 `transport-route` 详情页后，该详情的 `routeId` 必须持续作为高亮来源，离开详情页时清除。
 - 每条已保存路线在地图中只允许挂载一个路线 overlay／path。高亮必须在这一个实例上把 `kind` 或等价视觉状态切换为强调态，并继续使用与保存态完全相同的 `path d`；不得额外挂载同几何高亮副本、偏移副本或第二套路线规划。
-- 路线绘制层级固定为普通 saved → draft → highlight。多条路线共享同一物理区段时，当前高亮路线必须最后绘制以覆盖普通共线路段；该层级只改变 DOM 绘制顺序和样式，不得改变 `path d`、生成第二条高亮 path 或引入车道偏移。
+- 路线 path 层内部继续保持普通 saved → draft → highlight，使当前高亮路径覆盖普通共线路段；随后统一节点层覆盖整个 path 层。该层级只改变 DOM 绘制顺序、mask 和样式，不得改变 `path d`、生成第二条高亮 path 或引入车道偏移。
 
 ## 7. 地图专属表面材质
 
@@ -102,6 +106,7 @@
 - raster-ready active 时把权威 SVG 切换到 preload viewBox、设为 `display:none`，或从 DOM／渲染树移除；
 - 把 `.province-map-camera-surface` transform 重新作为长期或独立权威 Camera，或在 settle 后保留非 `none` transform；
 - 使用 `--province-map-camera-transform`、`@property` 或任何 CSS custom property 间接驱动 active Camera transform；
+- 在 Camera RAF／wheel／pointermove 中更新路线或州界描边尺度，或恢复 `1×` 就使用路线／州界全强度固定粗线；
 - 永久 `will-change: transform` 全世界合成层；
 - 另建第二套 center／zoom、第二投影、第二 SVG 或第二 HTML Camera 与 transient Camera 同步；
 - 让 `.province-map-camera-raster` 拥有 center／zoom／world bounds／投影／输入事件，或把它扩展成第二套地图；
@@ -121,24 +126,27 @@
 - 航空首府直线正式显示和直线运动；
 - 按 `model.tab` 或页面导航状态隐藏玩家已保存路线，导致战略地图跨页切换时路网消失；
 - hover／详情高亮通过复制或偏移第二条路线实现；
+- 让任意 saved／draft／highlight 路线 path 在节点层之后绘制，或依赖不透明节点填充遮住仍穿过节点内部的路线；
+- 为节点截断直接改写正式路线 `path d`，而不是使用同源渲染 mask；
 - 地图镜头栏或运输选路面板恢复毛玻璃。
 
 ## 10. 实现与验证映射
 
 - `src/components/provinces/provinceMapCamera.ts`：唯一 Camera 数学状态、固定 world bounds、焦点反求、固定 preload viewBox、raster-ready active Canvas-only transform、snapshot 缺失时 live-SVG Surface fallback、settle 单次 viewBox 提交和输入仲裁。
-- `src/components/provinces/provinceMapRasterSnapshot.ts`：只负责在 idle 从唯一权威 SVG 克隆计算后样式、应用 active 世界 LOD 并异步生成固定 preload viewBox 的 CanvasImageSource；必须支持 `createImageBitmap → Image.decode()` 解码回退和正确 Blob URL 生命周期，不得包含 Camera 状态或输入逻辑。
+- `src/components/provinces/provinceMapRasterSnapshot.ts`：只负责在 idle 从唯一权威 SVG 克隆计算后样式、应用 active 世界 LOD并异步生成固定 preload viewBox 的 CanvasImageSource；必须支持 `createImageBitmap → Image.decode()` 解码回退和正确 Blob URL 生命周期，不得包含 Camera 状态或输入逻辑。
 - `src/components/provinces/provinceMapRouteLayout.ts`：公路／铁路中心线复用、航空抛物线、反向 segment 和同源运动采样。
 - `src/components/shell/StrategicWorkspace.tsx`：无页面条件构建全部已保存路线 overlay；草稿位于普通路线之上，高亮路线最后绘制；只传递既有路线身份和站点，不拥有第二套路线几何。
-- `src/components/provinces/UsMainlandMap.tsx`：唯一静态 SVG 世界、路线和 marker 挂载；拥有唯一非交互 `.province-map-camera-raster` 缓存，并只在 idle／内容／尺寸变化时刷新。
+- `src/components/provinces/UsMainlandMap.tsx`：唯一静态 SVG 世界、路线和 marker 挂载；在 settled／reset／resize 边界从 Camera 已发布 zoom 派生两种描边尺度；路线 path 统一进入节点 cutout mask，所有路线节点在独立顶层绘制；拥有唯一非交互 `.province-map-camera-raster` 缓存，并只在 idle／内容／尺寸变化时刷新。
 - `src/pages/TransportPage.tsx` 与 `TransportRouteDraftContext`：路线 hover／focus／详情高亮身份。
-- `src/styles/province-map.css` 与 `src/styles/strategic-map-rendering.css`：idle 矢量层级、raster-ready 时只提升 Canvas、fallback 时才提升 Surface、SVG/Canvas 可见性切换、active/idle 世界背景 LOD、无滤镜热路径、三种方式线型和地图专属实体表面；CSS 不拥有逐帧 Camera transform 值。
+- `src/styles/province-map.css` 与 `src/styles/strategic-map-rendering.css`：idle 矢量层级、raster-ready 时只提升 Canvas、fallback 时才提升 Surface、SVG/Canvas 可见性切换、active/idle 世界背景 LOD、无滤镜热路径、三种方式线型、zoom-aware 路线／州界描边和地图专属实体表面；CSS 不拥有逐帧 Camera transform 值。
 - `scripts/verify-provincial-economy.mjs`、`scripts/verify-province-map-raster-snapshot.mjs`、`scripts/verify-transport-route-lanes.mjs` 与 `scripts/verify-province-map-focus.mjs`：结构防回退。
-- `tests/dt/transport-route-map-overlays.test.ts`：锁定已保存路线不再受运输页签条件限制，并验证普通路线、草稿、高亮的最终绘制顺序。
+- `tests/dt/transport-route-map-overlays.test.ts`：锁定已保存路线不再受运输页签条件限制、path 内部普通／草稿／高亮顺序、settled 描边尺度以及 path-mask-node 层级。
 - `tests/browser/map-zoom-transient.spec.ts`：正式性能测量前必须等待 `data-map-raster-ready='true'`；同帧 wheel burst 在 raster-ready active 阶段必须是 `0` 次根 SVG `viewBox` 变化、`0` 次 Camera Surface style 变化、`1` 次 raster Canvas style 变化、`0` 次诊断属性变化；同时锁定 path/glyph 静态、active Canvas `opacity:1`、live SVG `opacity:0`、Surface `transform:none / will-change:auto`、settle 后 Canvas `opacity:0` 与 SVG `opacity:1`，并按第 11 节继续以同浏览器空帧中位数验证 `empty×2+8ms` 的输入到 RAF 间隔预算。
 - `tests/browser/map-raster-lifecycle.spec.ts`：使用真实 SVG 解码与可控制的完成屏障，在 Camera active 期间释放迟到结果；必须验证 Canvas 尺寸／revision／ready 不变、fallback 不切换、过期资源释放，以及无需额外业务更新即可在 settle 后生成新快照。不得用固定 sleep 猜测解码先后。
 - `tests/browser/province-map-world-boundary.spec.ts`：锁定闲置态 10m 土地填充、同源 110m 背景描边、10m 美国本土最终轮廓及背景描边复杂度预算；所有边界重复拖拽比较必须先等待 Camera settle，再以最终 viewBox 验证固定 world bounds，不得把 transient 帧误当 settled 边界。
 - `tests/browser/map-zoom-out-boundary.spec.ts`：锁定 raster-ready 缩放 active 阶段 SVG 保持当前 settled viewBox、Camera Surface transform 为 `none`、Canvas 承担唯一 transient transform、48 个 path 始终挂载，settle 后再提交最终 SVG viewBox并恢复实时几何。
-- `tests/browser/map-reset-sync.spec.ts`、`map-mobile-pinch.spec.ts`、`map-zoom-render-sync.spec.ts`、`province-map-focus.spec.ts`：重置、移动双指、settled SVG 同步和州交互不破坏同一 Camera。
+- `tests/browser/map-reset-sync.spec.ts`、`map-mobile-pinch.spec.ts`、`map-zoom-render-sync.spec.ts`、`province-map-focus.spec.ts`：重置、移动双指、settled SVG 同步、zoom-aware 州界描边和州交互不破坏同一 Camera。
+- `tests/browser/transport-map-picking.spec.ts`：路线草稿的 path／节点分层、节点 cutout mask、重复节点 cutout 合并以及 zoom-aware 路线描边。
 - 运输浏览器回归必须验证重复路线共线、运行时无车道字段、往返无第二 path、公路／铁路／航空路径不同、航空包含 `Q` 曲线、运输标记沿对应几何、高亮不改变路线 `d`，以及地图镜头栏／选路面板最终 `backdrop-filter:none`。
 
 ## 11. 性能测量与逐帧诊断

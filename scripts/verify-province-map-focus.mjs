@@ -61,8 +61,8 @@ requireText(
 );
 requireText(
   styleSource,
-  'stroke-width: 1.5;',
-  'province hover must retain the 1.5px neutral outline',
+  'stroke-width: calc(1.5px * var(--province-map-boundary-stroke-scale));',
+  'province hover must retain the 1.5px neutral outline baseline multiplied by settled zoom scale',
 );
 requireText(
   styleSource,
@@ -76,8 +76,8 @@ requireText(
 );
 requireText(
   styleSource,
-  'stroke-width: 2.5;',
-  'persistent province selection must retain the 2.5px neutral outline',
+  'stroke-width: calc(2.5px * var(--province-map-boundary-stroke-scale));',
+  'persistent province selection must retain the 2.5px neutral outline baseline multiplied by settled zoom scale',
 );
 requireText(
   styleSource,
@@ -86,8 +86,8 @@ requireText(
 );
 requireText(
   styleSource,
-  'stroke-width: 3;',
-  'selected-hover must remain visually stronger than persistent selection',
+  'stroke-width: calc(3px * var(--province-map-boundary-stroke-scale));',
+  'selected-hover must remain visually stronger than persistent selection at every settled zoom',
 );
 requireText(
   renderingSource,
@@ -157,8 +157,13 @@ requireText(
 );
 requireText(
   designSource,
-  '选中悬浮 > 选中 > 普通悬浮 > 默认',
-  'authoritative strategic map design must record province focus precedence',
+  '默认 `1px`、普通 hover `1.5px`、selected／focus `2.5px`、selected+hover `3px`',
+  'authoritative strategic map design must preserve province focus baseline precedence',
+);
+requireText(
+  designSource,
+  'boundaryStrokeScale = 0.65 + 0.35 × t',
+  'authoritative strategic map design must record settled zoom-aware province outline scaling',
 );
 requireText(
   designSource,

@@ -103,7 +103,10 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-camera-mode', 'svg-viewbox');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
+  await expect.poll(async () => Number(await canvas.getAttribute('data-map-boundary-stroke-scale'))).toBeGreaterThan(0);
 
+  const boundaryScale = Number(await canvas.getAttribute('data-map-boundary-stroke-scale'));
+  expect(boundaryScale).toBeCloseTo(0.65, 2);
   const hoverBorder = await resolveCssColor(page, '--color-text-secondary');
   const selectedBorder = await resolveCssColor(page, '--color-text-primary');
   const coloradoPoint = await provincePoint(page, '150000');
@@ -111,6 +114,7 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
   await page.mouse.move(blankPoint.x, blankPoint.y);
 
   const baseStyle = await provincePathStyle(page, '150000');
+  expect(baseStyle.strokeWidth).toBeCloseTo(1 * boundaryScale, 2);
   const cameraViewBox = await svg.getAttribute('viewBox');
   const zoomCurrent = await canvas.getAttribute('data-map-zoom-current');
   const zoomTarget = await canvas.getAttribute('data-map-zoom-target');
@@ -120,14 +124,15 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
   await expect.poll(async () => (await provincePathStyle(page, '150000')).stroke).toBe(hoverBorder);
   const hoverStyle = await provincePathStyle(page, '150000');
   expect(hoverStyle.fill).toBe(baseStyle.fill);
-  expect(hoverStyle.strokeWidth).toBeCloseTo(1.5, 1);
+  expect(hoverStyle.strokeWidth).toBeCloseTo(1.5 * boundaryScale, 2);
 
   const coloradoPath = page.locator('.province-map-region[data-province-id="150000"]');
   await coloradoPath.evaluate((path) => path.setAttribute('data-selected', 'true'));
-  await expect.poll(async () => (await provincePathStyle(page, '150000')).strokeWidth).toBeGreaterThanOrEqual(2.9);
+  await expect.poll(async () => (await provincePathStyle(page, '150000')).strokeWidth).toBeGreaterThan(2.9 * boundaryScale);
   const selectedHoverStyle = await provincePathStyle(page, '150000');
   expect(selectedHoverStyle.fill).toBe(baseStyle.fill);
   expect(selectedHoverStyle.stroke).toBe(selectedBorder);
+  expect(selectedHoverStyle.strokeWidth).toBeCloseTo(3 * boundaryScale, 2);
   expect(selectedHoverStyle.strokeWidth).toBeGreaterThan(hoverStyle.strokeWidth);
   await coloradoPath.evaluate((path) => path.setAttribute('data-selected', 'false'));
 
@@ -136,10 +141,11 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
 
   const selectedBlankPoint = await findMapBlankPoint(page);
   await page.mouse.move(selectedBlankPoint.x, selectedBlankPoint.y);
-  await expect.poll(async () => (await provincePathStyle(page, '150000')).strokeWidth).toBeGreaterThanOrEqual(2.4);
+  await expect.poll(async () => (await provincePathStyle(page, '150000')).strokeWidth).toBeGreaterThan(2.4 * boundaryScale);
   const selectedStyle = await provincePathStyle(page, '150000');
   expect(selectedStyle.fill).toBe(baseStyle.fill);
   expect(selectedStyle.stroke).toBe(selectedBorder);
+  expect(selectedStyle.strokeWidth).toBeCloseTo(2.5 * boundaryScale, 2);
   expect(selectedStyle.strokeWidth).toBeLessThan(selectedHoverStyle.strokeWidth);
   expect(selectedStyle.strokeWidth).toBeGreaterThan(hoverStyle.strokeWidth);
 
@@ -149,11 +155,11 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
   await expect.poll(async () => (await provincePathStyle(page, otherProvince.provinceId)).stroke).toBe(hoverBorder);
   const otherHoverStyle = await provincePathStyle(page, otherProvince.provinceId);
   expect(otherHoverStyle.fill).toBe(otherBaseStyle.fill);
-  expect(otherHoverStyle.strokeWidth).toBeCloseTo(1.5, 1);
+  expect(otherHoverStyle.strokeWidth).toBeCloseTo(1.5 * boundaryScale, 2);
 
   const stillSelected = await provincePathStyle(page, '150000');
   expect(stillSelected.stroke).toBe(selectedBorder);
-  expect(stillSelected.strokeWidth).toBeGreaterThanOrEqual(2.4);
+  expect(stillSelected.strokeWidth).toBeCloseTo(2.5 * boundaryScale, 2);
 
   await expect(cameraSurface).toHaveCSS('transform', 'none');
   expect(await svg.getAttribute('viewBox')).toBe(cameraViewBox);
