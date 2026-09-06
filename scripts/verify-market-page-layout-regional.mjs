@@ -11,6 +11,7 @@ const chartSource = read('src/components/charts/PriceSparkline.tsx');
 const serverDelivery = read('server/src/market-state-delivery.js');
 const serverDeliveryTest = read('server/test/market-state-delivery.test.js');
 const marketDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
+const chartDesign = read('docs/MARKET_CHART_LAYOUT_DESIGN.md');
 
 const failures = [];
 function requireText(source, text, message) {
@@ -105,10 +106,23 @@ forbidText(detailStyles, '.market-trade-summary > span:nth-child(2)', '今日成
 requireText(marketPage, 'const marketDetailRefreshToken = [', '详情刷新必须使用稳定令牌。');
 requireText(marketPage, 'selectedProductMarket?.officialPrice', '详情刷新必须跟随官方价格变化。');
 requireText(marketPage, 'selectedProductMarket?.nextPriceAt', '详情刷新必须跟随下一调价时间。');
+requireText(marketPage, 'selectedProductMarket?.todayBuyQuantity', '详情刷新必须跟随当日买入量变化。');
+requireText(marketPage, 'selectedProductMarket?.todaySellQuantity', '详情刷新必须跟随当日卖出量变化。');
 forbidText(marketPage, ': selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;', '市场详情不得恢复商品／工厂未收窄的联合市场写法。');
 requireText(marketPage, 'marketDetailError && !selectedMarketDetail', '已有有效详情时瞬时刷新失败不得覆盖行情图。');
-requireText(serverDelivery, 'const priceHistory = realTradePoints(market, now).map(publicPricePoint);', '详情接口必须只发送近 24h 真实成交点。');
-requireText(serverDeliveryTest, 'bounded public real-trade history', '服务器测试必须锁定详情历史边界。');
+for (const token of [
+  "const priceHistory = assetKind === 'commodity'",
+  '? []',
+  'const dailyHistory = dailyHistoryForMarket(market, assetKind, now);',
+  'for (const point of realTradePointsBetween(market, now - MARKET_DAILY_HISTORY_DAYS * DAY_MS, now))',
+  'for (const entry of fallbackByDate.values()) remember(entry);',
+]) requireText(serverDelivery, token, `商品详情必须使用日行情并省略重复逐笔负载: ${token}`);
+requireText(serverDeliveryTest, 'while omitting raw points', '服务器测试必须锁定商品详情省略原始逐笔历史。');
+requireText(serverDeliveryTest, 'assert.deepEqual(detail.market.priceHistory, []);', '服务器测试必须锁定商品详情不下发原始逐笔历史。');
+for (const token of [
+  '商品详情不再向浏览器重复下发原始逐笔 `priceHistory`',
+  '同一市场详情的并发请求必须共享一个网络请求',
+]) requireText(chartDesign, token, `行情设计必须锁定轻量详情交付: ${token}`);
 
 for (const token of [
   '玩家商品交易不得创建 `open`／`partial` 商品订单',
@@ -124,4 +138,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('地区商品市场验证通过：目录只展示 24h 成交量、今日官方价与 24h 变化，详情顶部固定四项摘要并只允许数量型即时交易，不存在价格输入、盘口、开放订单或撤单。');
+console.log('地区商品市场验证通过：目录只展示 24h 成交量、今日官方价与 24h 变化；商品详情以 30 天 dailyHistory 交付行情并省略逐笔负载，只允许数量型即时交易。');

@@ -76,18 +76,66 @@ test('recent local trades heading keeps clear action on the same row on narrow s
 });
 
 test('market detail keeps snapshot history when the detail refresh fails', async ({ page }) => {
-  await page.route('**/api/game/market-detail?**', async (route) => {
-    await route.fulfill({
-      status: 503,
-      contentType: 'application/json',
-      body: JSON.stringify({ error: 'forced market detail failure' }),
+  await page.addInitScript(() => {
+    const nativeFetch = window.fetch.bind(window);
+    let activeFetch = nativeFetch;
+    let failMarketDetailRefresh = false;
+    let failedRefreshCount = 0;
+
+    Object.defineProperty(window, 'fetch', {
+      configurable: true,
+      get() { return activeFetch; },
+      set(nextFetch: typeof window.fetch) {
+        activeFetch = async (input, init) => {
+          const requestUrl = new URL(
+            typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+            window.location.href,
+          );
+          if (failMarketDetailRefresh && requestUrl.pathname === '/economy-api/game/market-detail') {
+            failedRefreshCount += 1;
+            return new Response(JSON.stringify({ error: 'forced market detail refresh failure' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+          return nextFetch(input, init);
+        };
+      },
     });
+
+    const testWindow = window as typeof window & {
+      __setMarketDetailRefreshFailure?: (enabled: boolean) => void;
+      __getMarketDetailRefreshFailureCount?: () => number;
+    };
+    testWindow.__setMarketDetailRefreshFailure = (enabled) => { failMarketDetailRefresh = enabled; };
+    testWindow.__getMarketDetailRefreshFailureCount = () => failedRefreshCount;
   });
+
   await openCommodityDetail(page);
-  const chart = page.locator('.market-history-chart.full');
-  await expect(page.getByText('成交趋势图不可用', { exact: true })).toHaveCount(0);
-  await expect(chart).toBeVisible();
-  await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+  const chartCard = page.locator('.market-chart-card');
+  const chartContent = chartCard.locator('.market-chart-card__content');
+  await expect(chartCard.locator('.market-history-chart.full')).toBeVisible();
+  await expect(chartCard.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+
+  await page.evaluate(() => {
+    (window as typeof window & { __setMarketDetailRefreshFailure?: (enabled: boolean) => void })
+      .__setMarketDetailRefreshFailure?.(true);
+  });
+  await page.getByRole('button', { name: '返回商品列表' }).click();
+  const wheatRow = page.getByRole('button', { name: '查看小麦详情' }).first();
+  await expect(wheatRow).toBeVisible();
+  await wheatRow.click();
+
+  await expect.poll(() => page.evaluate(() => (
+    (window as typeof window & { __getMarketDetailRefreshFailureCount?: () => number })
+      .__getMarketDetailRefreshFailureCount?.() ?? 0
+  ))).toBeGreaterThan(0);
+  await expect(chartCard.getByText('成交趋势图不可用', { exact: true })).toHaveCount(0);
+  await expect(chartCard.getByText('正在加载当前市场行情…', { exact: true })).toHaveCount(0);
+  await expect(chartCard).not.toHaveClass(/is-unavailable/);
+  await expect(chartContent).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(chartCard.locator('.market-history-chart.full')).toBeVisible();
+  await expect(chartCard.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
 });
 
 test('page content buttons and entity cards use the shared small radius', async ({ page }) => {

@@ -91,6 +91,7 @@ export interface MarketCommodityRowProps {
   currentRegion?: boolean;
   ariaLabel: string;
   provinceId?: string;
+  onPrefetch?: () => void;
   onClick: () => void;
 }
 
@@ -106,6 +107,7 @@ export function MarketCommodityRow({
   currentRegion = false,
   ariaLabel,
   provinceId,
+  onPrefetch,
   onClick,
 }: MarketCommodityRowProps) {
   const secondary = regionName
@@ -127,6 +129,9 @@ export function MarketCommodityRow({
       data-province-id={provinceId}
       data-current-region={currentRegion || undefined}
       aria-label={ariaLabel}
+      onPointerEnter={onPrefetch}
+      onPointerDown={onPrefetch}
+      onFocus={onPrefetch}
       onClick={onClick}
     >
       <span className={`market-commodity-row__identity${regionPrimary ? ' market-commodity-row__identity--region' : ''}`}>

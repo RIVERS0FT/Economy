@@ -3,7 +3,7 @@ import { subscribeCommodityWriteProgress } from '../api/commodityWriteProgress';
 import { WRITE_RESULT_UNCONFIRMED } from '../api/gameWriteConfirmation';
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getMarketDetail } from '../api/game';
+import { getMarketDetail, peekMarketDetail, prefetchMarketDetail } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import {
@@ -295,14 +295,25 @@ export function MarketPage({
   const selectedMarket = selectedProductMarket ?? selectedFacilityMarket;
   const assetName = selectedProduct?.name ?? selectedFacility?.name ?? '资产';
   const assetId = selectedProduct?.id ?? selectedFacility?.id ?? activeAssetId;
-  const selectedMarketDetail = marketDetail
-    && marketDetail.provinceId === model.selectedProvinceId
-    && marketDetail.assetKind === activeAssetKind
-    && marketDetail.assetId === assetId
-    ? marketDetail
+  const cachedMarketDetail = assetId
+    ? peekMarketDetail(model.selectedProvinceId, activeAssetKind, assetId)
     : null;
-  const marketDetailPending = Boolean(marketDetailLoading && !selectedMarketDetail);
-  const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail && !selectedMarket);
+  const marketDetailMatches = (detail: MarketDetail | null) => Boolean(
+    detail
+    && detail.provinceId === model.selectedProvinceId
+    && detail.assetKind === activeAssetKind
+    && detail.assetId === assetId
+  );
+  const selectedMarketDetail = marketDetailMatches(marketDetail)
+    ? marketDetail
+    : marketDetailMatches(cachedMarketDetail)
+      ? cachedMarketDetail
+      : null;
+  const shouldLoadMarketDetail = Boolean(facilityAssetId) || marketViewMode === 'detail';
+  const marketDetailPending = Boolean(
+    shouldLoadMarketDetail && !selectedMarketDetail && !marketDetailError,
+  );
+  const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail);
   const marketChartUnavailable = marketDetailPending || marketDetailUnavailable;
   const marketDetailRefreshToken = [
     selectedMarket?.lastTradeAt ?? '',
@@ -310,11 +321,12 @@ export function MarketPage({
     selectedMarket?.tradeVolume24h ?? '',
     selectedProductMarket?.officialPrice ?? '',
     selectedProductMarket?.nextPriceAt ?? '',
+    selectedProductMarket?.todayBuyQuantity ?? '',
+    selectedProductMarket?.todaySellQuantity ?? '',
   ].join('|');
 
   useEffect(() => {
-    const shouldLoad = Boolean(facilityAssetId) || marketViewMode === 'detail';
-    if (!shouldLoad || !assetId) return undefined;
+    if (!shouldLoadMarketDetail || !assetId) return undefined;
     const controller = new AbortController();
     setMarketDetailLoading(true);
     setMarketDetailError('');
@@ -338,6 +350,7 @@ export function MarketPage({
     marketDetailRefreshToken,
     marketViewMode,
     model.selectedProvinceId,
+    shouldLoadMarketDetail,
   ]);
 
   const selectedLocalTrades = useMemo(
@@ -464,6 +477,7 @@ export function MarketPage({
                 marketPrice={entry.marketPrice}
                 trend={entry.trend}
                 ariaLabel={`查看${entry.name}详情`}
+                onPrefetch={() => prefetchMarketDetail(model.selectedProvinceId, entry.kind, entry.id)}
                 onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}
               />
             </li>
