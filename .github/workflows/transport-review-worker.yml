@@ -1,0 +1,55 @@
+name: Transport isolated regression workspace
+on:
+  push:
+    branches: [feat/transport-trip-fuel-20260906]
+    paths: [.github/workflows/transport-review-worker.yml]
+permissions:
+  contents: write
+jobs:
+  inspect:
+    if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/feat/transport-trip-fuel-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Preserve the established economic distance wording
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('docs/WAREHOUSE_EXPANSION_DESIGN.md')
+          text = p.read_text()
+          old = '距离继续使用 `shared/provinces.json` 州中心经纬度的球面距离；首府与真实路网折线只用于显示，不改变计费距离。'
+          new = '距离统一使用 `shared/provinces.json` 州中心经纬度的球面距离；首府坐标只用于可视化，不参与经济数值。真实路网折线同样不改变计费距离。'
+          assert text.count(old) == 1
+          p.write_text(text.replace(old, new))
+      - name: Commit reviewed wording adjustment
+        run: |
+          git diff --check
+          git add docs/WAREHOUSE_EXPANSION_DESIGN.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs: preserve authoritative transport distance contract'
+          git push origin HEAD:"$GITHUB_REF_NAME"
+      - run: npm ci
+      - name: Prepare offline source and test runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p local-tooling
+          cp "$(command -v node)" local-tooling/node
+          git ls-files -z > "$RUNNER_TEMP/transport-tracked-files"
+          extra=()
+          if [ -d server/node_modules ]; then extra+=(server/node_modules); fi
+          tar -czf "$RUNNER_TEMP/transport-source.tgz" --null -T "$RUNNER_TEMP/transport-tracked-files" node_modules local-tooling "${extra[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: transport-offline-workspace
+          path: ${{ runner.temp }}/transport-source.tgz
+          retention-days: 1
+          compression-level: 0
