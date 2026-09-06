@@ -1,0 +1,35 @@
+name: Transport branch edit runner
+
+on:
+  push:
+    branches: [feat/transport-trip-fuel-20260906]
+    paths: [.transport-edit.py]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/feat/transport-trip-fuel-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+      - name: Apply reviewed transport patch
+        run: python3 .transport-edit.py
+      - name: Commit source changes on the task branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --exit-code -- .github
+          git add -- shared src server docs scripts tests
+          if git diff --cached --quiet; then exit 0; fi
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: implement trip fuel inventory and intermediate cargo planning'
+          git push origin HEAD:"$GITHUB_REF_NAME"
