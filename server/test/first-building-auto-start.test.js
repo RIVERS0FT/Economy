@@ -51,6 +51,7 @@ test('first industrial build defaults to running and bootstraps inputs without a
   assert.equal(group.enabled, true);
   assert.equal(group.status, 'running');
   assert.equal(group.participatingCount, 1);
+  assert.equal(group.autoOperationBootstrapPending, undefined);
   assert.equal(inventoryForProvince(player, 'wheat', DEFAULT_PROVINCE_ID).frozen, recipe.inputs[0].quantity * 2);
   assert.equal(inventoryForProvince(player, 'fruit', DEFAULT_PROVINCE_ID).available, 7);
   assert.equal(Number(fruitMarket.todaySellQuantity || 0), fruitSellBefore);
@@ -66,7 +67,7 @@ test('industrial first-cycle bootstrap retries after funds recover during lazy a
   const recipe = mill.recipes.find((candidate) => candidate.id === mill.defaultRecipeId) || mill.recipes[0];
   seedBuildMaterials(player, mill);
   inventoryForProvince(player, 'wheat', DEFAULT_PROVINCE_ID).available = 0;
-  player.credits = mill.buildCost + recipe.operatingCost;
+  player.credits = mill.buildCost + recipe.operatingCost + 0.01;
   const wheatMarket = world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')];
   const buyBefore = Number(wheatMarket.todayBuyQuantity || 0);
 
@@ -81,6 +82,7 @@ test('industrial first-cycle bootstrap retries after funds recover during lazy a
   assert.equal(group.enabled, true);
   assert.equal(group.status, 'error');
   assert.equal(group.statusReason, 'insufficient_input');
+  assert.equal(group.autoOperationBootstrapPending, true);
   assert.equal(Number(wheatMarket.todayBuyQuantity || 0), buyBefore);
 
   player.credits += 100;
