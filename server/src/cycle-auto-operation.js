@@ -161,6 +161,7 @@ export function recordCompletedIndustrialOutput(world, player, group, productId,
 /** Called only after a real, committed-in-this-transaction cycle result, never by a client timer. */
 export function completeBuildingCycleAutoOperation(world, player, group, kind, completedAt, now) {
   if (!Number.isFinite(completedAt) || completedAt <= 0 || completedAt > now) return false;
+  delete group.autoOperationBootstrapPending;
   const sourceId = buildingFreezeSource(group, kind);
   const cursorKey = `${kind}:${sourceId}`;
   if (Number(player.autoOperationCycleCursors?.[cursorKey] || 0) >= completedAt) return false;
