@@ -5,11 +5,9 @@ on:
     branches: [work/transport-review-20260906]
     paths:
       - .github/transport-edit.py
-      - .github/workflows/transport-edit.yml
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
   review:
@@ -25,33 +23,16 @@ jobs:
         with:
           node-version: 24.4.0
           cache: npm
-      - name: Extract prior full browser failure summaries
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for job in 101426793230 101426793247; do
-            curl --fail --silent --show-error --location --header "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/jobs/$job/logs" --output "$RUNNER_TEMP/shard-$job.log"
-            echo "=== Failed shard $job ==="
-            python3 - "$RUNNER_TEMP/shard-$job.log" <<'PY'
-          import re, sys
-          from pathlib import Path
-          text = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
-          lines = text.splitlines()
-          selected = [line for line in lines if re.search(r'Error:|failed|flaky|retry|Timed out|Expected:|Received:|Call log:|at .*spec.ts', line)]
-          print('\n'.join(selected[-100:]))
-          PY
-          done
-      - name: Apply final scoped rate display edits
+      - name: Apply responsive test readiness corrections
         run: |
           set -euo pipefail
           python3 .github/transport-edit.py
           git rm .github/transport-edit.py .github/workflows/transport-edit.yml
           git diff --check
-          git add src/components/shell/StrategicWorkspace.tsx src/utils/provinceLogistics.ts tests/dt/transport-planning.test.ts tests/browser/transport-balance.spec.ts
+          git add tests/browser/transport-balance.spec.ts tests/browser/market-chart-safe-zone.spec.ts
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix(transport): display fractional kilometer rates without currency rounding'
+          git commit -m 'test(transport): wait for responsive remounts before asserting stable geometry'
           git push origin HEAD:refs/heads/work/transport-review-20260906
           git diff --check origin/main...HEAD
       - name: Install exact dependencies
@@ -68,8 +49,8 @@ jobs:
           node scripts/verify-provincial-unlock-transport.mjs
       - name: Prepare Chromium
         run: bash scripts/prepare-playwright-chromium.sh
-      - name: Transport browser regressions
-        run: npm run test:browser -- tests/browser/transport-balance.spec.ts tests/browser/transport-map-picking.spec.ts tests/browser/transport-route-cost-style-lock.spec.ts
+      - name: Repeat transportation and responsive chart regressions
+        run: npm run test:browser -- tests/browser/transport-balance.spec.ts tests/browser/transport-map-picking.spec.ts tests/browser/transport-route-cost-style-lock.spec.ts tests/browser/market-chart-safe-zone.spec.ts --repeat-each=3
       - name: Upload browser failure evidence
         if: failure()
         uses: actions/upload-artifact@v4
