@@ -301,7 +301,9 @@ export function MarketPage({
     && marketDetail.assetId === assetId
     ? marketDetail
     : null;
+  const marketDetailPending = Boolean(marketDetailLoading && !selectedMarketDetail);
   const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail && !selectedMarket);
+  const marketChartUnavailable = marketDetailPending || marketDetailUnavailable;
   const marketDetailRefreshToken = [
     selectedMarket?.lastTradeAt ?? '',
     selectedMarket?.lastTradePrice ?? '',
@@ -509,11 +511,14 @@ export function MarketPage({
 
       <div className="market-grid unified-market-grid">
         <Panel
-          className={`widget market-chart-card ui-entity-card${marketDetailUnavailable ? ' is-unavailable' : ''}`}
+          className={`widget market-chart-card ui-entity-card${marketChartUnavailable ? ' is-unavailable' : ''}`}
         >
-          <div className="market-chart-card__content" aria-disabled={marketDetailUnavailable || undefined}>
-            {marketDetailLoading && !selectedMarketDetail ? <small className="muted" role="status">正在加载当前市场行情…</small> : null}
-            {marketDetailUnavailable ? <div className="market-chart-card__unavailable" role="status">成交趋势图不可用</div> : <PriceSparkline key={`${model.selectedProvinceId}:${activeAssetKind}:${assetId}`} buckets={marketBuckets} variant="full" />}
+          <div className="market-chart-card__content" aria-disabled={marketChartUnavailable || undefined}>
+            {marketDetailPending
+              ? <div className="market-chart-card__unavailable" role="status">正在加载当前市场行情…</div>
+              : marketDetailUnavailable
+                ? <div className="market-chart-card__unavailable" role="status">成交趋势图不可用</div>
+                : <PriceSparkline key={`${model.selectedProvinceId}:${activeAssetKind}:${assetId}`} buckets={marketBuckets} variant="full" />}
           </div>
         </Panel>
 
