@@ -51,17 +51,21 @@ test('transport forecasts explain non-cash gains without resizing the card and f
   await page.mouse.move(1590, 890);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    await draft.scrollIntoViewIfNeeded();
-    await expect(draft).toBeVisible();
-    const measurements = await draft.evaluate((element) => ({
-      pageWidth: document.documentElement.scrollWidth,
-      viewport: window.innerWidth,
-      width: element.clientWidth,
-      contentWidth: element.scrollWidth,
-    }));
-    expect(measurements.pageWidth).toBeLessThanOrEqual(measurements.viewport + 1);
-    expect(measurements.contentWidth).toBeLessThanOrEqual(measurements.width + 1);
-    await expect(draft.locator('[data-transport-mode-option="air"]')).toContainText('周期总费用');
-    await expect(draft.locator('[data-transport-mode-option="rail"]')).toContainText('预计周期耗时');
+    // Crossing the shell breakpoint can replace the page host. Resolve the
+    // locator again until the complete new layout satisfies the same bounds.
+    await expect(async () => {
+      await expect(draft).toBeVisible();
+      await draft.scrollIntoViewIfNeeded();
+      const measurements = await draft.evaluate((element) => ({
+        pageWidth: document.documentElement.scrollWidth,
+        viewport: window.innerWidth,
+        width: element.clientWidth,
+        contentWidth: element.scrollWidth,
+      }));
+      expect(measurements.pageWidth).toBeLessThanOrEqual(measurements.viewport + 1);
+      expect(measurements.contentWidth).toBeLessThanOrEqual(measurements.width + 1);
+      await expect(draft.locator('[data-transport-mode-option="air"]')).toContainText('周期总费用');
+      await expect(draft.locator('[data-transport-mode-option="rail"]')).toContainText('预计周期耗时');
+    }).toPass({ timeout: 10_000 });
   }
 });
