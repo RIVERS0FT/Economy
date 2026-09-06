@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { FACILITY_TYPE_CATALOG } from '../server/src/industry-catalog.js';
 import {
   RESEARCH_DURATION_MS,
+  RESEARCH_DURATION_BY_STAGE,
   RESEARCH_LEVEL_CATALOG,
   RESEARCH_TECHNOLOGY_CATALOG,
   researchTechnologyClosure,
@@ -22,10 +23,10 @@ assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.initi
 assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.initial)
   .every((technology) => technology.durationMs === 0), true);
 assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => !technology.initial)
-  .every((technology) => technology.durationMs === RESEARCH_DURATION_MS), true);
+  .every((technology) => technology.durationMs === RESEARCH_DURATION_BY_STAGE[technology.stage]), true);
 assert.equal(RESEARCH_LEVEL_CATALOG.length, 7);
 assert.equal(RESEARCH_LEVEL_CATALOG.reduce((sum, stage) => sum + stage.cost, 0), 31_700);
-assert.equal(RESEARCH_LEVEL_CATALOG.every((stage) => stage.durationMs === RESEARCH_DURATION_MS), true);
+assert.equal(RESEARCH_LEVEL_CATALOG.every((stage) => stage.durationMs === RESEARCH_DURATION_BY_STAGE[stage.id]), true);
 
 const technologyIds = new Set(RESEARCH_TECHNOLOGY_CATALOG.map((technology) => technology.id));
 const operationTechnologyIds = new Set([
@@ -71,7 +72,7 @@ assert.ok(applianceCost >= 15_500, `appliance route cost too low: ${applianceCos
 assert.equal(applianceClosure
   .map((technologyId) => technologyById.get(technologyId))
   .filter((technology) => !technology.initial)
-  .every((technology) => technology.durationMs === RESEARCH_DURATION_MS), true);
+  .every((technology) => technology.durationMs === RESEARCH_DURATION_BY_STAGE[technology.stage]), true);
 
 const now = 1_800_000_000_000;
 const world = createWorld(now);
@@ -83,13 +84,13 @@ assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityType
 const started = applyResearchAction(world, user, 'startResearch', { technologyId: 'forestry-development' }, now);
 assert.equal(started.ok, true);
 assert.equal(player.credits, 200);
-assert.equal(player.research.active.durationMs, RESEARCH_DURATION_MS);
-assert.equal(player.research.active.completesAt, now + RESEARCH_DURATION_MS);
-processResearchWorld(world, now + RESEARCH_DURATION_MS - 1);
+assert.equal(player.research.active.durationMs, RESEARCH_DURATION_BY_STAGE.C2);
+assert.equal(player.research.active.completesAt, now + RESEARCH_DURATION_BY_STAGE.C2);
+processResearchWorld(world, now + RESEARCH_DURATION_BY_STAGE.C2 - 1);
 assert.equal(player.research.completedTechnologyIds.includes('forestry-development'), false);
-processResearchWorld(world, now + RESEARCH_DURATION_MS);
+processResearchWorld(world, now + RESEARCH_DURATION_BY_STAGE.C2);
 assert.equal(player.research.completedTechnologyIds.includes('forestry-development'), true);
-assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'logging-camp' }, now + RESEARCH_DURATION_MS), null);
+assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'logging-camp' }, now + RESEARCH_DURATION_BY_STAGE.C2), null);
 
 const migrationWorld = createWorld(now);
 const migrationUser = { id: 9902, email: 'research-migration@example.com', name: '研发迁移测试' };
@@ -108,8 +109,8 @@ migrationPlayer.research.active = {
   employmentReleased: 25,
 };
 ensurePlayerResearch(migrationWorld, migrationPlayer, now + 60_000);
-assert.equal(migrationPlayer.research.active.durationMs, RESEARCH_DURATION_MS);
-assert.equal(migrationPlayer.research.active.completesAt, now + RESEARCH_DURATION_MS - appliedAccelerationMs);
+assert.equal(migrationPlayer.research.active.durationMs, previousDurationMs);
+assert.equal(migrationPlayer.research.active.completesAt, now + previousDurationMs - appliedAccelerationMs);
 assert.equal(migrationPlayer.research.active.employmentReleased, 25);
 
 const sourceChecks = [
@@ -128,10 +129,10 @@ const sourceChecks = [
   ['src/pages/ResearchPage.tsx', '按产业链选择科技节点'],
   ['src/api/game.ts', "postAction('/research/start', { technologyId })"],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '工厂研发准入由具体科技节点决定'],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '所有可启动研发任务的基础时长固定为 6h'],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '研发时长读取服务器科技目录'],
 ];
 for (const [path, text] of sourceChecks) {
   assert.ok(readFileSync(path, 'utf8').includes(text), `${path} missing ${text}`);
 }
 
-console.log('split research technology catalog, fixed six-hour duration, migration, access control, UI and design verification passed');
+console.log('split research technology catalog, stage-specific duration and paid deadline preservation, migration, access control, UI and design verification passed');

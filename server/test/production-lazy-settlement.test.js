@@ -70,7 +70,7 @@ test('client proposal settles the maximum legal overdue production and server ve
 
   const result = applyProductionSettlementClaim(world, user.id, claim, settleThrough);
   assert.equal(result.ok, true);
-  assert.equal(player.credits, 990);
+  assert.equal(player.credits, 990.3);
   assert.equal(player.inventories.wheat.available, 10);
   assert.equal(player.facilityGroups[0].lifetimeOutput, 10);
   assert.equal(player.facilityGroups[0].cycleStartedAt, settleThrough);
@@ -124,7 +124,7 @@ test('resource-bound proposal stops at the maximum affordable cycle and marks th
   assert.equal(claim.groups[0].completedCycles, 3);
 
   applyProductionSettlementClaim(world, user.id, claim, settleThrough);
-  assert.equal(player.credits, 0);
+  assert.equal(player.credits, 0.09);
   assert.equal(player.inventories.wheat.available, 3);
   assert.equal(player.facilityGroups[0].lifetimeOutput, 3);
   assert.equal(player.facilityGroups[0].cycleStartedAt >= now + 60_000, true);
@@ -163,7 +163,7 @@ test('production wage settlement is batch invariant across an old first-cycle mu
     combinedThrough,
   );
 
-  assert.equal(combined.player.facilityGroups[0].productionEmploymentTotalMicros, '1600000');
+  assert.equal(combined.player.facilityGroups[0].productionEmploymentTotalMicros, '1552000');
   assert.equal(
     combined.player.facilityGroups[0].productionEmploymentTotalMicros,
     split.player.facilityGroups[0].productionEmploymentTotalMicros,

@@ -146,3 +146,24 @@ test('stopping during an invested cycle keeps the locked settlement but prevents
   assert.equal(group.participatingCount, 0);
   assert.equal(inventoryForProvince(player, 'clothing', california).available, inventoryAfterStart);
 });
+
+test('pre-upgrade invested commercial profit is honored and only the next cycle adopts the new catalog', () => {
+  const { world, player } = setup();
+  const type = typeFor('convenience-store');
+  for (const item of type.consumptionInputs) inventoryForProvince(player, item.productId, california).available = item.quantity * 2;
+  applyCommercialBuildingAction(world, user, { operation: 'build', provinceId: california, commercialTypeId: type.id, quantity: 1 }, now);
+  applyCommercialBuildingAction(world, user, { operation: 'start', provinceId: california, commercialTypeId: type.id }, now + 1);
+  const group = player.commercialBuildingGroups[0];
+  group.autoOperationPolicy = { enabled: false, inputCoverageCycles: 2 };
+  // Persisted pre-upgrade period: input value and operating cost match, profit is the old absolute amount.
+  group.pendingRevenue -= group.pendingProfit - 2.5;
+  group.pendingProfit = 2.5;
+  const oldRevenue = group.pendingRevenue;
+  processCommercialWorld(world, group.cycleCompletesAt);
+  assert.equal(group.lifetimeProfit, 2.5);
+  assert.equal(group.lifetimeRevenue, oldRevenue);
+  assert.equal(group.pendingProfit, 4);
+  processCommercialWorld(world, group.cycleCompletesAt);
+  assert.equal(group.lifetimeProfit, 6.5);
+  assert.equal(player.stats.commercialProfitIssued, 6.5);
+});

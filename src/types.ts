@@ -161,6 +161,11 @@ export interface FacilityGroup {
   staffingUpdatedAt?: number;
   /** Raw authoritative staffing rate used only to construct a production settlement proposal. */
   productionSettlementStaffingRateBps?: number;
+  /** Server-stamped catalog migration boundary; only cycles started earlier use the previous cost. */
+  productionBalanceVersion?: number;
+  productionCostChangeAt?: number;
+  productionLegacyOperatingCost?: number;
+  productionLegacyRecipeId?: string;
   /** Raw authoritative staffing timestamp used only to construct a production settlement proposal. */
   productionSettlementStaffingUpdatedAt?: number;
   /** Fixed-point equivalent-capacity carry retained between completed cycles. */

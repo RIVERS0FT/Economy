@@ -3,6 +3,15 @@ export const FACILITY_STAFFING_FULL_BPS: 10000;
 export const FACILITY_STAFFING_RECOVERY_MS: number;
 export const FACILITY_STAFFING_DECAY_MS: number;
 
+export interface ProductionCostBoundarySource {
+  status?: string;
+  cycleStartedAt?: number | null;
+  productionLegacyRecipeId?: string;
+  productionCostChangeAt?: number;
+  productionLegacyOperatingCost?: number;
+}
+export function productionOperatingCostForCycle(group: ProductionCostBoundarySource, recipeId: string, currentCost: number): number;
+
 export interface ProductionSettlementRecipeItem {
   productId: string;
   quantity: number;
@@ -28,6 +37,8 @@ export interface ProductionSettlementGroupBasis {
     id: string;
     cycleMs: number;
     operatingCostMicros: string;
+    costChangeAt?: number;
+    previousOperatingCostMicros?: string;
     inputs: ProductionSettlementRecipeItem[];
     output: ProductionSettlementRecipeItem;
   };

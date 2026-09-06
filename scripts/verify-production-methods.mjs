@@ -1,3 +1,4 @@
+import { auditRecipe } from './audit-economy-balance.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js';
@@ -12,15 +13,6 @@ const prices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.bas
 
 function groupFor(facility) {
   return facility.productionMethodGroups.find((group) => group.id === 'operation');
-}
-
-function profitPerMinute(recipe) {
-  const inputValue = recipe.inputs.reduce(
-    (sum, input) => sum + prices.get(input.productId) * input.quantity,
-    0,
-  );
-  return (prices.get(recipe.output.productId) * recipe.output.quantity - inputValue - recipe.operatingCost)
-    * 60_000 / recipe.cycleMs;
 }
 
 const sharedDefinitions = new Map();
@@ -60,9 +52,9 @@ for (const facility of FACILITY_TYPE_CATALOG) {
     assert.equal(variants.every(Boolean), true, `${facility.id}/${baseRecipe.id} 制度变体不完整`);
     if (Number(facility.complexity.slice(1)) >= 3) {
       assert.equal(
-        variants.every((recipe) => Math.abs(profitPerMinute(recipe) - profitPerMinute(baseRecipe)) < 1e-9),
+        variants.every((recipe, index) => Math.abs(auditRecipe(facility, recipe).recoveryMinutes - ((facility.complexity === 'C3' ? 75 : 80) + [0, 5, -5, 0][index])) < 1),
         true,
-        `${facility.id}/${baseRecipe.id} 利润基线漂移`,
+        `${facility.id}/${baseRecipe.id} 占款回收目标漂移`,
       );
     }
   }

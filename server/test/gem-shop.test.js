@@ -176,12 +176,12 @@ test('rejecting terminal quote locks the day without changing assets', () => {
   }
 });
 
-test('dynamic terminal quote uses the 100 baseline, 1-10000 bounds, and a 10% maximum daily change', () => {
+test('dynamic terminal quote uses the 100 baseline, 1-10000 bounds, and a five-percent prior-quote step', () => {
   assert.equal(GEM_SHOP_CREDITS_PER_GEM, 100);
   assert.equal(GEM_SHOP_LEGACY_CREDITS_PER_GEM, 10);
   assert.equal(GEM_SHOP_MIN_CREDITS_PER_GEM, 1);
   assert.equal(GEM_SHOP_MAX_CREDITS_PER_GEM, 10_000);
-  assert.equal(GEM_SHOP_MAX_DAILY_RATE_CHANGE, 1_000);
+  assert.equal(GEM_SHOP_MAX_DAILY_RATE_CHANGE, 500);
 
   const high = calculateNextGemShopRate({
     previousRate: 100,
@@ -190,7 +190,7 @@ test('dynamic terminal quote uses the 100 baseline, 1-10000 bounds, and a 10% ma
     acceptedCount: 20,
     rejectedCount: 0,
   });
-  assert.equal(high.creditsPerGem, 1);
+  assert.equal(high.creditsPerGem, 95);
   assert.equal(high.demandTone, 'high');
 
   const low = calculateNextGemShopRate({
@@ -200,7 +200,7 @@ test('dynamic terminal quote uses the 100 baseline, 1-10000 bounds, and a 10% ma
     acceptedCount: 0,
     rejectedCount: 20,
   });
-  assert.equal(low.creditsPerGem, 1_100);
+  assert.equal(low.creditsPerGem, 105);
   assert.equal(low.demandTone, 'low');
 
   const upperBound = calculateNextGemShopRate({
@@ -210,6 +210,7 @@ test('dynamic terminal quote uses the 100 baseline, 1-10000 bounds, and a 10% ma
     acceptedCount: 0,
     rejectedCount: 20,
   });
-  assert.equal(upperBound.creditsPerGem, 10_000);
+  assert.equal(upperBound.creditsPerGem, 9_975);
+  assert.equal(calculateNextGemShopRate({ previousRate: 9_975, yesterdayEffectiveGems: 1, recentEffectiveGems: [100], rejectedCount: 20 }).creditsPerGem, 10_000);
   assert.ok(upperBound.creditsPerGem - 9_500 <= GEM_SHOP_MAX_DAILY_RATE_CHANGE);
 });

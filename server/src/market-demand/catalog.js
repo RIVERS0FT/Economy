@@ -61,9 +61,11 @@ export const LIQUIDITY_MIN_TARGET = 2;
 export const LIQUIDITY_SIGNAL_WEIGHT = 0.50;
 export const LIQUIDITY_EMERGENCY_SIGNAL_WEIGHT = 0.25;
 export const SYSTEM_PRICE_CYCLE_MS = 24 * 60 * 60 * 1000;
-export const SYSTEM_PRICE_K_BPS = 1000;
-export const SYSTEM_PRICE_MAX_CHANGE_BPS = 500;
-export const SYSTEM_PRICE_LIQUIDITY_BASELINE = 8;
+export const SYSTEM_PRICE_K_BPS = 200;
+export const SYSTEM_PRICE_MAX_CHANGE_BPS = 200;
+export const SYSTEM_PRICE_LIQUIDITY_BASELINE = 32;
+export const SYSTEM_PRICE_LIQUIDITY_VALUE = 1000;
+export const SYSTEM_PRICE_ANCHOR_BPS = 1000;
 
 export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
   Object.freeze({

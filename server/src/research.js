@@ -172,12 +172,12 @@ function normalizeCompletedAtMap(previous, completed, now) {
   }));
 }
 function normalizeFixedResearchTiming(startedAt, completesAt, previousDurationMs) {
-  const previousDuration = Math.max(1, Math.floor(Number(previousDurationMs || (completesAt - startedAt))));
-  const previousBaseCompletesAt = startedAt + previousDuration;
-  const appliedDeadlineReductionMs = Math.max(0, previousBaseCompletesAt - completesAt);
+  // Paid research owns its deadline; changing the catalog must not reprice elapsed work or gem acceleration.
+  const previousDuration = Number(previousDurationMs);
   return {
-    durationMs: RESEARCH_DURATION_MS,
-    completesAt: Math.max(startedAt, startedAt + RESEARCH_DURATION_MS - appliedDeadlineReductionMs),
+    durationMs: Number.isSafeInteger(previousDuration) && previousDuration > 0
+      ? previousDuration : Math.max(1, Math.ceil(completesAt - startedAt)),
+    completesAt,
   };
 }
 function normalizeActiveResearch(previousActive, completed) {
@@ -380,8 +380,8 @@ function startTechnologyResearch(world, player, technologyId, now) {
       technologyName: technology.name,
       targetComplexity: technology.stage,
       startedAt: Number(now),
-      completesAt: Number(now) + RESEARCH_DURATION_MS,
-      durationMs: RESEARCH_DURATION_MS,
+      completesAt: Number(now) + technology.durationMs,
+      durationMs: technology.durationMs,
       cost: technology.cost,
       employmentReleased: 0,
     },
@@ -413,8 +413,8 @@ function startLegacyStageResearch(world, player, targetComplexity, now) {
       legacy: true,
       grantTechnologyIds,
       startedAt: Number(now),
-      completesAt: Number(now) + RESEARCH_DURATION_MS,
-      durationMs: RESEARCH_DURATION_MS,
+      completesAt: Number(now) + target.durationMs,
+      durationMs: target.durationMs,
       cost,
       employmentReleased: 0,
     },

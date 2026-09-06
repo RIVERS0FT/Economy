@@ -1,3 +1,4 @@
+import { productionOperatingCostForCycle } from '../../../shared/production-settlement.js';
 import { BuildingSettlementPanel } from '../buildings/BuildingSettlementPanel';
 import { BuildingSettlementProducts as RecipeItems } from '../buildings/BuildingSettlementProducts';
 import { GameConcept } from '../ui/GameConcept';
@@ -111,7 +112,7 @@ function clusterRecipeDescription(
 
 export function FacilityProductionFormula({
   group,
-  type,
+  type: catalogType,
   products,
   inventories,
   now,
@@ -124,6 +125,7 @@ export function FacilityProductionFormula({
   now: number;
   onOpenProductMarket: (productId: string) => void;
 }) {
+  const type = { ...catalogType, operatingCost: productionOperatingCostForCycle(group, group.activeRecipeId, catalogType.operatingCost) };
   const inputs = recipeInputs(type);
   const outputs = recipeOutputs(type);
   const productNames = new Map(products.map((product) => [product.id, product.name]));

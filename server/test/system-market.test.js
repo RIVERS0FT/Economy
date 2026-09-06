@@ -107,7 +107,7 @@ test('Asia Shanghai midnight raises the daily price from yesterday buy pressure 
   const world = createWorld(now);
   deferDemand(world);
   const market = oreMarket(world);
-  market.officialPrice = 10;
+  market.officialPrice = 7;
   market.todayBuyQuantity = 20;
   market.todaySellQuantity = 4;
   market.cycleBuyQuantity = 20;
@@ -116,9 +116,9 @@ test('Asia Shanghai midnight raises the daily price from yesterday buy pressure 
 
   processWorld(world, nextResetAt + 1);
 
-  assert.equal(market.officialPrice, 10.4);
-  assert.equal(market.lastPriceChangeBps, 400);
-  assert.equal(market.lastImbalance, 0.4);
+  assert.equal(market.officialPrice, 7.01);
+  assert.equal(market.lastPriceChangeBps, 14);
+  assert.equal(market.lastImbalance, 0.0516);
   assert.equal(market.previousDayBuyQuantity, 20);
   assert.equal(market.previousDaySellQuantity, 4);
   assert.equal(market.todayBuyQuantity, 0);
@@ -127,7 +127,7 @@ test('Asia Shanghai midnight raises the daily price from yesterday buy pressure 
   assert.equal(market.nextPriceAt, dailyCheckInPeriodFor(nextResetAt + 1).nextResetAt);
 });
 
-test('balanced or zero yesterday volume does not move the next daily price', () => {
+test('balanced yesterday volume returns to the anchor while zero volume keeps the daily price', () => {
   const balancedWorld = createWorld(now);
   deferDemand(balancedWorld);
   const balanced = oreMarket(balancedWorld);
@@ -135,8 +135,8 @@ test('balanced or zero yesterday volume does not move the next daily price', () 
   balanced.todayBuyQuantity = 50;
   balanced.todaySellQuantity = 50;
   processWorld(balancedWorld, dailyCheckInPeriodFor(now).nextResetAt + 1);
-  assert.equal(balanced.officialPrice, 10);
-  assert.equal(balanced.lastPriceChangeBps, 0);
+  assert.equal(balanced.officialPrice, 9.89);
+  assert.equal(balanced.lastPriceChangeBps, -110);
 
   const idleWorld = createWorld(now);
   deferDemand(idleWorld);
@@ -148,7 +148,7 @@ test('balanced or zero yesterday volume does not move the next daily price', () 
   assert.equal(idle.previousDaySellQuantity, 0);
 });
 
-test('daily system price is capped to five percent per day and base price 50 to 300 percent bounds', () => {
+test('daily system price is capped to two percent per day and respects absolute bounds', () => {
   const upWorld = createWorld(now);
   deferDemand(upWorld);
   const up = oreMarket(upWorld);
@@ -156,8 +156,9 @@ test('daily system price is capped to five percent per day and base price 50 to 
   up.todayBuyQuantity = 10_000;
   up.todaySellQuantity = 0;
   processWorld(upWorld, dailyCheckInPeriodFor(now).nextResetAt + 1);
-  assert.equal(up.lastPriceChangeBps, 500);
-  assert.equal(up.officialPrice, 21);
+  assert.equal(up.lastPriceChangeBps, -196);
+  assert.equal(up.officialPrice, 20.49);
+  assert.ok(up.officialPrice <= 21 && up.officialPrice >= 20.9 * 0.98);
 
   const downWorld = createWorld(now);
   deferDemand(downWorld);
@@ -166,8 +167,9 @@ test('daily system price is capped to five percent per day and base price 50 to 
   down.todayBuyQuantity = 0;
   down.todaySellQuantity = 10_000;
   processWorld(downWorld, dailyCheckInPeriodFor(now).nextResetAt + 1);
-  assert.equal(down.lastPriceChangeBps, -500);
-  assert.equal(down.officialPrice, 3.5);
+  assert.equal(down.lastPriceChangeBps, 200);
+  assert.equal(down.officialPrice, 3.57);
+  assert.ok(down.officialPrice >= 3.5 && down.officialPrice <= 3.5 * 1.02);
 });
 
 test('stale volume older than yesterday is not applied after a multi-day offline gap', () => {
@@ -213,7 +215,7 @@ test('daily price rollover never clears server internal population orders', () =
 
   processWorld(world, dailyCheckInPeriodFor(now).nextResetAt + 1);
 
-  assert.equal(market.officialPrice, 10.4);
+  assert.equal(market.officialPrice, 9.98);
   assert.equal(populationOrder.status, 'open');
   assert.equal(populationOrder.remaining, 3);
 });

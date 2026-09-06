@@ -81,9 +81,9 @@ test('completed cycle consumes its own freeze, sells all free goods and buys pos
 });
 
 test('net margin includes sale fee and does not use former base-price bounds', () => {
-  for (const [flour, shouldBuy] of [[18.78, false], [18.79, true], [18.60, false]]) {
+  for (const [flour, shouldBuy] of [[19.02, false], [19.03, true], [18.83, false]]) {
     const { world, player, recipe } = setup('mill', { wheat: 5, flour });
-    assert.equal(recipe.operatingCost, 8.6);
+    assert.equal(recipe.operatingCost, 8.83);
     assert.equal(recipe.inputs[0].quantity, 2);
     settle(world, now + recipe.cycleMs);
     const bought = orders(world).some((o) => o.side === 'buy');
@@ -141,7 +141,7 @@ test('production and sale never draw on frozen goods or stock in a different reg
 });
 
 test('exact zero net profit is not positive and incomplete prices cannot trigger procurement', () => {
-  for (const prices of [{ wheat: 5.6, flour: 20 }, { wheat: 5, flour: undefined }]) {
+  for (const prices of [{ wheat: 5.98, flour: 21 }, { wheat: 5, flour: undefined }]) {
     const { world, player, recipe } = setup('mill', prices);
     settle(world, now + recipe.cycleMs);
     assert.equal(orders(world).some((order) => order.side === 'buy'), false);

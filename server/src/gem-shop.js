@@ -2,15 +2,20 @@ import { randomUUID } from 'node:crypto';
 import { ECONOMY_CONSTANTS } from './domain.js';
 import { ensureGemState } from './invitations.js';
 
-// Neutral initial quote; daily movement is capped at 10% of the configured maximum.
+// Neutral initial quote; movement is bounded relative to the prior daily quote.
 export const GEM_SHOP_CREDITS_PER_GEM = 100;
 export const GEM_SHOP_LEGACY_CREDITS_PER_GEM = 10;
 export const GEM_SHOP_MIN_CREDITS_PER_GEM = 1;
 export const GEM_SHOP_MAX_CREDITS_PER_GEM = 10_000;
-export const GEM_SHOP_MAX_DAILY_RATE_CHANGE = Math.floor(GEM_SHOP_MAX_CREDITS_PER_GEM * 0.1);
+export const GEM_SHOP_MAX_DAILY_RATE_CHANGE = Math.floor(GEM_SHOP_MAX_CREDITS_PER_GEM * 0.05);
 export const GEM_SHOP_MIN_EXCHANGE_GEMS = 1;
 export const GEM_SHOP_MAX_EXCHANGE_GEMS = 100;
 export const GEM_SHOP_EFFECTIVE_DEMAND_GEMS_PER_PLAYER = 20;
+
+export const GEM_SHOP_MIN_DECISION_ACCOUNTS = 5;
+export function gemShopDailyRateChange(previousRate) {
+  return Math.max(1, Math.floor(previousRate * 0.05));
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -51,10 +56,12 @@ export function calculateNextGemShopRate({
     GEM_SHOP_MAX_CREDITS_PER_GEM,
   );
   const decisions = Math.max(0, Number(acceptedCount || 0)) + Math.max(0, Number(rejectedCount || 0));
-  if (decisions <= 0) {
+  const dailyStep = gemShopDailyRateChange(normalizedPrevious);
+  if (decisions < GEM_SHOP_MIN_DECISION_ACCOUNTS) {
     const nextRate = normalizedPrevious === GEM_SHOP_CREDITS_PER_GEM
       ? normalizedPrevious
-      : normalizedPrevious + Math.sign(GEM_SHOP_CREDITS_PER_GEM - normalizedPrevious);
+      : normalizedPrevious + Math.sign(GEM_SHOP_CREDITS_PER_GEM - normalizedPrevious)
+        * Math.min(dailyStep, Math.abs(GEM_SHOP_CREDITS_PER_GEM - normalizedPrevious));
     return {
       creditsPerGem: clamp(nextRate, GEM_SHOP_MIN_CREDITS_PER_GEM, GEM_SHOP_MAX_CREDITS_PER_GEM),
       demandPressurePpm: 1_000_000,
@@ -77,10 +84,10 @@ export function calculateNextGemShopRate({
   let nextRate = normalizedPrevious;
   let demandTone = 'neutral';
   if (pressure > 1.15) {
-    nextRate -= GEM_SHOP_MAX_DAILY_RATE_CHANGE;
+    nextRate -= dailyStep;
     demandTone = 'high';
   } else if (pressure < 0.85) {
-    nextRate += GEM_SHOP_MAX_DAILY_RATE_CHANGE;
+    nextRate += dailyStep;
     demandTone = 'low';
   }
   return {

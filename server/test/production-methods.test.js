@@ -1,3 +1,4 @@
+import { auditRecipe } from '../../scripts/audit-economy-balance.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWorld, ensurePlayer, FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../src/domain.js';
@@ -31,15 +32,6 @@ function variantsFor(type, baseRecipeId) {
 function baseRecipes(type) {
   const defaultMethodId = productionGroup(type).defaultMethodId;
   return type.recipes.filter((recipe) => recipe.productionMethodId === defaultMethodId);
-}
-
-function referenceProfitPerMinute(recipe) {
-  const inputValue = recipe.inputs.reduce(
-    (sum, input) => sum + prices.get(input.productId) * input.quantity,
-    0,
-  );
-  const outputValue = prices.get(recipe.output.productId) * recipe.output.quantity;
-  return (outputValue - inputValue - recipe.operatingCost) * 60_000 / recipe.cycleMs;
 }
 
 test('every factory exposes four named special methods with semantic icons', () => {
@@ -88,10 +80,10 @@ test('C1 and C2 special methods preserve their approved material plans', () => {
   assert.deepEqual(
     variantsFor(farm, 'wheat-crop').map((recipe) => [recipe.inputs, recipe.output.quantity, recipe.operatingCost]),
     [
-      [[], 1, 1],
-      [[{ productId: 'tools', quantity: 1 }], 12, 1],
-      [[{ productId: 'fertilizer', quantity: 2 }], 14, 1],
-      [[{ productId: 'tractor', quantity: 1 }], 16, 1],
+      [[], 1, 0.97],
+      [[{ productId: 'tools', quantity: 1 }], 12, 1.91],
+      [[{ productId: 'fertilizer', quantity: 2 }], 14, 2.72],
+      [[{ productId: 'tractor', quantity: 1 }], 16, 3.21],
     ],
   );
 
@@ -102,24 +94,28 @@ test('C1 and C2 special methods preserve their approved material plans', () => {
   assert.deepEqual(
     variantsFor(mine, 'mine-default').map((recipe) => [recipe.inputs, recipe.output.quantity, recipe.operatingCost]),
     [
-      [[], 2, 11],
-      [[{ productId: 'tools', quantity: 1 }], 4, 10],
-      [[{ productId: 'tools', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }], 5, 9],
+      [[], 2, 11.53],
+      [[{ productId: 'tools', quantity: 1 }], 4, 13],
+      [[{ productId: 'tools', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }], 5, 14.61],
       [[
         { productId: 'machinery', quantity: 1 },
         { productId: 'industrial-chemicals', quantity: 1 },
         { productId: 'industrial-fuel', quantity: 1 },
-      ], 6, 6.95],
+      ], 6, 13.7],
     ],
   );
 });
 
-test('C3-C7 special methods retain the existing fixed-precision balance', () => {
+test('C3-C7 special methods retain their layouts with fee-inclusive capital tradeoffs', () => {
   for (const type of FACILITY_TYPE_CATALOG.filter((candidate) => Number(candidate.complexity.slice(1)) >= 3)) {
     for (const baseRecipe of baseRecipes(type)) {
       const variants = variantsFor(type, baseRecipe.id);
-      const baseProfit = referenceProfitPerMinute(baseRecipe);
-      assert.equal(variants.every((recipe) => Math.abs(referenceProfitPerMinute(recipe) - baseProfit) < 1e-9), true);
+      const baseTarget = type.complexity === 'C3' ? 75 : 80;
+      for (const [index, recipe] of variants.entries()) {
+        const audit = auditRecipe(type, recipe);
+        assert.ok(audit.netPerMinute > 0);
+        assert.ok(Math.abs(audit.recoveryMinutes - (baseTarget + [0, 5, -5, 0][index])) < 1, recipe.id);
+      }
       const [base, shortCycle, longCycle, doubleBatch] = variants;
       assert.ok(shortCycle.cycleMs <= base.cycleMs);
       assert.ok(shortCycle.operatingCost >= base.operatingCost);

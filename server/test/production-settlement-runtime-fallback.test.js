@@ -90,3 +90,25 @@ test('invalid proposal with a matching basis fingerprint still returns 409 and d
     store.close();
   }
 });
+
+test('a pre-balance client settles migrated costs through idempotent same-request fallback', () => {
+  const { store, world, player } = prepareStore();
+  try {
+    const group = player.facilityGroups[0];
+    group.productionBalanceVersion = 1;
+    migrateFacilityGroupWorld(world, now + 25_000);
+    const basis = createProductionSettlementBasis(world, user.id, settleThrough);
+    delete basis.groups[0].recipe.costChangeAt;
+    delete basis.groups[0].recipe.previousOperatingCostMicros;
+    basis.basisId = '';
+    const claim = createProductionSettlementClaim(basis);
+    const request = settlementRequest(claim, 'pre-balance-client-fallback');
+    const response = store.apply(user, request, settleThrough);
+    assert.equal(response.result.ok, true);
+    const after = store.worldCache.world.players['1'];
+    assert.equal(after.stats.productionPayroll, 2 + 8 * 0.97);
+    assert.equal(after.facilityGroups[0].lifetimeOutput, 10);
+    assert.deepEqual(store.apply(user, request, settleThrough), response);
+    assert.equal(store.worldCache.world.players['1'].stats.productionPayroll, 2 + 8 * 0.97);
+  } finally { store.close(); }
+});

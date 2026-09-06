@@ -8,7 +8,7 @@ const rawCommercialTypes = [
     buildCost: 120,
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 1.5,
-    profitPerCycle: 2.5,
+    profitPerCycle: 4,
     consumptionInputs: [
       { productId: 'food', quantity: 1 },
       { productId: 'beverage', quantity: 1 },
@@ -22,7 +22,7 @@ const rawCommercialTypes = [
     buildCost: 180,
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 2,
-    profitPerCycle: 3.2,
+    profitPerCycle: 4.2,
     consumptionInputs: [
       { productId: 'fruit', quantity: 2 },
       { productId: 'meat', quantity: 1 },
@@ -37,7 +37,7 @@ const rawCommercialTypes = [
     buildCost: 250,
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 3,
-    profitPerCycle: 4.5,
+    profitPerCycle: 7.5,
     consumptionInputs: [
       { productId: 'prepared-meal', quantity: 2 },
       { productId: 'beverage', quantity: 1 },
@@ -51,7 +51,7 @@ const rawCommercialTypes = [
     buildCost: 320,
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 3.5,
-    profitPerCycle: 5,
+    profitPerCycle: 9,
     consumptionInputs: [{ productId: 'clothing', quantity: 1 }],
     systemValue: 320,
   },
@@ -62,7 +62,7 @@ const rawCommercialTypes = [
     buildCost: 420,
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 4,
-    profitPerCycle: 6,
+    profitPerCycle: 10,
     consumptionInputs: [{ productId: 'furniture', quantity: 1 }],
     systemValue: 420,
   },
@@ -73,7 +73,7 @@ const rawCommercialTypes = [
     buildCost: 560,
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 5,
-    profitPerCycle: 8,
+    profitPerCycle: 19.2,
     consumptionInputs: [
       { productId: 'appliance', quantity: 1 },
       { productId: 'electronics', quantity: 1 },

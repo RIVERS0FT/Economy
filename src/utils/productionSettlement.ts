@@ -85,6 +85,14 @@ function groupBasis(
       id: recipeIdentifier(recipe),
       cycleMs: Math.max(1, nonNegativeInteger(recipe.cycleMs)),
       operatingCostMicros: moneyMicros(recipe.operatingCost),
+      ...(group.productionLegacyRecipeId === recipeIdentifier(recipe)
+        && Number.isFinite(group.productionCostChangeAt)
+        && typeof group.productionLegacyOperatingCost === 'number'
+        && Number.isFinite(group.productionLegacyOperatingCost)
+        && group.productionLegacyOperatingCost >= 0 ? {
+          costChangeAt: group.productionCostChangeAt,
+          previousOperatingCostMicros: moneyMicros(group.productionLegacyOperatingCost),
+        } : {}),
       inputs: recipeInputs(recipe).map((item) => ({
         productId: item.productId,
         quantity: nonNegativeInteger(item.quantity),
