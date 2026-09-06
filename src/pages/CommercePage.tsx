@@ -170,7 +170,7 @@ export function CommercePage({
           : `立即建造 ${buildQuantity} 座${selectedBuildType.name}`}
       </Button>
       <small className="ui-helper-text">
-        商业建筑即时建成并默认停止营业；开始营业后只消耗当前州本地仓库商品，不会隐式跨州调货或创建商品挂单。
+        首次建成该地区商业建筑后默认开启营业并按自动经营规则准备首批本地商品；已有已停止集群扩建时不会自动重启，也不会隐式跨州调货或创建商品挂单。
       </small>
     </PagePanel>
   ) : null;

@@ -446,6 +446,11 @@ export function applyAction(
   return result;
 }
 
+function publicCommercialBuildingGroup(group) {
+  const { autoOperationBootstrapPending: _autoOperationBootstrapPending, ...publicGroup } = clone(group);
+  return publicGroup;
+}
+
 export function createClientState(world, userId, now = Date.now(), { migrate = true } = {}) {
   if (migrate) migrateWorld(world, now);
   const state = core.createClientState(world, userId, now, { migrate });
@@ -461,7 +466,7 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
     products: clone(PRODUCT_CATALOG),
     facilityTypes: clone(FACILITY_TYPE_CATALOG),
     commercialBuildingTypes: clone(COMMERCIAL_BUILDING_TYPE_CATALOG),
-    commercialBuildingGroups: clone(player?.commercialBuildingGroups || []),
+    commercialBuildingGroups: (player?.commercialBuildingGroups || []).map(publicCommercialBuildingGroup),
   };
 }
 

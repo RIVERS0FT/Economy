@@ -1,6 +1,6 @@
 import { buildingAvailableInput, buildingFreezeSource, reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { consumeBuildingCommodity } from './commodity-freezes.js';
-import { completeBuildingCycleAutoOperation } from './cycle-auto-operation.js';
+import { bootstrapBuildingAutoOperation, completeBuildingCycleAutoOperation } from './cycle-auto-operation.js';
 import { commercialExpansionStaffingRate, commercialStaffingCapacity, hasCommercialCycle, projectCommercialStaffingRate } from '../../shared/commercial-staffing.js';
 import { normalizeCommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
@@ -217,6 +217,7 @@ function startCycle(world, player, group, type, startedAt) {
     goodsConsumed += input.quantity;
   }
 
+  delete group.autoOperationBootstrapPending;
   group.staffingRateBps = rate;
   group.staffingUpdatedAt = Math.max(Number(group.staffingUpdatedAt) || 0, startedAt);
   group.staffingBatchCarryBps = capacity.carryBps;
@@ -266,7 +267,7 @@ function settleCycle(player, group) {
   delete group.pendingEffectiveCount;
 }
 
-function processGroup(world, player, group, now) {
+function processGroup(world, player, group, now, { allowInitialBootstrap = true } = {}) {
   const type = typeFor(group.commercialTypeId);
   if (!type) return;
   let cycles = 0;
@@ -287,7 +288,12 @@ function processGroup(world, player, group, now) {
     group.participatingCount = 0;
     return;
   }
-  if (cycles < MAX_CATCH_UP_CYCLES) startCycle(world, player, group, type, now);
+  if (cycles < MAX_CATCH_UP_CYCLES) {
+    if (allowInitialBootstrap && group.autoOperationBootstrapPending === true) {
+      bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
+    }
+    startCycle(world, player, group, type, now);
+  }
 }
 
 export function processCommercialWorld(world, now = Date.now()) {
@@ -308,6 +314,7 @@ function buildCommercialBuilding(world, userId, payload, now) {
   if (!quantity) return result(false, `建造数量必须为 1 到 ${MAX_BUILD_QUANTITY} 的整数`);
   const provinceId = normalizeProvinceId(payload.provinceId);
   const existingGroup = groupFor(player, type.id, provinceId, false, now);
+  const firstBuild = !existingGroup || existingGroup.count < 1;
   if (existingGroup) processGroup(world, player, existingGroup, now);
   if (!Number.isSafeInteger((existingGroup?.count ?? 0) + quantity)) return result(false, '建筑数量超出系统可表示范围');
   const totalCost = multiplyMoneyByInteger(type.buildCost, quantity);
@@ -324,7 +331,18 @@ function buildCommercialBuilding(world, userId, payload, now) {
   const rate = commitCommercialStaffing(group, now);
   group.count += quantity;
   group.staffingRateBps = commercialExpansionStaffingRate(rate, previousCount, group.count);
-  return result(true, `${quantity} 座${type.name}已建成，默认保持停止营业`);
+  if (firstBuild) {
+    group.autoOperationBootstrapPending = true;
+    group.enabled = true;
+    processGroup(world, player, group, now);
+    return result(
+      true,
+      hasCommercialCycle(group)
+        ? `${quantity} 座${type.name}已建成并默认开启营业`
+        : `${quantity} 座${type.name}已建成并默认开启营业意图，当前条件不足，满足后将自动启动`,
+    );
+  }
+  return result(true, `${quantity} 座${type.name}已建成并加入同类商业建筑集群`);
 }
 
 function startCommercialBuilding(world, userId, payload, now) {
@@ -336,6 +354,7 @@ function startCommercialBuilding(world, userId, payload, now) {
   if (!group.enabled) commitCommercialStaffing(group, now);
   group.enabled = true;
   if (hasCommercialCycle(group)) return result(true, `${type.name}已保持营业，当前周期继续进行`);
+  if (group.autoOperationBootstrapPending === true) bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
   if (startCycle(world, player, group, type, now)) {
     return result(true, `${type.name}已开始营业，${group.participatingCount} 座建筑参与当前周期`);
   }
@@ -350,7 +369,7 @@ function stopCommercialBuilding(world, userId, payload, now) {
   const type = typeFor(payload.commercialTypeId);
   const group = player && type ? groupFor(player, type.id, payload.provinceId, false, now) : null;
   if (!player || !type || !group) return result(false, '商业建筑集群不存在');
-  processGroup(world, player, group, now);
+  processGroup(world, player, group, now, { allowInitialBootstrap: false });
   if (group.enabled) commitCommercialStaffing(group, now);
   group.enabled = false;
   if (hasCommercialCycle(group)) {
@@ -369,7 +388,7 @@ function setCommercialAutoOperation(world, userId, payload, now) {
   if (!group || group.count < 1) return result(false, '商业建筑集群不存在');
   const policy = normalizeCommercialAutoOperationPolicy(payload.policy);
   if (!policy) return result(false, '自动经营策略无效');
-  processGroup(world, player, group, now);
+  processGroup(world, player, group, now, { allowInitialBootstrap: false });
   group.autoOperationPolicy = policy;
   return result(true, policy.enabled ? '商业自动经营策略已保存' : '商业自动经营已关闭');
 }
