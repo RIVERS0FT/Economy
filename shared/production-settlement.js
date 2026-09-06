@@ -3,6 +3,18 @@ export const FACILITY_STAFFING_FULL_BPS = 10_000;
 export const FACILITY_STAFFING_RECOVERY_MS = 10 * 60 * 1000;
 export const FACILITY_STAFFING_DECAY_MS = 30 * 60 * 1000;
 
+/** Read-only cycle cost projection; never accepts a client price as settlement authority. */
+export function productionOperatingCostForCycle(group, recipeId, currentCost) {
+  return group?.status === 'running'
+    && group.productionLegacyRecipeId === recipeId
+    && Number.isFinite(group.cycleStartedAt)
+    && Number.isFinite(group.productionCostChangeAt)
+    && group.cycleStartedAt < group.productionCostChangeAt
+    && Number.isFinite(group.productionLegacyOperatingCost)
+    && group.productionLegacyOperatingCost >= 0
+      ? group.productionLegacyOperatingCost : currentCost;
+}
+
 function safeTimestamp(value) {
   const normalized = Number(value);
   return Number.isFinite(normalized) ? Math.max(0, normalized) : 0;
@@ -111,7 +123,14 @@ export function projectProductionCycles(group, completedCycles) {
 export function productionResourceUsage(group, completedCycles) {
   const projection = projectProductionCycles(group, completedCycles);
   const recipe = group?.recipe || {};
-  const costMicros = bigint(recipe.operatingCostMicros) * projection.effectiveUnits;
+  let costMicros = bigint(recipe.operatingCostMicros) * projection.effectiveUnits;
+  if (Number.isFinite(recipe.costChangeAt) && recipe.previousOperatingCostMicros !== undefined) {
+    const oldCycles = Math.min(projection.completedCycles, Math.max(0, Math.ceil(
+      (recipe.costChangeAt - safeTimestamp(group.cycleStartedAt)) / positiveInteger(recipe.cycleMs),
+    )));
+    const oldUnits = projectProductionCycles(group, oldCycles).effectiveUnits;
+    costMicros += (bigint(recipe.previousOperatingCostMicros) - bigint(recipe.operatingCostMicros)) * oldUnits;
+  }
   const inputs = {};
   for (const item of recipe.inputs || []) {
     const key = String(item.inventoryKey || `${group?.provinceId || ''}:${item.productId || ''}`);
@@ -197,6 +216,9 @@ function appendProductionBasisGroup(parts, group, resources) {
     String(positiveInteger(recipe.cycleMs, 1)),
     String(recipe.operatingCostMicros || '0'),
   );
+  if (recipe.previousOperatingCostMicros !== undefined) {
+    parts.push('cost-boundary', String(recipe.costChangeAt), String(recipe.previousOperatingCostMicros));
+  }
   const inventoryKeys = new Set();
   const inputs = [...(recipe.inputs || [])].sort((left, right) => (
     String(left?.inventoryKey || '').localeCompare(String(right?.inventoryKey || ''))

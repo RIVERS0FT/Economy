@@ -1,3 +1,4 @@
+import { auditRecipe } from '../../scripts/audit-economy-balance.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../src/domain.js';
@@ -28,10 +29,10 @@ function profitPerMinute(recipe) {
 }
 
 const expected = {
-  farm: { productIds: ['wheat', 'rice', 'cotton', 'sugarcane'], value: 1.2, cycleMs: 20_000, cost: 1, profit: 0.6 },
-  orchard: { productIds: ['fruit'], value: 1.3, cycleMs: 20_000, cost: 1, profit: 0.9 },
-  ranch: { productIds: ['meat', 'eggs', 'milk', 'wool'], value: 2.4, cycleMs: 30_000, cost: 2, profit: 0.8 },
-  fishery: { productIds: ['fish'], value: 2.5, cycleMs: 30_000, cost: 2, profit: 1 },
+  farm: { productIds: ['wheat', 'rice', 'cotton', 'sugarcane'], value: 1.2, cycleMs: 20_000, cost: 0.97, profit: 0.69 },
+  orchard: { productIds: ['fruit'], value: 1.3, cycleMs: 20_000, cost: 0.99, profit: 0.93 },
+  ranch: { productIds: ['meat', 'eggs', 'milk', 'wool'], value: 2.4, cycleMs: 30_000, cost: 1.79, profit: 1.22 },
+  fishery: { productIds: ['fish'], value: 2.5, cycleMs: 30_000, cost: 1.83, profit: 1.34 },
 };
 
 test('C1 catalog contains exactly the approved fast-production factories', () => {
@@ -60,7 +61,7 @@ test('C1 factories use the approved fast-production parameters', () => {
   }
 });
 
-test('C1 work systems keep fixed time and cash cost while consuming whole goods each cycle', () => {
+test('C1 work systems keep fixed time and whole-good plans with balanced cash costs', () => {
   const plans = {
     farm: [
       { inputs: [], output: 1 },
@@ -97,7 +98,7 @@ test('C1 work systems keep fixed time and cash cost while consuming whole goods 
     assert.equal(facility.productionMethodGroups[0].methods.length, 4);
     for (const [index, recipe] of variants.entries()) {
       assert.equal(recipe.cycleMs, baseRecipe.cycleMs);
-      assert.equal(recipe.operatingCost, baseRecipe.operatingCost);
+      assert.ok(Math.abs(auditRecipe(facility, recipe).recoveryMinutes - [80, 75, 70, 65][index]) < 1);
       assert.deepEqual(recipe.inputs, expectedPlans[index].inputs);
       assert.equal(recipe.output.quantity, expectedPlans[index].output);
       assert.equal(recipe.inputs.every((input) => Number.isInteger(input.quantity)), true);

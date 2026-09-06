@@ -1,3 +1,4 @@
+import { balanceProductionPlan } from './production-balance.js';
 import { resolveProductDisplayNames } from './product-catalog.js';
 
 export const PRODUCTION_METHOD_GROUP_ID = 'operation';
@@ -349,10 +350,10 @@ function createDedicatedProductionMethodGroups(facility) {
   const blueprints = FACILITY_METHOD_BLUEPRINTS[facility.id];
   if (!blueprints) throw new Error(`${facility.id} 缺少工厂专属作业制度`);
   const defaultMethodId = blueprints[0]?.id;
-  const methods = blueprints.map((blueprint) => {
+  const methods = blueprints.map((blueprint, methodIndex) => {
     const plansByRecipeId = Object.freeze(Object.fromEntries(facility.recipes.map((recipe) => [
       recipe.id,
-      freezePlan(blueprint.planKind
+      freezePlan(balanceProductionPlan(facility, blueprint.planKind
         ? createBalancedPlan(
           recipe,
           blueprint,
@@ -371,7 +372,7 @@ function createDedicatedProductionMethodGroups(facility) {
               productId: String(recipe.output.productId),
               quantity: blueprint.outputQuantity ?? recipe.output.quantity,
             },
-          }),
+          }, methodIndex)),
     ])));
     const {
       additionalInputs: _additionalInputs,

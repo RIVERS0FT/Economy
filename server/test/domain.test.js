@@ -1,3 +1,4 @@
+import { auditRecipe } from '../../scripts/audit-economy-balance.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
@@ -210,9 +211,7 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
 
   const productIds = new Set(expectedProducts);
-  const expectedProfitByComplexity = { C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
-  const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
-  const expectedC2Profits = [3, 6, 9, 10.5];
+  const targets = { C1: [80, 75, 70, 65], C2: [70, 70, 67, 65], C3: [75, 80, 70, 75], C4: [80, 85, 75, 80], C5: [80, 85, 75, 80], C6: [80, 85, 75, 80], C7: [80, 85, 75, 80] };
   for (const product of PRODUCT_CATALOG) {
     assert.ok(Math.abs(product.basePrice - Math.round(product.basePrice * 100) / 100) < 1e-9, `${product.id} 初始参考价最多保留两位小数`);
   }
@@ -235,17 +234,10 @@ test('expanded industry catalog exposes fruit and complete production chains', (
         assert.equal(productIds.has(input.productId), true);
         assert.equal(Number.isInteger(input.quantity), true);
       }
-      const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
-      const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
-        * 60_000 / recipe.cycleMs;
-      if (facility.complexity === 'C1' && recipe.productionMethodId !== defaultMethodId) continue;
-      const expectedProfit = facility.complexity === 'C1'
-        ? expectedC1ProfitByFacility[facility.id]
-        : facility.complexity === 'C2'
-          ? expectedC2Profits[methodIds.indexOf(recipe.productionMethodId)]
-          : expectedProfitByComplexity[facility.complexity];
-      assert.ok(Number.isFinite(expectedProfit), `${facility.id}/${recipe.id} 缺少参考分钟利润规则`);
-      assert.ok(Math.abs(profit - expectedProfit) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
+      const audit = auditRecipe(facility, recipe);
+      const target = targets[facility.complexity][methodIds.indexOf(recipe.productionMethodId)];
+      assert.ok(audit.netPerMinute > 0, `${facility.id}/${recipe.id} 扣费收益必须为正`);
+      assert.ok(Math.abs(audit.recoveryMinutes - target) < 1, `${facility.id}/${recipe.id} 占款目标不正确`);
     }
   }
 

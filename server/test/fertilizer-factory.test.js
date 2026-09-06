@@ -17,7 +17,7 @@ function standardRecipe(facility) {
   ));
 }
 
-test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
+test('化肥与化肥厂进入正式目录并保持 C4 扣费占款目标', () => {
   assert.equal(PRODUCT_CATALOG.length, 38);
   assert.equal(FACILITY_TYPE_CATALOG.length, 26);
   const product = PRODUCT_CATALOG.find((item) => item.id === 'fertilizer');
@@ -47,14 +47,14 @@ test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
   assert.deepEqual(recipe.inputs, [{ productId: 'crude-oil', quantity: 2 }]);
   assert.deepEqual(recipe.output, { productId: 'fertilizer', quantity: 6 });
   assert.equal(recipe.cycleMs, 60_000);
-  assert.equal(recipe.operatingCost, 16.56);
+  assert.equal(recipe.operatingCost, 17.15);
   const inputValue = recipe.inputs.reduce((sum, input) => (
     sum + PRODUCT_CATALOG.find((item) => item.id === input.productId).basePrice * input.quantity
   ), 0);
   const profitPerMinute = (
     product.basePrice * recipe.output.quantity - inputValue - recipe.operatingCost
   ) * 60_000 / recipe.cycleMs;
-  assert.ok(Math.abs(profitPerMinute - 6) < 1e-9);
+  assert.ok(Math.abs(profitPerMinute - 5.41) < 1e-9);
   assert.equal(facility.recipes.length, 4);
   assert.equal(MARKET_DEMAND_MODEL_VERSION, 20);
 });

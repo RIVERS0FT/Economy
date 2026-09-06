@@ -1,3 +1,4 @@
+import { activeProductionRecipe, legacyProductionOperatingCost, PRODUCTION_BALANCE_VERSION } from './production-balance.js';
 import { buildingAvailableInput, buildingFreezeSource, reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { consumeBuildingCommodity } from './commodity-freezes.js';
 import { completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from './cycle-auto-operation.js';
@@ -212,7 +213,7 @@ function recipeFor(type, recipeId) {
 }
 
 function activeRecipeFor(type, group) {
-  return recipeFor(type, group?.activeRecipeId);
+  return activeProductionRecipe(recipeFor(type, group?.activeRecipeId), group);
 }
 
 function normalizeOrder(order) {
@@ -405,8 +406,28 @@ function createGroup(typeId, overrides = {}, now = Date.now()) {
   const staffingUpdatedAt = Number.isFinite(Number(overrides.staffingUpdatedAt))
     ? Math.min(Math.max(0, Number(overrides.staffingUpdatedAt)), Math.max(0, Number(now) || 0))
     : Math.max(0, Number(now) || 0);
+  const normalizedRecipeId = recipeFor(type, activeRecipeId)?.id;
+  const persisted = overrides.facilityTypeId === typeId;
+  const migratingBalance = persisted && Number(overrides.productionBalanceVersion || 0) < PRODUCTION_BALANCE_VERSION;
+  const previousBoundary = Number.isFinite(overrides.productionCostChangeAt)
+    && Number.isFinite(overrides.productionLegacyOperatingCost)
+    && overrides.productionLegacyOperatingCost >= 0
+    && typeof overrides.productionLegacyRecipeId === 'string'
+      ? {
+        productionCostChangeAt: overrides.productionCostChangeAt,
+        productionLegacyOperatingCost: overrides.productionLegacyOperatingCost,
+        productionLegacyRecipeId: overrides.productionLegacyRecipeId,
+      } : {};
+  const costBoundary = migratingBalance && status === 'running' && Number.isFinite(overrides.cycleStartedAt)
+    ? {
+      productionCostChangeAt: Math.max(0, Number(now) || 0),
+      productionLegacyOperatingCost: legacyProductionOperatingCost(typeId, normalizedRecipeId),
+      productionLegacyRecipeId: normalizedRecipeId,
+    } : previousBoundary;
   return {
     facilityTypeId: typeId,
+    productionBalanceVersion: PRODUCTION_BALANCE_VERSION,
+    ...costBoundary,
     provinceId: normalizeProvinceId(overrides.provinceId),
     count: Math.max(0, Number(overrides.count || 0)),
     participatingCount: Math.max(0, Number(overrides.participatingCount || 0)),

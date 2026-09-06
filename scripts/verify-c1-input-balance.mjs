@@ -1,3 +1,4 @@
+import { auditRecipe } from './audit-economy-balance.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { FACILITY_TYPE_CATALOG, MARKET_DEMAND_MODEL_VERSION, PRODUCT_CATALOG } from '../server/src/domain.js';
@@ -6,14 +7,14 @@ const prices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.bas
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
 const expectedPrices = { tools: 12, fertilizer: 6.76, tractor: 15.35, feed: 5.8, 'veterinary-medicine': 14.1, machinery: 15.55 };
 const expectedUpstream = {
-  'tool-workshop': { output: 5, cost: 8, profit: 6 },
-  'fertilizer-factory': { output: 6, cost: 16.56, profit: 6 },
-  'tractor-factory': { output: 4, cost: 8.85, profit: 8 },
-  'feed-factory': { output: 2, cost: 4.9, profit: 3 },
-  'veterinary-medicine-factory': { output: 4, cost: 13.64, profit: 6 },
-  'machine-factory': { output: 5, cost: 11.75, profit: 8 },
+  'tool-workshop': { output: 5, cost: 8.05, profit: 5.95 },
+  'fertilizer-factory': { output: 6, cost: 17.15, profit: 5.41 },
+  'tractor-factory': { output: 4, cost: 8.42, profit: 8.43 },
+  'feed-factory': { output: 2, cost: 5.24, profit: 2.66 },
+  'veterinary-medicine-factory': { output: 4, cost: 13.32, profit: 6.32 },
+  'machine-factory': { output: 5, cost: 11.24, profit: 8.51 },
 };
-const bands = [[3, 5], [6, 8], [8, 10]];
+const bands = [[74, 76], [69, 71], [64, 66]];
 const c1Ids = ['farm', 'orchard', 'ranch', 'fishery'];
 
 function profit(recipe) {
@@ -48,9 +49,9 @@ for (const facilityId of c1Ids) {
   assert.equal(new Set(quantities).size, quantities.length, facilityId);
   for (const [index, [minimum, maximum]] of bands.entries()) {
     const recipe = variants[index + 1];
-    const value = profit(recipe);
+    const value = auditRecipe(facility, recipe).recoveryMinutes;
     assert.ok(value >= minimum - 1e-9 && value <= maximum + 1e-9, `${facilityId}/method-${index + 1}: ${value}`);
-    assert.ok(value < 12, `${facilityId}/method-${index + 1}`);
+    assert.ok(auditRecipe(facility, recipe).netPerMinute > 0);
     profitsByMethod[index].push(value);
   }
 }
@@ -60,5 +61,5 @@ for (const [index, values] of profitsByMethod.entries()) {
 const domain = readFileSync('server/src/domain.js', 'utf8');
 const design = readFileSync('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', 'utf8');
 for (const text of ['C1_INPUT_BALANCE_MODEL_VERSION = 18', 'C1_INPUT_BALANCE_PRODUCT_IDS', 'migrateC1InputBalance', 'multiplyMoneyByInteger(Number(order.price || 0), remaining)']) assert.ok(domain.includes(text), text);
-for (const text of ['工具／饲料制度为每分钟 3～5', '化肥／药剂制度为每分钟 6～8', '拖拉机／机械化制度为每分钟 8～10']) assert.ok(design.includes(text), text);
-console.log('C1 投入品平衡验证通过：六种价格与上游批量产出、三级利润区间、同级差距和当前市场需求模型 20 均已锁定。');
+for (const text of ['工具／饲料制度占款回收目标 75 分钟', '化肥／药剂制度占款回收目标 70 分钟', '拖拉机／机械化制度占款回收目标 65 分钟']) assert.ok(design.includes(text), text);
+console.log('C1 投入品平衡验证通过：六种价格与上游批量产出、三级占款回收目标、同级差距和当前市场需求模型 20 均已锁定。');

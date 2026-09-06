@@ -28,8 +28,8 @@ for (const token of [
   '北京时间每日 `00:00`',
   'todayBuyQuantity',
   'todaySellQuantity',
-  'rawChangeBps = round(imbalance × 1000)',
-  'clamp(rawChangeBps, -500, +500)',
+  'rawChangeBps = round(200 × imbalance + 1000 × evidence × (1 - previousPrice / basePrice))',
+  'clamp(rawChangeBps, -200, +200)',
   '基础价的 50%～300%',
   '`priceDateKey` 是每日调价幂等键',
   '`world.systemMarketAudit`',
@@ -56,8 +56,8 @@ requireText(domain, "message: ''", '玩家商品即时交易成功回执不得�
 forbidText(domain, '已按今日系统价即时成交', '玩家商品即时交易不得恢复已删除的成功文案。');
 forbidText(domain, "return { ok: true, message: '订单已进入订单簿' }", '玩家商品动作不得恢复开放订单返回值。');
 requireText(catalog, 'SYSTEM_PRICE_CYCLE_MS = 24 * 60 * 60 * 1000', '系统价格常量必须按日表达。');
-requireText(catalog, 'SYSTEM_PRICE_K_BPS = 1000', '每日价格失衡响应必须固定为 1000 bps。');
-requireText(catalog, 'SYSTEM_PRICE_MAX_CHANGE_BPS = 500', '每日价格涨跌上限必须固定为 500 bps。');
+requireText(catalog, 'SYSTEM_PRICE_K_BPS = 200', '每日价格失衡响应必须固定为 200 bps。');
+requireText(catalog, 'SYSTEM_PRICE_MAX_CHANGE_BPS = 200', '每日价格涨跌上限必须固定为 200 bps。');
 requireText(read('server/src/cycle-auto-operation.js'), 'applySettledCommodityOrder', '周期采购必须走同一官方价即时结算。');
 forbidText(autoBuy, 'managedOrder', '自动采购不得恢复托管挂单。');
 requireText(read('server/src/cycle-auto-operation.js'), '.officialPrice', '周期出售必须读取正式官方价。');
@@ -92,8 +92,8 @@ for (const testName of [
   'manual buy executes immediately at the server daily price and ignores a client supplied price',
   'official price remains fixed during the same Asia Shanghai natural day',
   'Asia Shanghai midnight raises the daily price from yesterday buy pressure and resets daily counters',
-  'balanced or zero yesterday volume does not move the next daily price',
-  'daily system price is capped to five percent per day and base price 50 to 300 percent bounds',
+  'balanced yesterday volume returns to the anchor while zero volume keeps the daily price',
+  'daily system price is capped to two percent per day and respects absolute bounds',
   'stale volume older than yesterday is not applied after a multi-day offline gap',
   'migration cancels legacy resting player commodity orders and releases frozen assets',
 ]) {
@@ -107,4 +107,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('每日系统价即时市场验证通过：玩家无挂单、成功回执无冗余文案、北京时间零点调价、±5% 日变动、旧冻结释放、自动经营与建厂购料均使用当日服务器价格。');
+console.log('每日系统价即时市场验证通过：玩家无挂单、成功回执无冗余文案、北京时间零点调价、±2% 实际日变动、旧冻结释放、自动经营与建厂购料均使用当日服务器价格。');

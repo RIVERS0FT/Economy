@@ -105,17 +105,17 @@ test('production wage multiplier changes population wages without changing produ
   }, { adminUserId: 1, now: now + 1 });
 
   processFacilityGroupWorld(world, now + 20_000);
-  assert.equal(player.credits, 999);
-  assert.equal(pendingProduction(), 1);
+  assert.equal(player.credits, 999.03);
+  assert.equal(Math.round(pendingProduction() * 1_000_000), 970_000);
   assert.equal(population.stats.productionWageSubsidyIssued, 0);
 
   processFacilityGroupWorld(world, now + 40_000);
-  assert.equal(player.credits, 998);
-  assert.ok(Math.abs(pendingProduction() - 2.33) < 1e-9);
-  assert.ok(Math.abs(population.stats.productionWageSubsidyIssued - 0.33) < 1e-9);
+  assert.equal(player.credits, 998.06);
+  assert.ok(Math.abs(pendingProduction() - 2.2601) < 1e-9);
+  assert.ok(Math.abs(population.stats.productionWageSubsidyIssued - 0.3201) < 1e-9);
   assert.equal(population.stats.productionWageWithheld, 0);
-  assert.equal(player.stats.productionPayroll, 2);
-  assert.equal(player.stats.employmentPayments, 2);
+  assert.equal(player.stats.productionPayroll, 1.94);
+  assert.equal(player.stats.employmentPayments, 1.94);
   assert.equal('cycleWageMultiplierBps' in createFacilityGroupClientState(world, alice.id, now + 40_000).facilityGroups[0], false);
 });
 
@@ -136,7 +136,7 @@ test('electronics factory atomically consumes plastic and copper', () => {
   assert.equal(player.inventories.plastic.available, 0);
   assert.equal(player.inventories.copper.available, 0);
   assert.equal(player.inventories.electronics.available, 2);
-  assert.equal(player.credits, 70);
+  assert.equal(player.credits, 72.8);
   assert.equal(player.stats.producedGoods, 2);
 });
 
@@ -180,7 +180,7 @@ test('fruit beverage recipe uses its own cost and atomically consumes fruit and 
   assert.equal(player.inventories.fruit.available, 0);
   assert.equal(player.inventories.sugar.available, 0);
   assert.equal(player.inventories.beverage.available, 2);
-  assert.ok(Math.abs(player.credits - 85.6) < 1e-9);
+  assert.ok(Math.abs(player.credits - 84.24) < 1e-9);
 });
 
 test('commodity valuation uses the daily official price and ignores retired open bid prices', () => {
@@ -463,7 +463,7 @@ test('running factory settles each completed cycle at its completion staffing ra
 
   processFacilityGroupWorld(world, now + 80_000);
   assert.equal(player.inventories.wheat.available, 1);
-  assert.equal(player.credits, 99);
+  assert.equal(player.credits, 99.03);
   assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 3_330);
   assert.equal(player.facilityGroups[0].staffingRateBps, 3_832);
 });
@@ -486,7 +486,7 @@ test('cycle completion rate can increase integer output beyond the cycle-start p
   processFacilityGroupWorld(world, now + 20_000);
 
   assert.equal(player.inventories.wheat.available, 1, 'completion rate 27.33% yields one integer batch while the 24% start rate yields zero');
-  assert.equal(player.credits, 99);
+  assert.equal(player.credits, 99.03);
   assert.equal(player.facilityGroups[0].staffingRateBps, 2_733);
   assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 932);
 });

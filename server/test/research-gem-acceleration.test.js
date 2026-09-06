@@ -24,8 +24,8 @@ function setup(id, unlockedComplexity = 'C1') {
 test('immediately completes research when less than thirty minutes remain', () => {
   const { world, user, player } = setup(9911);
   assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'grain-processing' }, NOW).ok, true);
-  assert.equal(player.research.active.durationMs, RESEARCH_DURATION_MS);
-  const accelerateAt = NOW + RESEARCH_DURATION_MS - 15 * 60_000;
+  assert.equal(player.research.active.durationMs, 30 * 60_000);
+  const accelerateAt = NOW + 30 * 60_000 - 15 * 60_000;
   const result = applyResearchAction(world, user, 'accelerateResearch', {}, accelerateAt);
   assert.equal(result.ok, true);
   assert.equal(result.completedImmediately, true);

@@ -1,3 +1,4 @@
+import { productionCostBoundary } from './production-balance.js';
 import { consumeCommodityFreeze, frozenForSource } from './commodity-freezes.js';
 import { reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { completeBuildingCycleAutoOperation, recordCompletedIndustrialOutput } from './cycle-auto-operation.js';
@@ -146,6 +147,7 @@ function groupBasis(world, player, group, groupIndex, settleThrough, inventoryKe
       id: String(recipe.id || ''),
       cycleMs: positiveInteger(recipe.cycleMs, 1),
       operatingCostMicros: operatingCostMicros.toString(),
+      ...productionCostBoundary(group, recipe.id),
       inputs,
       output: {
         productId: String(recipe.output.productId || ''),
@@ -377,15 +379,15 @@ function applyCompletedCycles(world, player, group, groupBasis, completedCycles,
   }
 
   group.cycleWageMultiplierBps = currentProductionWageMultiplier(world);
-  const currentProjection = projectProductionCycles({
+  const currentUsage = productionResourceUsage({
     ...groupBasis,
     cycleStartedAt: group.cycleStartedAt,
     staffingRateBps: group.staffingRateBps,
     staffingUpdatedAt: group.staffingUpdatedAt,
     staffingBatchCarryBps: group.staffingBatchCarryBps,
   }, 1);
-  const effective = currentProjection.effectiveUnits;
-  const nextCost = bigint(groupBasis.recipe.operatingCostMicros) * effective;
+  const effective = currentUsage.effectiveUnits;
+  const nextCost = currentUsage.costMicros;
   if (nextCost > bigint(resources.creditsMicros)) {
     setGroupError(group, 'insufficient_funds', group.staffingRateBps, group.cycleStartedAt);
     return;

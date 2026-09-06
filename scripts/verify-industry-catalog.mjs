@@ -1,3 +1,4 @@
+import { auditRecipe } from './audit-economy-balance.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js';
@@ -55,8 +56,7 @@ const expectedConstruction = {
   'electronics-factory': { complexity: 'C6', buildCost: 216, buildInputs: [{ productId: 'steel', quantity: 6 }, { productId: 'copper', quantity: 6 }, { productId: 'plastic', quantity: 4 }, { productId: 'machinery', quantity: 1 }], systemValue: 910 },
   'appliance-factory': { complexity: 'C7', buildCost: 468, buildInputs: [{ productId: 'steel', quantity: 8 }, { productId: 'plastic', quantity: 5 }, { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 }], systemValue: 1235 },
 };
-const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
-const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
+const capitalTargets = { C1: [80, 75, 70, 65], C2: [70, 70, 67, 65], C3: [75, 80, 70, 75], C4: [80, 85, 75, 80], C5: [80, 85, 75, 80], C6: [80, 85, 75, 80], C7: [80, 85, 75, 80] };
 const retiredMethodIds = new Set([
   'standard', 'rapid', 'economical', 'high-yield', 'assisted', 'intensive', 'mechanized',
 ]);
@@ -68,43 +68,42 @@ const expectedC1Plans = {
 };
 const expectedC2FirstRoutePlans = {
   'logging-camp': [
-    [[], 2, 9],
-    [[['tools', 1]], 4, 6],
-    [[['tools', 1], ['industrial-fuel', 1]], 5, 5],
-    [[['machinery', 1], ['industrial-fuel', 2]], 7, 7.95],
+    [[], 2, 9.88],
+    [[['tools', 1]], 4, 9.43],
+    [[['tools', 1], ['industrial-fuel', 1]], 5, 11.1],
+    [[['machinery', 1], ['industrial-fuel', 2]], 7, 14.99],
   ],
   mine: [
-    [[], 2, 11],
-    [[['tools', 1]], 4, 10],
-    [[['tools', 1], ['industrial-chemicals', 1]], 5, 9],
-    [[['machinery', 1], ['industrial-chemicals', 1], ['industrial-fuel', 1]], 6, 6.95],
+    [[], 2, 11.53],
+    [[['tools', 1]], 4, 13],
+    [[['tools', 1], ['industrial-chemicals', 1]], 5, 14.61],
+    [[['machinery', 1], ['industrial-chemicals', 1], ['industrial-fuel', 1]], 6, 13.7],
   ],
   'oil-field': [
-    [[], 2, 15],
-    [[['industrial-chemicals', 1]], 3, 16],
-    [[['machinery', 1], ['industrial-chemicals', 1]], 5, 15.45],
-    [[['machinery', 1], ['industrial-chemicals', 1], ['industrial-fuel', 1]], 6, 18.95],
+    [[], 2, 14.83],
+    [[['industrial-chemicals', 1]], 3, 18.49],
+    [[['machinery', 1], ['industrial-chemicals', 1]], 5, 20.1],
+    [[['machinery', 1], ['industrial-chemicals', 1], ['industrial-fuel', 1]], 6, 24.63],
   ],
   mill: [
-    [[['wheat', 2]], 1, 8.6],
-    [[['wheat', 4], ['tools', 1]], 2, 5.2],
-    [[['wheat', 6], ['machinery', 1]], 3, 10.25],
-    [[['wheat', 6], ['machinery', 1], ['industrial-fuel', 1]], 4, 18.25],
+    [[['wheat', 2]], 1, 8.83],
+    [[['wheat', 4], ['tools', 1]], 2, 7.06],
+    [[['wheat', 6], ['machinery', 1]], 3, 13.64],
+    [[['wheat', 6], ['machinery', 1], ['industrial-fuel', 1]], 4, 22.19],
   ],
   sawmill: [
-    [[['timber', 2]], 1, 3],
-    [[['timber', 8], ['tools', 1]], 4, 4],
-    [[['timber', 7], ['machinery', 1]], 4, 4.45],
-    [[['timber', 8], ['machinery', 1], ['industrial-fuel', 1]], 5, 10.45],
+    [[['timber', 2]], 1, 2.93],
+    [[['timber', 8], ['tools', 1]], 4, 4.47],
+    [[['timber', 7], ['machinery', 1]], 4, 6.8],
+    [[['timber', 8], ['machinery', 1], ['industrial-fuel', 1]], 5, 13.2],
   ],
   'feed-factory': [
-    [[['wheat', 2], ['fruit', 1]], 2, 4.9],
-    [[['wheat', 4], ['fruit', 2], ['tools', 1]], 5, 3.6],
-    [[['wheat', 6], ['fruit', 3], ['machinery', 1]], 8, 10.75],
-    [[['wheat', 8], ['fruit', 4], ['machinery', 1], ['industrial-fuel', 1]], 11, 18.95],
+    [[['wheat', 2], ['fruit', 1]], 2, 5.24],
+    [[['wheat', 4], ['fruit', 2], ['tools', 1]], 5, 6.29],
+    [[['wheat', 6], ['fruit', 3], ['machinery', 1]], 8, 15.64],
+    [[['wheat', 8], ['fruit', 4], ['machinery', 1], ['industrial-fuel', 1]], 11, 24.54],
   ],
 };
-const c2Profits = [3, 6, 9, 10.5];
 
 function standardRecipes(facility) {
   const defaultMethodId = facility.productionMethodGroups.find((group) => group.id === 'operation')?.defaultMethodId;
@@ -117,12 +116,6 @@ function currentVariantsForRoute(facility, routeId) {
 
 function hasAtMostTwoDecimals(value) {
   return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
-}
-
-function profitPerMinute(recipe) {
-  const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
-  return (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
-    * 60_000 / recipe.cycleMs;
 }
 
 assert.equal(PRODUCT_CATALOG.length, 38, '商品目录必须为 38 项');
@@ -210,19 +203,14 @@ for (const facility of FACILITY_TYPE_CATALOG) {
       }
       assert.ok(productIds.has(recipe.output.productId));
       assert.equal(Number.isInteger(recipe.output.quantity), true);
-      if (facility.complexity === 'C1' && recipe.productionMethodId === methodGroup.defaultMethodId) {
-        assert.ok(Math.abs(profitPerMinute(recipe) - expectedC1ProfitByFacility[facility.id]) < 1e-9);
-      } else if (facility.complexity === 'C2') {
-        const methodIndex = methodIds.indexOf(recipe.productionMethodId);
-        assert.ok(Math.abs(profitPerMinute(recipe) - c2Profits[methodIndex]) < 1e-9, `${facility.id}/${recipe.id} C2 利润梯度错误`);
-      } else if (facility.complexity !== 'C1') {
-        assert.ok(Math.abs(profitPerMinute(recipe) - expectedProfitByComplexity[facility.complexity]) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润错误`);
-      }
+      const audit = auditRecipe(facility, recipe);
+      const target = capitalTargets[facility.complexity][methodIds.indexOf(recipe.productionMethodId)];
+      assert.ok(audit.netPerMinute > 0 && Math.abs(audit.recoveryMinutes - target) < 1, `${facility.id}/${recipe.id} 占款回收目标漂移`);
     }
 
     if (facility.complexity === 'C1') {
       assert.equal(variants.every((recipe) => recipe.cycleMs === route.cycleMs), true);
-      assert.equal(variants.every((recipe) => recipe.operatingCost === route.operatingCost), true);
+      assert.equal(variants.every((recipe) => recipe.operatingCost >= 0), true);
       assert.deepEqual(variants[0].inputs, []);
       assert.equal(variants[0].output.quantity, 1);
       for (let index = 1; index < variants.length; index += 1) {
@@ -270,12 +258,12 @@ const feedRecipe = standardRecipes(facilities.get('feed-factory'))[0];
 assert.deepEqual(feedRecipe.inputs, [{ productId: 'wheat', quantity: 2 }, { productId: 'fruit', quantity: 1 }]);
 assert.deepEqual(feedRecipe.output, { productId: 'feed', quantity: 2 });
 assert.equal(feedRecipe.cycleMs, 60_000);
-assert.equal(feedRecipe.operatingCost, 4.9);
-assert.deepEqual(standardRecipes(facilities.get('mill')).map((item) => item.operatingCost), [8.6, 8.6]);
-assert.deepEqual(standardRecipes(facilities.get('textile-mill')).map((item) => item.operatingCost), [8.8, 11.2]);
-assert.equal(standardRecipes(facilities.get('food-factory'))[1].operatingCost, 14.5);
-assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [14.6, 14.4]);
-assert.equal(standardRecipes(facilities.get('furniture-factory'))[0].operatingCost, 8);
+assert.equal(feedRecipe.operatingCost, 5.24);
+assert.deepEqual(standardRecipes(facilities.get('mill')).map((item) => item.operatingCost), [8.83, 8.83]);
+assert.deepEqual(standardRecipes(facilities.get('textile-mill')).map((item) => item.operatingCost), [10.33, 12.73]);
+assert.equal(standardRecipes(facilities.get('food-factory'))[1].operatingCost, 16.23);
+assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [15.96, 15.76]);
+assert.equal(standardRecipes(facilities.get('furniture-factory'))[0].operatingCost, 8.7);
 assert.deepEqual(standardRecipes(facilities.get('tool-workshop'))[0].inputs, [{ productId: 'steel', quantity: 1 }, { productId: 'lumber', quantity: 1 }]);
 assert.deepEqual(standardRecipes(facilities.get('tool-workshop'))[0].output, { productId: 'tools', quantity: 5 });
 assert.deepEqual(standardRecipes(facilities.get('electronics-factory'))[0].inputs, [{ productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 }]);
@@ -290,11 +278,11 @@ assert.equal(refineryRecipes[2].name, `生产${chemicalProduct.name}`);
 assert.deepEqual(refineryRecipes[1].inputs, [{ productId: 'crude-oil', quantity: 1 }]);
 assert.deepEqual(refineryRecipes[1].output, { productId: 'industrial-fuel', quantity: 4 });
 assert.equal(refineryRecipes[1].cycleMs, 60_000);
-assert.equal(refineryRecipes[1].operatingCost, 1);
+assert.equal(refineryRecipes[1].operatingCost, 2.8);
 assert.deepEqual(refineryRecipes[2].inputs, [{ productId: 'crude-oil', quantity: 2 }]);
 assert.deepEqual(refineryRecipes[2].output, { productId: 'industrial-chemicals', quantity: 6 });
 assert.equal(refineryRecipes[2].cycleMs, 60_000);
-assert.equal(refineryRecipes[2].operatingCost, 6);
+assert.equal(refineryRecipes[2].operatingCost, 7.32);
 
 const coreSource = readFileSync('server/src/domain-core.js', 'utf8');
 const productCatalogSource = readFileSync('server/src/product-catalog.js', 'utf8');
@@ -354,8 +342,8 @@ for (const id of ['industrial-fuel', 'industrial-chemicals']) {
 for (const [path, texts] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '当前基线为 38 种商品和 26 种工厂类型',
-    'C1 默认制度采用工厂级参考分钟利润',
-    'C2 四种具名制度参考分钟利润固定为 3、6、9、10.5',
+    '基础价满员占款回收目标',
+    '扣除真实卖出手续费',
     '化学品 (`industrial-chemicals`)',
     '`server/src/product-catalog.js` 是商品玩家可见名称的唯一运行时来源',
     '26 类工厂全部使用正式目录声明的产业语义制度',
@@ -371,7 +359,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：38 种商品、26 种工厂、全工厂具名作业制度、炼油工业耗材和 C2 3/6/9/10.5 利润梯度。');
+console.log('产业目录验证通过：38 种商品、26 种工厂、全工厂具名作业制度、炼油工业耗材和按制度区分的扣费占款回收目标。');
 
 const fertilizerFacility = facilities.get('fertilizer-factory');
 assert.ok(fertilizerFacility, '化肥厂必须存在于正式目录');
@@ -379,4 +367,4 @@ assert.equal(fertilizerFacility.name, '化肥厂');
 assert.deepEqual(standardRecipes(fertilizerFacility)[0].inputs, [{ productId: 'crude-oil', quantity: 2 }]);
 assert.deepEqual(standardRecipes(fertilizerFacility)[0].output, { productId: 'fertilizer', quantity: 6 });
 assert.equal(standardRecipes(fertilizerFacility)[0].cycleMs, 60_000);
-assert.equal(standardRecipes(fertilizerFacility)[0].operatingCost, 16.56);
+assert.equal(standardRecipes(fertilizerFacility)[0].operatingCost, 17.15);

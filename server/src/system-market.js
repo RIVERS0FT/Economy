@@ -1,16 +1,14 @@
 import { adoptLegacyCommodityFreeze, consumeCommodityFreeze, freezeCommodity, releaseLegacyOrderFreeze } from './commodity-freezes.js';
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
+import { calculateDailySystemPrice } from './system-price-policy.js';
 import { isOpenOrder, orderKind } from './order-identity.js';
 import { recordOrderBookReduction } from './order-book-runtime.js';
 import {
   PRICE_MAX_MULTIPLIER,
   PRICE_MIN_MULTIPLIER,
-  SYSTEM_PRICE_K_BPS,
-  SYSTEM_PRICE_LIQUIDITY_BASELINE,
-  SYSTEM_PRICE_MAX_CHANGE_BPS,
 } from './market-demand/catalog.js';
-import { clamp, round4 } from './market-demand/math.js';
+import { round4 } from './market-demand/math.js';
 import { dailyCheckInPeriodFor, checkInDateKey } from './daily-check-in.js';
 import { ceilPlayerMoney, floorPlayerMoney, multiplyMoneyByInteger, ORDER_PRICE_TICK, roundInternalMoney } from './money.js';
 import { creditPopulationEmployment } from './population-economy.js';
@@ -326,11 +324,9 @@ export function createSystemMarketRuntime({
     const archivedSellQuantity = positiveInteger(market.todaySellQuantity);
     const buyQuantity = isYesterday ? archivedBuyQuantity : 0;
     const sellQuantity = isYesterday ? archivedSellQuantity : 0;
-    const baseline = SYSTEM_PRICE_LIQUIDITY_BASELINE;
-    const imbalance = (buyQuantity - sellQuantity) / (buyQuantity + sellQuantity + 2 * baseline);
-    const rawBps = Math.round(imbalance * SYSTEM_PRICE_K_BPS);
-    const changeBps = clamp(-SYSTEM_PRICE_MAX_CHANGE_BPS, SYSTEM_PRICE_MAX_CHANGE_BPS, rawBps);
-    const nextPrice = clampSystemPrice(product, market.officialPrice * (1 + changeBps / 10_000));
+    const { price: nextPrice, changeBps, imbalance } = calculateDailySystemPrice(
+      product, market.officialPrice, buyQuantity, sellQuantity,
+    );
     appendMarketDailyHistory(market, {
       dateKey: String(market.priceDateKey || yesterdayKey),
       price: market.officialPrice,
