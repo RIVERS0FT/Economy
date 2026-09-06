@@ -1,0 +1,25 @@
+name: Prepare operation notification patch
+on:
+  push:
+    branches: ['fix/operation-result-notifications-20260906']
+    paths: ['.github/workflows/prepare-operation-notifications.yml', '.operation-notifications-edit.py']
+permissions:
+  contents: write
+concurrency:
+  group: prepare-operation-notifications
+  cancel-in-progress: true
+jobs:
+  edit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/operation-result-notifications-20260906
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Inspect or apply the scoped patch
+        run: python3 .operation-notifications-edit.py
