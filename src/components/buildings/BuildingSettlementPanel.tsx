@@ -4,13 +4,11 @@ import { CompactCurrency } from '../ui/CompactNumber';
 import { formatDuration } from '../../utils/formatters';
 
 /** Shared input/output geometry; no production or commercial settlement arithmetic. */
-export function BuildingSettlementPanel({ title, status, description, inputLabel, outputLabel, inputs, outputs,
+export function BuildingSettlementPanel({ title, status, description, inputs, outputs,
   cycleMs, operatingCost, progress, children, className = '' }: {
   title: ReactNode;
   status: string;
   description: string;
-  inputLabel: ReactNode;
-  outputLabel: ReactNode;
   inputs: ReactNode;
   outputs: ReactNode;
   cycleMs: number;
@@ -25,11 +23,9 @@ export function BuildingSettlementPanel({ title, status, description, inputLabel
       <div className="facility-formula-visual">
         <div className="facility-formula-top">
           <div className="facility-formula-input-side">
-            <span className="facility-formula-side-label">{inputLabel}</span>
             <div className="facility-formula-input">{inputs}</div>
           </div>
           <div className="facility-formula-output-side">
-            <span className="facility-formula-side-label">{outputLabel}</span>
             <div className="facility-formula-output">{outputs}</div>
           </div>
         </div>
