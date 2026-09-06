@@ -9,47 +9,59 @@ jobs:
   inspect:
     if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/feat/transport-trip-fuel-20260906'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.4.0
-          cache: npm
-      - name: Preserve the established economic distance wording
+      - name: Apply locally validated review fixes
         shell: python
         run: |
           from pathlib import Path
-          p = Path('docs/WAREHOUSE_EXPANSION_DESIGN.md')
-          text = p.read_text()
-          old = '距离继续使用 `shared/provinces.json` 州中心经纬度的球面距离；首府与真实路网折线只用于显示，不改变计费距离。'
-          new = '距离统一使用 `shared/provinces.json` 州中心经纬度的球面距离；首府坐标只用于可视化，不参与经济数值。真实路网折线同样不改变计费距离。'
-          assert text.count(old) == 1
-          p.write_text(text.replace(old, new))
-      - name: Commit reviewed wording adjustment
-        run: |
-          git diff --check
-          git add docs/WAREHOUSE_EXPANSION_DESIGN.md
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'docs: preserve authoritative transport distance contract'
-          git push origin HEAD:"$GITHUB_REF_NAME"
-      - run: npm ci
-      - name: Prepare offline source and test runtime
+          edits = {}
+          def replace(path, old, new, count=1):
+              value = edits.get(path, Path(path).read_text())
+              assert value.count(old) == count, (path, old[:100], value.count(old))
+              edits[path] = value.replace(old, new)
+          replace('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '卡片之间只用间距、不画行分割线。', '卡片之间只用间距，不绘制行分割线。')
+          replace('docs/README.md', '> 客户端状态版本：41', '> 客户端状态版本：42')
+          replace('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '当前版本与最低兼容版本均为 40，当前客户端状态版本为 40，当前客户端只接受版本 40。客户端状态版本 40 的运输投影', '版本数值和最低兼容下限以该共享模块为准。商品燃料结算必须提高兼容下限，使旧现金燃料规划器不能继续消费新版运输投影，而通过既有入口刷新流程取得匹配客户端。运输投影')
+          replace('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '当前车载摘要、周期费用／燃料摘要和', '当前车载摘要、每趟费用／燃料摘要和')
+          replace('server/shared/economy-state-version.js', 'export const CURRENT_CLIENT_STATE_VERSION = 41;\n// Version 41 delivers source-backed inventory freezing and server-only cycle trading.\nexport const MIN_COMPATIBLE_CLIENT_STATE_VERSION = 41;', 'export const CURRENT_CLIENT_STATE_VERSION = 42;\n// Version 42 requires commodity-fuel transport planning instead of cash-fuel forecasts.\nexport const MIN_COMPATIBLE_CLIENT_STATE_VERSION = 42;')
+          replace('src/types.ts', '  version: 41;', '  version: 42;')
+          replace('src/components/provinces/UsMainlandMap.tsx', '    destinationName: string;', '    destinationName?: string;')
+          replace('src/components/provinces/UsMainlandMap.tsx', '{entry.productName} ×<CompactNumber value={entry.quantity} /> → {entry.destinationName}', '{entry.productName} ×<CompactNumber value={entry.quantity} />{entry.destinationName ? ` → ${entry.destinationName}` : null}')
+          replace('src/components/shell/StrategicWorkspace.tsx', '.filter((entry) => !delivered.has(entry.destinationProvinceId))', '.filter((entry) => !entry.destinationProvinceId || !delivered.has(entry.destinationProvinceId))')
+          replace('src/components/shell/StrategicWorkspace.tsx', '            destinationName: provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId,', '            destinationName: entry.destinationProvinceId\n              ? provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId : undefined,')
+          replace('src/pages/TransportPage.tsx', '<span className="transport-empty">无车载货物</span>', '<span className="transport-empty">{shipment.status === \'arrived\' ? \'无交货记录\' : \'无车载货物\'}</span>')
+          replace('src/transport/TransportEconomics.tsx', '燃料估值不再扣钱；到站不自动出售', '燃料估值不再扣钱；这是预计增益，不是已实现现金利润，到站不自动出售')
+          for name, count in [('game-loading-lifecycle', 2), ('save-epoch-lifecycle', 1)]:
+              path = f'tests/browser/{name}.spec.ts'
+              value = Path(path).read_text()
+              edits[path] = "import { CURRENT_CLIENT_STATE_VERSION } from '../../server/shared/economy-state-version.js';\n" + value
+              replace(path, 'version: 41', 'version: CURRENT_CLIENT_STATE_VERSION', count)
+          path = 'scripts/verify-provincial-unlock-transport.mjs'
+          value = Path(path).read_text()
+          start = value.index('if (failures.length) {')
+          end = value.index("for (const text of ['建线投入'", start)
+          conclusion = value[start:end].strip().replace('整周期燃料预付', '整趟燃料商品预扣')
+          value = value[:start] + value[end:]
+          old = "if (failures.length) throw new Error(failures.join('\\n'));"
+          assert value.count(old) == 1
+          value = value.replace(old, "requireText(provinceMap, 'entry.destinationName ?', '运输地图货物没有实际目的地时不能显示空箭头或猜测目的地。');\n\n" + conclusion)
+          edits[path] = value
+          for path, value in edits.items():
+              Path(path).write_text(value)
+          print('Applied reviewed fixes to', len(edits), 'source, test and documentation files')
+      - name: Commit source changes and remove this temporary runner
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p local-tooling
-          cp "$(command -v node)" local-tooling/node
-          git ls-files -z > "$RUNNER_TEMP/transport-tracked-files"
-          extra=()
-          if [ -d server/node_modules ]; then extra+=(server/node_modules); fi
-          tar -czf "$RUNNER_TEMP/transport-source.tgz" --null -T "$RUNNER_TEMP/transport-tracked-files" node_modules local-tooling "${extra[@]}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: transport-offline-workspace
-          path: ${{ runner.temp }}/transport-source.tgz
-          retention-days: 1
-          compression-level: 0
+          git diff --check
+          git add docs server src scripts tests
+          git rm .github/workflows/transport-review-worker.yml
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: validate transport cargo projection and require commodity-fuel client'
+          git push origin HEAD:"$GITHUB_REF_NAME"
