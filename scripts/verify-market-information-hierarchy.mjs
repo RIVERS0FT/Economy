@@ -17,6 +17,7 @@ const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 const marketDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 const marketRuntimeSpec = read('tests/browser/market-runtime.spec.ts');
+const marketDirectFlowSpec = read('tests/browser/market-detail-direct-flow.spec.ts');
 
 for (const token of [
   "type GlobalMarketSortKey = 'name' | 'volume24h' | 'market-price' | 'price-change24h';",
@@ -117,8 +118,16 @@ for (const token of [
 for (const token of [
   'page content buttons and entity cards use the shared small radius',
   'recent local trades heading keeps clear action on the same row on narrow screens',
-  'market detail failure does not fabricate history from summary',
-]) requireText(marketRuntimeSpec, token, 'market browser regression');
+  'market detail keeps snapshot history when the detail refresh fails',
+  '__setMarketDetailRefreshFailure',
+  '__getMarketDetailRefreshFailureCount',
+]) requireText(marketRuntimeSpec, token, 'market cached-refresh browser regression');
+for (const token of [
+  'regional commodity detail marks the chart unavailable when its first detail request fails',
+  '成交趋势图不可用',
+  "toHaveClass(/is-unavailable/)",
+  "toHaveAttribute('aria-disabled', 'true')",
+]) requireText(marketDirectFlowSpec, token, 'market first-detail failure browser regression');
 for (const token of [
   'orderBook.bids',
   'orderBook.asks',
