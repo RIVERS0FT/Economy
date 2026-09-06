@@ -184,9 +184,9 @@ export function formatCompactVolumeTick(value: number) {
 function buildEdgeAlignedAxisLabelRich(fontSize: number) {
   const shared = { color: chartColor.secondary, fontSize, lineHeight: fontSize };
   return {
-    top: { ...shared, padding: [fontSize, 0, 0, 0] },
+    top: { ...shared, padding: [fontSize + 2, 0, 0, 0] },
     middle: shared,
-    bottom: { ...shared, padding: [0, 0, fontSize, 0] },
+    bottom: { ...shared, padding: [0, 0, fontSize + 2, 0] },
   };
 }
 
