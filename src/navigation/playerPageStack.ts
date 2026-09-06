@@ -8,7 +8,7 @@ export type PlayerPageLocation =
   | { type: 'map' }
   | { type: 'tab'; tab: Exclude<TabId, 'map'> }
   | { type: 'province'; provinceId: string; section: ProvinceSection }
-  | { type: 'regional-product'; host: 'province' | 'market'; provinceId: string; productId: string }
+  | { type: 'regional-product'; host: 'province' | 'market' | 'buildings'; provinceId: string; productId: string }
   | { type: 'regional-commercial'; host?: 'province' | 'buildings'; provinceId: string; commercialTypeId: string }
   | { type: 'global-commercial'; commercialTypeId: string }
   | { type: 'regional-facility'; host: 'province' | 'buildings'; provinceId: string; facilityTypeId: string }
@@ -29,7 +29,10 @@ export function tabForPlayerPageLocation(location: PlayerPageLocation): TabId {
   if (location.type === 'global-market-product') return 'market';
   if (location.type === 'global-building') return 'buildings';
   if (location.type === 'transport-route') return 'transport';
-  if (location.type === 'regional-product') return location.host === 'province' ? 'province' : 'market';
+  if (location.type === 'regional-product') {
+    if (location.host === 'province') return 'province';
+    return location.host === 'buildings' ? 'buildings' : 'market';
+  }
   return location.host === 'province' ? 'province' : 'buildings';
 }
 
