@@ -47,6 +47,8 @@ async function inspectChartGeometry(chart: Locator) {
       chartWidth: wrapperRect.width,
       actualHeight: wrapperRect.height,
       declaredHeight: readNumber('chartHeight'),
+      axisLeft: readNumber('axisLeft'),
+      axisRight: readNumber('axisRight'),
       volumeHeight: volumeBottom - volumeTop,
       volumeShare: readNumber('volumeShare'),
       priceVolumeGap: volumeTop - priceBottom,
@@ -57,7 +59,7 @@ async function inspectChartGeometry(chart: Locator) {
       volumeTickCount: readNumber('volumeTickCount'),
       axisPointerLinked: wrapper.dataset.axisPointerLinked,
       hoverEmphasisDisabled: wrapper.dataset.hoverEmphasisDisabled,
-      mobileAxisTitles: wrapper.dataset.mobileAxisTitles,
+      yAxisLabelsInside: wrapper.dataset.yAxisLabelsInside,
       xAxisTitleVisible: wrapper.dataset.xAxisTitleVisible,
       titlePresent: Boolean(titleRect),
       priceTicks: (wrapper.dataset.priceTicks || '').split(',').filter(Boolean).map(Number),
@@ -82,6 +84,12 @@ async function expectChartGeometry(chart: Locator, context: string) {
     expect(bounds.titleGap).toBeNull();
   }
   expect(bounds.bottomGap, `${context}底部可见内容不得贴住图表边缘`).toBeGreaterThanOrEqual(5);
+  expect(bounds.axisLeft, `${context}纵轴进入图内后左侧 gutter 应保持紧凑`).toBeGreaterThanOrEqual(6);
+  expect(bounds.axisLeft, `${context}纵轴进入图内后左侧 gutter 不得恢复旧宽度`).toBeLessThanOrEqual(16);
+  expect(bounds.axisRight, `${context}右侧 gutter 应与左侧同量级`).toBeGreaterThanOrEqual(6);
+  expect(bounds.axisRight, `${context}右侧 gutter 不得为日期半宽额外扩张`).toBeLessThanOrEqual(16);
+  expect(Math.abs(bounds.axisLeft - bounds.axisRight), `${context}左右绘图区 gutter 应对称`).toBeLessThanOrEqual(1);
+  expect(bounds.yAxisLabelsInside, `${context}纵轴刻度必须位于 Grid 内部`).toBe('true');
   expect(bounds.volumeHeight, `${context}完整行情图成交量图区实际高度不得低于 68px`).toBeGreaterThanOrEqual(68);
   expect(bounds.volumeShare, `${context}成交量图区不得低于数据绘图区的 22%`).toBeGreaterThanOrEqual(0.219);
   expect(Math.abs(bounds.priceVolumeGap), `${context}价格与成交量 Grid 必须零间距连续排列`).toBeLessThanOrEqual(0.5);
@@ -101,15 +109,12 @@ function expectWidthResponsiveAxisChrome(
   bounds: Awaited<ReturnType<typeof inspectChartGeometry>>,
   context: string,
 ) {
-  const usesMobileAxisChrome = bounds.chartWidth <= 720;
-  expect(
-    bounds.mobileAxisTitles,
-    `${context}轴标题模式必须由图表自身宽度决定`,
-  ).toBe(usesMobileAxisChrome ? 'true' : 'false');
+  const showsDateTitle = bounds.chartWidth > 720;
   expect(
     bounds.xAxisTitleVisible,
     `${context}可见日期标题必须由图表自身宽度决定`,
-  ).toBe(usesMobileAxisChrome ? 'false' : 'true');
+  ).toBe(showsDateTitle ? 'true' : 'false');
+  expect(bounds.yAxisLabelsInside, `${context}纵轴不应随断点切回外侧模式`).toBe('true');
 }
 
 async function resizeAndInspectChart(
@@ -125,13 +130,13 @@ async function resizeAndInspectChart(
   await expect(async () => {
     await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
     bounds = await inspectChartGeometry(chart);
-    const usesMobileAxisChrome = bounds.chartWidth <= 720;
+    const showsDateTitle = bounds.chartWidth > 720;
     expect({
       ready: bounds.ready,
       hasSvg: bounds.hasSvg,
       widthChanged: Math.abs(bounds.chartWidth - previousWidth) > 1,
-      responsiveChrome: bounds.mobileAxisTitles === (usesMobileAxisChrome ? 'true' : 'false')
-        && bounds.xAxisTitleVisible === (usesMobileAxisChrome ? 'false' : 'true'),
+      responsiveChrome: bounds.xAxisTitleVisible === (showsDateTitle ? 'true' : 'false')
+        && bounds.yAxisLabelsInside === 'true',
       heightSynced: Math.abs(bounds.actualHeight - bounds.declaredHeight) <= 2,
     }).toEqual({ ready: 'true', hasSvg: true, widthChanged: true, responsiveChrome: true, heightSynced: true });
   }).toPass({ timeout: 10_000 });
