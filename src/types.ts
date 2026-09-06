@@ -277,6 +277,9 @@ export interface TransportRoute {
 }
 
 export interface TransportShipment {
+  /** Server-owned parameters locked when this cycle starts. */
+  policySnapshot?: import('../shared/transport-policy.js').TransportCyclePolicy;
+  deliveredQuantity?: number;
   id: string;
   cycleId?: string;
   routeId?: string;

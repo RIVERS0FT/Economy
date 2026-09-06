@@ -3,6 +3,9 @@ import {
   TRANSPORT_BASE_SECONDS_PER_KM,
   TRANSPORT_FUEL_UNIT_PRICE,
   TRANSPORT_MODE_POLICY,
+  createTransportCyclePolicy,
+  transportCyclePolicyForShipment,
+  transportPolicyDurationMs,
 } from '../../shared/transport-policy.js';
 import { PRODUCT_CATALOG } from './industry-catalog.js';
 import { roundInternalMoney } from './money.js';
@@ -31,10 +34,8 @@ function roundFuel(value) {
 }
 
 export function transportDurationMs(mode, distanceKm) {
-  const definition = TRANSPORT_MODES[mode];
-  if (!definition) return null;
-  const distance = Math.max(0, Number(distanceKm) || 0);
-  return Math.max(1_000, Math.round(distance * TRANSPORT_BASE_SECONDS_PER_KM * definition.timeFactor * 1000));
+  if (!TRANSPORT_MODES[mode]) return null;
+  return transportPolicyDurationMs(createTransportCyclePolicy(mode), Math.max(0, Number(distanceKm) || 0));
 }
 
 export function normalizeTransportStops(payload = {}) {
@@ -185,7 +186,9 @@ function normalizeCargoRequest(value) {
     const productId = String(entry?.productId || '');
     const quantity = Math.floor(Number(entry?.quantity));
     if (!PRODUCT_BY_ID.has(productId) || !Number.isSafeInteger(quantity) || quantity <= 0) return null;
-    totals.set(productId, (totals.get(productId) || 0) + quantity);
+    const total = (totals.get(productId) || 0) + quantity;
+    if (!Number.isSafeInteger(total)) return null;
+    totals.set(productId, total);
   }
   return [...totals].map(([productId, quantity]) => ({ productId, quantity }));
 }
@@ -232,7 +235,8 @@ function departShipmentLeg(shipment, now) {
   const fromProvinceId = normalizeProvinceId(traversalStops[currentVisitIndex]);
   const toProvinceId = normalizeProvinceId(traversalStops[nextVisitIndex]);
   const distanceKm = provinceDistanceKm(fromProvinceId, toProvinceId);
-  const durationMs = transportDurationMs(shipment.mode, distanceKm);
+  const policy = transportCyclePolicyForShipment(shipment);
+  const durationMs = transportPolicyDurationMs(policy, distanceKm);
   const departsAt = Number(now);
   const arrivesAt = departsAt + durationMs;
   const remainingLoad = cargoTotalQuantity(shipment.cargoLots || []);
@@ -244,11 +248,10 @@ function departShipmentLeg(shipment, now) {
   shipment.departsAt = departsAt;
   shipment.arrivesAt = arrivesAt;
   shipment.status = 'in-transit';
-  const definition = TRANSPORT_MODES[shipment.mode];
-  if (!shipment.legacyCycle && definition) {
+  if (!shipment.legacyCycle) {
     shipment.fuelConsumed = Math.min(
       Number(shipment.fuelPurchased || 0),
-      roundFuel(Number(shipment.fuelConsumed || 0) + distanceKm * definition.fuelPerKm),
+      roundFuel(Number(shipment.fuelConsumed || 0) + distanceKm * policy.fuelPerKm),
     );
   }
   return true;
@@ -374,6 +377,7 @@ export function applyStartTransportCycle(world, user, payload = {}, now = Date.n
 
   const shipment = {
     nodeCycleVersion: 1,
+    policySnapshot: createTransportCyclePolicy(route.mode),
     id: `transport-${randomUUID()}` ,
     ownerId: Number(user.id),
     routeId: route.id,
@@ -445,7 +449,7 @@ export function applyServiceTransportNode(world, user, payload = {}, now = Date.
   const nextLoad = cargoTotalQuantity(cargoLots)
     - unload.reduce((total, entry) => total + entry.quantity, 0)
     + load.reduce((total, entry) => total + entry.quantity, 0);
-  if (nextLoad > Number(TRANSPORT_MODES[route.mode]?.capacity || 0)) {
+  if (nextLoad > transportCyclePolicyForShipment(shipment).capacity) {
     return { ok: false, message: '装卸后车辆货量超过运输方式容量' };
   }
 
@@ -458,6 +462,7 @@ export function applyServiceTransportNode(world, user, payload = {}, now = Date.
       return { ok: true, message: '起点卸货已完成，车辆仍有货物需要卸下' };
     }
     shipment.status = 'arrived';
+    if (!shipment.legacyCycle) shipment.fuelConsumed = Number(shipment.fuelPurchased || 0);
     shipment.arrivedAt = now;
     shipment.currentLeg = null;
     shipment.nextVisitIndex = null;
@@ -591,6 +596,7 @@ export function migrateTransportWorld(world) {
   for (const shipment of world.transportShipments) {
     if (!shipment || typeof shipment !== 'object') continue;
     migrateLegacyShipment(world, shipment);
+    if (!shipment.policySnapshot) shipment.policySnapshot = transportCyclePolicyForShipment(shipment);
   }
   return world;
 }
@@ -702,6 +708,8 @@ export function transportShipmentClientState(world, userId) {
         fuelPurchased: Number(shipment.fuelPurchased || 0),
         fuelConsumed: Number(shipment.fuelConsumed || 0),
         cycleDistanceKm: Number(shipment.cycleDistanceKm || 0),
+        policySnapshot: transportCyclePolicyForShipment(shipment),
+        deliveredQuantity: (shipment.cycleManifest || []).reduce((sum, entry) => sum + Math.max(0, Number(entry.quantity || 0)), 0),
         currentProvinceId,
         currentVisitIndex,
         departsAt: Number(shipment.departsAt || shipment.createdAt || 0),
