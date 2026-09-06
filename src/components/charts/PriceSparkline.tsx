@@ -33,7 +33,6 @@ type MarketChartGeometry = {
   volumeShare: number;
   plotCenterX: number;
   timeLabelHeight: number;
-  mobileAxisTitles: boolean;
   showXAxisTitle: boolean;
 };
 
@@ -188,37 +187,21 @@ function volumeColor(direction: MarketHistoryBucket['direction']) {
   return chartColor.muted;
 }
 
-function estimateMarketAxisLabelWidth(labels: string[], rootFontSize: number) {
-  return labels.reduce((widest, label) => {
-    const width = Array.from(label).reduce((total, character) => {
-      if (/\d/.test(character)) return total + rootFontSize * 0.58;
-      if (/[.,+\-/]/.test(character)) return total + rootFontSize * 0.34;
-      return total + rootFontSize * 0.66;
-    }, 0);
-    return Math.max(widest, width);
-  }, 0);
-}
-
 export function buildMarketChartGeometry(
   width: number,
   rootFontSize: number,
   variant: MarketChartVariant,
-  axisLabelWidth = 0,
   minimumHeight = 0,
 ): MarketChartGeometry {
   const safeWidth = Math.max(1, width || 960);
   const scale = safeWidth / 960;
   const compact = variant === 'compact';
-  const mobileAxisTitles = safeWidth <= 720;
-  const showXAxisTitle = !compact && !mobileAxisTitles;
+  const showXAxisTitle = !compact && safeWidth > 720;
   const timeAxisFontSize = Math.max(11, rootFontSize * 0.75);
-  const horizontalTimeLabelWidth = estimateMarketAxisLabelWidth(['00/00'], timeAxisFontSize);
-  const edgeTimeLabelInset = Math.ceil(horizontalTimeLabelWidth / 2 + 4);
-  const top = Math.max(compact ? 8 : 10, (compact ? 10 : 16) * scale);
-  const left = mobileAxisTitles
-    ? Math.max(compact ? 42 : 46, axisLabelWidth + 10, edgeTimeLabelInset)
-    : Math.max(compact ? 58 : 68, rootFontSize * (compact ? 3.7 : 4.3), axisLabelWidth + rootFontSize * 2.1, edgeTimeLabelInset);
-  const right = Math.max(edgeTimeLabelInset, (compact ? 18 : 24) * scale);
+  const plotInset = Math.max(compact ? 8 : 10, rootFontSize * (compact ? 0.45 : 0.55));
+  const top = Math.max(compact ? 6 : 8, (compact ? 8 : 12) * scale);
+  const left = plotInset;
+  const right = plotInset;
   let priceHeight = Math.max(compact ? 72 : 112, (compact ? 78 : 208) * scale);
   const priceVolumeGap = 0;
   const minimumVolumeHeight = compact
@@ -227,7 +210,7 @@ export function buildMarketChartGeometry(
   const ratioProtectedVolumeHeight = (0.22 / 0.78) * priceHeight;
   const preferredVolumeHeight = (compact ? 33 : 106) * scale;
   let volumeHeight = Math.max(preferredVolumeHeight, minimumVolumeHeight, ratioProtectedVolumeHeight);
-  const timeLabelHeight = Math.max(compact ? 22 : 28, timeAxisFontSize + 12);
+  const timeLabelHeight = Math.max(compact ? 20 : 24, timeAxisFontSize + 10);
   const titleGap = showXAxisTitle ? 8 : 0;
   const titleHeight = showXAxisTitle ? Math.max(16, rootFontSize) : 0;
   const bottomSafeInset = 6;
@@ -256,7 +239,6 @@ export function buildMarketChartGeometry(
     volumeShare: volumeHeight / Math.max(1, dataAreaHeight),
     plotCenterX: left + Math.max(1, safeWidth - left - right) / 2,
     timeLabelHeight,
-    mobileAxisTitles,
     showXAxisTitle,
   };
 }
@@ -334,12 +316,12 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     }]
   ), [bucketSignature]);
   const { ref, width, rootFontSize, minimumHeight } = useMarketChartMetrics();
-  const baseGeometry = useMemo(
-    () => buildMarketChartGeometry(width, rootFontSize, variant, 0, minimumHeight),
+  const geometry = useMemo(
+    () => buildMarketChartGeometry(width, rootFontSize, variant, minimumHeight),
     [minimumHeight, rootFontSize, variant, width],
   );
-  const priceHeight = baseGeometry.priceBottom - baseGeometry.top;
-  const volumeHeight = baseGeometry.volumeBottom - baseGeometry.volumeTop;
+  const priceHeight = geometry.priceBottom - geometry.top;
+  const volumeHeight = geometry.volumeBottom - geometry.volumeTop;
   const priceTickCount = chooseMarketPriceTickCount(priceHeight, rootFontSize);
   const volumeTickCount = chooseMarketVolumeTickCount(volumeHeight, rootFontSize, variant);
   const priceScale = useMemo(() => buildIntegerPriceScale(
@@ -351,14 +333,6 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     Math.max(1, ...safeBuckets.map((bucket) => bucket.volume)),
     volumeTickCount,
   ), [safeBuckets, volumeTickCount]);
-  const axisLabelWidth = useMemo(() => estimateMarketAxisLabelWidth([
-    ...priceScale.ticks.map(formatIntegerPriceTick),
-    ...volumeScale.ticks.slice(1).map(formatCompactVolumeTick),
-  ], rootFontSize), [priceScale.ticks, rootFontSize, volumeScale.ticks]);
-  const geometry = useMemo(
-    () => buildMarketChartGeometry(width, rootFontSize, variant, axisLabelWidth, minimumHeight),
-    [axisLabelWidth, minimumHeight, rootFontSize, variant, width],
-  );
   const plotWidth = Math.max(1, geometry.width - geometry.left - geometry.right);
   const priceBoundaryLabel = formatIntegerPriceTick(priceScale.min);
   const volumeBoundaryLabel = formatCompactVolumeTick(volumeScale.max);
@@ -521,7 +495,9 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
           hideOverlap: true,
           showMinLabel: true,
           showMaxLabel: true,
-          margin: 10,
+          alignMinLabel: 'left',
+          alignMaxLabel: 'right',
+          margin: 6,
           formatter: (value: number) => formatMarketAxisTime(value),
         },
         splitLine: { show: true, lineStyle: { color: chartColor.border } },
@@ -530,12 +506,13 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     yAxis: [
       {
         id: 'market-price-value-axis', type: 'value', gridIndex: 0, min: priceScale.min, max: priceScale.max, interval: priceScale.step,
-        name: geometry.mobileAxisTitles ? undefined : '价格', nameLocation: 'middle', nameRotate: 90, nameGap: geometry.left - 18,
-        nameTextStyle: { color: chartColor.secondary, fontSize: Math.max(11, rootFontSize * 0.75) },
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
         axisLabel: {
           color: chartColor.secondary,
           fontSize: Math.max(11, rootFontSize * 0.75),
+          inside: true,
+          align: 'left',
+          margin: 6,
           showMinLabel: true,
           showMaxLabel: true,
           formatter: (value: number) => formatIntegerPriceTick(value),
@@ -544,12 +521,13 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       },
       {
         id: 'market-volume-value-axis', type: 'value', gridIndex: 1, min: 0, max: volumeScale.max, interval: volumeScale.step,
-        name: geometry.mobileAxisTitles ? undefined : '成交量', nameLocation: 'middle', nameRotate: 90, nameGap: geometry.left - 18,
-        nameTextStyle: { color: chartColor.secondary, fontSize: Math.max(11, rootFontSize * 0.75) },
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
         axisLabel: {
           color: chartColor.secondary,
           fontSize: Math.max(11, rootFontSize * 0.75),
+          inside: true,
+          align: 'left',
+          margin: 6,
           showMinLabel: true,
           showMaxLabel: false,
           formatter: (value: number) => value === volumeScale.max ? '' : formatCompactVolumeTick(value),
@@ -610,7 +588,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       data-volume-max-label-visible="false"
       data-volume-nonzero-label-visible={hasVisibleNonZeroVolumeTick ? 'true' : 'false'}
       data-price-color-role="info"
-      data-mobile-axis-titles={geometry.mobileAxisTitles ? 'true' : 'false'}
+      data-y-axis-labels-inside="true"
       data-x-axis-title-visible={geometry.showXAxisTitle ? 'true' : 'false'}
       data-price-ticks={priceScale.ticks.join(',')}
       data-volume-ticks={volumeScale.ticks.join(',')}
@@ -633,12 +611,6 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         style={{ top: geometry.priceBottom, left: geometry.left, right: geometry.right }}
         aria-hidden="true"
       />
-      {geometry.mobileAxisTitles ? (
-        <>
-          <div className="market-chart-section-label" style={{ top: geometry.top + 4, left: geometry.left + 4 }} aria-hidden="true">价格</div>
-          <div className="market-chart-section-label" style={{ top: geometry.volumeTop + 4, left: geometry.left + 4 }} aria-hidden="true">成交量</div>
-        </>
-      ) : null}
       {geometry.showXAxisTitle ? (
         <div className="market-chart-footer" style={{ paddingLeft: geometry.left, paddingRight: geometry.right }}>
           <div className="market-chart-x-axis-title">日期</div>
