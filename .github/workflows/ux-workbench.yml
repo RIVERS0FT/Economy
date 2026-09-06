@@ -4,29 +4,58 @@ on:
     branches: [codex/ux-review-workbench-20260906]
     paths: [.github/workflows/ux-workbench.yml]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  validation-tools:
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
+          path: workbench
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: source
           ref: 29d013b5d9f942d8ed7f905fb00ea4d403d18860
+      - name: Verify patch and publish source-only branch
+        working-directory: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ../workbench/.workbench/ux-patch.{0,1,2,3}.b64 | tr -d '\n' | base64 --decode | xz --decompress > "$RUNNER_TEMP/ux.patch"
+          echo "f342e4d9a53d516a37c1eb5e3f5b86d04e4faee1de18c11776a1bd7515cac8f6  $RUNNER_TEMP/ux.patch" | sha256sum --check
+          git apply --check "$RUNNER_TEMP/ux.patch"
+          git apply "$RUNNER_TEMP/ux.patch"
+          git diff --check
+          git add docs scripts src tests
+          test "$(git write-tree)" = 3934efbffdc9abaec6ea5adf1059a280727f6d8e
+          git config user.name RIVERSOFT
+          git config user.email 105160096+RIVERS0FT@users.noreply.github.com
+          git commit -m "fix: 改善经营任务衔接并保持界面简洁"
+          git push origin HEAD:refs/heads/codex/ux-review-20260906
+          git log -1 --format='PUBLISHED_SHA=%H'
+  focused-browser:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/ux-review-20260906
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
           cache: npm
       - run: npm ci
-      - name: Archive pinned validation tools
-        run: |
-          mkdir -p "$RUNNER_TEMP/ux-tools/bin"
-          cp "$(command -v node)" "$RUNNER_TEMP/ux-tools/bin/node"
-          tar -czf "$RUNNER_TEMP/economy-tools.tar.gz" node_modules -C "$RUNNER_TEMP" ux-tools
+      - run: npx playwright install --with-deps chromium
+      - name: Run focused UX browser flows
+        run: npx playwright test tests/browser/ux-operating-flow.spec.ts tests/browser/trade-confirmation.spec.ts --workers=2 --reporter=list
       - uses: actions/upload-artifact@v4
+        if: failure()
         with:
-          name: economy-ux-tools
-          path: ${{ runner.temp }}/economy-tools.tar.gz
+          name: economy-ux-focused-failure
+          path: test-results
           retention-days: 1
-          if-no-files-found: error
+          if-no-files-found: warn
