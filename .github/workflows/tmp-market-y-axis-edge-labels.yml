@@ -1,0 +1,330 @@
+name: Temporary market y-axis edge label patch
+
+on:
+  push:
+    branches:
+      - fix/market-y-axis-edge-labels
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/market-y-axis-edge-labels
+          fetch-depth: 0
+      - name: Apply patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, got {text.count(old)} for {old[:80]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          chart_path = 'src/components/charts/PriceSparkline.tsx'
+          replace_once(
+              chart_path,
+              "\nfunction volumeColor(direction: MarketHistoryBucket['direction']) {",
+              """
+function buildEdgeAlignedAxisLabelRich(fontSize: number) {
+  const shared = { color: chartColor.secondary, fontSize, lineHeight: fontSize };
+  return {
+    top: { ...shared, padding: [fontSize, 0, 0, 0] },
+    middle: shared,
+    bottom: { ...shared, padding: [0, 0, fontSize, 0] },
+  };
+}
+
+function formatEdgeAlignedAxisLabel(
+  value: number,
+  min: number,
+  max: number,
+  formatter: (value: number) => string,
+) {
+  const text = formatter(value);
+  if (value === max) return `{top|${text}}`;
+  if (value === min) return `{bottom|${text}}`;
+  return `{middle|${text}}`;
+}
+
+function volumeColor(direction: MarketHistoryBucket['direction']) {""",
+          )
+          replace_once(
+              chart_path,
+              """  const priceBoundaryLabel = formatIntegerPriceTick(priceScale.min);
+  const volumeBoundaryLabel = formatCompactVolumeTick(volumeScale.max);""",
+              """  const priceTopLabel = formatIntegerPriceTick(priceScale.max);
+  const priceBoundaryLabel = formatIntegerPriceTick(priceScale.min);
+  const volumeBoundaryLabel = formatCompactVolumeTick(volumeScale.max);
+  const volumeBottomLabel = formatCompactVolumeTick(volumeScale.min);""",
+          )
+          replace_once(
+              chart_path,
+              """          showMinLabel: true,
+          showMaxLabel: true,
+          formatter: (value: number) => formatIntegerPriceTick(value),""",
+              """          showMinLabel: true,
+          showMaxLabel: true,
+          rich: buildEdgeAlignedAxisLabelRich(Math.max(11, rootFontSize * 0.75)),
+          formatter: (value: number) => formatEdgeAlignedAxisLabel(
+            value,
+            priceScale.min,
+            priceScale.max,
+            formatIntegerPriceTick,
+          ),""",
+          )
+          replace_once(
+              chart_path,
+              """          showMinLabel: true,
+          showMaxLabel: false,
+          formatter: (value: number) => value === volumeScale.max ? '' : formatCompactVolumeTick(value),""",
+              """          showMinLabel: true,
+          showMaxLabel: true,
+          rich: buildEdgeAlignedAxisLabelRich(Math.max(11, rootFontSize * 0.75)),
+          formatter: (value: number) => formatEdgeAlignedAxisLabel(
+            value,
+            volumeScale.min,
+            volumeScale.max,
+            formatCompactVolumeTick,
+          ),""",
+          )
+          replace_once(
+              chart_path,
+              """      data-shared-boundary-label-owner=\"price\"
+      data-price-min-label={priceBoundaryLabel}
+      data-volume-max-label={volumeBoundaryLabel}
+      data-volume-max-label-visible=\"false\"""",
+              """      data-shared-boundary-label-layout=\"split-edge\"
+      data-y-axis-edge-labels-aligned=\"true\"
+      data-price-max-label={priceTopLabel}
+      data-price-min-label={priceBoundaryLabel}
+      data-volume-max-label={volumeBoundaryLabel}
+      data-volume-min-label={volumeBottomLabel}
+      data-volume-max-label-visible=\"true\"""",
+          )
+
+          design_path = 'docs/MARKET_CHART_LAYOUT_DESIGN.md'
+          replace_once(
+              design_path,
+              "- 零间距双 Grid 的共享边界只能显示一项纵轴刻度标签：价格轴保留最小刻度，成交量轴隐藏最大刻度。完整行情图的成交量轴目标刻度不得低于 3 个，因此隐藏最大刻度后仍必须至少显示 `0` 和一个非零中间刻度；compact 变体允许最低 2 个刻度。",
+              "- 两个纵轴都必须显示各自上、下端刻度，并将端点文字限制在对应 Grid 内：上端刻度文字顶部与 Grid 顶边对齐，下端刻度文字底部与 Grid 底边对齐。零间距共享边界处同时保留价格轴最小刻度和成交量轴最大刻度；价格最小刻度向上收进价格区，成交量最大刻度向下收进成交量区，两者以同一分界线为边缘，不得重叠或互相隐藏。完整行情图的成交量轴目标刻度不得低于 3 个，因此除上下端刻度外仍必须至少显示一个非零中间刻度；compact 变体允许最低 2 个刻度。",
+          )
+
+          Path('tests/browser/market-boundary-axis-label.spec.ts').write_text(r'''import { expect, test, type Locator, type Page } from '@playwright/test';
+
+const marketBoundaryViewports = [
+  { width: 721, height: 445, label: '问题截图尺寸' },
+  { width: 390, height: 844, label: '移动端' },
+  { width: 320, height: 700, label: '极窄移动端' },
+] as const;
+
+async function capturePageErrors(page: Page) {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  return pageErrors;
+}
+
+async function inspectEdgeLabels(chart: Locator) {
+  await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+  return chart.evaluate((element) => {
+    const wrapper = element as HTMLElement;
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const svg = wrapper.querySelector<SVGSVGElement>('.economy-chart__canvas svg');
+    if (!svg) throw new Error('ECharts SVG is not ready');
+
+    const axisLeft = Number(wrapper.dataset.axisLeft);
+    const priceTop = Number(wrapper.dataset.priceTop);
+    const priceBottom = Number(wrapper.dataset.priceBottom);
+    const volumeTop = Number(wrapper.dataset.volumeTop);
+    const volumeBottom = Number(wrapper.dataset.volumeBottom);
+    const priceMaxLabel = wrapper.dataset.priceMaxLabel ?? '';
+    const priceMinLabel = wrapper.dataset.priceMinLabel ?? '';
+    const volumeMaxLabel = wrapper.dataset.volumeMaxLabel ?? '';
+    const volumeMinLabel = wrapper.dataset.volumeMinLabel ?? '';
+    if (![axisLeft, priceTop, priceBottom, volumeTop, volumeBottom].every(Number.isFinite)
+      || !priceMaxLabel || !priceMinLabel || !volumeMaxLabel || !volumeMinLabel) {
+      throw new Error('Market edge label contract is incomplete');
+    }
+
+    const plotLeft = wrapperRect.left + axisLeft;
+    const edges = {
+      priceTop: wrapperRect.top + priceTop,
+      priceBottom: wrapperRect.top + priceBottom,
+      volumeTop: wrapperRect.top + volumeTop,
+      volumeBottom: wrapperRect.top + volumeBottom,
+    };
+    const tickLabelPattern = /^(?:\d{1,3}(?:,\d{3})*|\d+(?:\.\d+)?[KMBT])$/;
+    const labels = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
+      .map((text) => {
+        const rect = text.getBoundingClientRect();
+        return {
+          text: text.textContent?.trim() ?? '',
+          top: rect.top,
+          bottom: rect.bottom,
+          left: rect.left,
+          right: rect.right,
+        };
+      })
+      .filter((label) => tickLabelPattern.test(label.text));
+
+    const nearest = (
+      text: string,
+      boundary: number,
+      edge: 'top' | 'bottom',
+      rangeTop: number,
+      rangeBottom: number,
+    ) => labels
+      .filter((label) => label.text === text && label.bottom >= rangeTop - 2 && label.top <= rangeBottom + 2)
+      .map((label) => ({ ...label, delta: Math.abs(label[edge] - boundary) }))
+      .sort((left, right) => left.delta - right.delta)[0] ?? null;
+
+    const priceMax = nearest(priceMaxLabel, edges.priceTop, 'top', edges.priceTop, edges.priceBottom);
+    const priceMin = nearest(priceMinLabel, edges.priceBottom, 'bottom', edges.priceTop, edges.priceBottom);
+    const volumeMax = nearest(volumeMaxLabel, edges.volumeTop, 'top', edges.volumeTop, edges.volumeBottom);
+    const volumeMin = nearest(volumeMinLabel, edges.volumeBottom, 'bottom', edges.volumeTop, edges.volumeBottom);
+
+    return {
+      layout: wrapper.dataset.sharedBoundaryLabelLayout,
+      edgeAligned: wrapper.dataset.yAxisEdgeLabelsAligned,
+      yAxisLabelsInside: wrapper.dataset.yAxisLabelsInside,
+      volumeMaxLabelVisible: wrapper.dataset.volumeMaxLabelVisible,
+      plotLeft,
+      edges,
+      priceMax,
+      priceMin,
+      volumeMax,
+      volumeMin,
+    };
+  });
+}
+
+async function expectEdgeAlignedLabels(chart: Locator, context: string) {
+  const result = await inspectEdgeLabels(chart);
+  expect(result.layout, `${context}共享边界应拆分到上下两个分区`).toBe('split-edge');
+  expect(result.edgeAligned, `${context}纵轴端点刻度必须声明为贴边对齐`).toBe('true');
+  expect(result.yAxisLabelsInside, `${context}纵轴刻度必须位于绘图区内部`).toBe('true');
+  expect(result.volumeMaxLabelVisible, `${context}成交量顶端刻度必须显示`).toBe('true');
+
+  for (const [name, label] of Object.entries({
+    priceMax: result.priceMax,
+    priceMin: result.priceMin,
+    volumeMax: result.volumeMax,
+    volumeMin: result.volumeMin,
+  })) {
+    expect(label, `${context} ${name} 端点刻度缺失`).not.toBeNull();
+    expect(label!.delta, `${context} ${name} 必须与对应 Grid 边缘对齐`).toBeLessThanOrEqual(4);
+    expect(label!.left, `${context} ${name} 必须位于 Grid 内部`).toBeGreaterThanOrEqual(result.plotLeft - 1);
+  }
+
+  expect(result.priceMax!.top, `${context}价格顶端刻度不得越出价格区`).toBeGreaterThanOrEqual(result.edges.priceTop - 1);
+  expect(result.priceMin!.bottom, `${context}价格底端刻度不得越出价格区`).toBeLessThanOrEqual(result.edges.priceBottom + 1);
+  expect(result.volumeMax!.top, `${context}成交量顶端刻度不得越出成交量区`).toBeGreaterThanOrEqual(result.edges.volumeTop - 1);
+  expect(result.volumeMin!.bottom, `${context}成交量底端刻度不得越出成交量区`).toBeLessThanOrEqual(result.edges.volumeBottom + 1);
+  expect(result.priceMin!.bottom, `${context}共享边界两侧文字不得重叠`).toBeLessThanOrEqual(result.volumeMax!.top + 1);
+}
+
+for (const viewport of marketBoundaryViewports) {
+  test(`market y-axis endpoint labels align to grid edges at ${viewport.label}`, async ({ page }) => {
+    const pageErrors = await capturePageErrors(page);
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto('market-runtime-test.html?scenario=active');
+    await expectEdgeAlignedLabels(page.locator('.market-history-chart.full'), viewport.label);
+    expect(pageErrors).toEqual([]);
+  });
+}
+
+test('market y-axis endpoint labels stay edge-aligned at 125% root font', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('market-runtime-test.html?scenario=active');
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '20px';
+    window.dispatchEvent(new Event('resize'));
+  });
+  await expect.poll(async () => {
+    const result = await inspectEdgeLabels(page.locator('.market-history-chart.full'));
+    return `${result.layout}:${result.edgeAligned}:${result.volumeMaxLabelVisible}:${result.yAxisLabelsInside}`;
+  }).toBe('split-edge:true:true:true');
+  await expectEdgeAlignedLabels(page.locator('.market-history-chart.full'), '125% 根字号移动端');
+  expect(pageErrors).toEqual([]);
+});
+''')
+
+          verifier_path = 'scripts/verify-market-chart.mjs'
+          replace_once(
+              verifier_path,
+              """  'showMinLabel: true', 'showMaxLabel: false',
+  \"alignMinLabel: 'left'\", \"alignMaxLabel: 'right'\",
+  'inside: true', \"align: 'left'\", 'margin: 6',
+  \"value === volumeScale.max ? '' : formatCompactVolumeTick(value)\",""",
+              """  'showMinLabel: true', 'showMaxLabel: true',
+  \"alignMinLabel: 'left'\", \"alignMaxLabel: 'right'\",
+  'inside: true', \"align: 'left'\", 'margin: 6',
+  'buildEdgeAlignedAxisLabelRich', 'formatEdgeAlignedAxisLabel',""",
+          )
+          replace_once(
+              verifier_path,
+              """  'data-shared-boundary-label-owner=\"price\"',
+  'data-price-min-label={priceBoundaryLabel}',
+  'data-volume-max-label={volumeBoundaryLabel}',
+  'data-volume-max-label-visible=\"false\"',""",
+              """  'data-shared-boundary-label-layout=\"split-edge\"',
+  'data-y-axis-edge-labels-aligned=\"true\"',
+  'data-price-max-label={priceTopLabel}',
+  'data-price-min-label={priceBoundaryLabel}',
+  'data-volume-max-label={volumeBoundaryLabel}',
+  'data-volume-min-label={volumeBottomLabel}',
+  'data-volume-max-label-visible=\"true\"',""",
+          )
+          replace_once(
+              verifier_path,
+              """  'market zero-gap grids give the shared boundary label to the price axis only at ${viewport.label}',
+  'market zero-gap grids keep the shared boundary label on the price axis at 125% root font', 'expect.poll',
+  'data-echarts-ready', 'sharedBoundaryLabelOwner', 'volumeMaxLabelVisible', 'yAxisLabelsInside',
+  'priceMinMatches', 'priceMinInside', 'boundaryLabels', '共享边界只能存在一项纵轴刻度',
+  \"document.documentElement.style.fontSize = '20px'\",""",
+              """  'market y-axis endpoint labels align to grid edges at ${viewport.label}',
+  'market y-axis endpoint labels stay edge-aligned at 125% root font', 'expect.poll',
+  'data-echarts-ready', 'sharedBoundaryLabelLayout', 'yAxisEdgeLabelsAligned', 'volumeMaxLabelVisible', 'yAxisLabelsInside',
+  'priceMax', 'priceMin', 'volumeMax', 'volumeMin', '共享边界两侧文字不得重叠',
+  \"document.documentElement.style.fontSize = '20px'\",""",
+          )
+          replace_once(
+              verifier_path,
+              "assert.ok(!boundaryLabelSpec.includes(\"test('market zero-gap grids give the shared boundary label to the price axis only',\"), '行情图共享边界刻度回归不得恢复多视口单体长链');",
+              "assert.ok(!boundaryLabelSpec.includes(\"test('market y-axis endpoint labels align to grid edges',\"), '行情图纵轴端点回归不得恢复多视口单体长链');",
+          )
+          replace_once(
+              verifier_path,
+              """  '共享边界只能显示一项纵轴刻度标签', '价格轴保留最小刻度', '成交量轴隐藏最大刻度',
+  '成交量轴目标刻度不得低于 3 个', '非零中间刻度',""",
+              """  '两个纵轴都必须显示各自上、下端刻度', '上端刻度文字顶部与 Grid 顶边对齐', '下端刻度文字底部与 Grid 底边对齐',
+  '共享边界处同时保留价格轴最小刻度和成交量轴最大刻度', '价格最小刻度向上收进价格区', '成交量最大刻度向下收进成交量区',
+  '不得重叠或互相隐藏', '成交量轴目标刻度不得低于 3 个', '非零中间刻度',""",
+          )
+          replace_once(
+              verifier_path,
+              "console.log('Market ECharts verification passed: 30 daily buckets, internal y-axis labels, inward-anchored dates, linked persistent hover and zero-gap grids satisfy the design baseline.');",
+              "console.log('Market ECharts verification passed: 30 daily buckets, edge-aligned internal y-axis labels, inward-anchored dates, linked persistent hover and zero-gap grids satisfy the design baseline.');",
+          )
+
+          Path('.github/workflows/tmp-market-y-axis-edge-labels.yml').unlink()
+          PY
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/components/charts/PriceSparkline.tsx docs/MARKET_CHART_LAYOUT_DESIGN.md tests/browser/market-boundary-axis-label.spec.ts scripts/verify-market-chart.mjs .github/workflows/tmp-market-y-axis-edge-labels.yml
+          git diff --cached --check
+          git commit -m "fix: align market y-axis endpoint labels"
+          git push origin HEAD:fix/market-y-axis-edge-labels
