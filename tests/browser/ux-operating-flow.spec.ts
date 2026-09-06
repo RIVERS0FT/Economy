@@ -41,6 +41,20 @@ for (const width of [390, 1440]) {
     await navigation.getByRole('button', { name: /^概览/ }).click();
     await expect(page.getByRole('heading', { name: '概览', exact: true })).toBeVisible();
     await expect(page.getByText('理论日产量', { exact: true })).toHaveCount(0);
+    const linkGeometry = await page.locator('.overview-core-data .ui-button, .overview-operation-links .ui-button').evaluateAll((buttons) => buttons.map((button) => {
+      const icon = button.querySelector('.game-icon')!;
+      const label = document.createRange();
+      label.selectNodeContents(button);
+      label.setEndBefore(icon);
+      const textRect = label.getBoundingClientRect();
+      const iconRect = icon.getBoundingClientRect();
+      return { gap: iconRect.left - textRect.right, verticalDifference: Math.abs(iconRect.y + iconRect.height / 2 - textRect.y - textRect.height / 2) };
+    }));
+    expect(linkGeometry.length).toBe(7);
+    for (const geometry of linkGeometry) {
+      expect(geometry.gap).toBeGreaterThanOrEqual(-1);
+      expect(geometry.verticalDifference).toBeLessThanOrEqual(3);
+    }
     await page.getByRole('button', { name: '查看生产受阻的工厂' }).click();
     await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '清除状态筛选' })).toBeVisible();
