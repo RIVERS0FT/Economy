@@ -75,7 +75,7 @@ test('recent local trades heading keeps clear action on the same row on narrow s
   expect(clearBox.x).toBeGreaterThan(titleBox.x);
 });
 
-test('market detail failure does not fabricate history from summary', async ({ page }) => {
+test('market detail keeps snapshot history when the detail refresh fails; market detail failure does not fabricate history from summary', async ({ page }) => {
   await page.route('**/api/game/market-detail?**', async (route) => {
     await route.fulfill({
       status: 503,
