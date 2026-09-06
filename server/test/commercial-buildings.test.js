@@ -47,6 +47,7 @@ test('first commercial build starts immediately and keeps locked profit independ
   assert.equal(group.enabled, true);
   assert.equal(group.status, 'running');
   assert.equal(group.cycleActive, true);
+  assert.equal(group.autoOperationBootstrapPending, undefined);
   assert.equal(player.credits, 10_000 - type.buildCost - type.operatingCost);
   assert.equal(inventoryForProvince(player, 'food', california).available, 0);
   assert.equal(inventoryForProvince(player, 'beverage', california).available, 0);
@@ -73,7 +74,7 @@ test('commercial first-cycle bootstrap retries after funds recover without anoth
   const type = typeFor('clothing-store');
   const clothingMarket = world.markets[provinceScopedKey(california, 'clothing')];
   const buyBefore = Number(clothingMarket.todayBuyQuantity || 0);
-  player.credits = type.buildCost + type.operatingCost;
+  player.credits = type.buildCost + type.operatingCost + 0.01;
 
   assert.equal(applyCommercialBuildingAction(world, user, {
     operation: 'build', provinceId: california, commercialTypeId: type.id, quantity: 1,
@@ -82,12 +83,14 @@ test('commercial first-cycle bootstrap retries after funds recover without anoth
   assert.equal(group.status, 'error');
   assert.equal(group.statusReason, 'insufficient_input');
   assert.equal(group.enabled, true);
+  assert.equal(group.autoOperationBootstrapPending, true);
   assert.equal(Number(clothingMarket.todayBuyQuantity || 0), buyBefore);
 
   player.credits += 1_000;
   processCommercialWorld(world, now + 3);
   assert.equal(group.status, 'running');
   assert.equal(group.participatingCount, 1);
+  assert.equal(group.autoOperationBootstrapPending, undefined);
   assert.ok(Number(clothingMarket.todayBuyQuantity || 0) > buyBefore);
   assert.equal(Object.keys(player.autoOperationCycleCursors || {}).length, 0, 'bootstrap must not fake a completed-cycle cursor');
 });
@@ -97,6 +100,10 @@ test('commercial first-cycle bootstrap buys only in the building province', () =
   const type = typeFor('restaurant');
   inventoryForProvince(player, 'prepared-meal', california).available = 100;
   inventoryForProvince(player, 'beverage', california).available = 100;
+  for (const input of type.consumptionInputs) {
+    const source = world.markets[provinceScopedKey(california, input.productId)];
+    world.markets[provinceScopedKey(alabama, input.productId)] = { ...structuredClone(source), provinceId: alabama };
+  }
   const californiaMealMarket = world.markets[provinceScopedKey(california, 'prepared-meal')];
   const alabamaMealMarket = world.markets[provinceScopedKey(alabama, 'prepared-meal')];
   const californiaBuyBefore = Number(californiaMealMarket.todayBuyQuantity || 0);
@@ -109,6 +116,7 @@ test('commercial first-cycle bootstrap buys only in the building province', () =
     candidate.commercialTypeId === type.id && candidate.provinceId === alabama
   ));
   assert.equal(group.status, 'running');
+  assert.equal(group.autoOperationBootstrapPending, undefined);
   assert.equal(inventoryForProvince(player, 'prepared-meal', california).available, 100);
   assert.equal(Number(californiaMealMarket.todayBuyQuantity || 0), californiaBuyBefore);
   assert.ok(Number(alabamaMealMarket.todayBuyQuantity || 0) > alabamaBuyBefore);
