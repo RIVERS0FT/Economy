@@ -64,8 +64,27 @@ test('transport forecasts explain non-cash gains without resizing the card and f
       }));
       expect(measurements.pageWidth).toBeLessThanOrEqual(measurements.viewport + 1);
       expect(measurements.contentWidth).toBeLessThanOrEqual(measurements.width + 1);
-      await expect(draft.locator('[data-transport-mode-option="air"]')).toContainText('周期总费用');
-      await expect(draft.locator('[data-transport-mode-option="rail"]')).toContainText('预计周期耗时');
+      await expect(draft.locator('[data-transport-mode-option="air"]')).toContainText('每趟运费');
+      await expect(draft.locator('[data-transport-mode-option="rail"]')).toContainText('预计每趟耗时');
     }).toPass({ timeout: 10_000 });
   }
+});
+
+
+test('fuel uses commodity artwork and an underlined explanation without expanding draft cards', async ({ page }) => {
+  const draft = await openTransportDraft(page);
+  await expect(draft.getByText('一次性建线费', { exact: true })).toHaveCount(1);
+  await expect(draft).not.toContainText('建线投入');
+  await expect(draft).not.toContainText('周期');
+  const road = draft.locator('[data-transport-mode-option="road"]');
+  await expect(road.locator('[data-product-artwork="industrial-fuel"]')).toBeVisible();
+  const quantity = Number(await road.locator('[data-transport-fuel-quantity]').getAttribute('data-transport-fuel-quantity'));
+  expect(Number.isSafeInteger(quantity)).toBe(true);
+  expect(quantity).toBeGreaterThan(0);
+  await road.scrollIntoViewIfNeeded();
+  const before = await road.boundingBox();
+  await road.locator('[data-game-concept="transport-fuel"]').hover();
+  await expect(page.getByRole('tooltip').filter({ hasText: '整趟只向上取整一次' })).toBeVisible();
+  const after = await road.boundingBox();
+  expect(Math.abs(after!.height - before!.height)).toBeLessThanOrEqual(1);
 });

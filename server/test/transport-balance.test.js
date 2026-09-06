@@ -20,6 +20,7 @@ function fixture(mode = 'road') {
   world.transportShipments = [];
   const player = ensurePlayer(world, user, now);
   player.credits = 100000;
+  inventoryForProvince(player, 'industrial-fuel', '110000').available = 10000;
   const created = applyCreateTransportRoute(world, user, {
     sourceProvinceId: '110000', destinationProvinceId: '130000', mode,
   }, now);
@@ -34,7 +35,7 @@ function service(world, shipment, unload = [], load = []) {
 }
 
 for (const [mode, capacity, rate, seconds] of [
-  ['road', 200, 0.02, 70], ['rail', 2000, 0.03, 135], ['air', 300, 0.30, 30],
+  ['road', 200, 0.015, 70], ['rail', 2000, 0.02, 135], ['air', 300, 0.22, 30],
 ]) {
   test(`${mode} uses the approved capacity, distance-only fees and per-leg startup time`, () => {
     const { world, player, route } = fixture(mode);
@@ -47,6 +48,9 @@ for (const [mode, capacity, rate, seconds] of [
     assert.equal(applyStartTransportCycle(world, user, { routeId: route.id, load: [] }, now + 1).ok, true);
     const shipment = world.transportShipments[0];
     assert.equal(player.credits, round(before - cycle.totalCost));
+    assert.equal(cycle.fuelPurchased, Math.ceil(cycle.distanceKm * TRANSPORT_MODES[mode].fuelPerKm));
+    assert.equal(cycle.fuelCost, 0);
+    assert.equal(inventoryForProvince(player, 'industrial-fuel', '110000').available, 10000 - cycle.fuelPurchased);
     assert.deepEqual(shipment.policySnapshot, createTransportCyclePolicy(mode));
     assert.equal(shipment.arrivesAt - shipment.departsAt, transportPolicyDurationMs(shipment.policySnapshot, shipment.currentLeg.distanceKm));
     processTransportWorld(world, shipment.arrivesAt + 1);
@@ -182,4 +186,100 @@ test('insufficient money and unavailable or overflowing cargo reject without par
   assert.equal(player.credits, 0);
   assert.equal(world.transportShipments.length, 0);
   assert.equal(isTransportCyclePolicy({ ...createTransportCyclePolicy('road'), capacity: -1 }), false);
+});
+
+
+test('missing commodity fuel and joint fuel-cargo shortages reject before any asset mutation', () => {
+  const { world, player, route } = fixture();
+  const fuel = inventoryForProvince(player, 'industrial-fuel', route.sourceProvinceId);
+  const required = transportCycleCost(route).fuelPurchased;
+  fuel.available = required - 1;
+  fuel.frozen = 10000;
+  fuel.inTransit = 10000;
+  const before = JSON.stringify(player);
+  assert.equal(applyStartTransportCycle(world, user, { routeId: route.id, load: [] }, now).ok, false);
+  assert.equal(JSON.stringify(player), before);
+  assert.equal(world.transportShipments.length, 0);
+  fuel.available = required + 2;
+  const beforeJoint = JSON.stringify(player);
+  assert.equal(applyStartTransportCycle(world, user, {
+    routeId: route.id, load: [{ productId: 'industrial-fuel', quantity: 3 }],
+  }, now).ok, false);
+  assert.equal(JSON.stringify(player), beforeJoint);
+  const credits = player.credits;
+  assert.equal(applyStartTransportCycle(world, user, {
+    routeId: route.id, load: [{ productId: 'industrial-fuel', quantity: 2 }],
+  }, now).ok, true);
+  assert.equal(fuel.available, 0);
+  assert.equal(fuel.frozen, 10000);
+  assert.equal(fuel.inTransit, 10002);
+  assert.equal(player.credits, round(credits - transportCycleCost(route).transportFee));
+  const paidState = JSON.stringify(player);
+  assert.equal(applyStartTransportCycle(world, user, { routeId: route.id, load: [] }, now + 1).ok, false);
+  assert.equal(JSON.stringify(player), paidState);
+});
+
+test('intermediate partial swapping records actual visits and rejects missing or stale node generations', () => {
+  const { world, player, route } = fixture();
+  // Three saved stops produce five distinct visits including the return.
+  route.viaProvinceIds = ['120000'];
+  inventoryForProvince(player, 'wheat', '110000').available = 100;
+  inventoryForProvince(player, 'ore', '120000').available = 30;
+  assert.equal(applyStartTransportCycle(world, user, { routeId: route.id, load: [{ productId: 'wheat', quantity: 100 }] }, now).ok, true);
+  const shipment = world.transportShipments[0];
+  const paidFuel = inventoryForProvince(player, 'industrial-fuel', '110000').available;
+  const paidCredits = player.credits;
+  processTransportWorld(world, shipment.arrivesAt + 1);
+  const request = { routeId: route.id, cycleId: shipment.id, visitIndex: 1,
+    unload: [{ productId: 'wheat', quantity: 30 }], load: [{ productId: 'ore', quantity: 30 }] };
+  const before = JSON.stringify(player);
+  assert.equal(applyServiceTransportNode(world, user, { ...request, cycleId: undefined }, shipment.arrivesAt + 2).ok, false);
+  assert.equal(JSON.stringify(player), before);
+  assert.equal(applyServiceTransportNode(world, user, request, shipment.arrivesAt + 2).ok, true);
+  const after = JSON.stringify(player);
+  assert.equal(applyServiceTransportNode(world, user, request, shipment.arrivesAt + 2).ok, false);
+  assert.equal(JSON.stringify(player), after);
+  assert.equal(shipment.nodeHistory[1].visitIndex, 1);
+  assert.deepEqual(shipment.nodeHistory[1].unload, request.unload);
+  const projection = transportShipmentClientState(world, user.id)[0];
+  assert.equal(projection.manifest.some((entry) => Object.hasOwn(entry, 'destinationProvinceId')), false);
+  projection.nodeHistory[1].load[0].quantity = 999;
+  assert.equal(shipment.nodeHistory[1].load[0].quantity, 30);
+  assert.equal(player.credits, paidCredits);
+  assert.equal(inventoryForProvince(player, 'industrial-fuel', '110000').available, paidFuel);
+  processTransportWorld(world, shipment.arrivesAt + 1);
+  assert.equal(service(world, shipment, [{ productId: 'wheat', quantity: 70 }, { productId: 'ore', quantity: 30 }]).ok, true);
+  processTransportWorld(world, shipment.arrivesAt + 1);
+  assert.equal(shipment.currentVisitIndex, 3);
+  assert.equal(service(world, shipment, [], [{ productId: 'wheat', quantity: 30 }]).ok, true);
+  assert.equal(shipment.nodeHistory.at(-1).visitIndex, 3);
+  processTransportWorld(world, shipment.arrivesAt + 1);
+  assert.equal(service(world, shipment, [{ productId: 'wheat', quantity: 30 }]).ok, true);
+  assert.equal(player.credits, paidCredits);
+  assert.equal(inventoryForProvince(player, 'industrial-fuel', '110000').available, paidFuel);
+});
+
+test('version-two prepaid cash fuel snapshots never backcharge inventory on subsequent visits', () => {
+  const { world, player, route } = fixture();
+  assert.equal(applyStartTransportCycle(world, user, { routeId: route.id, load: [] }, now).ok, true);
+  const shipment = world.transportShipments[0];
+  shipment.policySnapshot = { ...createTransportCyclePolicy('road'), version: 2, fuelUnitPrice: 1 };
+  delete shipment.policySnapshot.fuelProductId;
+  shipment.fuelPurchased = 2.345678;
+  shipment.fuelCost = 2.345678;
+  shipment.fuelConsumed = 0.5;
+  shipment.cost = 10.345678;
+  const fuel = inventoryForProvince(player, 'industrial-fuel', '110000');
+  const stock = fuel.available;
+  const credits = player.credits;
+  migrateTransportWorld(world);
+  processTransportWorld(world, shipment.arrivesAt + 1);
+  assert.equal(service(world, shipment).ok, true);
+  processTransportWorld(world, shipment.arrivesAt + 1);
+  assert.equal(service(world, shipment).ok, true);
+  assert.equal(fuel.available, stock);
+  assert.equal(player.credits, credits);
+  assert.equal(shipment.fuelCost, 2.345678);
+  assert.equal(shipment.cost, 10.345678);
+  assert.equal(shipment.policySnapshot.version, 2);
 });

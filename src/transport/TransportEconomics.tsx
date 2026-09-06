@@ -1,47 +1,55 @@
 import type { ReactNode } from 'react';
-import { TRANSPORT_COST_MARGIN, TRANSPORT_MIN_NET_GAIN, transportCyclePolicyForShipment } from '../../shared/transport-policy.js';
+import { TRANSPORT_COST_MARGIN, TRANSPORT_FUEL_PRODUCT_ID, TRANSPORT_MIN_NET_GAIN, transportCyclePolicyForShipment } from '../../shared/transport-policy.js';
+import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CompactNumber } from '../components/ui/CompactNumber';
+import { GameConcept } from '../components/ui/GameConcept';
 import { SafeTooltip } from '../components/ui/SafeTooltip';
 import { Button, StatusTag } from '../components/ui/layout';
 import type { EconomyState, ProvinceDefinition, TransportModeId, TransportShipment } from '../types';
 import { formatCurrency } from '../utils/formatters';
-import {
-  formatTransportDuration,
-  TRANSPORT_MODES,
-  transportRouteSetupCost,
-} from '../utils/provinceLogistics';
+import { formatTransportDuration, TRANSPORT_MODES, transportRouteSetupCost } from '../utils/provinceLogistics';
 import { estimateTransportRoute, type TransportPlanningRoute, type TransportRouteEstimate } from './transportPlanning.js';
 import { TRANSPORT_WAITING_LABELS } from './transportPlanner.js';
 
-export function TransportGainExplanation({ children = '下一周期预计增益' }: { children?: ReactNode }) {
+export function TransportGainExplanation({ children = '下一趟预计增益' }: { children?: ReactNode }) {
   return (
-    <SafeTooltip
-      className="game-concept-anchor"
-      anchorRole="term"
-      anchorTabIndex={0}
-      content={(
-        <span className="game-concept-tooltip">
-          <strong>相对本地卖出的运输增益</strong>
-          <span>按当前真实可用库存和今日官方价估计，扣除卖出手续费差额及整周期运输费用。不是已实现现金利润，不包含未来产量，也不代表买入后转售利润。到站不会自动出售。</span>
-          <span>新周期要求预计增益至少达到 {formatCurrency(TRANSPORT_MIN_NET_GAIN)} 与周期费用 {TRANSPORT_COST_MARGIN * 100}% 中的较高者；预计跨日调价时等待新报价。已付费周期继续完成，不会逐站重复收费。</span>
-        </span>
-      )}
-    >
+    <SafeTooltip className="game-concept-anchor" anchorRole="term" anchorTabIndex={0} content={(
+      <span className="game-concept-tooltip">
+        <strong>相对本地卖出的运输增益</strong>
+        <span>按真实可用库存和今日官方价估计，扣除卖出手续费差额、本趟运费，以及燃料在起点的可售净值。燃料估值不再扣钱；到站不自动出售，也不计入未来产量。</span>
+        <span>新的一趟要求预计增益至少达到 {formatCurrency(TRANSPORT_MIN_NET_GAIN)} 与运费及燃料估值合计的 {TRANSPORT_COST_MARGIN * 100}% 中的较高者。预计跨日调价时等待新报价；已付款的一趟不重复收费。</span>
+      </span>
+    )}>
       <span className="game-concept-text" data-transport-gain-explanation="true">{children}</span>
     </SafeTooltip>
   );
+}
+
+export function TransportFuel({ quantity }: { quantity: number }) {
+  return (
+    <span className="transport-fuel" data-transport-fuel-quantity={quantity}>
+      <ProductArtwork productId={TRANSPORT_FUEL_PRODUCT_ID} />
+      <span>燃料 ×<CompactNumber value={quantity} /></span>
+    </span>
+  );
+}
+
+export function transportWaitingLabel(estimate: TransportRouteEstimate) {
+  return estimate.reason === 'insufficient-fuel'
+    ? `燃料不足：需要 ${estimate.fuelRequired}，可用 ${estimate.fuelAvailable}`
+    : TRANSPORT_WAITING_LABELS[estimate.reason];
 }
 
 export function TransportForecast({ estimate }: { estimate: TransportRouteEstimate }) {
   return (
     <div className="transport-forecast" data-transport-waiting-reason={estimate.reason}>
       <div className="transport-route-summary-grid">
-        <span><small><TransportGainExplanation /></small><strong data-transport-net-gain="true">{estimate.netGain === null ? '待行情同步' : formatCurrency(estimate.netGain)}</strong></span>
-        <span><small>发车安全余量</small><strong>{formatCurrency(estimate.threshold)}</strong></span>
-        <span><small>预计运输数量</small><strong><CompactNumber value={estimate.transportedQuantity} /></strong></span>
-        <span><small>预计周期耗时</small><strong>{formatTransportDuration(estimate.durationMs)}</strong></span>
+        <span><small><TransportGainExplanation /></small><strong data-transport-net-gain="true">{estimate.netGain === null ? '待条件满足' : formatCurrency(estimate.netGain)}</strong></span>
+        <span><small><GameConcept concept="transport-trip">预计每趟耗时</GameConcept></small><strong>{formatTransportDuration(estimate.durationMs)}</strong></span>
+        <span><small>每趟运费</small><strong>{formatCurrency(estimate.transportFee)}</strong></span>
+        <span><small><GameConcept concept="transport-fuel">每趟燃料</GameConcept></small><strong><TransportFuel quantity={estimate.fuelPurchased} /></strong></span>
       </div>
-      <StatusTag tone={estimate.reason === 'ready' ? 'info' : 'neutral'}>{TRANSPORT_WAITING_LABELS[estimate.reason]}</StatusTag>
+      <StatusTag tone={estimate.reason === 'ready' ? 'info' : 'neutral'}>{transportWaitingLabel(estimate)}</StatusTag>
     </div>
   );
 }
@@ -78,7 +86,7 @@ export function TransportModeComparison({ game, route, now, provinceById, disabl
         const setupCost = transportRouteSetupCost(candidate, mode, provinceById);
         const creditsAfterSetup = Math.max(0, Math.round((game.credits - setupCost) * 1_000_000) / 1_000_000);
         const estimate = estimateTransportRoute({ ...game, credits: creditsAfterSetup }, candidate, now, provinceById);
-        const waitingLabel = game.credits < setupCost ? '建线资金不足' : TRANSPORT_WAITING_LABELS[estimate.reason];
+        const waitingLabel = game.credits < setupCost ? '建线资金不足' : transportWaitingLabel(estimate);
         const selected = mode === route.mode;
         return (
           <div className="transport-mode-option" key={mode} data-transport-mode-option={mode} data-selected={selected}>
@@ -86,11 +94,11 @@ export function TransportModeComparison({ game, route, now, provinceById, disabl
               {TRANSPORT_MODES[mode].name}
             </Button>
             <div className="transport-route-summary-grid">
-              <span><small>一次性建线费</small><strong>{formatCurrency(setupCost)}</strong></span>
-              <span><small>周期总费用</small><strong>{formatCurrency(estimate.totalCost)}</strong></span>
+              <span><small>每趟运费</small><strong>{formatCurrency(estimate.transportFee)}</strong></span>
+              <span><small><GameConcept concept="transport-fuel">每趟燃料</GameConcept></small><strong><TransportFuel quantity={estimate.fuelPurchased} /></strong></span>
               <span><small>最大载荷</small><strong data-transport-mode-capacity={estimate.capacity}><CompactNumber value={estimate.capacity} /></strong></span>
-              <span><small>预计周期耗时</small><strong>{formatTransportDuration(estimate.durationMs)}</strong></span>
-              <span><small><TransportGainExplanation>预计运输增益</TransportGainExplanation></small><strong>{estimate.netGain === null ? '待行情同步' : formatCurrency(estimate.netGain)}</strong></span>
+              <span><small>预计每趟耗时</small><strong>{formatTransportDuration(estimate.durationMs)}</strong></span>
+              <span><small><TransportGainExplanation>预计运输增益</TransportGainExplanation></small><strong>{estimate.netGain === null ? '待条件满足' : formatCurrency(estimate.netGain)}</strong></span>
             </div>
             <StatusTag tone={estimate.reason === 'ready' ? 'info' : 'neutral'}>{waitingLabel}</StatusTag>
           </div>

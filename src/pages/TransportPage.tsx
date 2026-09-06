@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
+import { transportCyclePolicyForShipment } from '../../shared/transport-policy.js';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { ChevronIcon } from '../components/icons/GameIcons';
 import { useTransportRouteDraft } from '../components/shell/TransportRouteDraftContext';
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { TextInput } from '../components/ui/FormControls';
+import { GameConcept } from '../components/ui/GameConcept';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { Button, PageLayout, StatusTag, WidgetHeading } from '../components/ui/layout';
-import { useNow } from '../hooks/useNow';
 import type { TransportModeId, TransportRoute, TransportShipment, TransportTripType } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { estimateTransportRoute } from '../transport/transportPlanning.js';
-import { TRANSPORT_WAITING_LABELS } from '../transport/transportPlanner.js';
-import { TransportForecast, TransportLoad, TransportModeComparison } from '../transport/TransportEconomics';
+import { TransportForecast, TransportFuel, TransportLoad, TransportModeComparison, transportWaitingLabel } from '../transport/TransportEconomics';
+import { TransportShipmentProgress } from '../transport/TransportShipmentProgress';
+import { useTransportForecastNow } from '../transport/useTransportForecastNow';
 import {
-  formatTransportDuration,
   isTransportRouteClosed,
   TRANSPORT_DEFAULT_TRIP_TYPE,
   TRANSPORT_MAX_ROUTES_PER_PLAYER,
@@ -24,7 +25,7 @@ import {
 } from '../utils/provinceLogistics';
 
 type TransportRouteView = TransportRoute & { setupCost?: number };
-type ManifestEntry = { productId: string; destinationProvinceId: string; quantity: number };
+type ManifestEntry = { productId: string; destinationProvinceId?: string; quantity: number };
 type LegPlanEntry = {
   fromProvinceId: string;
   toProvinceId: string;
@@ -53,15 +54,14 @@ function shipmentManifest(shipment: TransportShipmentView): ManifestEntry[] {
   return Array.isArray(shipment.manifest) ? shipment.manifest : [];
 }
 
-function routeRuntimeLabel(shipment: TransportShipmentView | undefined, waitingReason: keyof typeof TRANSPORT_WAITING_LABELS) {
-  if (!shipment) return TRANSPORT_WAITING_LABELS[waitingReason];
+function routeRuntimeLabel(shipment: TransportShipmentView | undefined, waitingLabel: string) {
+  if (!shipment) return waitingLabel;
   return shipment.status === 'docked' ? '节点装卸' : '运输中';
 }
 
 export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const { game } = model;
   const pageNavigation = usePlayerPageNavigation();
-  const now = useNow(game.lastProcessedAt, 1_000);
   const routes = (Array.isArray(game.transportRoutes) ? game.transportRoutes : []) as TransportRouteView[];
   const shipments = (Array.isArray(game.transportShipments) ? game.transportShipments : []) as TransportShipmentView[];
   const {
@@ -74,6 +74,8 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   } = useTransportRouteDraft();
   const [pendingAction, setPendingAction] = useState('');
   const [routeNameDraft, setRouteNameDraft] = useState('');
+  const [editingName, setEditingName] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const provinceById = useMemo(() => new Map(game.provinces.map((province) => [province.id, province])), [game.provinces]);
   const productById = useMemo(() => new Map(game.products.map((product) => [product.id, product])), [game.products]);
@@ -83,6 +85,10 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       .map((shipment) => [String(shipment.routeId), shipment]),
   ), [shipments]);
 
+  const planningRoutes = useMemo(() => routeDraft
+    ? [...routes, ...(['road', 'rail', 'air'] as TransportModeId[]).map((mode) => ({ ...routeDraft, mode }))]
+    : routes, [game.transportRoutes, routeDraft]);
+  const now = useTransportForecastNow(game, planningRoutes, provinceById);
   const routeEstimates = useMemo(() => new Map(routes.map((route) => [
     route.id, estimateTransportRoute(game, route, now, provinceById),
   ])), [game, now, provinceById]);
@@ -102,30 +108,20 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   }
 
   function cycleCostFor(route: TransportRouteView) {
-    if (
-      Number.isFinite(Number(route.cycleDistanceKm))
-      && Number.isFinite(Number(route.cycleTransportFee))
-      && Number.isFinite(Number(route.cycleFuelCost))
-      && Number.isFinite(Number(route.cycleCost))
-    ) {
+    if (Number.isFinite(route.cycleDistanceKm) && Number.isFinite(route.cycleTransportFee)
+      && Number.isSafeInteger(route.cycleFuelQuantity)) {
       return {
-        distanceKm: Number(route.cycleDistanceKm),
-        transportFee: Number(route.cycleTransportFee),
-        fuelCost: Number(route.cycleFuelCost),
-        totalCost: Number(route.cycleCost),
+        distanceKm: Number(route.cycleDistanceKm), transportFee: Number(route.cycleTransportFee),
+        fuelPurchased: Number(route.cycleFuelQuantity),
       };
     }
-    const calculated = transportCycleCost(route, route.mode, provinceById);
-    return {
-      distanceKm: calculated.distanceKm,
-      transportFee: calculated.transportFee,
-      fuelCost: calculated.fuelCost,
-      totalCost: calculated.totalCost,
-    };
+    return transportCycleCost(route, route.mode, provinceById);
   }
 
   useEffect(() => {
     setRouteNameDraft(detailRoute ? visibleRouteName(detailRoute) : '');
+    setEditingName(false);
+    setConfirmingDelete(false);
   }, [detailRoute?.destinationProvinceId, detailRoute?.id, detailRoute?.name, detailRoute?.sourceProvinceId]);
 
   useEffect(() => {
@@ -191,12 +187,14 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       await model.showResult({ ok: false, message: '路线名称不能为空' });
       return;
     }
-    await runMutation(`route-rename:${route.id}`, () => model.renameTransportRoute(route.id, name));
+    const ok = await runMutation(`route-rename:${route.id}`, () => model.renameTransportRoute(route.id, name));
+    if (ok) setEditingName(false);
   }
 
   async function deleteRoute(route: TransportRouteView) {
     const ok = await runMutation(`route-delete:${route.id}`, () => model.deleteTransportRoute(route.id));
-    if (ok) {
+    setConfirmingDelete(false);
+    if (ok && !activeByRouteId.has(route.id)) {
       closeDraft();
       pageNavigation?.replacePage({ type: 'tab', tab: 'transport' });
     }
@@ -220,53 +218,75 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     const entries = shipmentManifest(shipment);
     if (entries.length === 0) return <span className="transport-empty">无车载货物</span>;
     return (
-      <ul className="transport-manifest-list">
+      <ul className="transport-manifest-list" data-delivered-history={shipment.status === 'arrived'}>
         {entries.map((entry, index) => (
           <li key={`${entry.productId}-${entry.destinationProvinceId}-${index}`}>
             <strong>{productById.get(entry.productId)?.name ?? entry.productId}</strong>
             <span>×<CompactNumber value={entry.quantity} /></span>
-            <span><ChevronIcon direction="right" />{provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId}</span>
+            {shipment.status === 'arrived' && entry.destinationProvinceId ? <span><ChevronIcon direction="right" />{provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId}</span> : null}
           </li>
         ))}
       </ul>
     );
   }
 
-  function shipmentProgress(shipment: TransportShipmentView) {
-    if (shipment.status === 'docked') {
-      const provinceId = shipment.currentProvinceId ?? shipment.stopPlan?.[0]?.provinceId;
-      const name = provinceId ? provinceById.get(provinceId)?.name ?? provinceId : '当前节点';
-      return `停靠 ${name} · 在线自动装卸`;
-    }
-    const nextStop = (shipment.stopPlan || [])[0];
-    const nextName = nextStop ? provinceById.get(nextStop.provinceId)?.name ?? nextStop.provinceId : '';
-    const remaining = formatTransportDuration(Math.max(0, shipment.arrivesAt - now));
-    return nextName ? `下一站 ${nextName} · 剩余 ${remaining}` : `剩余 ${remaining}`;
+  function shipmentFuel(shipment: TransportShipmentView) {
+    return transportCyclePolicyForShipment(shipment).fuelProductId
+      ? <TransportFuel quantity={Number(shipment.fuelPurchased || 0)} />
+      : <span>旧制燃料费 {formatCurrency(Number(shipment.fuelCost || 0))}</span>;
+  }
+
+  function nodeRecords(shipment: TransportShipmentView) {
+    if (!shipment.nodeHistory?.length) return manifestList(shipment);
+    return (
+      <ol className="transport-node-records">
+        {shipment.nodeHistory.map((visit, index) => (
+          <li key={`${visit.visitIndex}-${index}`}>
+            <strong>第 {visit.visitIndex + 1} 站 · {provinceById.get(visit.provinceId)?.name ?? visit.provinceId}</strong>
+            <span className="transport-node-time">{new Date(visit.servicedAt).toLocaleString()}</span>
+            {(['unload', 'load'] as const).map((kind) => visit[kind].length > 0 ? (
+              <span className="transport-node-cargo" key={kind}>
+                <small>{kind === 'unload' ? '卸货' : '装货'}</small>
+                {visit[kind].map((entry) => <span key={entry.productId}>{productById.get(entry.productId)?.name ?? entry.productId} ×<CompactNumber value={entry.quantity} /></span>)}
+              </span>
+            ) : null)}
+            {visit.unload.length === 0 && visit.load.length === 0 ? <span className="transport-empty">未装卸</span> : null}
+          </li>
+        ))}
+      </ol>
+    );
   }
 
   function shipmentCard(shipment: TransportShipmentView, active: boolean) {
-    const timestamp = active
-      ? shipment.arrivesAt
-      : Number(shipment.arrivedAt || shipment.arrivesAt);
+    const timestamp = active ? shipment.arrivesAt : Number(shipment.arrivedAt || shipment.arrivesAt);
+    if (!active) return (
+      <li className="transport-shipment-card" key={shipment.id} data-shipment-status={shipment.status}>
+        <details className="transport-history-details">
+          <summary>
+            <strong>{new Date(timestamp).toLocaleString()}</strong>
+            <span>运费 {formatCurrency(Number(shipment.transportFee ?? shipment.cost))}</span>
+            {shipmentFuel(shipment)}
+            <span>交货 <CompactNumber value={Number(shipment.deliveredQuantity || 0)} /></span>
+          </summary>
+          {nodeRecords(shipment)}
+        </details>
+      </li>
+    );
     return (
       <li className="transport-shipment-card" key={shipment.id} data-shipment-status={shipment.status}>
         <div className="transport-shipment-heading">
-          <strong>{active ? shipmentProgress(shipment) : '已完成'}</strong>
-          <StatusTag tone={active ? 'info' : 'neutral'}>{TRANSPORT_MODES[shipment.mode]?.name ?? shipment.mode}</StatusTag>
+          <strong><TransportShipmentProgress shipment={shipment} provinceById={provinceById} referenceNow={game.lastProcessedAt} /></strong>
+          <StatusTag tone="info">{shipment.status === 'docked' ? '节点装卸' : '运输中'}</StatusTag>
         </div>
-        {routePath(shipment)}
+        <TransportLoad shipment={shipment} />
         <div className="transport-shipment-meta">
-          <span><small>周期总费用</small><strong>{formatCurrency(shipment.cost)}</strong></span>
-          <span><small>运输费</small><strong>{formatCurrency(Number(shipment.transportFee || 0))}</strong></span>
-          <span><small>燃料费</small><strong>{formatCurrency(Number(shipment.fuelCost || 0))}</strong></span>
+          <span><small>本趟已付运费</small><strong>{formatCurrency(Number(shipment.transportFee ?? shipment.cost))}</strong></span>
+          <span><small><GameConcept concept="transport-fuel">本趟已扣燃料</GameConcept></small><strong>{shipmentFuel(shipment)}</strong></span>
           <span><small>已交货数量</small><strong><CompactNumber value={Number(shipment.deliveredQuantity || 0)} /></strong></span>
-          <span><small>{active ? shipment.status === 'docked' ? '停靠时间' : '预计到站' : '完成时间'}</small><strong>{new Date(timestamp).toLocaleString()}</strong></span>
+          <span><small>{shipment.status === 'docked' ? '停靠时间' : '预计到站'}</small><strong>{new Date(timestamp).toLocaleString()}</strong></span>
         </div>
-        {active ? <TransportLoad shipment={shipment} /> : null}
-        <div className="transport-shipment-cargo">
-          <small>{active ? '当前车载' : '周期运输记录'}</small>
-          {manifestList(shipment)}
-        </div>
+        <div className="transport-shipment-cargo"><small>当前车载</small>{manifestList(shipment)}</div>
+        {shipment.nodeHistory?.length ? <details className="transport-history-details"><summary>本趟装卸记录</summary>{nodeRecords(shipment)}</details> : null}
       </li>
     );
   }
@@ -321,52 +341,43 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         <div className="transport-page-content" data-transport-route-detail={detailRoute.id}>
           <section className="transport-page-section transport-route-detail-panel">
             <WidgetHeading
-              title="路线设置"
-              action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{routeRuntimeLabel(activeShipment ?? undefined, detailEstimate.reason)}</StatusTag>}
+              title="路线概览"
+              action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{detailRoute.deletionPending ? '本趟完成后删除' : routeRuntimeLabel(activeShipment ?? undefined, transportWaitingLabel(detailEstimate))}</StatusTag>}
             />
-            <div className="transport-route-name-editor">
-              <TextInput
-                label="路线名称"
-                value={routeNameDraft}
-                maxLength={40}
-                disabled={Boolean(pendingAction)}
-                onChange={(event) => setRouteNameDraft(event.target.value)}
-              />
-              <Button
-                variant="secondary"
-                disabled={Boolean(pendingAction) || !routeNameDraft.trim() || routeNameDraft.trim() === visibleRouteName(detailRoute)}
-                onClick={() => void renameRoute(detailRoute)}
-              >
-                保存名称
-              </Button>
-            </div>
+            {editingName ? (
+              <div className="transport-route-name-editor">
+                <TextInput label="路线名称" value={routeNameDraft} maxLength={40} disabled={Boolean(pendingAction)} onChange={(event) => setRouteNameDraft(event.target.value)} />
+                <Button variant="secondary" disabled={Boolean(pendingAction) || !routeNameDraft.trim() || routeNameDraft.trim() === visibleRouteName(detailRoute)} onClick={() => void renameRoute(detailRoute)}>保存名称</Button>
+                <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={() => setEditingName(false)}>取消</Button>
+              </div>
+            ) : null}
             {routePath(detailRoute)}
             <div className="transport-route-summary-grid">
-              <span><small>行程</small><strong>{routeTripLabel(detailRoute)}</strong></span>
+              <span><small><GameConcept concept="transport-trip">行程</GameConcept></small><strong>{routeTripLabel(detailRoute)}</strong></span>
               <span><small>运输方式</small><strong>{routeMode?.name ?? detailRoute.mode}</strong></span>
-              <span><small>新周期最大载荷</small><strong><CompactNumber value={routeMode?.capacity ?? 0} /></strong></span>
-              <span><small>站点</small><strong>{transportRouteStopIds(detailRoute).length}</strong></span>
-              <span><small>周期距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
-              <span><small>周期运输费</small><strong>{formatCurrency(cycleCost.transportFee)}</strong></span>
-              <span><small>周期燃料费</small><strong>{formatCurrency(cycleCost.fuelCost)}</strong></span>
-              <span><small>周期总费用</small><strong>{formatCurrency(cycleCost.totalCost)}</strong></span>
-              <span><small>建线投入</small><strong>{formatCurrency(Number(detailRoute.setupCost || 0))}</strong></span>
+              <span><small>最大载荷</small><strong><CompactNumber value={activeShipment ? transportCyclePolicyForShipment(activeShipment).capacity : routeMode?.capacity ?? 0} /></strong></span>
+              <span><small><GameConcept concept="transport-distance" /></small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
             </div>
-            <TransportForecast estimate={detailEstimate} />
-            <p className="transport-route-auto-note">起终点相同时按环线运行；起终点不同时按保存路径到达终点后沿原路返回。运输费和整周期燃料费都只按完整周期距离计算，并只在从起点启动新周期时一次性扣除。</p>
-            <p className="transport-route-auto-note">在线客户端在每个停靠节点根据最新库存和州级行情自动决定装卸；服务器只校验真实库存、车辆容量、节点位置和资产守恒。客户端离线时车辆最多到达当前下一节点，并停靠等待重新上线。</p>
-            <p className="transport-route-auto-note">路线创建后不可修改路径或运输方式；需要调整时请删除后重新建立并再次支付建线费。</p>
+            <div className="transport-route-rules">
+              <GameConcept concept="transport-node-service" />
+              <GameConcept concept="transport-online" />
+              <GameConcept concept="transport-route-maintenance" />
+            </div>
             <div className="transport-route-editor-actions">
-              <Button variant="danger" disabled={Boolean(pendingAction) || Boolean(activeShipment)} onClick={() => void deleteRoute(detailRoute)}>删除路线</Button>
+              {!editingName ? <Button variant="secondary" disabled={Boolean(pendingAction) || detailRoute.deletionPending} onClick={() => setEditingName(true)}>重命名</Button> : null}
+              {confirmingDelete ? <>
+                <Button variant="danger" disabled={Boolean(pendingAction)} onClick={() => void deleteRoute(detailRoute)}>{activeShipment ? '确认本趟完成后删除' : '确认删除路线'}</Button>
+                <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={() => setConfirmingDelete(false)}>取消</Button>
+              </> : <Button variant="danger" disabled={Boolean(pendingAction) || detailRoute.deletionPending} onClick={() => setConfirmingDelete(true)}>{activeShipment ? '本趟完成后删除' : '删除路线'}</Button>}
             </div>
           </section>
 
           <section className="transport-page-section transport-route-current-panel">
-            <WidgetHeading title="运输结算" />
+            <WidgetHeading title="本趟运输" />
             {activeShipment ? (
               <ul className="transport-shipment-list">{shipmentCard(activeShipment, true)}</ul>
             ) : (
-              <p className="transport-empty">当前没有运行中的运输周期；在线客户端仅在完整周期预计增益达到安全余量后启动。</p>
+              <TransportForecast estimate={detailEstimate} />
             )}
           </section>
 
@@ -395,7 +406,6 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               <div className="transport-route-grid">
                 {routes.map((route) => {
                   const activeShipment = activeByRouteId.get(route.id);
-                  const stops = transportRouteStopIds(route);
                   const cycleCost = cycleCostFor(route);
                   const estimate = routeEstimates.get(route.id) ?? estimateTransportRoute(game, route, now, provinceById);
                   return (
@@ -413,18 +423,15 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                     >
                       <div className="transport-route-card-heading">
                         <strong>{visibleRouteName(route)}</strong>
-                        <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{routeRuntimeLabel(activeShipment, estimate.reason)}</StatusTag>
+                        <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{route.deletionPending ? '本趟完成后删除' : routeRuntimeLabel(activeShipment, transportWaitingLabel(estimate))}</StatusTag>
                       </div>
+                      <span className="transport-route-mode">{TRANSPORT_MODES[route.mode]?.name ?? route.mode} · {routeTripLabel(route)}</span>
                       {routePath(route)}
                       <div className="transport-route-summary-grid">
-                        <span><small>方式</small><strong>{TRANSPORT_MODES[route.mode]?.name ?? route.mode}</strong></span>
-                        <span><small>行程</small><strong>{routeTripLabel(route)}</strong></span>
-                        <span><small>周期距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
-                        <span><small>周期费用</small><strong>{formatCurrency(cycleCost.totalCost)}</strong></span>
-                        <span><small>建线投入</small><strong>{formatCurrency(Number(route.setupCost || 0))}</strong></span>
-                        <span><small>下一周期预计增益</small><strong>{estimate.netGain === null ? '待行情同步' : formatCurrency(estimate.netGain)}</strong></span>
+                        <span><small>全线距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
+                        <span><small>下一趟预计增益</small><strong>{estimate.netGain === null ? '待条件满足' : formatCurrency(estimate.netGain)}</strong></span>
                       </div>
-                      {activeShipment ? <><TransportLoad shipment={activeShipment} /><span className="transport-route-next-stop">{shipmentProgress(activeShipment)}</span></> : null}
+                      {activeShipment ? <><span className="transport-route-next-stop"><TransportShipmentProgress shipment={activeShipment} provinceById={provinceById} referenceNow={game.lastProcessedAt} /></span><TransportLoad shipment={activeShipment} /></> : null}
                     </button>
                   );
                 })}

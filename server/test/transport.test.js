@@ -25,6 +25,7 @@ function unlockedPlayer(world, user, credits = 100_000) {
   player.startingProvinceChosen = true;
   player.startingProvinceId = '110000';
   player.unlockedProvinces = ['110000', '130000', '120000'];
+  inventoryForProvince(player, 'industrial-fuel', '110000').available = 10000;
   return player;
 }
 
@@ -105,7 +106,7 @@ test('cycle transport fee and fuel depend only on full-cycle distance', () => {
   );
   assert.equal(
     cost.fuelPurchased,
-    Math.round(distanceKm * TRANSPORT_MODES.road.fuelPerKm * 1_000_000) / 1_000_000,
+    Math.ceil(distanceKm * TRANSPORT_MODES.road.fuelPerKm),
   );
   assert.equal(Number((cost.transportFee + cost.fuelCost).toFixed(6)), Number(cost.totalCost.toFixed(6)));
   assert.equal(Object.hasOwn(TRANSPORT_MODES.road, 'unitCostPerKm'), false);
@@ -134,6 +135,8 @@ test('cycle start pays full transport and fuel cost once and starts only the fir
   assert.equal(shipment.fuelCost, expectedCost.fuelCost);
   assert.equal(shipment.cost, expectedCost.totalCost);
   assert.equal(shipment.fuelPurchased, expectedCost.fuelPurchased);
+  assert.equal(shipment.fuelCost, 0);
+  assert.equal(inventoryForProvince(player, 'industrial-fuel', '110000').available, 10000 - expectedCost.fuelPurchased);
   assert.equal(player.credits, creditsBeforeCycle - expectedCost.totalCost);
   assert.equal(inventoryForProvince(player, 'wheat', '110000').available, 30);
   assert.equal(inventoryForProvince(player, 'wheat', '110000').inTransit, 50);
@@ -254,26 +257,32 @@ test('node service rejects invalid capacity before changing assets', () => {
   assert.equal(inventoryForProvince(player, 'ore', '130000').available, availableBefore);
 });
 
-test('route deletion is blocked while a cycle is docked or in transit and allowed after return', () => {
+test('route deletion waits for the paid trip to return and unload without allowing another start', () => {
   const world = createWorld(now);
   const player = unlockedPlayer(world, bob);
+  inventoryForProvince(player, 'wheat', '110000').available = 10;
   assert.equal(createRoute(world, bob).ok, true);
   const routeId = player.transportRoutes[0].id;
-  assert.equal(startCycle(world, bob, routeId, []).ok, true);
+  assert.equal(startCycle(world, bob, routeId, [{ productId: 'wheat', quantity: 10 }]).ok, true);
   const shipment = world.transportShipments[0];
-
-  const blockedInTransit = applyAction(world, bob, 'transportShip', { operation: 'route-delete', routeId }, now + 3);
-  assert.equal(blockedInTransit.ok, false);
+  const paidCredits = player.credits;
+  const requested = applyAction(world, bob, 'transportShip', { operation: 'route-delete', routeId }, now + 3);
+  assert.equal(requested.ok, true);
+  assert.equal(player.transportRoutes[0].deletionPending, true);
+  assert.equal(startCycle(world, bob, routeId, []).ok, false);
   processTransportWorld(world, shipment.arrivesAt + 1);
-  const blockedDocked = applyAction(world, bob, 'transportShip', { operation: 'route-delete', routeId }, shipment.arrivesAt + 2);
-  assert.equal(blockedDocked.ok, false);
-
-  assert.equal(serviceNode(world, bob, shipment, [], [], shipment.arrivesAt + 3).ok, true);
-  processTransportWorld(world, shipment.arrivesAt + 1);
+  assert.equal(player.transportRoutes[0].deletionPending, true);
   assert.equal(serviceNode(world, bob, shipment, [], [], shipment.arrivesAt + 2).ok, true);
+  assert.equal(player.transportRoutes.length, 1);
+  processTransportWorld(world, shipment.arrivesAt + 1);
+  const stockBefore = inventoryForProvince(player, 'wheat', '110000').available;
+  assert.equal(serviceNode(world, bob, shipment, [{ productId: 'wheat', quantity: 5 }], [], shipment.arrivesAt + 2).ok, false);
+  assert.equal(inventoryForProvince(player, 'wheat', '110000').available, stockBefore);
+  assert.equal(serviceNode(world, bob, shipment, [{ productId: 'wheat', quantity: 10 }], [], shipment.arrivesAt + 3).ok, true);
   assert.equal(shipment.status, 'arrived');
-  const deleted = applyAction(world, bob, 'transportShip', { operation: 'route-delete', routeId }, shipment.arrivesAt + 3);
-  assert.equal(deleted.ok, true);
+  assert.equal(inventoryForProvince(player, 'wheat', '110000').available, 10);
+  assert.equal(inventoryForProvince(player, 'wheat', '110000').inTransit, 0);
+  assert.equal(player.credits, paidCredits);
   assert.deepEqual(player.transportRoutes, []);
 });
 

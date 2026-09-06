@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import {
   TRANSPORT_BASE_SECONDS_PER_KM,
   TRANSPORT_FUEL_UNIT_PRICE,
+  TRANSPORT_FUEL_PRODUCT_ID,
+  transportFuelQuantity,
   TRANSPORT_MODE_POLICY,
   createTransportCyclePolicy,
   transportCyclePolicyForShipment,
@@ -108,14 +110,15 @@ export function transportCycleCost(route, mode = route?.mode) {
   if (!definition) return null;
   const distanceKm = transportCycleDistanceKm(route);
   const transportFee = roundInternalMoney(distanceKm * definition.transportFeePerKm) || 0;
-  const fuelPurchased = roundFuel(distanceKm * definition.fuelPerKm);
-  const fuelCost = roundInternalMoney(fuelPurchased * TRANSPORT_FUEL_UNIT_PRICE) || 0;
+  const fuelPurchased = transportFuelQuantity(distanceKm, definition.fuelPerKm);
+  const fuelCost = 0;
   return {
     distanceKm,
     transportFee,
     fuelPurchased,
     fuelCost,
-    totalCost: roundInternalMoney(transportFee + fuelCost) || 0,
+    fuelProductId: TRANSPORT_FUEL_PRODUCT_ID,
+    totalCost: transportFee,
   };
 }
 
@@ -212,10 +215,10 @@ function cargoTotalQuantity(cargoLots) {
   return cargoLots.reduce((total, entry) => total + entry.quantity, 0);
 }
 
-function cargoManifestForDestination(cargoLots, destinationProvinceId) {
+function cargoManifest(cargoLots) {
   const totals = new Map();
   for (const entry of cargoLots) totals.set(entry.productId, (totals.get(entry.productId) || 0) + entry.quantity);
-  return [...totals].map(([productId, quantity]) => ({ productId, destinationProvinceId, quantity }));
+  return [...totals].map(([productId, quantity]) => ({ productId, quantity }));
 }
 
 function appendDeliveredManifest(shipment, productId, destinationProvinceId, quantity) {
@@ -248,7 +251,7 @@ function departShipmentLeg(shipment, now) {
   shipment.departsAt = departsAt;
   shipment.arrivesAt = arrivesAt;
   shipment.status = 'in-transit';
-  if (!shipment.legacyCycle) {
+  if (!shipment.legacyCycle && policy.version < 3) {
     shipment.fuelConsumed = Math.min(
       Number(shipment.fuelPurchased || 0),
       roundFuel(Number(shipment.fuelConsumed || 0) + distanceKm * policy.fuelPerKm),
@@ -331,15 +334,19 @@ export function applyRenameTransportRoute(world, user, payload = {}, now = Date.
   return { ok: true, message: '路线名称已更新' };
 }
 
-export function applyDeleteTransportRoute(world, user, payload = {}) {
+export function applyDeleteTransportRoute(world, user, payload = {}, now = Date.now()) {
   const player = world.players?.[String(user.id)];
   if (!player) return { ok: false, message: '玩家状态无效' };
   const routes = playerTransportRoutes(player);
   const routeId = String(payload.routeId || '');
-  const index = routes.findIndex((route) => String(route?.id || '') === routeId);
-  if (index < 0) return { ok: false, message: '运输路线不存在' };
-  if (activeShipmentForRoute(world, user.id, routeId)) return { ok: false, message: '该路线仍有运输周期进行中，完成后才能删除' };
-  player.transportRoutes = routes.filter((_, routeIndex) => routeIndex !== index);
+  const route = findPlayerRoute(player, routeId);
+  if (!route) return { ok: false, message: '运输路线不存在' };
+  if (activeShipmentForRoute(world, user.id, routeId)) {
+    route.deletionPending = true;
+    route.updatedAt = now;
+    return { ok: true, message: '已预约本趟完成后删除，不再启动下一趟运输' };
+  }
+  player.transportRoutes = routes.filter((entry) => entry.id !== routeId);
   return { ok: true, message: '运输路线已删除' };
 }
 
@@ -348,7 +355,8 @@ export function applyStartTransportCycle(world, user, payload = {}, now = Date.n
   if (!player) return { ok: false, message: '玩家状态无效' };
   const route = findPlayerRoute(player, payload.routeId);
   if (!route) return { ok: false, message: '运输路线不存在' };
-  if (activeShipmentForRoute(world, user.id, route.id)) return { ok: false, message: '该路线已有运输周期进行中' };
+  if (route.deletionPending) return { ok: false, message: '该路线已预约删除，不能启动新的一趟' };
+  if (activeShipmentForRoute(world, user.id, route.id)) return { ok: false, message: '该路线已有一趟运输进行中' };
   if (inTransitCountFor(world, user.id) >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER) {
     return { ok: false, message: `同时在途运输不能超过 ${TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER} 笔` };
   }
@@ -357,21 +365,29 @@ export function applyStartTransportCycle(world, user, payload = {}, now = Date.n
   const definition = TRANSPORT_MODES[route.mode];
   const totalLoad = load.reduce((total, entry) => total + entry.quantity, 0);
   if (totalLoad > definition.capacity) return { ok: false, message: '装货数量超过运输方式容量' };
+  const cycleCost = transportCycleCost(route, route.mode);
+  if (!cycleCost) return { ok: false, message: '本趟运输费用无效' };
+  const fuelInventory = inventoryForProvince(player, TRANSPORT_FUEL_PRODUCT_ID, route.sourceProvinceId);
+  const fuelAvailable = Math.max(0, Math.floor(Number(fuelInventory.available) || 0));
+  if (fuelAvailable < cycleCost.fuelPurchased) {
+    return { ok: false, message: `燃料不足：需要 ${cycleCost.fuelPurchased}，可用 ${fuelAvailable}` };
+  }
   for (const entry of load) {
-    if (Number(inventoryForProvince(player, entry.productId, route.sourceProvinceId).available || 0) < entry.quantity) {
-      return { ok: false, message: '起点可用库存不足，无法开始运输周期' };
+    const propulsion = entry.productId === TRANSPORT_FUEL_PRODUCT_ID ? cycleCost.fuelPurchased : 0;
+    if (Number(inventoryForProvince(player, entry.productId, route.sourceProvinceId).available || 0) < entry.quantity + propulsion) {
+      return { ok: false, message: '起点可用库存不足，燃料不能同时用于动力和装货' };
     }
   }
-  const cycleCost = transportCycleCost(route, route.mode);
-  if (!cycleCost) return { ok: false, message: '运输周期费用无效' };
-  if (Number(player.credits || 0) < cycleCost.totalCost) {
-    return { ok: false, message: '资金不足，无法一次性支付本周期运输费和燃料费' };
+  if (Number(player.credits || 0) < cycleCost.transportFee) {
+    return { ok: false, message: '资金不足，无法支付本趟运费' };
   }
   const traversalStops = transportTraversalStops(route);
   if (traversalStops.length < 2) return { ok: false, message: '运输路线无效' };
 
-  player.credits = roundInternalMoney(player.credits - cycleCost.totalCost) || 0;
-  creditPopulationEmployment(world, cycleCost.totalCost, 'transportService');
+  // All balance, fuel and cargo checks precede every asset mutation.
+  player.credits = roundInternalMoney(player.credits - cycleCost.transportFee) || 0;
+  fuelInventory.available = fuelAvailable - cycleCost.fuelPurchased;
+  creditPopulationEmployment(world, cycleCost.transportFee, 'transportService');
   const cargoLots = [];
   addCargoFromInventory(player, cargoLots, route.sourceProvinceId, load);
 
@@ -392,12 +408,13 @@ export function applyStartTransportCycle(world, user, payload = {}, now = Date.n
     cargoLots,
     cycleManifest: [],
     legHistory: [],
+    nodeHistory: [{ visitIndex: 0, provinceId: route.sourceProvinceId, servicedAt: now, unload: [], load: load.map((entry) => ({ ...entry })) }],
     mode: route.mode,
     cost: cycleCost.totalCost,
     transportFee: cycleCost.transportFee,
     fuelCost: cycleCost.fuelCost,
     fuelPurchased: cycleCost.fuelPurchased,
-    fuelConsumed: 0,
+    fuelConsumed: cycleCost.fuelPurchased,
     cycleDistanceKm: cycleCost.distanceKm,
     status: 'docked',
     createdAt: now,
@@ -405,7 +422,7 @@ export function applyStartTransportCycle(world, user, payload = {}, now = Date.n
   if (!departShipmentLeg(shipment, now)) return { ok: false, message: '运输路线无法开始' };
   world.transportShipments ||= [];
   world.transportShipments.push(shipment);
-  return { ok: true, message: '运输周期已启动，运输费与整周期燃料费已一次性结算', cycleId: shipment.id };
+  return { ok: true, message: '本趟运输已启动，运费和燃料商品已一次性扣除', cycleId: shipment.id };
 }
 
 export function applyServiceTransportNode(world, user, payload = {}, now = Date.now()) {
@@ -415,7 +432,7 @@ export function applyServiceTransportNode(world, user, payload = {}, now = Date.
   if (!route) return { ok: false, message: '运输路线不存在' };
   const shipment = activeShipmentForRoute(world, user.id, route.id);
   if (!shipment || shipment.status !== 'docked') return { ok: false, message: '运输车辆当前未停靠节点' };
-  if (payload.cycleId && String(payload.cycleId) !== String(shipment.id)) return { ok: false, message: '运输周期已变化，请等待客户端同步' };
+  if (String(payload.cycleId || '') !== String(shipment.id)) return { ok: false, message: '运输趟次已变化，请等待客户端同步' };
   const visitIndex = Math.floor(Number(payload.visitIndex));
   if (!Number.isSafeInteger(visitIndex) || visitIndex !== Number(shipment.currentVisitIndex)) {
     return { ok: false, message: '运输节点已变化，请等待客户端同步' };
@@ -429,7 +446,7 @@ export function applyServiceTransportNode(world, user, payload = {}, now = Date.
   const unload = normalizeCargoRequest(payload.unload);
   const load = normalizeCargoRequest(payload.load);
   if (unload === null || load === null) return { ok: false, message: '运输装卸参数无效' };
-  if (finalVisit && load.length > 0) return { ok: false, message: '返回起点时必须先完成本周期卸货，再开始下一周期' };
+  if (finalVisit && load.length > 0) return { ok: false, message: '返回起点时必须先完成本趟卸货，再开始下一趟' };
   const unloadIds = new Set(unload.map((entry) => entry.productId));
   if (load.some((entry) => unloadIds.has(entry.productId))) {
     return { ok: false, message: '同一节点同一商品不能同时装货和卸货' };
@@ -453,20 +470,25 @@ export function applyServiceTransportNode(world, user, payload = {}, now = Date.
     return { ok: false, message: '装卸后车辆货量超过运输方式容量' };
   }
 
+  if (finalVisit && nextLoad !== 0) return { ok: false, message: '返回起点时必须卸完全部车载货物' };
+
   shipment.cargoLots = cargoLots;
   unloadCargoToInventory(player, shipment, currentProvinceId, unload);
   addCargoFromInventory(player, shipment.cargoLots, currentProvinceId, load);
+  shipment.nodeHistory ||= [];
+  shipment.nodeHistory.push({
+    visitIndex, provinceId: currentProvinceId, servicedAt: now,
+    unload: unload.map((entry) => ({ ...entry })), load: load.map((entry) => ({ ...entry })),
+  });
 
   if (finalVisit) {
-    if (cargoTotalQuantity(shipment.cargoLots) > 0) {
-      return { ok: true, message: '起点卸货已完成，车辆仍有货物需要卸下' };
-    }
     shipment.status = 'arrived';
     if (!shipment.legacyCycle) shipment.fuelConsumed = Number(shipment.fuelPurchased || 0);
     shipment.arrivedAt = now;
     shipment.currentLeg = null;
     shipment.nextVisitIndex = null;
-    return { ok: true, message: '运输周期已完成并返回起点' };
+    if (route.deletionPending) player.transportRoutes = playerTransportRoutes(player).filter((entry) => entry.id !== route.id);
+    return { ok: true, message: route.deletionPending ? '本趟已卸货完成，路线已删除' : '本趟运输已完成并返回起点' };
   }
 
   if (!departShipmentLeg(shipment, now)) return { ok: false, message: '下一段运输路线无效' };
@@ -477,10 +499,10 @@ export function applyTransportShip(world, user, payload = {}, now = Date.now()) 
   if (payload.operation === 'route-create') return applyCreateTransportRoute(world, user, payload, now);
   if (payload.operation === 'route-update') return applyUpdateTransportRoute(world, user, payload, now);
   if (payload.operation === 'route-rename') return applyRenameTransportRoute(world, user, payload, now);
-  if (payload.operation === 'route-delete') return applyDeleteTransportRoute(world, user, payload);
+  if (payload.operation === 'route-delete') return applyDeleteTransportRoute(world, user, payload, now);
   if (payload.operation === 'cycle-start') return applyStartTransportCycle(world, user, payload, now);
   if (payload.operation === 'node-service') return applyServiceTransportNode(world, user, payload, now);
-  return { ok: false, message: '运输仅接受路线维护、周期启动和节点装卸操作' };
+  return { ok: false, message: '运输仅接受路线维护、新趟启动和节点装卸操作' };
 }
 
 function legacyShipmentManifest(shipment) {
@@ -587,6 +609,7 @@ export function migrateTransportWorld(world) {
         tripType: stops.stops.tripType,
         mode: String(route.mode),
         setupCost,
+        ...(route.deletionPending === true ? { deletionPending: true } : {}),
         createdAt: Number(route.createdAt || 0),
         updatedAt: Number(route.updatedAt || route.createdAt || 0),
       }];
@@ -657,6 +680,8 @@ export function transportRouteClientState(world, userId) {
       cycleDistanceKm: Number(cycle?.distanceKm || 0),
       cycleTransportFee: Number(cycle?.transportFee || 0),
       cycleFuelCost: Number(cycle?.fuelCost || 0),
+      cycleFuelQuantity: Number(cycle?.fuelPurchased || 0),
+      ...(route.deletionPending === true ? { deletionPending: true } : {}),
       cycleCost: Number(cycle?.totalCost || 0),
       createdAt: Number(route.createdAt || 0),
       updatedAt: Number(route.updatedAt || route.createdAt || 0),
@@ -676,7 +701,7 @@ export function transportShipmentClientState(world, userId) {
       const currentProvinceId = normalizeProvinceId(traversalStops[currentVisitIndex] || shipment.sourceProvinceId);
       const nextProvinceId = normalizeProvinceId(traversalStops[nextVisitIndex] || currentProvinceId);
       const cargoLots = normalizeCargoLots(shipment.cargoLots, shipment.sourceProvinceId);
-      const activeManifest = cargoManifestForDestination(cargoLots, shipment.status === 'in-transit' ? nextProvinceId : currentProvinceId);
+      const activeManifest = cargoManifest(cargoLots);
       const historyManifest = Array.isArray(shipment.cycleManifest) ? shipment.cycleManifest : legacyShipmentManifest(shipment);
       const currentLeg = shipment.status === 'in-transit' && shipment.currentLeg ? shipment.currentLeg : null;
       return {
@@ -709,6 +734,12 @@ export function transportShipmentClientState(world, userId) {
         fuelConsumed: Number(shipment.fuelConsumed || 0),
         cycleDistanceKm: Number(shipment.cycleDistanceKm || 0),
         policySnapshot: transportCyclePolicyForShipment(shipment),
+        nodeHistory: (shipment.nodeHistory || []).map((entry) => ({
+          visitIndex: Number(entry.visitIndex), provinceId: normalizeProvinceId(entry.provinceId),
+          servicedAt: Number(entry.servicedAt),
+          unload: (entry.unload || []).map((cargo) => ({ productId: cargo.productId, quantity: Number(cargo.quantity) })),
+          load: (entry.load || []).map((cargo) => ({ productId: cargo.productId, quantity: Number(cargo.quantity) })),
+        })),
         deliveredQuantity: (shipment.cycleManifest || []).reduce((sum, entry) => sum + Math.max(0, Number(entry.quantity || 0)), 0),
         currentProvinceId,
         currentVisitIndex,

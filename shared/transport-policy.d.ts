@@ -1,5 +1,6 @@
 /** Shared transport constants consumed by the authoritative server and previews. */
 export const TRANSPORT_FUEL_UNIT_PRICE: number;
+export const TRANSPORT_FUEL_PRODUCT_ID: 'industrial-fuel';
 export const TRANSPORT_BASE_SECONDS_PER_KM: number;
 export const TRANSPORT_POLICY_VERSION: number;
 export const TRANSPORT_MIN_NET_GAIN: number;
@@ -23,6 +24,7 @@ export interface TransportCyclePolicy {
   readonly transportFeePerKm: number;
   readonly fuelPerKm: number;
   readonly fuelUnitPrice: number;
+  readonly fuelProductId?: 'industrial-fuel';
   readonly secondsPerKm: number;
   readonly departureSeconds: number;
 }
@@ -33,3 +35,5 @@ export function legacyTransportCyclePolicy(mode: 'road' | 'rail' | 'air'): Trans
 export function isTransportCyclePolicy(policy: unknown): policy is TransportCyclePolicy;
 export function transportCyclePolicyForShipment(shipment: { mode: 'road' | 'rail' | 'air'; policySnapshot?: TransportCyclePolicy }): TransportCyclePolicy;
 export function transportPolicyDurationMs(policy: TransportCyclePolicy, distanceKm: number): number;
+
+export function transportFuelQuantity(distanceKm: number, fuelPerKm: number): number;

@@ -1,4 +1,4 @@
-import { TRANSPORT_COST_MARGIN, TRANSPORT_MIN_NET_GAIN } from '../../shared/transport-policy.js';
+import { TRANSPORT_COST_MARGIN, TRANSPORT_FUEL_PRODUCT_ID, TRANSPORT_MIN_NET_GAIN } from '../../shared/transport-policy.js';
 
 export const TRANSPORT_WAITING_LABELS = Object.freeze({
   ready: '可启动运输',
@@ -7,6 +7,7 @@ export const TRANSPORT_WAITING_LABELS = Object.freeze({
   'price-boundary': '等待调价',
   'insufficient-profit': '收益不足',
   'insufficient-funds': '资金不足',
+  'insufficient-fuel': '燃料不足',
   'in-transit-limit': '在途名额已满',
   'invalid-route': '路线数据待同步',
 });
@@ -60,43 +61,85 @@ function referenceTable(game, traversal, productIds, now) {
   return { quotes, future };
 }
 
-function loadPlan(productIds, stock, current, future, remainingCapacity, unloadedIds) {
-  let remaining = Math.max(0, remainingCapacity);
-  const candidates = productIds.flatMap((productId) => {
-    if (unloadedIds.has(productId)) return [];
-    const available = quantity(stock.get(productId));
+/** Compare retaining cargo with loading local stock by the gain from this stop onward.
+ * Ties retain existing cargo; unknown cargo prices never force a speculative unload.
+ * Both the whole-trip forecast and actual node service use this selection policy.
+ */
+export function selectTransportCargo({ productIds, cargo, stock, current, future, capacity, finalVisit = false }) {
+  if (finalVisit) return {
+    unload: [...cargo].filter(([, count]) => count > 0).map(([productId, count]) => ({ productId, quantity: count })),
+    load: [],
+  };
+  const retained = new Map();
+  const candidates = [];
+  let reserved = 0;
+  for (const productId of productIds) {
+    const carried = quantity(cargo.get(productId));
     const price = current.get(productId)?.price;
     const best = future.get(productId);
-    if (!available || price === undefined || best === null || best === undefined || best <= price) return [];
-    return [{ productId, available, spread: best - price }];
-  }).sort((left, right) => right.spread - left.spread || left.productId.localeCompare(right.productId));
+    if (price === undefined || best === null || best === undefined) {
+      if (carried > 0) {
+        retained.set(productId, carried);
+        reserved += carried;
+      }
+      continue;
+    }
+    const spread = best - price;
+    if (spread <= 0) continue;
+    if (carried > 0) candidates.push({ productId, available: carried, spread, carried: true });
+    const available = quantity(stock.get(productId));
+    if (available > 0) candidates.push({ productId, available, spread, carried: false });
+  }
+  candidates.sort((left, right) => right.spread - left.spread
+    || Number(right.carried) - Number(left.carried)
+    || left.productId.localeCompare(right.productId));
+  let remaining = Math.max(0, capacity - reserved);
   const load = [];
   for (const candidate of candidates) {
     const count = Math.min(candidate.available, remaining);
     if (count < 1) break;
-    load.push({ productId: candidate.productId, quantity: count });
+    if (candidate.carried) retained.set(candidate.productId, count);
+    else load.push({ productId: candidate.productId, quantity: count });
     remaining -= count;
   }
-  return load;
+  const unload = [...cargo].flatMap(([productId, count]) => {
+    const removed = count - (retained.get(productId) ?? 0);
+    return removed > 0 ? [{ productId, quantity: removed }] : [];
+  });
+  return { unload, load };
 }
 
-/** Estimate only; this function never buys, sells, freezes or mutates inventory. */
-export function planTransportCycle({ game, traversal, capacity, cycleCost, durationMs, now, atInTransitLimit = false }) {
-  const threshold = roundMoney(Math.max(TRANSPORT_MIN_NET_GAIN, cycleCost * TRANSPORT_COST_MARGIN));
+/** Estimate only; never buys, sells, freezes or mutates inventory.
+ * cycleCost is cash freight, while fuelValue is an opportunity cost, not a cash debit.
+ */
+export function planTransportCycle({ game, traversal, capacity, cycleCost, fuelQuantity = 0, durationMs, now, atInTransitLimit = false }) {
+  const fuelAvailable = quantity(game.provinceInventories?.[traversal[0]]?.[TRANSPORT_FUEL_PRODUCT_ID]?.available);
+  const fuelQuote = fuelQuantity > 0 ? transportOfficialQuote(game, traversal[0], TRANSPORT_FUEL_PRODUCT_ID, now) : null;
+  const fuelValue = fuelQuantity === 0 ? 0 : fuelQuote ? roundMoney(fuelQuantity * fuelQuote.price * 0.99) : null;
+  const operatingCost = fuelValue === null ? null : roundMoney(cycleCost + fuelValue);
+  const threshold = roundMoney(Math.max(TRANSPORT_MIN_NET_GAIN, (operatingCost ?? cycleCost) * TRANSPORT_COST_MARGIN));
   const result = {
     reason: 'invalid-route', firstLoad: [], grossGain: null, netGain: null,
-    transportedQuantity: 0, peakLoad: 0, threshold,
+    transportedQuantity: 0, peakLoad: 0, threshold, fuelRequired: fuelQuantity,
+    fuelAvailable, fuelValue, operatingCost,
   };
   if (traversal.length < 2 || !Number.isSafeInteger(capacity) || capacity < 1
     || !Number.isFinite(cycleCost) || cycleCost < 0 || !Number.isFinite(durationMs) || durationMs <= 0
+    || !Number.isSafeInteger(fuelQuantity) || fuelQuantity < 0
     || !Number.isFinite(now) || now <= 0) return result;
+  if (fuelAvailable < fuelQuantity) return { ...result, reason: 'insufficient-fuel' };
+  if (operatingCost === null) return { ...result, reason: 'quotes-not-ready' };
 
+  // Reserve the origin's propulsion fuel before considering it as tradable cargo.
+  const availableAt = (provinceId, productId) => Math.max(0,
+    quantity(game.provinceInventories?.[provinceId]?.[productId]?.available)
+    - (provinceId === traversal[0] && productId === TRANSPORT_FUEL_PRODUCT_ID ? fuelQuantity : 0));
   const productIds = game.products.map((product) => product.id).filter((productId) => traversal.some(
-    (provinceId) => quantity(game.provinceInventories?.[provinceId]?.[productId]?.available) > 0,
+    (provinceId) => availableAt(provinceId, productId) > 0,
   ));
-  if (productIds.length === 0) return { ...result, reason: 'no-inventory', grossGain: 0, netGain: -cycleCost };
+  if (productIds.length === 0) return { ...result, reason: 'no-inventory', grossGain: 0, netGain: -operatingCost };
   const { quotes, future } = referenceTable(game, traversal, productIds, now);
-  let nextPriceAt = Number.POSITIVE_INFINITY;
+  let nextPriceAt = fuelQuote?.nextPriceAt ?? Number.POSITIVE_INFINITY;
   for (const row of quotes) {
     for (const quote of row.values()) {
       if (!quote) return { ...result, reason: 'quotes-not-ready' };
@@ -104,10 +147,10 @@ export function planTransportCycle({ game, traversal, capacity, cycleCost, durat
     }
   }
 
-  // Repeated visits share one pool of the original stock. Unloaded goods are
-  // deliberately not put back into this pool, so one batch cannot fund two plans.
+  // Repeated visits share one pool of original stock; simulated deliveries are
+  // never reintroduced as new supply for a second forecast opportunity.
   const stocks = new Map([...new Set(traversal)].map((provinceId) => [provinceId, new Map(
-    productIds.map((productId) => [productId, quantity(game.provinceInventories?.[provinceId]?.[productId]?.available)]),
+    productIds.map((productId) => [productId, availableAt(provinceId, productId)]),
   )]));
   let cargo = [];
   let grossGain = 0;
@@ -115,21 +158,26 @@ export function planTransportCycle({ game, traversal, capacity, cycleCost, durat
   let peakLoad = 0;
   let firstLoad = [];
   for (let visitIndex = 0; visitIndex < traversal.length; visitIndex += 1) {
-    const finalVisit = visitIndex === traversal.length - 1;
     const current = quotes[visitIndex];
-    const unloadedIds = new Set();
-    cargo = cargo.filter((lot) => {
-      const price = current.get(lot.productId).price;
-      if (!finalVisit && price < future[visitIndex].get(lot.productId)) return true;
-      // Both alternatives are sales, each with the current 1% market service fee.
-      grossGain += lot.quantity * (price - lot.originPrice) * 0.99;
-      unloadedIds.add(lot.productId);
-      return false;
-    });
-    if (finalVisit) continue;
     const stock = stocks.get(traversal[visitIndex]);
-    const occupied = cargo.reduce((sum, lot) => sum + lot.quantity, 0);
-    const load = loadPlan(productIds, stock, current, future[visitIndex], capacity - occupied, unloadedIds);
+    const totals = new Map();
+    for (const lot of cargo) totals.set(lot.productId, (totals.get(lot.productId) ?? 0) + lot.quantity);
+    const { unload, load } = selectTransportCargo({
+      productIds, cargo: totals, stock, current, future: future[visitIndex], capacity,
+      finalVisit: visitIndex === traversal.length - 1,
+    });
+    for (const entry of unload) {
+      let remaining = entry.quantity;
+      for (const lot of cargo) {
+        if (lot.productId !== entry.productId || remaining < 1) continue;
+        const count = Math.min(lot.quantity, remaining);
+        // Both alternatives are sales with the same 1% market service fee.
+        grossGain += count * (current.get(lot.productId).price - lot.originPrice) * 0.99;
+        lot.quantity -= count;
+        remaining -= count;
+      }
+    }
+    cargo = cargo.filter((lot) => lot.quantity > 0);
     if (visitIndex === 0) firstLoad = load;
     for (const entry of load) {
       stock.set(entry.productId, stock.get(entry.productId) - entry.quantity);
@@ -139,40 +187,30 @@ export function planTransportCycle({ game, traversal, capacity, cycleCost, durat
     peakLoad = Math.max(peakLoad, cargo.reduce((sum, lot) => sum + lot.quantity, 0));
   }
   grossGain = roundMoney(grossGain);
-  const netGain = roundMoney(grossGain - cycleCost);
+  const netGain = roundMoney(grossGain - operatingCost);
   const reason = transportedQuantity < 1 || netGain < threshold ? 'insufficient-profit'
     : now + durationMs >= nextPriceAt ? 'price-boundary'
       : Number(game.credits) < cycleCost ? 'insufficient-funds'
         : atInTransitLimit ? 'in-transit-limit' : 'ready';
-  return { reason, firstLoad, grossGain, netGain, transportedQuantity, peakLoad, threshold };
+  return { ...result, reason, firstLoad, grossGain, netGain, transportedQuantity, peakLoad };
 }
 
-/** A paid cycle always proceeds; unavailable quotes never prevent final unloading. */
+/** A paid trip always proceeds; missing quotes never prevent final unloading. */
 export function planTransportNode({ game, traversal, shipment, capacity, now }) {
   const visitIndex = Math.max(0, Math.min(traversal.length - 1, Math.floor(Number(shipment.currentVisitIndex) || 0)));
   const cargo = cargoTotals(shipment);
-  const finalVisit = visitIndex >= traversal.length - 1;
-  if (finalVisit) return {
-    visitIndex, unload: [...cargo].map(([productId, count]) => ({ productId, quantity: count })), load: [],
-  };
   const inventory = game.provinceInventories?.[traversal[visitIndex]] ?? {};
   const productIds = [...new Set([...cargo.keys(), ...game.products.map((product) => product.id)
     .filter((productId) => quantity(inventory[productId]?.available) > 0)])];
   const { quotes, future } = referenceTable(game, traversal.slice(visitIndex), productIds, now);
-  const unload = [];
-  for (const [productId, count] of cargo) {
-    const price = quotes[0].get(productId)?.price;
-    const best = future[0].get(productId);
-    if (price !== undefined && best !== null && best !== undefined && price >= best) {
-      unload.push({ productId, quantity: count });
-    }
-  }
-  const occupied = [...cargo.values()].reduce((sum, count) => sum + count, 0)
-    - unload.reduce((sum, entry) => sum + entry.quantity, 0);
   const stock = new Map(productIds.map((productId) => [productId, quantity(inventory[productId]?.available)]));
-  const load = loadPlan(productIds, stock, quotes[0], future[0], capacity - occupied,
-    new Set(unload.map((entry) => entry.productId)));
-  return { visitIndex, unload, load };
+  return {
+    visitIndex,
+    ...selectTransportCargo({
+      productIds, cargo, stock, current: quotes[0], future: future[0], capacity,
+      finalVisit: visitIndex >= traversal.length - 1,
+    }),
+  };
 }
 
 /** Fingerprint only inputs that can change the outcome of this route's operation. */

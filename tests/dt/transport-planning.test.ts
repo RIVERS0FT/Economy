@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { EconomyState, TransportShipment } from '../../src/types.ts';
 import { planTransportCycle, planTransportNode, transportOfficialQuote, transportOperationFingerprint } from '../../src/transport/transportPlanner.js';
 import { transportMaintenanceCandidates, estimateTransportRoute } from '../../src/transport/transportPlanning.js';
-import { createTransportCyclePolicy, legacyTransportCyclePolicy, transportPolicyDurationMs } from '../../shared/transport-policy.js';
+import { createTransportCyclePolicy, legacyTransportCyclePolicy, transportPolicyDurationMs, transportFuelQuantity } from '../../shared/transport-policy.js';
 
 const now = 1_780_000_000_000;
 function gameFixture(prices = { A: 1, B: 1.5, C: 2 }, stock: Record<string, number> = { A: 100 }) {
@@ -13,9 +13,11 @@ function gameFixture(prices = { A: 1, B: 1.5, C: 2 }, stock: Record<string, numb
     provinces: Object.keys(prices).map((id, index) => ({ id, latitude: 30 + index, longitude: -100 })),
     provinceInventories: Object.fromEntries(Object.keys(prices).map((id) => [id, {
       wheat: { available: stock[id] ?? 0, frozen: 99999, inTransit: 99999 },
+      'industrial-fuel': { available: 10000, frozen: 0, inTransit: 0 },
     }])),
     provinceMarkets: Object.fromEntries(Object.entries(prices).map(([id, price]) => [id, {
       wheat: { officialPrice: price, nextPriceAt: now + 86400000, lastTradePrice: 1000 - price, bestBid: 500 - price },
+      'industrial-fuel': { officialPrice: 4, nextPriceAt: now + 86400000 },
     }])),
     transportRoutes: [], transportShipments: [],
   } as unknown as EconomyState;
@@ -177,4 +179,87 @@ test('retry fingerprints ignore unrelated revision and time but track relevant a
   assert.equal(transportOperationFingerprint(game, ['A', 'B', 'A'], null, 0), baseline);
   game.provinceInventories!.A.wheat.available -= 1;
   assert.notEqual(transportOperationFingerprint(game, ['A', 'B', 'A'], null, 0), baseline);
+});
+
+
+test('propulsion fuel uses only origin available stock and its net sale value is not a cash requirement', () => {
+  const game = gameFixture({ A: 1, B: 3, C: 2 });
+  game.credits = 40;
+  const fuel = game.provinceInventories!.A['industrial-fuel'];
+  fuel.available = 7;
+  fuel.frozen = 1000;
+  const before = JSON.stringify(game);
+  const result = estimate(game, { fuelQuantity: 7 });
+  assert.equal(result.reason, 'ready');
+  assert.equal(result.fuelValue, 27.72);
+  assert.equal(result.operatingCost, 67.72);
+  assert.equal(result.netGain, 130.28);
+  assert.equal(JSON.stringify(game), before);
+  fuel.available = 6;
+  assert.equal(estimate(game, { fuelQuantity: 7 }).reason, 'insufficient-fuel');
+  assert.equal(estimate(game, { fuelQuantity: 7 }).fuelAvailable, 6);
+  fuel.available = 7;
+  delete game.provinceMarkets!.A['industrial-fuel'].officialPrice;
+  assert.equal(estimate(game, { fuelQuantity: 7 }).reason, 'quotes-not-ready');
+  game.provinceMarkets!.A['industrial-fuel'].officialPrice = 4;
+  game.provinceMarkets!.A['industrial-fuel'].nextPriceAt = now + 140000;
+  assert.equal(estimate(game, { fuelQuantity: 7 }).reason, 'price-boundary');
+});
+
+test('origin propulsion fuel is reserved before selecting fuel as cargo and never mutates inventory', () => {
+  const game = gameFixture({ A: 1, B: 3, C: 2 }, {});
+  game.products = [{ id: 'industrial-fuel', name: '燃料', category: 'industrial', basePrice: 4 }];
+  for (const id of ['A', 'B', 'C']) {
+    game.provinceInventories![id]['industrial-fuel'].available = id === 'A' ? 20 : 0;
+    game.provinceMarkets![id]['industrial-fuel'].officialPrice = id === 'A' ? 4 : 20;
+  }
+  const before = JSON.stringify(game);
+  const result = estimate(game, { fuelQuantity: 7, cycleCost: 1 });
+  assert.equal(result.reason, 'ready');
+  assert.deepEqual(result.firstLoad, [{ productId: 'industrial-fuel', quantity: 13 }]);
+  assert.equal(result.transportedQuantity, 13);
+  assert.equal(JSON.stringify(game), before);
+});
+
+test('intermediate stops partially replace lower remaining-gain cargo and return visits decide afresh', () => {
+  const game = gameFixture({ A: 1, B: 2, C: 3 }, { A: 100 });
+  game.products.push({ id: 'ore', name: '矿石', category: 'raw', basePrice: 1 });
+  for (const id of ['A', 'B', 'C']) {
+    game.provinceInventories![id].ore = { available: id === 'B' ? 30 : 0, frozen: 0, inTransit: 0 };
+    game.provinceMarkets![id].ore = { officialPrice: id === 'C' ? 10 : 1, nextPriceAt: now + 86400000 } as EconomyState['markets'][string];
+  }
+  const traversal = ['A', 'B', 'C', 'B', 'A'];
+  const plan = planTransportNode({ game, traversal, shipment: shipment(1), capacity: 100, now });
+  assert.deepEqual(plan.unload, [{ productId: 'wheat', quantity: 30 }]);
+  assert.deepEqual(plan.load, [{ productId: 'ore', quantity: 30 }]);
+  const forecast = estimate(game, { traversal, capacity: 100, cycleCost: 0 });
+  assert.equal(forecast.grossGain, 435.6);
+  assert.equal(forecast.transportedQuantity, 130);
+  assert.equal(forecast.peakLoad, 100);
+  const returning = planTransportNode({ game, traversal, shipment: shipment(3), capacity: 100, now });
+  assert.deepEqual(returning.unload, [{ productId: 'wheat', quantity: 100 }]);
+  assert.deepEqual(returning.load, []);
+});
+
+test('a pending deletion still services its paid trip but cannot produce a start command', () => {
+  const game = gameFixture({ A: 1, B: 3, C: 2 }, { A: 1000 });
+  game.transportRoutes = [{ ...route('route-1'), deletionPending: true }];
+  assert.deepEqual(transportMaintenanceCandidates(game, now), []);
+  game.transportShipments = [shipment(1)];
+  assert.equal(transportMaintenanceCandidates(game, now)[0].kind, 'service');
+});
+
+
+test('fuel rounds the full unrounded distance once across modes and distance ranges', () => {
+  for (const mode of ['road', 'rail', 'air'] as const) {
+    const policy = createTransportCyclePolicy(mode);
+    for (const distance of [0, 1, 100, 1234.56789, 9000]) {
+      const expected = Math.ceil(distance * policy.fuelPerKm);
+      assert.equal(transportFuelQuantity(distance, policy.fuelPerKm), expected);
+      assert.ok(Number.isSafeInteger(expected));
+    }
+  }
+  assert.equal(transportFuelQuantity(41 + 41 + 41, 0.005), 1);
+  assert.equal(transportFuelQuantity(1234, 0.005), 7);
+  assert.equal(transportFuelQuantity(Number.NaN, 0.005), 0);
 });
