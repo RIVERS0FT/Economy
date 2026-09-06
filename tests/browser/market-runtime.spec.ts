@@ -75,7 +75,7 @@ test('recent local trades heading keeps clear action on the same row on narrow s
   expect(clearBox.x).toBeGreaterThan(titleBox.x);
 });
 
-test('market detail keeps snapshot history when the detail refresh fails', async ({ page }) => {
+test('market detail failure does not fabricate history from summary', async ({ page }) => {
   await page.route('**/api/game/market-detail?**', async (route) => {
     await route.fulfill({
       status: 503,
@@ -84,10 +84,13 @@ test('market detail keeps snapshot history when the detail refresh fails', async
     });
   });
   await openCommodityDetail(page);
-  const chart = page.locator('.market-history-chart.full');
-  await expect(page.getByText('成交趋势图不可用', { exact: true })).toHaveCount(0);
-  await expect(chart).toBeVisible();
-  await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+  const chartCard = page.locator('.market-chart-card');
+  const chartContent = chartCard.locator('.market-chart-card__content');
+  await expect(chartCard.getByText('成交趋势图不可用', { exact: true })).toBeVisible();
+  await expect(chartCard).toHaveClass(/is-unavailable/);
+  await expect(chartContent).toHaveAttribute('aria-disabled', 'true');
+  await expect(chartCard.locator('.market-history-chart.full')).toHaveCount(0);
+  await expect(chartCard.locator('.economy-chart')).toHaveCount(0);
 });
 
 test('page content buttons and entity cards use the shared small radius', async ({ page }) => {
