@@ -143,6 +143,9 @@ function procureBuildingPlans(
  * Once a building has a running cycle or a completed-cycle cursor, normal completion-driven automation owns procurement.
  */
 export function bootstrapBuildingAutoOperation(world, player, now, provinceId) {
+  // Runtime action preprocessing may temporarily suppress bootstrap so a stop/configuration action cannot buy first.
+  // This transient flag is deleted before the player action is executed and is never persisted.
+  if (player?.__suppressInitialAutoOperationBootstrap === true) return false;
   const selectedProvinceId = normalizeProvinceId(provinceId);
   const plans = reconcileBuildingInputFreezes(world, player, now, selectedProvinceId);
   return procureBuildingPlans(world, player, plans, now, {
