@@ -1,0 +1,24 @@
+name: UX review workbench
+on:
+  push:
+    branches: [codex/ux-review-workbench-20260906]
+    paths: [.github/workflows/ux-workbench.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 29d013b5d9f942d8ed7f905fb00ea4d403d18860
+          persist-credentials: false
+      - name: Archive tracked source for isolated inspection
+        run: git archive --format=tar.gz HEAD -o "$RUNNER_TEMP/economy-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economy-ux-source
+          path: ${{ runner.temp }}/economy-source.tar.gz
+          retention-days: 1
+          if-no-files-found: error
