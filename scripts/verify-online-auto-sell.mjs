@@ -22,6 +22,9 @@ for (const path of ['server/src/production-settlement.js', 'server/src/facility-
   requireText(path, 'completeBuildingCycleAutoOperation');
   requireText(path, 'bootstrapBuildingAutoOperation');
 }
+for (const path of ['server/src/cycle-auto-operation.js', 'server/src/facility-groups.js', 'server/src/commercial-buildings.js', 'server/src/production-settlement.js']) {
+  requireText(path, 'autoOperationBootstrapPending');
+}
 for (const token of ['quoteBuildingAutoProcurement', 'netProfitMicros <= 0n', 'calculateCumulativeMarketSellFee',
   'reconcileBuildingInputFreezes', 'freezeCommodity', 'autoOperationCycleCursors', 'applySettledCommodityOrder',
   'quotePreparedDailySupply', 'consumePreparedDailySupply', 'bootstrapBuildingAutoOperation',
@@ -66,4 +69,4 @@ forbidText('server/src/cycle-auto-operation.js', 'provinceAutoSaleEnabled');
 requireText('server/src/world-storage-v2.js', 'autoSaleRegions');
 forbidText('server/src/world-storage-v2.js', 'player.provinceAutoSaleEnabled?.[provinceId]');
 requireText('src/auto-trade/useOnlineAutoTrade.ts', 'state.saveEpoch !== saveEpoch');
-console.log('周期自动经营检查通过：首周期 bootstrap 只采购且不伪造完成，停止/配置动作不会抢先采购，常规出售与后续采购仍由真实完成事件驱动。');
+console.log('周期自动经营检查通过：首周期 bootstrap 仅限首次建设待处理标记，只采购且不伪造完成，停止/配置动作不会抢先采购，常规出售与后续采购仍由真实完成事件驱动。');
