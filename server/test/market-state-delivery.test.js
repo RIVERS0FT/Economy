@@ -75,7 +75,7 @@ test('initial player state keeps market summaries and only the current player le
   );
 });
 
-test('commodity market detail returns bounded public real-trade history, empty public depth, and a conditional revision', () => {
+test('commodity market detail returns bounded public real-trade history, empty public depth, and a conditional revision while omitting raw points', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   ensurePlayer(world, bob, now);
@@ -86,6 +86,9 @@ test('commodity market detail returns bounded public real-trade history, empty p
     { price: 3.25, quantity: 2, createdAt: now - 2_000, takerSide: 'buy', marketRole: 'reserve', signalWeight: 3 },
     { price: 3.5, quantity: 4, createdAt: now - 1_000, takerSide: 'sell', marketRole: 'consumption', signalWeight: 4 },
   ];
+  market.officialPrice = 3.5;
+  market.todayBuyQuantity = 2;
+  market.todaySellQuantity = 4;
   world.orders = [];
   for (let index = 0; index < 6; index += 1) {
     world.orders.push(openOrder(`bid-${index}`, bob.id, 'buy', 50 - index, index + 1, now + index));
@@ -107,18 +110,15 @@ test('commodity market detail returns bounded public real-trade history, empty p
   assert.equal(detail.market.sellOrderCount, 0);
   assert.equal(detail.market.bestBid, null);
   assert.equal(detail.market.bestAsk, null);
-  assert.equal(detail.market.priceHistory.length, 2);
-  assert.deepEqual(detail.market.priceHistory[0], {
-    price: 3.25,
-    quantity: 2,
-    createdAt: now - 2_000,
-    takerSide: 'buy',
-  });
-  assert.deepEqual(detail.market.priceHistory[1], {
+  assert.deepEqual(detail.market.priceHistory, []);
+  assert.ok(detail.market.dailyHistory.length >= 1);
+  assert.deepEqual(detail.market.dailyHistory.at(-1), {
+    dateKey: detail.market.dailyHistory.at(-1).dateKey,
     price: 3.5,
-    quantity: 4,
-    createdAt: now - 1_000,
-    takerSide: 'sell',
+    buyVolume: 2,
+    sellVolume: 4,
+    neutralVolume: 0,
+    volume: 6,
   });
   assert.match(detail.revision, /^[A-Za-z0-9_-]{16}$/);
   const serialized = JSON.stringify(detail);
