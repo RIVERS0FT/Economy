@@ -30,16 +30,12 @@ for (const token of ['quoteBuildingAutoProcurement', 'netProfitMicros <= 0n', 'c
   'initialOnly: true', "executionPrefix: 'bootstrap-auto'"]) {
   requireText('server/src/cycle-auto-operation.js', token);
 }
-const firstBuildingDesign = 'docs/FIRST_BUILDING_AUTO_START_DESIGN.md';
-assert.ok(existsSync(firstBuildingDesign), `缺少首次建筑自动启动设计 ${firstBuildingDesign}`);
-for (const token of [
-  '首次建设默认运行',
-  '首周期原料 bootstrap',
-  '手动停止时继续 `enabled = false / stopped`',
-  '不得出售本州其他 `available` 商品',
-  '不得写入或伪造 `autoOperationCycleCursors`',
-  '一旦首周期进入运行或出现真实完成游标',
-]) requireText(firstBuildingDesign, token);
+for (const token of ['首周期原料 bootstrap', '不出售地区商品', '不写 `autoOperationCycleCursors`', '后续权威推进可以重新尝试']) {
+  requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', token);
+}
+for (const token of ['首次建设默认开启营业意图', '玩家已手动停止的集群不得因扩建自动重启']) {
+  requireText('docs/COMMERCIAL_BUILDINGS_DESIGN.md', token);
+}
 for (const token of ['MODE_PRICE_MULTIPLIERS', 'intent.keepOutput', 'intent.extraProtected']) {
   forbidText('server/src/factory-auto-operation.js', token);
 }
