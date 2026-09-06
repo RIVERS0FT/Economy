@@ -67,7 +67,7 @@ for (const width of [320, 390, 720, 1440]) {
   });
 }
 
-test('commercial cards show per-building profit and details show server-locked totals', async ({ page }) => {
+test('commercial cards show per-building profit while running settlement keeps only the primary result', async ({ page }) => {
   await openCommerce(page);
   const first = page.locator('.commercial-building-card').first();
   await expect(first.locator('.facility-cluster-profit')).toContainText('0.50');
@@ -75,9 +75,11 @@ test('commercial cards show per-building profit and details show server-locked t
   await first.press('Enter');
   await expect(page.locator('.facility-average-profit')).toContainText('0.50');
   await expect(page.getByText('集群额定利润／分钟', { exact: true }).locator('..')).toContainText('1.50');
-  await expect(page.getByText('本周期锁定收入', { exact: true }).locator('..')).toContainText('101.25');
-  await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).toContainText('5.00');
-  await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).not.toContainText('7.50');
+  await expect(page.locator('.commercial-settlement-revenue')).toContainText('101.25');
+  await expect(page.locator('.commercial-settlement .facility-formula-side-label')).toHaveCount(0);
+  for (const label of ['已投入商品', '锁定收入', '本周期等效营业数量', '本周期锁定收入', '本周期锁定商品价值', '本周期已付运营成本', '本周期锁定利润']) {
+    await expect(page.getByText(label, { exact: true })).toHaveCount(0);
+  }
   await expect(page.locator('.commercial-settlement .facility-formula-item-group[data-shortage="true"]')).toHaveCount(2);
   await expect(page.locator('.commercial-settlement .facility-formula-item-group').first()).toHaveAttribute('aria-label', /库存不足/);
   await expect(page.locator('.commercial-settlement button.facility-formula-item-group')).toHaveCount(2);
@@ -108,7 +110,8 @@ test('commercial switch prevents repeated requests and preserves an invested cyc
   await expect(control).not.toBeChecked();
   await expect(page.locator('.facility-information-summary .ui-status-tag')).toHaveText('营业中');
   await expect(page.getByText('已停止后续营业，本周期仍按锁定结果完成结算。')).toBeVisible();
-  await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).toContainText('5.00');
+  await expect(page.locator('.commercial-settlement-revenue')).toContainText('101.25');
+  await expect(page.getByText('本周期锁定利润', { exact: true })).toHaveCount(0);
 });
 
 for (const failure of ['network', 'server'] as const) {
