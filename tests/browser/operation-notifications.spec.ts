@@ -44,8 +44,8 @@ async function initializeIndustrialSession(page: Page) {
     },
   } }));
   const epoch = await page.evaluate(async () => {
-    const apiPath = '/src/api/game.ts';
-    const sessionPath = '/src/api/gameWriteSession.ts';
+    const apiPath = '/economy/src/api/game.ts';
+    const sessionPath = '/economy/src/api/gameWriteSession.ts';
     const api = await import(apiPath);
     const session = await import(sessionPath);
     session.beginGameWriteSession(123);
