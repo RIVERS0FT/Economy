@@ -69,25 +69,32 @@ function dailyHistoryForMarket(market, assetKind, now) {
     byDate.set(dateKey, { dateKey, price, buyVolume, sellVolume, neutralVolume, volume: Math.max(buyVolume + sellVolume + neutralVolume, Math.max(0, Number(entry?.volume) || 0)) });
   };
   for (const entry of Array.isArray(market?.dailyHistory) ? market.dailyHistory : []) remember(entry);
+
+  const fallbackByDate = new Map();
   for (const point of realTradePointsBetween(market, now - MARKET_DAILY_HISTORY_DAYS * DAY_MS, now)) {
-    const dateKey = checkInDateKey(Number(point.createdAt || 0));
+    const createdAt = Number(point.createdAt || 0);
+    const dateKey = checkInDateKey(createdAt);
     if (byDate.has(dateKey)) continue;
-    const sameDay = realTradePointsBetween(
-      market,
-      Date.parse(`${dateKey}T00:00:00+08:00`),
-      Date.parse(`${dateKey}T23:59:59.999+08:00`),
-    );
-    if (sameDay.length < 1) continue;
-    const buyVolume = sameDay.reduce((sum, trade) => sum + (trade.takerSide === 'buy' ? Math.max(0, Number(trade.quantity || 0)) : 0), 0);
-    const sellVolume = sameDay.reduce((sum, trade) => sum + (trade.takerSide === 'sell' ? Math.max(0, Number(trade.quantity || 0)) : 0), 0);
-    remember({
+    const quantity = Math.max(0, Number(point.quantity || 0));
+    const current = fallbackByDate.get(dateKey) || {
       dateKey,
-      price: Number(sameDay[sameDay.length - 1].price || 0),
-      buyVolume,
-      sellVolume,
-      volume: buyVolume + sellVolume,
-    });
+      price: Number(point.price || 0),
+      buyVolume: 0,
+      sellVolume: 0,
+      volume: 0,
+      lastTradeAt: 0,
+    };
+    if (point.takerSide === 'buy') current.buyVolume += quantity;
+    else if (point.takerSide === 'sell') current.sellVolume += quantity;
+    current.volume += quantity;
+    if (createdAt >= current.lastTradeAt) {
+      current.price = Number(point.price || 0);
+      current.lastTradeAt = createdAt;
+    }
+    fallbackByDate.set(dateKey, current);
   }
+  for (const entry of fallbackByDate.values()) remember(entry);
+
   if (assetKind === 'commodity') {
     remember({ dateKey: checkInDateKey(now), price: Number(market?.officialPrice || market?.lastPrice || 0), buyQuantity: Math.max(0, Number(market?.todayBuyQuantity || 0)), sellQuantity: Math.max(0, Number(market?.todaySellQuantity || 0)) });
   }
@@ -267,7 +274,9 @@ export function createMarketDetail(world, {
       ? completedEventWindowsByProduct(now).get(assetId)
       : undefined,
   });
-  const priceHistory = realTradePoints(market, now).map(publicPricePoint);
+  const priceHistory = assetKind === 'commodity'
+    ? []
+    : realTradePoints(market, now).map(publicPricePoint);
   const dailyHistory = dailyHistoryForMarket(market, assetKind, now);
   const bids = assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth(world, {
     provinceId: normalizedProvinceId,
