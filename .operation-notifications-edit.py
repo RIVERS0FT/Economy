@@ -100,7 +100,7 @@ replace(p, "    setActionError('');\n", '')
 replace(p, '      if (!result.ok) setActionError(result.message);\n      await model.showResult(result);', '''      if (result.code === 'ACTION_RESULT_UNCONFIRMED') {
         await reportActionException(model, null, operation === 'auto-operation' ? '自动经营设置' : '商业建筑操作');
       } else {
-        const previousEnabled = game.commercialBuildingGroups.find((group) => group.provinceId === model.selectedProvinceId && group.commercialTypeId === commercialTypeId)?.autoOperationPolicy?.enabled ?? true;
+        const previousEnabled = game.commercialBuildingGroups?.find((group) => group.provinceId === model.selectedProvinceId && group.commercialTypeId === commercialTypeId)?.autoOperationPolicy?.enabled ?? true;
         await model.showResult(result.ok && operation === 'auto-operation' && policy
           ? { ...result, message: autoOperationSuccessMessage(previousEnabled, policy.enabled) }
           : result);
