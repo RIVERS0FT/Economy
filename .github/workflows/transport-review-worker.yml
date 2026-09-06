@@ -1,0 +1,35 @@
+name: Transport compatibility assertion sync
+on:
+  push:
+    branches: [feat/transport-trip-fuel-20260906]
+    paths: [.github/workflows/transport-review-worker.yml]
+permissions:
+  contents: write
+jobs:
+  sync:
+    if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/feat/transport-trip-fuel-20260906'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Finish protocol assertion and success-text synchronization
+        shell: python
+        run: |
+          from pathlib import Path
+          for name, old, new in [('verify-asset-auctions.mjs', '客户端状态版本：41', '客户端状态版本：42'), ('verify-production-methods.mjs', '客户端版本 41', '客户端版本 42')]:
+              path = Path('scripts') / name
+              text = path.read_text()
+              assert text.count(old) == 1
+              path.write_text(text.replace(old, new))
+      - name: Commit validated version synchronization
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git add scripts/verify-asset-auctions.mjs scripts/verify-production-methods.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'test: synchronize remaining compatibility-version guardrails'
+          git push origin HEAD:"$GITHUB_REF_NAME"
