@@ -27,7 +27,7 @@ export function BuildingSettlementProducts({ items, productNames, inventories, m
         const shortage = requiredForNextCycle !== undefined && usableQuantity != null
           && usableQuantity < (requiredForNextCycle[item.productId] ?? 0);
         return (
-          <button type="button" className="facility-formula-item-card facility-formula-item-group" data-ui-interactive="surface"
+          <button type="button" className="facility-formula-item-group" data-ui-interactive="surface"
             data-shortage={shortage || undefined} key={`${item.productId}-${index}`}
             aria-label={`查看${productName}本地商品详情，${quantityLabel} ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}${shortage ? '，下一周期库存不足' : ''}`}
             title={`查看${productName}本地商品详情 · ${quantityLabel} ${formatNumber(quantity)} · 仓库可用 ${formatNumber(warehouseQuantity)}`}
