@@ -11,7 +11,6 @@ import { commercialSettlementPresentation } from '../../utils/commercialSettleme
 import { BuildingAutoOperationSection } from '../buildings/BuildingAutoOperationSection';
 import { BuildingSettlementPanel } from '../buildings/BuildingSettlementPanel';
 import { BuildingSettlementProducts } from '../buildings/BuildingSettlementProducts';
-import { CreditsIcon } from '../icons/GameIcons';
 import { CompactNumber } from '../ui/CompactNumber';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { SelectInput } from '../ui/FormControls';
@@ -104,7 +103,9 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
           itemClassName="facility-formula-input-item" quantityLabel="营业消耗" requiredForNextCycle={nextCycle.required} usableForNextCycle={nextCycle.usable}
           onOpenProductMarket={onOpenProductMarket} /> : <span className="facility-formula-empty">{settlement.locked ? '结算明细待确认' : '预计明细待确认'}</span>}
         outputs={<div className="facility-formula-output-group commercial-settlement-revenue">
-          <div className="facility-formula-output-item"><CreditsIcon className="facility-formula-meta-icon" /><strong>{money(settlement.revenue)}</strong></div>
+          <div className="facility-formula-item-card facility-formula-money-card">
+            <div className="facility-formula-output-item"><strong>{money(settlement.revenue)}</strong></div>
+          </div>
         </div>}
         cycleMs={settlement.locked && typeof group.cycleStartedAt === 'number' && typeof group.cycleCompletesAt === 'number' && group.cycleCompletesAt > group.cycleStartedAt ? group.cycleCompletesAt - group.cycleStartedAt : type.cycleMs} operatingCost={settlement.operatingCost} progress={<CommercialCycleProgress group={group} now={now} />}>
         {!settlement.locked ? <>
