@@ -1,6 +1,6 @@
 /* Factory production settlement: icon-first material rows, compact operation metadata, and flow progress. */
 .facility-production-formula {
-  --facility-formula-item-radius: calc(var(--radius-control) - 0.2rem);
+  --facility-formula-item-radius: var(--radius-control);
   min-width: 0;
   position: relative;
   isolation: isolate;
