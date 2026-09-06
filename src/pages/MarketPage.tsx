@@ -309,7 +309,10 @@ export function MarketPage({
     : marketDetailMatches(cachedMarketDetail)
       ? cachedMarketDetail
       : null;
-  const marketDetailPending = Boolean(marketDetailLoading && !selectedMarketDetail);
+  const shouldLoadMarketDetail = Boolean(facilityAssetId) || marketViewMode === 'detail';
+  const marketDetailPending = Boolean(
+    shouldLoadMarketDetail && !selectedMarketDetail && !marketDetailError,
+  );
   const marketDetailUnavailable = Boolean(marketDetailError && !selectedMarketDetail);
   const marketChartUnavailable = marketDetailPending || marketDetailUnavailable;
   const marketDetailRefreshToken = [
@@ -323,8 +326,7 @@ export function MarketPage({
   ].join('|');
 
   useEffect(() => {
-    const shouldLoad = Boolean(facilityAssetId) || marketViewMode === 'detail';
-    if (!shouldLoad || !assetId) return undefined;
+    if (!shouldLoadMarketDetail || !assetId) return undefined;
     const controller = new AbortController();
     setMarketDetailLoading(true);
     setMarketDetailError('');
@@ -348,6 +350,7 @@ export function MarketPage({
     marketDetailRefreshToken,
     marketViewMode,
     model.selectedProvinceId,
+    shouldLoadMarketDetail,
   ]);
 
   const selectedLocalTrades = useMemo(
