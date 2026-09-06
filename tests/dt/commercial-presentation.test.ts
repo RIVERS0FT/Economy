@@ -26,7 +26,6 @@ test('stopped, invalid and missing commercial cycles never fabricate progress', 
     { status: 'stopped' as const, cycleStartedAt: 0, cycleCompletesAt: 300_000 },
     { status: 'error' as const },
     { status: 'running' as const },
-    { status: 'running' as const },
     { status: 'running' as const, cycleStartedAt: 100, cycleCompletesAt: 100 },
     { status: 'running' as const, cycleStartedAt: NaN, cycleCompletesAt: Infinity },
   ]) assert.equal(commercialCycleProgress(group, 100).active, false);
