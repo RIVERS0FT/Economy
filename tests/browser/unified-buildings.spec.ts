@@ -75,6 +75,7 @@ for (const width of [320, 1440]) {
     await expect(detail).toHaveAttribute('data-building-kind', 'commercial');
     await expect(detail.locator('.facility-production-formula')).toHaveCount(1);
     await expect(detail.locator('.facility-production-formula-heading')).toHaveText('经营结算');
+    await expect(detail.locator('.facility-formula-side-label')).toHaveCount(0);
     await expect(detail.locator('.facility-production-settings')).toHaveCount(0);
     await assertOperationControlsAligned(detail);
     await assertNoOverflow(page);
@@ -87,6 +88,7 @@ for (const width of [320, 1440]) {
     await page.locator('.unified-building-list > .facility-cluster-selector-card').first().click();
     await expect(detail).toHaveAttribute('data-building-kind', 'industrial');
     await expect(detail.locator('.facility-production-formula-heading')).toHaveText('生产结算');
+    await expect(detail.locator('.facility-formula-side-label')).toHaveCount(0);
     await expect(detail.locator('.facility-auto-operation > .facility-auto-operation__header')).toContainText('自动经营');
     await assertOperationControlsAligned(detail);
     await assertNoOverflow(page);
@@ -115,7 +117,7 @@ test('global commerce restores its region, detail and filtered catalog', async (
   await expect(page.locator('.global-facility-catalog-row')).toHaveCount(6);
 });
 
-test('commercial automatic operation is independent and prevents duplicate requests', async ({ page }) => {
+test('commercial automatic operation keeps concept click separate from coverage select and prevents duplicate requests', async ({ page }) => {
   const requests: Record<string, unknown>[] = [];
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -136,11 +138,14 @@ test('commercial automatic operation is independent and prevents duplicate reque
   expect(requests[0]).toMatchObject({ operation: 'auto-operation', provinceId: '110000', commercialTypeId: 'convenience-store', policy: { enabled: false, inputCoverageCycles: 2 } });
   await auto.click(); await expect(auto).toBeChecked();
   const coverage = page.getByRole('combobox', { name: '便利店商品保障', exact: true });
+  await page.getByText('商品保障', { exact: true }).click();
+  await expect(coverage).toHaveAttribute('aria-expanded', 'false');
   await coverage.click(); await page.getByRole('option', { name: '5 个营业周期', exact: true }).click();
   await expect.poll(() => requests.length).toBe(3);
   expect(requests[2]).toMatchObject({ policy: { enabled: true, inputCoverageCycles: 5 } });
   await expect(coverage).toContainText('5 个营业周期');
-  await expect(page.getByText('本周期锁定利润', { exact: true }).locator('..')).toContainText('5.00');
+  await expect(page.getByText('本周期锁定利润', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.commercial-settlement-revenue')).toContainText('101.25');
 });
 
 test('failed commercial policy save preserves the authoritative setting', async ({ page }) => {
@@ -166,12 +171,28 @@ test('commercial goods open the same local product and return without trading', 
   expect(mutations).toEqual([]);
 });
 
-test('legacy unknown settlement detail stays unknown and empty commerce retains construction', async ({ page }) => {
+test('global building goods open product detail without switching through global market', async ({ page }) => {
+  await page.goto('runtime-test.html?view=unified-buildings&scenario=activity');
+  await filter(page, '商业建筑');
+  await page.locator('.global-facility-catalog-row').filter({ hasText: '便利店' }).locator('button').click();
+  await page.locator('.global-facility-region-row[data-province-id="120000"] button').first().click();
+  await expect(page.locator('.building-detail-page[data-building-kind="commercial"]')).toBeVisible();
+  await page.locator('.commercial-settlement .facility-formula-item-group').first().click();
+  await expect(page.locator('[data-global-scope="buildings"][data-drilldown-product-id]')).toBeVisible();
+  await expect(page.locator('[data-global-scope="market"]')).toHaveCount(0);
+  await expect(page.locator('.regional-entity-title__name')).toHaveText('食品');
+  await page.locator('.page-navigation-button--back').click();
+  await expect(page.locator('.building-detail-page[data-building-kind="commercial"]')).toBeVisible();
+});
+
+test('legacy unknown settlement detail stays unknown without restoring locked rows and empty commerce retains construction', async ({ page }) => {
   await openConvenienceDetail(page);
   await updateGroup(page, { pendingInputs: null, pendingOperatingCost: null, pendingInputValue: null });
-  await expect(page.locator('.commercial-settlement')).toContainText('锁定明细待确认');
-  await expect(page.getByText('本周期锁定商品价值', { exact: true }).locator('..')).toContainText('—');
-  await expect(page.getByText('本周期锁定收入', { exact: true }).locator('..')).toContainText('101.25');
+  await expect(page.locator('.commercial-settlement')).toContainText('结算明细待确认');
+  for (const label of ['本周期等效营业数量', '本周期锁定收入', '本周期锁定商品价值', '本周期已付运营成本', '本周期锁定利润']) {
+    await expect(page.getByText(label, { exact: true })).toHaveCount(0);
+  }
+  await expect(page.locator('.commercial-settlement-revenue')).toContainText('101.25');
   await openRegional(page, 'empty');
   await expect(page.locator('.commercial-build-card')).toBeVisible();
   await expect(page.locator('.unified-building-list .facility-cluster-selector-card')).toHaveCount(0);
