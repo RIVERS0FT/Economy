@@ -94,10 +94,10 @@ for (const text of [
   'expandScaleToMinimumTicks', 'left.padding - right.padding',
   'const plotInset = Math.max', 'const left = plotInset', 'const right = plotInset',
   'formatIntegerPriceTick', 'formatCompactVolumeTick',
-  'showMinLabel: true', 'showMaxLabel: false',
+  'showMinLabel: true', 'showMaxLabel: true',
   "alignMinLabel: 'left'", "alignMaxLabel: 'right'",
   'inside: true', "align: 'left'", 'margin: 6',
-  "value === volumeScale.max ? '' : formatCompactVolumeTick(value)",
+  'buildEdgeAlignedAxisLabelRich', 'formatEdgeAlignedAxisLabel',
   'lineStyle: { color: chartColor.info', 'areaStyle: { color: chartColor.info',
   'barMinHeight: 2', 'color: chartColor.secondary',
   'data-volume-share={geometry.volumeShare.toFixed(4)}',
@@ -109,10 +109,13 @@ for (const text of [
   'data-x-axis-title-visible={geometry.showXAxisTitle',
   'data-axis-pointer-linked="true"', 'data-hover-emphasis-disabled="true"',
   'data-chart-fill-mode={minimumHeight > 0',
-  'data-shared-boundary-label-owner="price"',
+  'data-shared-boundary-label-layout="split-edge"',
+  'data-y-axis-edge-labels-aligned="true"',
+  'data-price-max-label={priceTopLabel}',
   'data-price-min-label={priceBoundaryLabel}',
   'data-volume-max-label={volumeBoundaryLabel}',
-  'data-volume-max-label-visible="false"',
+  'data-volume-min-label={volumeBottomLabel}',
+  'data-volume-max-label-visible="true"',
   'marketBucketSignature', 'useMemo<MarketHistoryBucket[]>',
   "id: 'market-price-grid'", "id: 'market-volume-grid'",
   "id: 'market-price-series'", "id: 'market-volume-series'",
@@ -196,14 +199,14 @@ for (const text of [
   'const marketBoundaryViewports = [',
   "{ width: 721, height: 445, label: '问题截图尺寸' }", "{ width: 390, height: 844, label: '移动端' }",
   "{ width: 320, height: 700, label: '极窄移动端' }", 'for (const viewport of marketBoundaryViewports)',
-  'market zero-gap grids give the shared boundary label to the price axis only at ${viewport.label}',
-  'market zero-gap grids keep the shared boundary label on the price axis at 125% root font', 'expect.poll',
-  'data-echarts-ready', 'sharedBoundaryLabelOwner', 'volumeMaxLabelVisible', 'yAxisLabelsInside',
-  'priceMinMatches', 'priceMinInside', 'boundaryLabels', '共享边界只能存在一项纵轴刻度',
+  'market y-axis endpoint labels align to grid edges at ${viewport.label}',
+  'market y-axis endpoint labels stay edge-aligned at 125% root font', 'expect.poll',
+  'data-echarts-ready', 'sharedBoundaryLabelLayout', 'yAxisEdgeLabelsAligned', 'volumeMaxLabelVisible', 'yAxisLabelsInside',
+  'priceMax', 'priceMin', 'volumeMax', 'volumeMin', '共享边界两侧文字不得重叠',
   "document.documentElement.style.fontSize = '20px'",
 ]) assert.ok(boundaryLabelSpec.includes(text), `行情图共享边界刻度回归缺少: ${text}`);
 assert.ok(!boundaryLabelSpec.includes('test.setTimeout('), '行情图共享边界刻度回归不得扩大 Playwright 单测超时');
-assert.ok(!boundaryLabelSpec.includes("test('market zero-gap grids give the shared boundary label to the price axis only',"), '行情图共享边界刻度回归不得恢复多视口单体长链');
+assert.ok(!boundaryLabelSpec.includes("test('market y-axis endpoint labels align to grid edges',"), '行情图纵轴端点回归不得恢复多视口单体长链');
 for (const text of [
   'market chart keeps price, volume and internal y-axis semantics readable',
   "page.goto('market-runtime-test.html?scenario=active')",
@@ -254,8 +257,9 @@ for (const text of [
   '`--color-info`', '`--color-success`', '`--color-text-secondary`',
   "`axisLabel.alignMinLabel = 'left'`", "`axisLabel.alignMaxLabel = 'right'`",
   '纵轴数值标签必须位于各自 Grid 内部', '不得渲染“价格”或“成交量”胶囊',
-  '共享边界只能显示一项纵轴刻度标签', '价格轴保留最小刻度', '成交量轴隐藏最大刻度',
-  '成交量轴目标刻度不得低于 3 个', '非零中间刻度',
+  '两个纵轴都必须显示各自上、下端刻度', '上端刻度文字顶部与 Grid 顶边对齐', '下端刻度文字底部与 Grid 底边对齐',
+  '共享边界处同时保留价格轴最小刻度和成交量轴最大刻度', '价格最小刻度向上收进价格区', '成交量最大刻度向下收进成交量区',
+  '不得重叠或互相隐藏', '成交量轴目标刻度不得低于 3 个', '非零中间刻度',
   'full 变体任意支持断点下成交量绘图区实际屏幕高度不得低于 `68px`',
   '最小可见高度 `2px`',
   '容器宽度不大于 `720px` 或使用 compact 变体时不渲染可见“日期”标题',
@@ -283,4 +287,4 @@ for (const text of [
   assert.ok(orderBookDesign.includes(text), `即时市场设计文档缺少: ${text}`);
 }
 
-console.log('Market ECharts verification passed: 30 daily buckets, internal y-axis labels, inward-anchored dates, linked persistent hover and zero-gap grids satisfy the design baseline.');
+console.log('Market ECharts verification passed: 30 daily buckets, edge-aligned internal y-axis labels, inward-anchored dates, linked persistent hover and zero-gap grids satisfy the design baseline.');

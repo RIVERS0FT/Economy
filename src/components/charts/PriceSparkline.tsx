@@ -181,6 +181,27 @@ export function formatCompactVolumeTick(value: number) {
   return `${formatter.format(scaled)}${unit.suffix}`;
 }
 
+function buildEdgeAlignedAxisLabelRich(fontSize: number) {
+  const shared = { color: chartColor.secondary, fontSize, lineHeight: fontSize };
+  return {
+    top: { ...shared, padding: [fontSize, 0, 0, 0] },
+    middle: shared,
+    bottom: { ...shared, padding: [0, 0, fontSize, 0] },
+  };
+}
+
+function formatEdgeAlignedAxisLabel(
+  value: number,
+  min: number,
+  max: number,
+  formatter: (value: number) => string,
+) {
+  const text = formatter(value);
+  if (value === max) return `{top|${text}}`;
+  if (value === min) return `{bottom|${text}}`;
+  return `{middle|${text}}`;
+}
+
 function volumeColor(direction: MarketHistoryBucket['direction']) {
   if (direction === 'buy') return chartColor.success;
   if (direction === 'sell') return chartColor.danger;
@@ -334,8 +355,10 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     volumeTickCount,
   ), [safeBuckets, volumeTickCount]);
   const plotWidth = Math.max(1, geometry.width - geometry.left - geometry.right);
+  const priceTopLabel = formatIntegerPriceTick(priceScale.max);
   const priceBoundaryLabel = formatIntegerPriceTick(priceScale.min);
   const volumeBoundaryLabel = formatCompactVolumeTick(volumeScale.max);
+  const volumeBottomLabel = formatCompactVolumeTick(volumeScale.min);
   const visibleVolumeTicks = volumeScale.ticks.filter((value) => value !== volumeScale.max);
   const hasVisibleNonZeroVolumeTick = visibleVolumeTicks.some((value) => value > 0);
   const windowStart = safeBuckets[0].startAt;
@@ -515,7 +538,13 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
           margin: 6,
           showMinLabel: true,
           showMaxLabel: true,
-          formatter: (value: number) => formatIntegerPriceTick(value),
+          rich: buildEdgeAlignedAxisLabelRich(Math.max(11, rootFontSize * 0.75)),
+          formatter: (value: number) => formatEdgeAlignedAxisLabel(
+            value,
+            priceScale.min,
+            priceScale.max,
+            formatIntegerPriceTick,
+          ),
         },
         splitLine: { lineStyle: { color: chartColor.border } },
       },
@@ -529,8 +558,14 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
           align: 'left',
           margin: 6,
           showMinLabel: true,
-          showMaxLabel: false,
-          formatter: (value: number) => value === volumeScale.max ? '' : formatCompactVolumeTick(value),
+          showMaxLabel: true,
+          rich: buildEdgeAlignedAxisLabelRich(Math.max(11, rootFontSize * 0.75)),
+          formatter: (value: number) => formatEdgeAlignedAxisLabel(
+            value,
+            volumeScale.min,
+            volumeScale.max,
+            formatCompactVolumeTick,
+          ),
         },
         splitLine: { lineStyle: { color: chartColor.border } },
       },
@@ -582,10 +617,13 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       data-axis-pointer-linked="true"
       data-hover-emphasis-disabled="true"
       data-tooltip-persistence="true"
-      data-shared-boundary-label-owner="price"
+      data-shared-boundary-label-layout="split-edge"
+      data-y-axis-edge-labels-aligned="true"
+      data-price-max-label={priceTopLabel}
       data-price-min-label={priceBoundaryLabel}
       data-volume-max-label={volumeBoundaryLabel}
-      data-volume-max-label-visible="false"
+      data-volume-min-label={volumeBottomLabel}
+      data-volume-max-label-visible="true"
       data-volume-nonzero-label-visible={hasVisibleNonZeroVolumeTick ? 'true' : 'false'}
       data-price-color-role="info"
       data-y-axis-labels-inside="true"
