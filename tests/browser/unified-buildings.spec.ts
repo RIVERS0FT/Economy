@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 async function openRegional(page: Page, scenario = 'activity') {
   await page.goto(`runtime-test.html?view=regional-buildings&scenario=${scenario}`);
   await expect(page.getByRole('tab', { name: '商业', exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: '商业', exact: true })).click();
+  await page.getByRole('tab', { name: '商业', exact: true }).click();
   await expect(page.locator('.unified-regional-buildings')).toBeVisible();
 }
 async function filter(page: Page, label: '全部' | '商业建筑' | '工业建筑') {
