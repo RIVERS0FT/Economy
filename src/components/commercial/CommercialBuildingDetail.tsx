@@ -49,7 +49,7 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
   now: number;
   pending: boolean;
   onToggle: (enabled: boolean) => void;
-  onAutoOperationChange: (policy: CommercialAutoOperationPolicy) => void;
+  onAutoOperationChange: (policy: Partial<CommercialAutoOperationPolicy>) => void;
   onOpenProductMarket: (productId: string) => void;
 }) {
   const liveNow = useNow(now);
@@ -88,11 +88,11 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
       </section>
       <BuildingAutoOperationSection label={<GameConcept concept="commercial-auto-operation">自动经营</GameConcept>}
         enabled={policy.enabled} disabled={pending || group.count < 1}
-        onChange={(enabled) => onAutoOperationChange({ ...policy, enabled })}>
+        onChange={(enabled) => onAutoOperationChange({ enabled })}>
         <SelectInput label={<span onClick={(event) => event.preventDefault()}><GameConcept concept="commercial-input-coverage">商品保障</GameConcept></span>}
           aria-label={`${type.name}商品保障`} fieldClassName="facility-auto-operation__coverage"
           value={String(policy.inputCoverageCycles)} disabled={pending || !policy.enabled || group.count < 1}
-          onChange={(event) => onAutoOperationChange({ ...policy, inputCoverageCycles: Number(event.target.value) as 1 | 2 | 3 | 5 })}>
+          onChange={(event) => onAutoOperationChange({ inputCoverageCycles: Number(event.target.value) as 1 | 2 | 3 | 5 })}>
           {[1, 2, 3, 5].map((cycles) => <option value={cycles} key={cycles}>{cycles} 个营业周期</option>)}
         </SelectInput>
       </BuildingAutoOperationSection>

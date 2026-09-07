@@ -89,7 +89,7 @@ forbidText(definition, '设置自动交易', '教程不得恢复商品级自动�
 
 requireText(tutorialEvents, "FACTORY_AUTO_OPERATION_SAVED_EVENT = 'economy:factory-auto-operation-saved'", '教程必须使用唯一工厂自动经营保存事件');
 requireText(facilityAutoOperation, 'announceFactoryAutoOperationSaved({', '工厂策略保存成功必须通知教程');
-requireText(facilityAutoOperation, 'if (response.result.ok)', '失败的工厂策略保存不得推进教程');
+requireText(facilityAutoOperation, 'if (result.ok)', '失败的工厂策略保存不得推进教程');
 for (const text of [
   'const result = await model.buildFacility(facilityTypeId, quantity, procurement);',
   'if (result.ok) tutorial.recordBuildSubmit(facilityTypeId, provinceId, baseline);',

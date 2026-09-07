@@ -1,3 +1,4 @@
+import { useFacilityRecipeConfiguration } from '../hooks/useFacilityRecipeConfiguration';
 import { useBuildingTypeFilter } from '../hooks/useBuildingTypeFilter';
 import { BuildingTypeFilter } from '../components/buildings/BuildingTypeFilter';
 import { CommercialBuildingArtwork } from '../components/commercial/CommercialBuildingArtwork';
@@ -103,8 +104,6 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   const [selectedGlobalFacilityTypeId, setSelectedGlobalFacilityTypeId] = useState<string | null>(null);
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
   const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);
-  const [pendingQuickFacilityTypeIds, setPendingQuickFacilityTypeIds] = useState<Set<string>>(() => new Set());
-  const [pendingRegionQuickKeys, setPendingRegionQuickKeys] = useState<Set<string>>(() => new Set());
   const [catalogSort, setCatalogSort] = useState<EntityListSortState<FacilityCatalogSortKey>>({
     key: 'catalog',
     direction: 'asc',
@@ -125,6 +124,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     </div>
   ) : null;
   const game = model.game;
+  const recipeConfiguration = useFacilityRecipeConfiguration(model);
   const provinces = operationalProvinces(model);
 
   useEffect(() => {
@@ -204,7 +204,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       if (count <= 0) continue;
       totalCount += count;
 
-      const recipeState = resolveFacilityDetailRecipeState({ group, type });
+      const recipeState = resolveFacilityDetailRecipeState({ group: recipeConfiguration.project(group), type });
       recipeStates.push({ provinceId: province.id, recipeState });
       const scope = currentFormulaScope(group, game.lastProcessedAt);
       if (scope.physicalCount <= 0) continue;
@@ -298,6 +298,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     game.products,
     game.provinceFacilityGroups,
     game.facilityGroups,
+    recipeConfiguration.version,
     facilityStatus,
     game.provinceMarkets,
     game.research?.completedTechnologyIds,
@@ -343,7 +344,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       if (!group || count <= 0 || (facilityStatus && group.status !== facilityStatus)) return [];
 
       const scope = currentFormulaScope(group, game.lastProcessedAt);
-      const recipeState = resolveFacilityDetailRecipeState({ group, type: selectedGlobalFacility });
+      const recipeState = resolveFacilityDetailRecipeState({ group: recipeConfiguration.project(group), type: selectedGlobalFacility });
       const presentation = resolveFacilityProfitPresentation({
         type: recipeState.formulaType,
         scopeCount: scope.physicalCount,
@@ -401,6 +402,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     game.products,
     game.provinceFacilityGroups,
     game.facilityGroups,
+    recipeConfiguration.version,
     facilityStatus,
     game.provinceMarkets,
     game.research?.completedTechnologyIds,
@@ -457,14 +459,21 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   ) => {
     const quick = row.quickProduction;
     const type = game.facilityTypes.find((candidate) => candidate.id === row.buildingTypeId);
-    if (!quick || !type || !nextValue || pendingQuickFacilityTypeIds.has(row.buildingTypeId)) return;
+    if (!quick || !type || !nextValue) return;
 
-    const alreadyApplied = quick.targets.every((current) => (
+    const currentTargets = quick.targets.map((target) => {
+      const group = (game.provinceFacilityGroups?.[target.provinceId] ?? game.facilityGroups)
+        .find((candidate) => candidate.facilityTypeId === type.id && candidate.provinceId === target.provinceId);
+      if (!group) return target;
+      const current = resolveFacilityDetailRecipeState({ group: recipeConfiguration.project(group), type });
+      return { provinceId: target.provinceId, baseRecipeId: current.selectedBaseRecipeId, methodId: current.selectedProductionMethodId };
+    });
+    const alreadyApplied = currentTargets.every((current) => (
       target === 'product' ? current.baseRecipeId === nextValue : current.methodId === nextValue
     ));
     if (alreadyApplied) return;
 
-    const targets = quick.targets.flatMap((current) => {
+    const targets = currentTargets.flatMap((current) => {
       const recipeId = target === 'product'
         ? productionRecipeVariantId(type, nextValue, current.methodId)
           ?? productionRecipeVariantId(type, nextValue, productionMethodGroupForType(type)?.defaultMethodId ?? '')
@@ -484,17 +493,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       return;
     }
 
-    setPendingQuickFacilityTypeIds((current) => new Set(current).add(row.buildingTypeId));
-    try {
-      const result = await model.setFacilityRecipes(targets);
-      model.notify(result.message);
-    } finally {
-      setPendingQuickFacilityTypeIds((current) => {
-        const nextPending = new Set(current);
-        nextPending.delete(row.buildingTypeId);
-        return nextPending;
-      });
-    }
+    recipeConfiguration.setRecipes(targets);
   };
 
   const applyRegionalQuickProduction = async (
@@ -503,10 +502,11 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     nextValue: string,
   ) => {
     const type = selectedGlobalFacility;
-    const quick = row.quickProduction;
-    if (!type || !quick || !nextValue || !model.setFacilityRecipes) return;
-    const pendingKey = `${row.province.id}:${type.id}`;
-    if (pendingRegionQuickKeys.has(pendingKey)) return;
+    if (!type || !nextValue || !model.setFacilityRecipes) return;
+    const group = (game.provinceFacilityGroups?.[row.province.id] ?? game.facilityGroups)
+      .find((candidate) => candidate.facilityTypeId === type.id && candidate.provinceId === row.province.id);
+    const current = group ? resolveFacilityDetailRecipeState({ group: recipeConfiguration.project(group), type }) : null;
+    const quick = current ? { baseRecipeId: current.selectedBaseRecipeId, methodId: current.selectedProductionMethodId } : row.quickProduction;
     if (target === 'product' && quick.baseRecipeId === nextValue) return;
     if (target === 'method' && quick.methodId === nextValue) return;
 
@@ -519,21 +519,11 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       return;
     }
 
-    setPendingRegionQuickKeys((current) => new Set(current).add(pendingKey));
-    try {
-      const result = await model.setFacilityRecipes([{
-        provinceId: row.province.id,
-        facilityTypeId: type.id,
-        recipeId,
-      }]);
-      model.notify(result.message);
-    } finally {
-      setPendingRegionQuickKeys((current) => {
-        const nextPending = new Set(current);
-        nextPending.delete(pendingKey);
-        return nextPending;
-      });
-    }
+    recipeConfiguration.setRecipes([{
+      provinceId: row.province.id,
+      facilityTypeId: type.id,
+      recipeId,
+    }]);
   };
 
   const openGlobalCommercial = (commercialTypeId: string) => {
@@ -716,6 +706,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                       <span className="global-facility-region-row__quick-controls" aria-label={`${row.province.name}${selectedGlobalFacility.name}生产配置`}>
                         <span className="global-facility-region-row__quick-selector" data-quick-production="product">
                           <FacilityProductionProductSelect
+                              disabled={false}
                             typeName={`${row.province.name}${selectedGlobalFacility.name}`}
                             products={game.products}
                             recipes={row.quickProduction.recipes}
@@ -723,13 +714,14 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                             selectedBaseRecipeId={row.quickProduction.baseRecipeId}
                             selectedProductionMethodId={row.quickProduction.methodId}
                             fieldClassName="global-facility-region-row__quick-field"
-                            disabled={pendingRegionQuickKeys.has(`${row.province.id}:${selectedGlobalFacility.id}`)}
+
                             ariaLabel={`${row.province.name}${selectedGlobalFacility.name}生产产物：${row.quickProduction.productName}`}
                             onProductChange={(value) => void applyRegionalQuickProduction(row, 'product', value)}
                           />
                         </span>
                         <span className="global-facility-region-row__quick-selector" data-quick-production="method">
                           <FacilityProductionMethodSelect
+                              disabled={false}
                             typeName={`${row.province.name}${selectedGlobalFacility.name}`}
                             products={game.products}
                             productionMethodGroup={row.quickProduction.productionMethodGroup}
@@ -738,7 +730,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                             completedTechnologyIds={game.research?.completedTechnologyIds ?? []}
                             researchTechnologies={game.researchTechnologies ?? []}
                             fieldClassName="global-facility-region-row__quick-field"
-                            disabled={pendingRegionQuickKeys.has(`${row.province.id}:${selectedGlobalFacility.id}`)}
+
                             ariaLabel={`${row.province.name}${selectedGlobalFacility.name}作业制度：${row.quickProduction.methodName}`}
                             onMethodChange={(value) => void applyRegionalQuickProduction(row, 'method', value)}
                           />
@@ -818,6 +810,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                             data-mixed={row.quickProduction.productMixed ? 'true' : undefined}
                           >
                             <FacilityProductionProductSelect
+                              disabled={false}
                               typeName={row.name}
                               products={game.products}
                               recipes={row.quickProduction.recipes}
@@ -826,7 +819,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                               selectedProductionMethodId={row.quickProduction.targets[0]?.methodId ?? row.quickProduction.selectedProductionMethodId}
                               fieldClassName="global-facility-catalog-row__quick-field"
                               notifyOnReselect={row.quickProduction.productMixed}
-                              disabled={pendingQuickFacilityTypeIds.has(row.buildingTypeId)}
+
                               ariaLabel={`${row.name}生产产物：${row.quickProduction.productMixed ? '各地区不同，当前显示' : ''}${row.quickProduction.productName}`}
                               onProductChange={(value) => void applyQuickProduction(row, 'product', value)}
                             />
@@ -837,6 +830,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                             data-mixed={row.quickProduction.methodMixed ? 'true' : undefined}
                           >
                             <FacilityProductionMethodSelect
+                              disabled={false}
                               typeName={row.name}
                               products={game.products}
                               productionMethodGroup={row.quickProduction.productionMethodGroup}
@@ -846,7 +840,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                               researchTechnologies={game.researchTechnologies ?? []}
                               fieldClassName="global-facility-catalog-row__quick-field"
                               notifyOnReselect={row.quickProduction.methodMixed}
-                              disabled={pendingQuickFacilityTypeIds.has(row.buildingTypeId)}
+
                               ariaLabel={`${row.name}作业制度：${row.quickProduction.methodMixed ? '各地区不同，当前显示' : ''}${row.quickProduction.methodName}`}
                               onMethodChange={(value) => void applyQuickProduction(row, 'method', value)}
                             />

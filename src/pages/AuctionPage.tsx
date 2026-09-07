@@ -1,5 +1,5 @@
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { gameActions, getAuctionBidHistory } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
@@ -258,6 +258,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const [durationHoursInput, setDurationHoursInput] = useState('24');
   const [bidAmounts, setBidAmounts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [expandedBidHistoryIds, setExpandedBidHistoryIds] = useState<Set<string>>(() => new Set());
   const [bidHistoryCache, setBidHistoryCache] = useState<Record<string, BidHistoryCacheEntry>>({});
   const [loadingBidHistoryIds, setLoadingBidHistoryIds] = useState<Set<string>>(() => new Set());
@@ -462,16 +463,18 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   async function run(operation: () => ReturnType<typeof gameActions.createAuction>, onSuccess?: () => void) {
-    if (submitting) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const response = await operation();
       model.notify(response.result.message);
       if (response.result.ok) onSuccess?.();
-      await model.refresh();
+      void model.refresh({ mode: 'authoritative' }).catch(() => model.notify('拍卖操作已完成，但状态同步失败', 'warning'));
     } catch (reason) {
       model.notify(reason instanceof Error ? reason.message : '拍卖操作失败');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }

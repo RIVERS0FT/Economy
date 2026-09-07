@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { CompactNumber } from '../ui/CompactNumber';
 import { ChevronIcon } from '../icons/GameIcons';
@@ -169,7 +169,7 @@ export function FacilityProductionProductSelect({
   ariaLabel?: string;
   onProductChange: (baseRecipeId: string) => void;
 }) {
-  const productsById = productMap(products);
+  const productsById = useMemo(() => productMap(products), [products]);
   return (
     <RichSelectInput
       variant="production-config"
@@ -222,9 +222,9 @@ export function FacilityProductionMethodSelect({
   ariaLabel?: string;
   onMethodChange: (methodId: FacilityProductionMethodId) => void;
 }) {
-  const productsById = productMap(products);
-  const completedTechnologies = new Set(completedTechnologyIds);
-  const technologyNamesById = new Map(researchTechnologies.map((technology) => [technology.id, technology.name]));
+  const productsById = useMemo(() => productMap(products), [products]);
+  const completedTechnologies = useMemo(() => new Set(completedTechnologyIds), [completedTechnologyIds]);
+  const technologyNamesById = useMemo(() => new Map(researchTechnologies.map((technology) => [technology.id, technology.name])), [researchTechnologies]);
   const currentPlan = planForMethod(
     productionMethodGroup,
     selectedProductionMethodId,

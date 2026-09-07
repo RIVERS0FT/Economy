@@ -1,3 +1,5 @@
+import { ConfirmedActionSync } from './confirmedActionSync';
+import { configurationFailure, type ConfigurationResult } from './latestConfigurationQueue';
 import { useOperationNotifications, type OperationNotice } from '../hooks/useOperationNotifications';
 import type { NotificationTone } from '../notifications/notificationCenter';
 import {
@@ -89,7 +91,7 @@ export interface DerivedGameData {
   inventoryUsed: number;
 }
 
-export type ActionResult = GameActionResult;
+export type ActionResult = GameActionResult & Pick<ConfigurationResult, 'revision'>;
 export type RefreshMode = 'normal' | 'authoritative';
 export interface RefreshOptions {
   mode?: RefreshMode;
@@ -262,9 +264,33 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     return true;
   }, [acceptState]);
 
-  const refresh = useCallback((options: RefreshOptions = {}) => {
+  const confirmedActionContextRef = useRef<{ action: LocalActivityAction; message: string }>({ action: 'refresh', message: '' });
+  const confirmedSync = useMemo(() => new ConfirmedActionSync({
+    current: () => {
+      const snapshot = getGameAuthoritySnapshot();
+      return snapshot.state?.userId === user.id ? snapshot.revision ?? -1 : -1;
+    },
+    read: async (signal) => {
+      const response = await getGameState(revisionRef.current, signal);
+      if (signal.aborted) return -1;
+      const context = confirmedActionContextRef.current;
+      acceptVersionedState(response.revision, response.state, context.action, context.message, response.changedPartitions);
+      setLoadError('');
+      return response.revision;
+    },
+    onError: (reason) => {
+      if (reason instanceof GameApiError && reason.status === 401) { handleUnauthorized(); return; }
+      const message = `操作已完成，但状态同步失败：${messageFromError(reason)}`;
+      setLoadError(message);
+      notify(message, 'warning');
+    },
+  }), [acceptVersionedState, handleUnauthorized, notify, user.id]);
+  useEffect(() => () => confirmedSync.reset(), [confirmedSync]);
+
+  const refresh = useCallback((options: RefreshOptions = {}): Promise<void> => {
     const mode = options.mode ?? 'normal';
-    if (mode === 'normal' && actionsInFlightRef.current > 0) return Promise.resolve();
+    if (mode === 'normal' && (actionsInFlightRef.current > 0 || confirmedSync.busy)) return Promise.resolve();
+    if (confirmedSync.busy) return confirmedSync.pending.then(() => refresh(options));
 
     const existing = refreshTaskRef.current;
     if (existing) {
@@ -301,9 +327,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       promise,
     };
     return promise;
-  }, [acceptVersionedState, handleUnauthorized]);
+  }, [acceptVersionedState, handleUnauthorized, confirmedSync]);
 
   useEffect(() => {
+    confirmedSync.reset();
     refreshTaskRef.current?.controller.abort();
     refreshTaskRef.current = null;
     setLocalActivity(loadLocalActivity(user.id));
@@ -322,7 +349,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     revisionRef.current = null;
     resetGameStateDelivery();
     void refresh();
-  }, [refresh, reloadVersion, user.id]);
+  }, [confirmedSync, refresh, reloadVersion, user.id]);
   useEffect(() => {
     if (!game) return;
     const normalized = game.provinces.some((province) => province.id === selectedProvinceId)
@@ -380,26 +407,9 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       return;
     }
 
-    void (async () => {
-      try {
-        const stateResponse = await getGameState(revisionRef.current);
-        if (stateResponse.revision < response.revision) {
-          throw new Error('服务器状态同步落后于已确认操作');
-        }
-        acceptVersionedState(
-          stateResponse.revision,
-          stateResponse.state,
-          action,
-          response.result.message,
-          stateResponse.changedPartitions,
-        );
-        setLoadError('');
-      } catch (syncReason) {
-        if (syncReason instanceof GameApiError && syncReason.status === 401) handleUnauthorized();
-        else setLoadError(`操作已完成，但状态同步失败：${messageFromError(syncReason)}`);
-      }
-    })();
-  }, [acceptVersionedState, handleUnauthorized]);
+    confirmedActionContextRef.current = { action, message: response.result.message };
+    void confirmedSync.request(response.revision);
+  }, [acceptVersionedState, confirmedSync]);
 
   const runAction = useCallback(async (action: LocalActivityAction, operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
     if (action === 'checkIn' && checkInPendingRef.current) {
@@ -407,6 +417,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     }
     actionsInFlightRef.current += 1;
     refreshTaskRef.current?.controller.abort();
+    refreshTaskRef.current = null;
     if (action === 'checkIn') {
       checkInPendingRef.current = true;
       setIsCheckingIn(true);
@@ -436,6 +447,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   ): Promise<ActionResult> => {
     actionsInFlightRef.current += 1;
     refreshTaskRef.current?.controller.abort();
+    refreshTaskRef.current = null;
     const finish = () => {
       actionsInFlightRef.current = Math.max(0, actionsInFlightRef.current - 1);
     };
@@ -443,11 +455,11 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       const response = await operation();
       syncConfirmedAction(response, action);
       finish();
-      return response.result;
+      return { ...response.result, revision: response.revision };
     } catch (reason) {
       finish();
       if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
-      return { ok: false, message: messageFromError(reason) };
+      return configurationFailure(reason);
     }
   }, [handleUnauthorized, syncConfirmedAction]);
 
@@ -462,6 +474,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     orderPendingRef.current = true;
     actionsInFlightRef.current += 1;
     refreshTaskRef.current?.controller.abort();
+    refreshTaskRef.current = null;
     const finish = () => {
       actionsInFlightRef.current = Math.max(0, actionsInFlightRef.current - 1);
       orderPendingRef.current = false;

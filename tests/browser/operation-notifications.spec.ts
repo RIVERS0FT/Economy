@@ -36,7 +36,7 @@ async function initializeIndustrialSession(page: Page) {
       },
       player: {
         userId: 123, saveEpoch: 3, playerName: '测试玩家', registeredAt: 1_800_000_000_000,
-        credits: 10_000, frozenCredits: 0, inventories: {}, provinceInventories: {}, facilityGroups: [], stats: {},
+        credits: 10_000, frozenCredits: 0, inventories: {}, provinceInventories: {}, facilityGroups: [{ provinceId: '110000', facilityTypeId: 'machine-factory', count: 18, activeRecipeId: 'machine-standard', enabled: true, status: 'running' }], stats: {},
         factoryAutoOperationPolicies: { '110000:machine-factory': { enabled: true, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } },
       },
       market: { orders: [], markets: {} }, auction: { assetAuctions: [] },
@@ -116,13 +116,17 @@ for (const width of [320, 1440]) {
         if (kind === 'commercial') {
           await page.evaluate((policy) => (window as HarnessWindow).__updateCommercialGroup('convenience-store', { autoOperationPolicy: policy }), payload.policy);
         }
-        await route.fulfill({ json: { revision: 1, result: { ok: true, message: '自动经营策略已保存' } } });
+        await route.fulfill({ json: { revision: 2, result: { ok: true, message: '自动经营策略已保存' } } });
       });
       const auto = await openDetail(page, kind);
       const before = await geometry(page);
       await auto.click();
-      await expect(auto).toBeDisabled();
-      await auto.evaluate((element) => (element as HTMLInputElement).click());
+      await expect(auto).toBeEnabled();
+      await expect(auto).not.toBeChecked();
+      await auto.click();
+      await expect(auto).toBeChecked();
+      await auto.click();
+      await expect(auto).not.toBeChecked();
       await expect.poll(() => requests).toBe(1);
       release();
       await expect(auto).toBeEnabled();
