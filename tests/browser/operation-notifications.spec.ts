@@ -36,7 +36,10 @@ async function initializeIndustrialSession(page: Page) {
       },
       player: {
         userId: 123, saveEpoch: 3, playerName: '测试玩家', registeredAt: 1_800_000_000_000,
-        credits: 10_000, frozenCredits: 0, inventories: {}, provinceInventories: {}, facilityGroups: [{ provinceId: '110000', facilityTypeId: 'machine-factory', count: 18, activeRecipeId: 'machine-standard', enabled: true, status: 'running' }], stats: {},
+        credits: 10_000, frozenCredits: 0, inventories: {}, provinceInventories: {},
+        // A running fixture needs a current cycle anchor; null normalizes to an overdue epoch-zero cycle.
+        lastProcessedAt: Date.now(),
+        facilityGroups: [{ provinceId: '110000', facilityTypeId: 'machine-factory', count: 18, participatingCount: 18, productionAvailableCount: 18, activeRecipeId: 'machine-standard', enabled: true, status: 'running', cycleStartedAt: Date.now(), staffingRateBps: 10_000, staffingUpdatedAt: Date.now() }], stats: {},
         factoryAutoOperationPolicies: { '110000:machine-factory': { enabled: true, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } },
       },
       market: { orders: [], markets: {} }, auction: { assetAuctions: [] },
