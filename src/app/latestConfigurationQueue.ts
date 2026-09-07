@@ -187,6 +187,10 @@ export class LatestConfigurationQueue<T> {
         && result.revision < entry.revision;
       if (result.ok && !superseded) {
         entry.confirmed = value; entry.revision = result.revision; entry.result = result;
+      } else if (!result.ok && result.revision !== undefined) {
+        // A rejection also confirms an authority boundary, but cannot lower an earlier receipt.
+        // Without it a first failed choice can pin the initial preview over all future state reads.
+        entry.revision = Math.max(entry.revision ?? -1, result.revision);
       }
       if (entry.sequence === command.sequences.get(key)) {
         latest = true;
