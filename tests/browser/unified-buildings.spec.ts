@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 async function openRegional(page: Page, scenario = 'activity') {
   await page.goto(`runtime-test.html?view=regional-buildings&scenario=${scenario}`);
   await expect(page.getByRole('tab', { name: '商业', exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: '商业', exact: true }).click();
+  await page.getByRole('tab', { name: '商业', exact: true })).click();
   await expect(page.locator('.unified-regional-buildings')).toBeVisible();
 }
 async function filter(page: Page, label: '全部' | '商业建筑' | '工业建筑') {
@@ -117,7 +117,7 @@ test('global commerce restores its region, detail and filtered catalog', async (
   await expect(page.locator('.global-facility-catalog-row')).toHaveCount(6);
 });
 
-test('commercial automatic operation keeps concept click separate from coverage select and prevents duplicate requests', async ({ page }) => {
+test('commercial automatic operation coalesces edits without locking running controls or concept help', async ({ page }) => {
   const requests: Record<string, unknown>[] = [];
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -131,18 +131,24 @@ test('commercial automatic operation keeps concept click separate from coverage 
   const auto = page.getByRole('checkbox', { name: /^(开启|关闭)自动经营$/ });
   const running = page.locator('.facility-information-summary .ui-switch');
   await expect(auto).toBeChecked(); await auto.click();
-  await expect(auto).toBeDisabled(); await expect(running).toBeDisabled();
-  await auto.evaluate((element) => (element as HTMLInputElement).click());
-  await expect.poll(() => requests.length).toBe(1); release();
-  await expect(auto).not.toBeChecked(); await expect(running).toBeChecked();
+  await expect(auto).toBeEnabled(); await expect(auto).not.toBeChecked();
+  await expect(running).toBeEnabled(); await expect(running).toBeChecked();
+  await expect.poll(() => requests.length).toBe(1);
   expect(requests[0]).toMatchObject({ operation: 'auto-operation', provinceId: '110000', commercialTypeId: 'convenience-store', policy: { enabled: false, inputCoverageCycles: 2 } });
   await auto.click(); await expect(auto).toBeChecked();
   const coverage = page.getByRole('combobox', { name: '便利店商品保障', exact: true });
+  await expect(coverage).toBeEnabled();
   await page.getByText('商品保障', { exact: true }).click();
   await expect(coverage).toHaveAttribute('aria-expanded', 'false');
   await coverage.click(); await page.getByRole('option', { name: '5 个营业周期', exact: true }).click();
-  await expect.poll(() => requests.length).toBe(3);
-  expect(requests[2]).toMatchObject({ policy: { enabled: true, inputCoverageCycles: 5 } });
+  await expect(coverage).toContainText('5 个营业周期');
+  await expect(auto).toBeChecked();
+  expect(requests).toHaveLength(1);
+  release();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({ operation: 'auto-operation', provinceId: '110000', commercialTypeId: 'convenience-store', policy: { enabled: true, inputCoverageCycles: 5 } });
+  await expect(auto).toBeChecked(); await expect(auto).toBeEnabled();
+  await expect(running).toBeChecked(); await expect(running).toBeEnabled();
   await expect(coverage).toContainText('5 个营业周期');
   await expect(page.getByText('本周期锁定利润', { exact: true })).toHaveCount(0);
   await expect(page.locator('.commercial-settlement-revenue')).toContainText('101.25');
