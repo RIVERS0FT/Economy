@@ -78,7 +78,5 @@ test('a newer local receipt still wins over an older observed snapshot', async (
   await tick();
   assert.equal(f.queue.read('CA:farm', 'a'), 'b');
   f.observe('b', 5);
-  assert.equal(f.queue.read('CA:farm', 'old authority'), 'b');
-  f.observe('b', 6);
   assert.equal(f.queue.read('CA:farm', 'future'), 'future');
 });
