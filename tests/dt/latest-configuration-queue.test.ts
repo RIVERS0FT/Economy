@@ -186,7 +186,7 @@ test('returning to the in-flight target reuses its receipt and reports the final
   assert.equal(f.notices[0].message, 'b'); assert.equal(f.queue.read('CA:farm', 'a'), 'b');
 });
 
-test('first rejected choice follows newer authority without pinning its initial rollback preview', async () => {
+test('first rejected choice follows authority at the receipt boundary without pinning its initial rollback preview', async () => {
   const f = fixture();
   f.send([['CA:farm', 'b']]);
   f.queue.reconcile(f.authority, 6);
@@ -195,8 +195,10 @@ test('first rejected choice follows newer authority without pinning its initial 
   const updated = new Map([...f.authority, ['CA:farm', 'd']]);
   f.queue.reconcile(updated, 5);
   assert.equal(f.queue.read('CA:farm', 'd'), 'a');
-  // Rejection does not confirm a configuration value; a newer observed baseline can replace the rollback.
+  // Rejection preserves the confirmed value but establishes the minimum revision for a new snapshot.
   f.queue.reconcile(updated, 7);
+  assert.equal(f.queue.read('CA:farm', 'd'), 'a');
+  f.queue.reconcile(updated, 8);
   assert.equal(f.queue.read('CA:farm', 'd'), 'd');
   assert.equal(f.calls.length, 1);
   assert.deepEqual(f.notices.map((result) => result.ok), [false]);
