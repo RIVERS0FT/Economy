@@ -1,0 +1,42 @@
+name: Configuration response workspace
+
+on:
+  push:
+    branches: [fix/production-config-response-20260907]
+    paths:
+      - .github/workflows/config-response-workspace.yml
+      - .github/config-response.patch
+
+permissions:
+  contents: write
+
+jobs:
+  workspace:
+    if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/fix/production-config-response-20260907'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply reviewed task patch and remove workspace helpers
+        if: hashFiles('.github/config-response.patch') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check .github/config-response.patch
+          git apply .github/config-response.patch
+          git rm .github/config-response.patch .github/workflows/config-response-workspace.yml
+          git diff --check
+          git add src tests scripts docs
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix: unify immediate production configuration and confirmed-state synchronization'
+          git push origin HEAD:fix/production-config-response-20260907
+      - name: Package source workspace without Git credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude='./.git' -czf "$RUNNER_TEMP/config-response-source.tar.gz" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: config-response-source-${{ github.run_id }}
+          path: ${{ runner.temp }}/config-response-source.tar.gz
+          retention-days: 1
+          compression-level: 0
