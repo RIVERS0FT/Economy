@@ -50,8 +50,8 @@ for (const width of [320, 1440]) {
     await expect(rows.filter({ hasText: '便利店' }).locator('.global-facility-catalog-row__metric').last()).toHaveText('10');
     await filter(page, '商业建筑');
     await expect(rows).toHaveCount(6);
-    await expect(rows.locator('.global-facility-catalog-row__quick-controls')).toHaveCount(0);
     await expect(rows.locator('[data-commercial-artwork]')).toHaveCount(6);
+    await expect(rows.locator('.global-facility-catalog-row__quick-controls')).toHaveCount(0);
     await assertNoOverflow(page);
     await filter(page, '工业建筑');
     await expect(rows).toHaveCount(1);
@@ -117,7 +117,7 @@ test('global commerce restores its region, detail and filtered catalog', async (
   await expect(page.locator('.global-facility-catalog-row')).toHaveCount(6);
 });
 
-test('commercial automatic operation keeps concept click separate from coverage select and prevents duplicate requests', async ({ page }) => {
+test('commercial automatic operation coalesces edits without locking running controls or concept help', async ({ page }) => {
   const requests: Record<string, unknown>[] = [];
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -125,31 +125,37 @@ test('commercial automatic operation keeps concept click separate from coverage 
     const payload = route.request().postDataJSON(); requests.push(payload);
     if (requests.length === 1) await gate;
     await updateGroup(page, { autoOperationPolicy: payload.policy });
-    await route.fulfill({ json: { result: { ok: true, message: '自动经营策略已保存' } } });
+    await route.fulfill({ json: { revision: requests.length, result: { ok: true, message: '自动经营策略已保存' } } });
   });
   await openConvenienceDetail(page);
   const auto = page.getByRole('checkbox', { name: /^(开启|关闭)自动经营$/ });
   const running = page.locator('.facility-information-summary .ui-switch');
   await expect(auto).toBeChecked(); await auto.click();
-  await expect(auto).toBeDisabled(); await expect(running).toBeDisabled();
-  await auto.evaluate((element) => (element as HTMLInputElement).click());
-  await expect.poll(() => requests.length).toBe(1); release();
-  await expect(auto).not.toBeChecked(); await expect(running).toBeChecked();
+  await expect(auto).toBeEnabled(); await expect(auto).not.toBeChecked();
+  await expect(running).toBeEnabled(); await expect(running).toBeChecked();
+  await expect.poll(() => requests.length).toBe(1);
   expect(requests[0]).toMatchObject({ operation: 'auto-operation', provinceId: '110000', commercialTypeId: 'convenience-store', policy: { enabled: false, inputCoverageCycles: 2 } });
   await auto.click(); await expect(auto).toBeChecked();
   const coverage = page.getByRole('combobox', { name: '便利店商品保障', exact: true });
+  await expect(coverage).toBeEnabled();
   await page.getByText('商品保障', { exact: true }).click();
   await expect(coverage).toHaveAttribute('aria-expanded', 'false');
   await coverage.click(); await page.getByRole('option', { name: '5 个营业周期', exact: true }).click();
-  await expect.poll(() => requests.length).toBe(3);
-  expect(requests[2]).toMatchObject({ policy: { enabled: true, inputCoverageCycles: 5 } });
+  await expect(coverage).toContainText('5 个营业周期');
+  await expect(auto).toBeChecked();
+  expect(requests).toHaveLength(1);
+  release();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({ operation: 'auto-operation', provinceId: '110000', commercialTypeId: 'convenience-store', policy: { enabled: true, inputCoverageCycles: 5 } });
+  await expect(auto).toBeChecked(); await expect(auto).toBeEnabled();
+  await expect(running).toBeChecked(); await expect(running).toBeEnabled();
   await expect(coverage).toContainText('5 个营业周期');
   await expect(page.getByText('本周期锁定利润', { exact: true })).toHaveCount(0);
   await expect(page.locator('.commercial-settlement-revenue')).toContainText('101.25');
 });
 
 test('failed commercial policy save preserves the authoritative setting', async ({ page }) => {
-  await page.route('**/economy-api/game/commercial-buildings', (route) => route.fulfill({ json: { result: { ok: false, message: '自动经营策略无效' } } }));
+  await page.route('**/economy-api/game/commercial-buildings', (route) => route.fulfill({ json: { revision: 1, result: { ok: false, message: '自动经营策略无效' } } }));
   await openConvenienceDetail(page);
   const auto = page.getByRole('checkbox', { name: /^(开启|关闭)自动经营$/ });
   await auto.click(); await expect(page.locator('.notification-toast--error, .notification-island--error')).toContainText('自动经营策略无效');

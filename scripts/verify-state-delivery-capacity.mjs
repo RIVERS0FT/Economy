@@ -63,7 +63,7 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
 
 requireText('scripts/configure-economy-nginx.py', [
   'STATIC_COMPRESSION_BEGIN',
-  '(\"gzip_comp_level\", \"6\")',
+  '("gzip_comp_level", "6")',
   'text/css text/plain text/javascript application/javascript application/json',
   'application/atom+xml image/svg+xml application/wasm',
   'remove_top_level_directives',
@@ -337,8 +337,9 @@ requireText('src/app/gameViewModel.ts', [
   'canAcceptRevision(currentRevision, incomingRevision)',
   'getGameState(revisionRef.current, controller.signal)',
   'const authoritySnapshot = getGameAuthoritySnapshot();',
-  'const stateResponse = await getGameState(revisionRef.current);',
-  'stateResponse.revision < response.revision',
+  'const response = await getGameState(revisionRef.current, signal);',
+  'void confirmedSync.request(response.revision);',
+  'actionsInFlightRef.current > 0 || confirmedSync.busy',
   '操作已完成，但状态同步失败',
   'syncConfirmedAction(response, action);',
   'finish();',
@@ -346,6 +347,14 @@ requireText('src/app/gameViewModel.ts', [
   'refreshTaskRef.current?.controller.abort()',
   "mode === 'normal' && actionsInFlightRef.current > 0",
   'existing.controller.abort()',
+]);
+requireText('src/app/confirmedActionSync.ts', [
+  'this.minimum = Math.max(this.minimum, revision)',
+  'if (this.task) return this.task.promise',
+  'Math.max(received, this.current()) < requested',
+  'Math.max(received, this.current()) >= this.minimum',
+  'this.timeoutMs = options.timeoutMs ?? 8_000',
+  'if (this.task === task) this.task = null',
 ]);
 forbidText('src/app/gameViewModel.ts', [
   'acceptVersionedState(response.revision, response.state, action',

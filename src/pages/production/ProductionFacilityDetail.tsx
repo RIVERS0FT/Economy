@@ -453,9 +453,8 @@ export function FacilityClusterDetailBody({
                 aria-label={`${type.name}原料保障`}
                 fieldClassName="facility-auto-operation__coverage"
                 value={String(policy.inputCoverageCycles)}
-                disabled={!policy.enabled || saving || group.count < 1}
+                disabled={!policy.enabled || group.count < 1}
                 onChange={(event) => updatePolicy({
-                  ...policy,
                   inputCoverageCycles: Number(event.target.value) as 1 | 2 | 3 | 5,
                 })}
               >

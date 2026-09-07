@@ -96,7 +96,7 @@ requireText(
 );
 requireText(
   auctionPage,
-  "import { useEffect, useMemo, useState } from 'react';",
+  "import { useEffect, useMemo, useRef, useState } from 'react';",
   'auction option legalization effect import',
 );
 requireText(

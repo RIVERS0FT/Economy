@@ -1,6 +1,7 @@
+import { useFacilityRecipeConfiguration } from '../hooks/useFacilityRecipeConfiguration';
 import type { BuildingConstructionDraft } from '../hooks/useBuildingConstructionDraft';
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getFacilityBuildProcurementQuote } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { ProductArtwork } from '../components/products/ProductArtwork';
@@ -92,10 +93,7 @@ export function BuildingsPage({
   } | null>(null);
   const [procurementQuoteLoading, setProcurementQuoteLoading] = useState(false);
   const [procurementQuoteError, setProcurementQuoteError] = useState('');
-  const [optimisticRecipeIds, setOptimisticRecipeIds] = useState<Record<string, string>>({});
-  const recipeTargetByFacilityRef = useRef(new Map<string, string>());
-  const recipeInFlightFacilitiesRef = useRef(new Set<string>());
-  const lastConfirmedRecipeIdsRef = useRef(new Map<string, string>());
+  const recipeConfiguration = useFacilityRecipeConfiguration(model);
   const activeDetailFacilityTypeId = onDetailFacilityChange
     ? detailFacilityTypeId ?? ''
     : internalDetailFacilityTypeId;
@@ -143,13 +141,10 @@ export function BuildingsPage({
     return game.facilityTypes.flatMap((type): FacilityClusterEntry[] => {
       const group = groupsByTypeId.get(type.id);
       if (!group || group.count < 1) return [];
-      const optimisticRecipeId = optimisticRecipeIds[type.id];
-      const displayGroup = optimisticRecipeId && optimisticRecipeId !== group.activeRecipeId
-        ? { ...group, activeRecipeId: optimisticRecipeId }
-        : group;
+      const displayGroup = recipeConfiguration.project(group);
       return [{ type, group: displayGroup }];
     });
-  }, [game.facilityGroups, game.facilityTypes, optimisticRecipeIds]);
+  }, [game.facilityGroups, game.facilityTypes, recipeConfiguration.version, model.selectedProvinceId]);
   const selectedFacilityEntry = orderedFacilityGroups.find(
     ({ type }) => type.id === activeDetailFacilityTypeId,
   );
@@ -165,33 +160,6 @@ export function BuildingsPage({
     if (onDetailFacilityChange) onDetailFacilityChange(null);
     else setInternalDetailFacilityTypeId('');
   }, [activeDetailFacilityTypeId, onDetailFacilityChange, selectedFacilityEntry]);
-
-  useEffect(() => {
-    const authoritativeGroups = new Map(
-      game.facilityGroups.map((group) => [group.facilityTypeId, group]),
-    );
-    for (const group of game.facilityGroups) {
-      if (
-        !recipeInFlightFacilitiesRef.current.has(group.facilityTypeId)
-        && !recipeTargetByFacilityRef.current.has(group.facilityTypeId)
-      ) {
-        lastConfirmedRecipeIdsRef.current.set(group.facilityTypeId, group.activeRecipeId);
-      }
-    }
-    setOptimisticRecipeIds((current) => {
-      let changed = false;
-      const next = { ...current };
-      for (const [facilityTypeId, recipeId] of Object.entries(current)) {
-        const authoritative = authoritativeGroups.get(facilityTypeId);
-        if (!authoritative || authoritative.activeRecipeId === recipeId) {
-          delete next[facilityTypeId];
-          changed = true;
-        }
-      }
-      return changed ? next : current;
-    });
-  }, [game.facilityGroups]);
-
 
   useEffect(() => {
     if (!selectedType || renderPart === 'cards') return undefined;
@@ -298,53 +266,13 @@ export function BuildingsPage({
         : stopFacility(selectedFacilityEntry.group.facilityTypeId),
     );
   };
-  const flushFacilityRecipeQueue = (facilityTypeId: string) => {
-    if (recipeInFlightFacilitiesRef.current.has(facilityTypeId)) return;
-    recipeInFlightFacilitiesRef.current.add(facilityTypeId);
-    void (async () => {
-      try {
-        while (true) {
-          const targetRecipeId = recipeTargetByFacilityRef.current.get(facilityTypeId);
-          if (!targetRecipeId) break;
-          recipeTargetByFacilityRef.current.delete(facilityTypeId);
-          const result = await setFacilityRecipe(facilityTypeId, targetRecipeId);
-          const hasNewerTarget = recipeTargetByFacilityRef.current.has(facilityTypeId);
-          if (result.ok) {
-            lastConfirmedRecipeIdsRef.current.set(facilityTypeId, targetRecipeId);
-          } else if (!hasNewerTarget) {
-            const fallbackRecipeId = lastConfirmedRecipeIdsRef.current.get(facilityTypeId);
-            setOptimisticRecipeIds((current) => {
-              if (current[facilityTypeId] !== targetRecipeId) return current;
-              const next = { ...current };
-              if (fallbackRecipeId) next[facilityTypeId] = fallbackRecipeId;
-              else delete next[facilityTypeId];
-              return next;
-            });
-          }
-          if (!hasNewerTarget) void showResult(result);
-        }
-      } finally {
-        recipeInFlightFacilitiesRef.current.delete(facilityTypeId);
-      }
-    })();
-  };
   const changeSelectedFacilityRecipe = (recipeId: string) => {
     if (!selectedFacilityEntry) return;
-    const recipeState = resolveFacilityDetailRecipeState(selectedFacilityEntry);
-    if (recipeId === recipeState.selectedRecipeId) return;
-    const facilityTypeId = selectedFacilityEntry.group.facilityTypeId;
-    if (!lastConfirmedRecipeIdsRef.current.has(facilityTypeId)) {
-      const authoritative = game.facilityGroups.find((group) => group.facilityTypeId === facilityTypeId);
-      lastConfirmedRecipeIdsRef.current.set(
-        facilityTypeId,
-        authoritative?.activeRecipeId ?? recipeState.selectedRecipeId,
-      );
-    }
-    recipeTargetByFacilityRef.current.set(facilityTypeId, recipeId);
-    setOptimisticRecipeIds((current) => (
-      current[facilityTypeId] === recipeId ? current : { ...current, [facilityTypeId]: recipeId }
-    ));
-    flushFacilityRecipeQueue(facilityTypeId);
+    recipeConfiguration.setRecipes([{
+      provinceId: model.selectedProvinceId,
+      facilityTypeId: selectedFacilityEntry.group.facilityTypeId,
+      recipeId,
+    }], false);
   };
   const openProductMarket = (productId: string) => {
     selectMarketAsset('commodity', productId);

@@ -1,117 +1,87 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import {
-  saveFactoryAutoOperationPolicy,
-  type FactoryAutoOperationPolicyInput,
-} from '../../api/game';
-import {
-  getStateAuthoritySnapshot,
-  subscribeStateAuthorityDependencies,
-} from '../../app/stateDelivery.js';
+import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { saveFactoryAutoOperationPolicy, type FactoryAutoOperationPolicyInput } from '../../api/game';
+import { subscribeGameWriteSession } from '../../api/gameWriteSession';
+import { getStateAuthoritySnapshot, subscribeStateAuthorityDependencies } from '../../app/stateDelivery.js';
+import { LatestConfigurationQueue, isUnconfirmedConfiguration } from '../../app/latestConfigurationQueue';
 import { announceFactoryAutoOperationSaved } from '../../game-guide/tutorialEvents';
-import { autoOperationSuccessMessage, reportActionException, type OperationFeedback } from '../../notifications/operationFeedback';
+import { autoOperationSuccessMessage, type OperationFeedback } from '../../notifications/operationFeedback';
 import type { FacilityGroup } from '../../types';
 import { GameConcept } from '../ui/GameConcept';
 import { BuildingAutoOperationSection } from '../buildings/BuildingAutoOperationSection';
 import '../../styles/factory-auto-operation.css';
 
 const DEFAULT_POLICY: FactoryAutoOperationPolicyInput = Object.freeze({
-  enabled: true,
-  inputCoverageCycles: 2,
-  mode: 'balanced',
-  outputMode: 'surplus',
+  enabled: true, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus',
 });
-
-function policyKey(group: FacilityGroup) {
-  return `${group.provinceId}:${group.facilityTypeId}`;
-}
-
+const samePolicy = (left: FactoryAutoOperationPolicyInput, right: FactoryAutoOperationPolicyInput) => (
+  left.enabled === right.enabled && left.inputCoverageCycles === right.inputCoverageCycles
+  && left.mode === right.mode && left.outputMode === right.outputMode
+);
+let scope = '';
+let queue = new LatestConfigurationQueue<FactoryAutoOperationPolicyInput>(samePolicy);
+subscribeGameWriteSession(() => { queue.dispose(); scope = ''; queue = new LatestConfigurationQueue(samePolicy); });
+function policyKey(group: FacilityGroup) { return `${group.provinceId}:${group.facilityTypeId}`; }
 function authorityPolicy(group: FacilityGroup): FactoryAutoOperationPolicyInput {
-  const state = getStateAuthoritySnapshot().state as ({
-    factoryAutoOperationPolicies?: Record<string, FactoryAutoOperationPolicyInput>;
-  } | null);
-  return state?.factoryAutoOperationPolicies?.[policyKey(group)]
-    ?? state?.factoryAutoOperationPolicies?.[group.facilityTypeId]
-    ?? DEFAULT_POLICY;
+  const policies = (getStateAuthoritySnapshot().state as { factoryAutoOperationPolicies?: Record<string, FactoryAutoOperationPolicyInput> } | null)?.factoryAutoOperationPolicies;
+  return policies?.[policyKey(group)] ?? policies?.[group.facilityTypeId] ?? DEFAULT_POLICY;
 }
-
 export type FacilityAutoOperationController = {
   policy: FactoryAutoOperationPolicyInput;
   saving: boolean;
-  updatePolicy: (nextPolicy: FactoryAutoOperationPolicyInput) => void;
+  updatePolicy: (nextPolicy: Partial<FactoryAutoOperationPolicyInput>) => void;
 };
 
-export function FacilityAutoOperationControls({
-  group,
-  feedback,
-  children,
-}: {
+export function FacilityAutoOperationControls({ group, feedback, children }: {
   group: FacilityGroup;
   feedback: OperationFeedback;
   children: (controller: FacilityAutoOperationController) => ReactNode;
 }) {
-  const subscribe = useCallback((listener: () => void) => (
-    subscribeStateAuthorityDependencies(['player.production'], listener)
-  ), []);
-  const sourcePolicy = useSyncExternalStore(
-    subscribe,
-    () => authorityPolicy(group),
-    () => DEFAULT_POLICY,
-  );
-  const [draft, setDraft] = useState<FactoryAutoOperationPolicyInput>(sourcePolicy);
-  const [saving, setSaving] = useState(false);
-  const requestRef = useRef<{ key: string } | null>(null);
-  const activeKeyRef = useRef<string | null>(policyKey(group));
+  const state = getStateAuthoritySnapshot().state;
+  const nextScope = state ? `${state.userId}:${state.saveEpoch}` : scope || 'preview';
+  if (scope !== nextScope) { queue.dispose(); queue = new LatestConfigurationQueue(samePolicy); scope = nextScope; }
+  const controller = queue;
   const key = policyKey(group);
-
+  const subscribe = useCallback((listener: () => void) => subscribeStateAuthorityDependencies(['player.production'], listener), []);
+  const sourcePolicy = useSyncExternalStore(subscribe, () => authorityPolicy(group), () => DEFAULT_POLICY);
+  const version = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   useEffect(() => {
-    activeKeyRef.current = key;
-    if (requestRef.current?.key !== key) setDraft(sourcePolicy);
-    setSaving(requestRef.current?.key === key);
-    return () => { activeKeyRef.current = null; };
-  }, [sourcePolicy, key]);
-
-  const save = async (nextPolicy: FactoryAutoOperationPolicyInput) => {
-    if (requestRef.current?.key === key || group.count < 1) return;
-    const request = { key };
-    requestRef.current = request;
-    const successMessage = autoOperationSuccessMessage(draft.enabled, nextPolicy.enabled);
-    setDraft(nextPolicy);
-    setSaving(true);
-    const isCurrent = () => activeKeyRef.current === key && requestRef.current === request;
-    try {
-      const response = await saveFactoryAutoOperationPolicy(group.provinceId, group.facilityTypeId, nextPolicy);
-      await feedback.showResult({
-        ...response.result,
-        message: response.result.ok ? successMessage : response.result.message || '自动经营设置保存失败',
-      });
-      if (!response.result.ok && isCurrent()) setDraft(authorityPolicy(group));
-      if (response.result.ok) {
-        const confirmedPolicy = authorityPolicy(group);
-        if (isCurrent() && confirmedPolicy !== sourcePolicy) setDraft(confirmedPolicy);
-        const state = getStateAuthoritySnapshot().state;
-        announceFactoryAutoOperationSaved({
-          userId: Number(state?.userId || 0),
-          provinceId: group.provinceId,
-          facilityTypeId: group.facilityTypeId,
-        });
+    const snapshot = getStateAuthoritySnapshot();
+    if (!snapshot.state) return;
+    const groups = Object.values(snapshot.state.provinceFacilityGroups ?? {}).flat();
+    const authority = new Map([...groups, ...snapshot.state.facilityGroups]
+      .map((candidate) => [policyKey(candidate), authorityPolicy(candidate)]));
+    controller.reconcile(authority, snapshot.revision ?? undefined);
+  }, [controller, sourcePolicy, key, version]);
+  const draft = controller.read(key, sourcePolicy);
+  function updatePolicy(patch: Partial<FactoryAutoOperationPolicyInput>) {
+    if (group.count < 1) return;
+    const previous = controller.read(key, authorityPolicy(group));
+    const nextPolicy = { ...previous, ...patch };
+    const successMessage = autoOperationSuccessMessage(previous.enabled, nextPolicy.enabled);
+    controller.enqueue([{ key, value: nextPolicy }], new Map([[key, authorityPolicy(group)]]), async (targets) => {
+      const response = await saveFactoryAutoOperationPolicy(group.provinceId, group.facilityTypeId, targets[0].value);
+      return { ...response.result, revision: response.revision };
+    }, (result) => {
+      if (isUnconfirmedConfiguration(result)) {
+        feedback.notify('自动经营设置结果未确认，请核对服务器状态', 'warning');
+        void feedback.refresh({ mode: 'authoritative' }).catch(() => {});
+        return;
       }
-    } catch (reason) {
-      await reportActionException(feedback, reason, '自动经营设置');
-      if (isCurrent()) setDraft(authorityPolicy(group));
-    } finally {
-      if (isCurrent()) setSaving(false);
-      if (requestRef.current === request) requestRef.current = null;
-    }
-  };
-
-  const updatePolicy = (nextPolicy: FactoryAutoOperationPolicyInput) => {
-    void save(nextPolicy);
-  };
-
+      void feedback.showResult({ ...result, message: result.ok ? successMessage : result.message || '自动经营设置保存失败' });
+      if (result.ok) {
+        announceFactoryAutoOperationSaved({ userId: Number(state?.userId || 0), provinceId: group.provinceId, facilityTypeId: group.facilityTypeId });
+        const snapshot = getStateAuthoritySnapshot();
+        if (result.revision !== undefined && (snapshot.revision ?? -1) < result.revision) {
+          void feedback.refresh({ mode: 'authoritative' });
+        }
+      }
+    });
+  }
+  const saving = controller.isBusy(key);
   return (
     <BuildingAutoOperationSection label={<GameConcept concept="factory-auto-operation">自动经营</GameConcept>}
-      enabled={draft.enabled} disabled={group.count < 1 || saving}
-      onChange={(enabled) => updatePolicy({ ...draft, enabled })}>
+      enabled={draft.enabled} disabled={group.count < 1}
+      onChange={(enabled) => updatePolicy({ enabled })}>
       {children({ policy: draft, saving, updatePolicy })}
     </BuildingAutoOperationSection>
   );

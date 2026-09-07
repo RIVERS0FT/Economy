@@ -1,3 +1,4 @@
+import { useCommercialOperationConfiguration } from '../hooks/useCommercialOperationConfiguration';
 import { autoOperationSuccessMessage, reportActionException } from '../notifications/operationFeedback';
 import type { BuildingConstructionDraft } from '../hooks/useBuildingConstructionDraft';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -41,6 +42,7 @@ export function CommercePage({
   onDetailCommercialTypeChange?: (commercialTypeId: string | null) => void;
 }) {
   const navigation = usePlayerPageNavigation();
+  const operationConfiguration = useCommercialOperationConfiguration(model);
   const game = model.game as typeof model.game & CommercialStateFields;
   const types = game.commercialBuildingTypes ?? [];
   const provinceGroups = (game.commercialBuildingGroups ?? []).filter((group) => (
@@ -226,11 +228,11 @@ export function CommercePage({
     <BuildingDetailPage kind="commercial" name={selectedDetailType.name}
       provinceName={model.selectedProvince?.name || '当前地区'} embedded={embedded} onBack={closeDetail}>
 
-      <CommercialBuildingDetail group={selectedGroup} type={selectedDetailType}
+      <CommercialBuildingDetail group={operationConfiguration.project(selectedGroup)} type={selectedDetailType}
         products={game.products} inventories={game.inventories} inventoryFreezeDetails={game.inventoryFreezeDetails}
         markets={game.markets} now={game.lastProcessedAt}
         pending={Boolean(pendingAction)} onOpenProductMarket={openProductDetail}
-        onAutoOperationChange={(policy) => void execute('auto-operation', 'auto-operation', selectedGroup.commercialTypeId, undefined, policy)}
+        onAutoOperationChange={(policy) => operationConfiguration.update(selectedGroup, policy)}
         onToggle={(enabled) => void execute(
           `${enabled ? 'start' : 'stop'}:${selectedGroup.commercialTypeId}`,
           enabled ? 'start' : 'stop', selectedGroup.commercialTypeId,

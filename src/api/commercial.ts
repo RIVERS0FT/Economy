@@ -3,6 +3,7 @@ export interface CommercialBuildingActionResult {
   ok: boolean;
   message: string;
   code?: string;
+  revision?: number;
 }
 
 export type CommercialBuildingOperation = 'build' | 'start' | 'stop' | 'auto-operation';
@@ -34,7 +35,7 @@ export async function runCommercialBuildingAction(
     },
     body: JSON.stringify(input),
   });
-  let payload: { result?: CommercialBuildingActionResult; message?: string } = {};
+  let payload: { result?: CommercialBuildingActionResult; message?: string; revision?: number } = {};
   try {
     payload = await response.json() as typeof payload;
   } catch {
@@ -44,10 +45,10 @@ export async function runCommercialBuildingAction(
     return {
       ok: false,
       message: String(payload.result?.message || payload.message || '商业建筑操作失败，请刷新后重试'),
-      ...(response.status >= 500 || response.status === 408 ? { code: 'ACTION_RESULT_UNCONFIRMED' } : {}),
+      ...(response.status >= 500 || response.status === 408 || response.status === 429 ? { code: 'ACTION_RESULT_UNCONFIRMED' } : {}),
     };
   }
   return payload.result && typeof payload.result.ok === 'boolean' && typeof payload.result.message === 'string'
-    ? payload.result
+    ? { ...payload.result, ...(Number.isInteger(payload.revision) ? { revision: payload.revision } : {}) }
     : { ok: false, code: 'ACTION_RESULT_UNCONFIRMED', message: '服务器未返回商业建筑操作结果' };
 }

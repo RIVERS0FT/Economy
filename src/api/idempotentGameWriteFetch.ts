@@ -194,6 +194,25 @@ function isManualCommodityWrite(input: RequestInfo | URL, body: string) {
   } catch { return false; }
 }
 
+function stableConfigurationBody(input: RequestInfo | URL, body: string): string | null {
+  try {
+    const path = parsedRequestUrl(input).pathname;
+    const value = JSON.parse(body);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const recipe = path === `${GAME_API_PATH_PREFIX}/facilities/recipes`
+      || /^\/economy-api\/game\/facilities\/[^/]+\/recipe$/.test(path);
+    const factoryPolicy = path === `${GAME_API_PATH_PREFIX}/orders`
+      && value.execution === 'factory-auto-operation-policy';
+    const commercialPolicy = path === `${GAME_API_PATH_PREFIX}/commercial-buildings`
+      && value.operation === 'auto-operation';
+    if (!recipe && !factoryPolicy && !commercialPolicy) return null;
+    // Configuration identity must survive a poll or a production proposal changing.
+    // The server still settles completed cycles before applying the configuration.
+    delete value.productionSettlement;
+    return JSON.stringify(value);
+  } catch { return null; }
+}
+
 function facilityToggleIntent(
   input: RequestInfo | URL,
   init: RequestInit,
@@ -332,14 +351,17 @@ export function createIdempotentGameWriteFetch(nativeFetch: typeof fetch): typeo
     const headers = new Headers(init.headers);
     const proposedKey = headers.get('Idempotency-Key');
     if (!proposedKey) return nativeFetch(input, init);
+    const configurationBody = method === 'POST' ? stableConfigurationBody(input, init.body) : null;
+    const body = configurationBody ?? init.body;
+    init = { ...init, body };
     const session = captureGameWriteSession();
     if (session.userId !== null) headers.set('X-Economy-User-Id', String(session.userId));
     const legacyFingerprint = stableFingerprint([method, canonicalRequestPath(input),
-      headers.get('X-Economy-Save-Epoch') || '', init.body].join('\n'));
+      headers.get('X-Economy-Save-Epoch') || '', body].join('\n'));
     const owner = String(session.userId ?? 'unbound');
     const fingerprint = owner + ':' + legacyFingerprint;
     const flightKey = String(session.generation) + ':' + fingerprint;
-    const deduplicate = isManualCommodityWrite(input, init.body);
+    const deduplicate = isManualCommodityWrite(input, body);
     const existing = deduplicate ? inFlightWrites.get(flightKey) : undefined;
     if (existing) {
       const response = await existing;
@@ -374,7 +396,7 @@ export function createIdempotentGameWriteFetch(nativeFetch: typeof fetch): typeo
           timeoutMs: isSessionBootstrapWrite(input) ? null : WRITE_ATTEMPT_TIMEOUT_MS,
           signal: init.signal,
           sessionSignal: session.signal,
-          validateSuccess: isOrder || immediateIntent ? isConfirmedActionResult : undefined,
+          validateSuccess: isOrder || immediateIntent || configurationBody !== null ? isConfirmedActionResult : undefined,
           onConfirming: () => notify('confirming'),
           preserveTransportError: !deduplicate,
         });
