@@ -9,7 +9,8 @@ type ConfigurationWindow = typeof window & {
 const batches = (page: Page) => page.evaluate(() => (window as ConfigurationWindow).__productionConfigurationBatches);
 async function choose(page: Page, trigger: ReturnType<Page['getByRole']>, option: string) {
   await trigger.click();
-  await page.getByRole('listbox').getByRole('option', { name: option, exact: true }).click();
+  // Rich options also expose recipe inputs, output, duration and cost in their accessible name.
+  await page.getByRole('listbox').getByRole('option').filter({ has: page.getByText(option, { exact: true }) }).click();
 }
 
 for (const width of [390, 1440]) {
