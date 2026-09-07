@@ -63,6 +63,8 @@ export class LatestConfigurationQueue<T> {
     if (this.disposed) return;
     let changed = false;
     for (const [key, entry] of this.entries) {
+      // An older read must not replace a newer receipt, including asset removal.
+      if (revision !== undefined && entry.revision !== undefined && revision < entry.revision) continue;
       if (!authority.has(key)) {
         // Never silently turn an atomic batch into a partial one after an asset disappears.
         const invalid = this.pending.filter((command) => command.sequences.has(key));
@@ -80,10 +82,20 @@ export class LatestConfigurationQueue<T> {
         }
         this.entries.delete(key);
         changed = true;
-      } else if (!this.isBusy(key) && (this.equal(authority.get(key)!, entry.value)
-        || (revision !== undefined && entry.revision !== undefined && revision >= entry.revision))) {
-        this.entries.delete(key);
-        changed = true;
+      } else {
+        const value = authority.get(key)!;
+        const acceptsSnapshot = revision !== undefined
+          && (entry.revision === undefined || revision >= entry.revision);
+        if (!this.isBusy(key) && (this.equal(value, entry.value) || acceptsSnapshot)) {
+          this.entries.delete(key);
+          changed = true;
+        } else if (acceptsSnapshot) {
+          // Keep the visible target while writing, but roll back to the newest
+          // authoritative baseline if it fails. A snapshot is not a write receipt.
+          if (revision !== entry.revision || !this.equal(entry.confirmed, value)) entry.result = undefined;
+          entry.confirmed = value;
+          entry.revision = revision;
+        }
       }
     }
     if (changed) this.emit();
@@ -171,15 +183,14 @@ export class LatestConfigurationQueue<T> {
     for (const { key, value } of command.targets) {
       const entry = this.entries.get(key);
       if (!entry) continue;
-      if (result.ok) { entry.confirmed = value; entry.revision = result.revision; entry.result = result; }
-      else if (result.revision !== undefined) {
-        // A rejection also confirms an authority boundary, but cannot lower an earlier receipt.
-        // Without it a first failed choice can pin the initial preview over all future state reads.
-        entry.revision = Math.max(entry.revision ?? -1, result.revision);
+      const superseded = result.revision !== undefined && entry.revision !== undefined
+        && result.revision < entry.revision;
+      if (result.ok && !superseded) {
+        entry.confirmed = value; entry.revision = result.revision; entry.result = result;
       }
       if (entry.sequence === command.sequences.get(key)) {
         latest = true;
-        if (!result.ok) entry.value = entry.confirmed;
+        if (!result.ok || superseded) entry.value = entry.confirmed;
       }
     }
     if (latest || !result.ok) command.report(result);
