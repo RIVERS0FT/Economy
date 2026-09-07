@@ -185,3 +185,28 @@ test('returning to the in-flight target reuses its receipt and reports the final
   assert.equal(f.calls.length, 1); assert.equal(f.notices.length, 1);
   assert.equal(f.notices[0].message, 'b'); assert.equal(f.queue.read('CA:farm', 'a'), 'b');
 });
+
+test('first rejected choice releases its rollback preview when authority reaches the rejection revision', async () => {
+  const f = fixture();
+  f.send([['CA:farm', 'b']]);
+  f.gates[0].resolve({ ok: false, message: '配置已变化', revision: 8 }); await tick();
+  assert.equal(f.queue.read('CA:farm', 'd'), 'a');
+  const updated = new Map([...f.authority, ['CA:farm', 'd']]);
+  f.queue.reconcile(updated, 7);
+  assert.equal(f.queue.read('CA:farm', 'd'), 'a');
+  f.queue.reconcile(updated, 8);
+  assert.equal(f.queue.read('CA:farm', 'd'), 'd');
+  assert.equal(f.calls.length, 1);
+  assert.deepEqual(f.notices.map((result) => result.ok), [false]);
+});
+
+test('an older rejection receipt cannot lower the last accepted configuration revision', async () => {
+  const f = fixture();
+  f.send([['CA:farm', 'b']]); f.send([['CA:farm', 'c']]);
+  f.gates[0].resolve({ ok: true, message: 'b', revision: 10 }); await tick();
+  f.gates[1].resolve({ ok: false, message: '拒绝', revision: 9 }); await tick();
+  f.queue.reconcile(f.authority, 9);
+  assert.equal(f.queue.read('CA:farm', 'a'), 'b');
+  f.queue.reconcile(new Map([...f.authority, ['CA:farm', 'b']]), 10);
+  assert.equal(f.queue.read('CA:farm', 'future-authority'), 'future-authority');
+});
