@@ -50,8 +50,8 @@ for (const width of [320, 1440]) {
     await expect(rows.filter({ hasText: '便利店' }).locator('.global-facility-catalog-row__metric').last()).toHaveText('10');
     await filter(page, '商业建筑');
     await expect(rows).toHaveCount(6);
-    await expect(rows.locator('.global-facility-catalog-row__quick-controls')).toHaveCount(0);
     await expect(rows.locator('[data-commercial-artwork]')).toHaveCount(6);
+    await expect(rows.locator('.global-facility-catalog-row__quick-controls')).toHaveCount(0);
     await assertNoOverflow(page);
     await filter(page, '工业建筑');
     await expect(rows).toHaveCount(1);
@@ -125,7 +125,7 @@ test('commercial automatic operation coalesces edits without locking running con
     const payload = route.request().postDataJSON(); requests.push(payload);
     if (requests.length === 1) await gate;
     await updateGroup(page, { autoOperationPolicy: payload.policy });
-    await route.fulfill({ json: { result: { ok: true, message: '自动经营策略已保存' } } });
+    await route.fulfill({ json: { revision: requests.length, result: { ok: true, message: '自动经营策略已保存' } } });
   });
   await openConvenienceDetail(page);
   const auto = page.getByRole('checkbox', { name: /^(开启|关闭)自动经营$/ });
@@ -155,7 +155,7 @@ test('commercial automatic operation coalesces edits without locking running con
 });
 
 test('failed commercial policy save preserves the authoritative setting', async ({ page }) => {
-  await page.route('**/economy-api/game/commercial-buildings', (route) => route.fulfill({ json: { result: { ok: false, message: '自动经营策略无效' } } }));
+  await page.route('**/economy-api/game/commercial-buildings', (route) => route.fulfill({ json: { revision: 1, result: { ok: false, message: '自动经营策略无效' } } }));
   await openConvenienceDetail(page);
   const auto = page.getByRole('checkbox', { name: /^(开启|关闭)自动经营$/ });
   await auto.click(); await expect(page.locator('.notification-toast--error, .notification-island--error')).toContainText('自动经营策略无效');
