@@ -76,17 +76,25 @@ forbidText(transportCss, '--page-section-gap', '运输页不得重定义共享�
 
 for (const text of [
   'fixedActions?: ReactNode;', "fixedActionsVisibility?: 'always' | 'mobile';",
-  "hasFixedActions && 'page-content--with-fixed-actions'", "'page-fixed-actions',",
+  "hasFixedActions && 'page-content--with-fixed-actions'",
+  "hasFixedActions && 'page-fixed-actions-scroll-reserve'",
+  "'page-fixed-actions',",
 ]) requireText(layoutSource, text, `PageLayout 缺少共享固定操作槽：${text}`);
 for (const text of [
   '.game-shell .page-content--player.page-content--with-fixed-actions {',
   'position: relative;', '.game-shell .page-content--player .page-fixed-actions {', 'position: absolute;',
   'bottom: max(var(--player-page-content-inset), env(safe-area-inset-bottom));',
-  '.game-shell .page-content--player.page-content--with-fixed-actions .page-card-scroll {',
-  '+ var(--control-height)', '+ var(--space-3)',
+  '.game-shell .page-content--player .page-fixed-actions-scroll-reserve {',
+  'padding-bottom: calc(', '+ var(--control-height)', '+ var(--space-3)',
+  '.game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-fixed-actions-scroll-reserve {',
   '.game-shell .page-content--player .page-fixed-actions > * {', 'pointer-events: auto;',
   '.game-shell .page-content--player .page-fixed-actions > .ui-button {', 'width: 100%;',
 ]) requireText(fixedActionCss, text, `共享固定操作层样式缺少：${text}`);
+forbidText(
+  fixedActionCss,
+  '.page-content--player.page-content--with-fixed-actions .page-card-scroll {',
+  '固定操作余量不得只放在 overflow 视口自身的尾部 padding。',
+);
 
 forbidText(
   scrollingCss,
@@ -99,12 +107,13 @@ for (const text of [
   "getByRole('heading', { name: '运输路线', exact: true })",
   "page.locator('.page-fixed-actions')",
   "page.locator('[data-transport-page-fixed-action=\"true\"]')",
+  "page.locator('.page-fixed-actions-scroll-reserve')",
   "fixedActions.locator('.ui-status-tag')",
   'await expect(fixedActions).not.toContainText',
   'routeBorderRadius',
   'fixedActionBefore',
   'fixedActionAfter',
-  'scrollPaddingBottom',
+  'scrollReservePaddingBottom',
   "expect(visual.fixedActionStyle.position).toBe('absolute')",
 ]) requireText(browserTest, text, `运输浏览器回归缺少：${text}`);
 forbidText(browserTest, "toContainText('0/50')", '运输浏览器回归不得要求已删除的路线数量胶囊。');
@@ -124,7 +133,9 @@ for (const text of [
   "'页面底部固定操作层'",
   "'data-transport-page-fixed-action=\"true\"'",
   "requireText('src/components/ui/layout.tsx', 'fixedActions?: ReactNode;');",
+  "requireText('src/components/ui/layout.tsx', 'page-fixed-actions-scroll-reserve');",
   "requireText('src/styles/primary-surfaces.css', '.page-fixed-actions {');",
+  "requireText('src/styles/primary-surfaces.css', '.page-fixed-actions-scroll-reserve {');",
   "'className=\"transport-page-footer\"',",
 ]) requireText(pageContentVerifier, text, `页面内容 verifier 未同步运输固定操作层规则：${text}`);
 
@@ -134,4 +145,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('运输路线目录 UI 防回退验证通过：路线使用对象卡且无行分割线，增加路线通过 PageLayout 固定操作层覆盖正文且脱离滚动，正文保留安全滚动余量。');
+console.log('运输路线目录 UI 防回退验证通过：路线使用对象卡且无行分割线，增加路线通过 PageLayout 固定操作层覆盖正文且脱离滚动，滚动内容尾部保留可真实滚动的安全余量。');
