@@ -84,18 +84,19 @@
   pointer-events: auto;
 }
 
-/* The trailing reserve belongs to the actual scroll content rather than the
- * overflow viewport. Chromium can omit a scrollport's trailing padding from
- * scrollable overflow once a grid child exceeds the viewport; putting the
- * reserve on the PageLayout content stack guarantees the final business block
- * can scroll completely above the fixed action. */
+/* Keep the fixed-action reserve as a real trailing scroll item. Chromium can
+ * collapse end padding from the reachable overflow of a grid scrollport, so
+ * padding the content stack alone can leave its final business item hidden
+ * behind the fixed action even though the computed padding is non-zero. */
 .game-shell .page-content--player [data-fixed-actions-scroll-reserve='true'] {
+  min-height: 0;
   box-sizing: border-box;
   padding-bottom: calc(
     max(var(--player-page-content-inset), env(safe-area-inset-bottom))
     + var(--control-height)
     + var(--space-3)
   );
+  pointer-events: none;
 }
 
 .game-shell .page-content--player.page-content--with-mobile-fixed-actions [data-fixed-actions-scroll-reserve='true'] {
