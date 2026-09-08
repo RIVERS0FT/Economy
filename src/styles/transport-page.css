@@ -5,17 +5,6 @@
   container: transport-page / inline-size;
 }
 
-.page-card-scroll:has([data-transport-route-index='true']) {
-  display: grid;
-  grid-template-rows: minmax(100%, auto);
-  align-content: start;
-}
-
-.transport-page-content[data-transport-route-index='true'] {
-  min-height: 100%;
-  gap: var(--space-3);
-}
-
 .transport-page-index-body {
   min-width: 0;
   display: grid;
