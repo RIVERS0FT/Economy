@@ -77,16 +77,16 @@ forbidText(transportCss, '--page-section-gap', '运输页不得重定义共享�
 for (const text of [
   'fixedActions?: ReactNode;', "fixedActionsVisibility?: 'always' | 'mobile';",
   "hasFixedActions && 'page-content--with-fixed-actions'",
-  "hasFixedActions && 'page-fixed-actions-scroll-reserve'",
+  'data-fixed-actions-scroll-reserve="true"',
   "'page-fixed-actions',",
 ]) requireText(layoutSource, text, `PageLayout 缺少共享固定操作槽：${text}`);
 for (const text of [
   '.game-shell .page-content--player.page-content--with-fixed-actions {',
   'position: relative;', '.game-shell .page-content--player .page-fixed-actions {', 'position: absolute;',
   'bottom: max(var(--player-page-content-inset), env(safe-area-inset-bottom));',
-  '.game-shell .page-content--player .page-fixed-actions-scroll-reserve {',
+  ".game-shell .page-content--player [data-fixed-actions-scroll-reserve='true'] {",
   'padding-bottom: calc(', '+ var(--control-height)', '+ var(--space-3)',
-  '.game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-fixed-actions-scroll-reserve {',
+  ".game-shell .page-content--player.page-content--with-mobile-fixed-actions [data-fixed-actions-scroll-reserve='true'] {",
   '.game-shell .page-content--player .page-fixed-actions > * {', 'pointer-events: auto;',
   '.game-shell .page-content--player .page-fixed-actions > .ui-button {', 'width: 100%;',
 ]) requireText(fixedActionCss, text, `共享固定操作层样式缺少：${text}`);
@@ -107,7 +107,7 @@ for (const text of [
   "getByRole('heading', { name: '运输路线', exact: true })",
   "page.locator('.page-fixed-actions')",
   "page.locator('[data-transport-page-fixed-action=\"true\"]')",
-  "page.locator('.page-fixed-actions-scroll-reserve')",
+  "page.locator('[data-fixed-actions-scroll-reserve=\"true\"]')",
   "fixedActions.locator('.ui-status-tag')",
   'await expect(fixedActions).not.toContainText',
   'routeBorderRadius',
