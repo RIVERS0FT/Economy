@@ -1,5 +1,5 @@
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { gameActions, getGemShopSummary, type GemShopSummary } from '../api/game';
 import { InvitationSettings } from '../components/InvitationSettings';
@@ -14,6 +14,15 @@ import { parseIntegerDraft } from '../utils/integerDraft';
 
 const QUICK_AMOUNTS = [1, 5, 10, 25];
 
+type ConfirmedQuoteDecision = Pick<GemShopSummary, 'quoteDateKey' | 'nextRateAt'> & {
+  decision: 'accepted' | 'rejected';
+};
+
+function sameQuoteDay(left: Pick<GemShopSummary, 'quoteDateKey' | 'nextRateAt'>, right: Pick<GemShopSummary, 'quoteDateKey' | 'nextRateAt'>) {
+  if (left.quoteDateKey && right.quoteDateKey) return left.quoteDateKey === right.quoteDateKey;
+  return left.nextRateAt === right.nextRateAt && left.quoteDateKey === right.quoteDateKey;
+}
+
 export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
   const [summary, setSummary] = useState<GemShopSummary | null>(null);
   const [amount, setAmount] = useState(1);
@@ -24,18 +33,47 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
   const [error, setError] = useState('');
   const [giftCode, setGiftCode] = useState('');
 
-  async function load() {
+  const pendingDecisionRef = useRef(false);
+  const confirmedDecisionRef = useRef<ConfirmedQuoteDecision | null>(null);
+  const summaryRequestRef = useRef(0);
+  const mountedRef = useRef(false);
+
+  async function load(background = false) {
+    const generation = ++summaryRequestRef.current;
     try {
-      setSummary(await getGemShopSummary());
+      const incoming = await getGemShopSummary();
+      if (!mountedRef.current || generation !== summaryRequestRef.current) return;
+      const confirmed = confirmedDecisionRef.current;
+      // A late same-day preview may not reopen a decision already acknowledged.
+      setSummary(confirmed && sameQuoteDay(incoming, confirmed)
+        ? { ...incoming, quoteDecision: confirmed.decision }
+        : incoming);
       setError('');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '无法读取商店');
+      if (!mountedRef.current || generation !== summaryRequestRef.current) return;
+      const message = reason instanceof Error ? reason.message : '无法读取商店';
+      if (background) model.notify(`操作已完成，但商店数据刷新失败：${message}`);
+      else setError(message);
     } finally {
-      setLoading(false);
+      if (mountedRef.current && generation === summaryRequestRef.current) setLoading(false);
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    void load();
+    return () => { mountedRef.current = false; summaryRequestRef.current += 1; };
+  }, []);
+
+  function acknowledgeQuote(decision: ConfirmedQuoteDecision['decision']) {
+    if (!summary) return;
+    const confirmed = { quoteDateKey: summary.quoteDateKey, nextRateAt: summary.nextRateAt, decision };
+    confirmedDecisionRef.current = confirmed;
+    summaryRequestRef.current += 1;
+    setSummary((current) => current && sameQuoteDay(current, confirmed)
+      ? { ...current, quoteDecision: decision }
+      : current);
+  }
 
   const parsedAmount = summary
     ? parseIntegerDraft(amountDraft, {
@@ -85,30 +123,40 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   async function exchange() {
-    if (!validAmount || exchanging || parsedAmount === null) return;
+    if (!validAmount || pendingDecisionRef.current || parsedAmount === null) return;
+    pendingDecisionRef.current = true;
     setExchanging(true);
     try {
       const result = await model.exchangeGems(parsedAmount);
-      await model.showResult(result);
       if (result.ok) {
+        acknowledgeQuote('accepted');
         setAmountValue(1);
-        await load();
+        void load(true);
       }
+      void Promise.resolve().then(() => model.showResult(result)).catch(() => {});
+    } catch (reason) {
+      model.notify(reason instanceof Error ? reason.message : '无法兑换宝石');
     } finally {
+      pendingDecisionRef.current = false;
       setExchanging(false);
     }
   }
 
   async function rejectQuote() {
-    if (!summary || quoteDecision !== 'pending' || rejecting || exchanging) return;
+    if (!summary || quoteDecision !== 'pending' || pendingDecisionRef.current) return;
+    pendingDecisionRef.current = true;
     setRejecting(true);
     try {
       const response = await gameActions.rejectGemShopQuote();
-      await model.showResult(response.result);
-      if (response.result.ok) await load();
+      if (response.result.ok) {
+        acknowledgeQuote('rejected');
+        void load(true);
+      }
+      void Promise.resolve().then(() => model.showResult(response.result)).catch(() => {});
     } catch (reason) {
       model.notify(reason instanceof Error ? reason.message : '无法放弃今日报价');
     } finally {
+      pendingDecisionRef.current = false;
       setRejecting(false);
     }
   }
