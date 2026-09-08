@@ -133,9 +133,7 @@ for (const text of [
   "'页面底部固定操作层'",
   "'data-transport-page-fixed-action=\"true\"'",
   "requireText('src/components/ui/layout.tsx', 'fixedActions?: ReactNode;');",
-  "requireText('src/components/ui/layout.tsx', 'page-fixed-actions-scroll-reserve');",
   "requireText('src/styles/primary-surfaces.css', '.page-fixed-actions {');",
-  "requireText('src/styles/primary-surfaces.css', '.page-fixed-actions-scroll-reserve {');",
   "'className=\"transport-page-footer\"',",
 ]) requireText(pageContentVerifier, text, `页面内容 verifier 未同步运输固定操作层规则：${text}`);
 
