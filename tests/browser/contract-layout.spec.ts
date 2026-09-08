@@ -202,9 +202,11 @@ test('mobile contract page keeps two-column summaries, two-by-two workspace tabs
   const fixedActions = page.locator('.page-fixed-actions--mobile-only');
   const mobilePublishAction = fixedActions.getByRole('button', { name: '发布合同', exact: true });
   const scroll = page.locator('.page-card-scroll');
+  const scrollReserve = page.locator('.page-fixed-actions-scroll-reserve');
   await expect(desktopPublishAction).toBeHidden();
   await expect(fixedActions).toBeVisible();
   await expect(mobilePublishAction).toBeVisible();
+  await expect(scrollReserve).toBeVisible();
   expect(await scroll.evaluate((element) => !element.contains(document.querySelector('.page-fixed-actions--mobile-only')))).toBe(true);
   const [fixedActionBefore, fixedActionBox, mobilePublishBox] = await Promise.all([
     fixedActions.boundingBox(), fixedActions.boundingBox(), mobilePublishAction.boundingBox(),
@@ -213,8 +215,8 @@ test('mobile contract page keeps two-column summaries, two-by-two workspace tabs
   expect(fixedActionBox).not.toBeNull();
   expect(mobilePublishBox).not.toBeNull();
   expect(Math.abs(mobilePublishBox!.width - fixedActionBox!.width)).toBeLessThanOrEqual(1);
-  const scrollPaddingBottom = await scroll.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom));
-  expect(scrollPaddingBottom).toBeGreaterThan(mobilePublishBox!.height);
+  const reservePaddingBottom = await scrollReserve.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom));
+  expect(reservePaddingBottom).toBeGreaterThan(mobilePublishBox!.height);
   await scroll.evaluate((element) => {
     element.scrollTop = Math.min(element.scrollHeight, Math.max(0, element.scrollTop + 240));
   });
