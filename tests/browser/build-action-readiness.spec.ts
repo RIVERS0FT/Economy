@@ -35,7 +35,7 @@ async function openHarness(page: Page, mode = 'build') {
     contentType: 'text/html',
     body: '<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Action readiness</title><div id="root"></div><script type="module" src="/economy/tests/browser/action-readiness-harness.tsx"></script></html>',
   }));
-  await page.route(/\/.*invitation[^/]*(?:\?.*)?$/, (route) => route.fulfill({ status: 503, json: { message: '邀请读取暂不可用' } }));
+  await page.route('**/economy-api/game/invitations', (route) => route.fulfill({ status: 503, json: { message: '邀请读取暂不可用' } }));
   await page.goto(`action-readiness-harness?mode=${mode}`);
   await page.waitForFunction(() => Boolean((window as unknown as { actionReadiness?: Controls }).actionReadiness));
 }
