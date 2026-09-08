@@ -94,7 +94,7 @@ test('transport route cards stay rounded without row dividers and the fixed add 
   const fixedActions = page.locator('.page-fixed-actions');
   const addRoute = page.locator('[data-transport-page-fixed-action="true"]');
   const scroll = page.locator('.page-card-scroll');
-  const scrollReserve = page.locator('.page-fixed-actions-scroll-reserve');
+  const scrollReserve = page.locator('[data-fixed-actions-scroll-reserve="true"]');
   await expect(fixedActions).toBeVisible();
   await expect(addRoute).toBeVisible();
   await expect(scrollReserve).toBeVisible();
@@ -106,7 +106,7 @@ test('transport route cards stay rounded without row dividers and the fixed add 
   const visual = await scroll.evaluate((container) => {
     const routesPanel = container.querySelector<HTMLElement>('.transport-routes-panel');
     const fixedActionElement = document.querySelector<HTMLElement>('.page-fixed-actions');
-    const reserveElement = container.querySelector<HTMLElement>('.page-fixed-actions-scroll-reserve');
+    const reserveElement = container.querySelector<HTMLElement>('[data-fixed-actions-scroll-reserve="true"]');
     if (!routesPanel) throw new Error('transport routes panel missing');
     if (!fixedActionElement) throw new Error('transport fixed action missing');
     if (!reserveElement) throw new Error('transport fixed action scroll reserve missing');
