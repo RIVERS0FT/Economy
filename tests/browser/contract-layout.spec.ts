@@ -202,7 +202,7 @@ test('mobile contract page keeps two-column summaries, two-by-two workspace tabs
   const fixedActions = page.locator('.page-fixed-actions--mobile-only');
   const mobilePublishAction = fixedActions.getByRole('button', { name: '发布合同', exact: true });
   const scroll = page.locator('.page-card-scroll');
-  const scrollReserve = page.locator('.page-fixed-actions-scroll-reserve');
+  const scrollReserve = page.locator('[data-fixed-actions-scroll-reserve="true"]');
   await expect(desktopPublishAction).toBeHidden();
   await expect(fixedActions).toBeVisible();
   await expect(mobilePublishAction).toBeVisible();
