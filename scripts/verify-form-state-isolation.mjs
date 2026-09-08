@@ -84,11 +84,11 @@ forbidText(
   'return model.buildFacility(facilityTypeId);',
   'quantity-dropping tutorial wrapper',
 );
-requireText(
-  productionPage,
-  'buildFacility(selectedType.id, buildQuantity)',
-  'production page explicit facility submission',
-);
+// Both direct construction and protected procurement must submit the current
+// form's explicit type and quantity; an optional third argument is valid.
+if (!/\bbuildFacility\(selectedType\.id,\s*buildQuantity\s*[,)]/.test(productionPage)) {
+  fail('production page explicit facility submission is missing');
+}
 requireText(
   productionPage,
   '<DataRow label="建造材料" value="无需材料" />',
