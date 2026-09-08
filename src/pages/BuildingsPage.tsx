@@ -1,7 +1,7 @@
 import { useFacilityRecipeConfiguration } from '../hooks/useFacilityRecipeConfiguration';
 import type { BuildingConstructionDraft } from '../hooks/useBuildingConstructionDraft';
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getFacilityBuildProcurementQuote } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { ProductArtwork } from '../components/products/ProductArtwork';
@@ -89,10 +89,13 @@ export function BuildingsPage({
   const setBuildQuantity = constructionDraft?.setQuantity ?? setLocalBuildQuantity;
   const [procurementQuoteState, setProcurementQuoteState] = useState<{
     key: string;
-    quote: FacilityBuildProcurementQuote;
+    quote: FacilityBuildProcurementQuote | null;
+    loading: boolean;
+    error: string;
   } | null>(null);
-  const [procurementQuoteLoading, setProcurementQuoteLoading] = useState(false);
-  const [procurementQuoteError, setProcurementQuoteError] = useState('');
+  const [procurementQuoteAttempt, setProcurementQuoteAttempt] = useState(0);
+  const [buildPending, setBuildPending] = useState(false);
+  const buildPendingRef = useRef(false);
   const recipeConfiguration = useFacilityRecipeConfiguration(model);
   const activeDetailFacilityTypeId = onDetailFacilityChange
     ? detailFacilityTypeId ?? ''
@@ -161,28 +164,70 @@ export function BuildingsPage({
     else setInternalDetailFacilityTypeId('');
   }, [activeDetailFacilityTypeId, onDetailFacilityChange, selectedFacilityEntry]);
 
+  const selectedBuildInputs = selectedType?.buildInputs ?? [];
+  const buildCashCost = (selectedType?.buildCost ?? 0) * buildQuantity;
+  const buildMaterialRequirements = selectedBuildInputs.map((item) => {
+    const available = game.inventories[item.productId]?.available ?? 0;
+    const required = item.quantity * buildQuantity;
+    return {
+      productId: item.productId,
+      available,
+      required,
+      missing: Math.max(0, required - available),
+    };
+  });
+  const missingBuildMaterials = buildMaterialRequirements
+    .filter((item) => item.missing > 0)
+    .map((item) => ({ productId: item.productId, quantity: item.missing }));
+  const needsProcurement = missingBuildMaterials.length > 0;
+  const selectedBuildTypeId = selectedType?.id ?? '';
+  const buildFormVisible = renderPart === 'build' || (renderPart !== 'cards' && !selectedFacilityEntry);
+  // Compare business inputs, not partition object identities. A poll can replace
+  // every inventory/market object without changing this construction's quote.
+  const procurementQuoteKey = JSON.stringify([
+    game.userId, game.saveEpoch, model.selectedProvinceId, selectedBuildTypeId, buildQuantity,
+    missingBuildMaterials.map((item) => [
+      item.productId, item.quantity, game.markets[item.productId]?.officialPrice ?? null,
+    ]),
+  ]);
+  const currentProcurementQuote = needsProcurement && procurementQuoteState?.key === procurementQuoteKey
+    ? procurementQuoteState
+    : null;
+  const procurementQuote = currentProcurementQuote?.quote ?? null;
+  const procurementQuoteLoading = needsProcurement && (!currentProcurementQuote || currentProcurementQuote.loading);
+  const procurementQuoteError = currentProcurementQuote?.error ?? '';
+
   useEffect(() => {
-    if (!selectedType || renderPart === 'cards') return undefined;
-    const contextKey = `${model.selectedProvinceId}:${selectedType.id}:${buildQuantity}`;
+    if (!selectedBuildTypeId || !needsProcurement || !buildFormVisible) {
+      setProcurementQuoteState(null);
+      return undefined;
+    }
     const controller = new AbortController();
-    setProcurementQuoteLoading(true);
-    setProcurementQuoteError('');
+    const contextKey = procurementQuoteKey;
+    setProcurementQuoteState({ key: contextKey, quote: null, loading: true, error: '' });
     void getFacilityBuildProcurementQuote(
       model.selectedProvinceId,
-      selectedType.id,
+      selectedBuildTypeId,
       buildQuantity,
       controller.signal,
     ).then((quote) => {
       if (controller.signal.aborted) return;
-      setProcurementQuoteState({ key: contextKey, quote });
+      if (!quote.complete || !Number.isFinite(quote.estimatedTotal) || quote.estimatedTotal < 0
+        || missingBuildMaterials.some((item) => !Number.isFinite(quote.materialPriceCaps?.[item.productId])
+          || quote.materialPriceCaps[item.productId] <= 0)) {
+        throw new Error('服务器采购报价不完整，请重新获取');
+      }
+      setProcurementQuoteState({ key: contextKey, quote, loading: false, error: '' });
     }).catch((reason) => {
       if (controller.signal.aborted) return;
-      setProcurementQuoteError(reason instanceof Error ? reason.message : '建造采购报价加载失败');
-    }).finally(() => {
-      if (!controller.signal.aborted) setProcurementQuoteLoading(false);
+      setProcurementQuoteState({
+        key: contextKey, quote: null, loading: false,
+        error: reason instanceof Error ? reason.message : '建造采购报价加载失败',
+      });
     });
     return () => controller.abort();
-  }, [buildQuantity, game.inventories, game.markets, model.selectedProvinceId, selectedType, renderPart]);
+  }, [buildQuantity, procurementQuoteKey, procurementQuoteAttempt, needsProcurement,
+    model.selectedProvinceId, selectedBuildTypeId, buildFormVisible]);
 
   if (!selectedType) {
     if (renderPart === 'cards') return null;
@@ -202,26 +247,6 @@ export function BuildingsPage({
     );
   }
 
-  const selectedBuildInputs = selectedType.buildInputs ?? [];
-  const buildCashCost = selectedType.buildCost * buildQuantity;
-  const buildMaterialRequirements = selectedBuildInputs.map((item) => {
-    const available = game.inventories[item.productId]?.available ?? 0;
-    const required = item.quantity * buildQuantity;
-    return {
-      productId: item.productId,
-      available,
-      required,
-      missing: Math.max(0, required - available),
-    };
-  });
-  const missingBuildMaterials = buildMaterialRequirements
-    .filter((item) => item.missing > 0)
-    .map((item) => ({ productId: item.productId, quantity: item.missing }));
-  const procurementQuoteKey = `${model.selectedProvinceId}:${selectedType.id}:${buildQuantity}`;
-  const procurementQuote = procurementQuoteState?.key === procurementQuoteKey
-    ? procurementQuoteState.quote
-    : null;
-  const needsProcurement = missingBuildMaterials.length > 0;
   const estimatedTotalSpend = buildCashCost + Number(procurementQuote?.estimatedTotal || 0);
   const inventoryBuildable = Math.max(0, Math.min(
     100,
@@ -246,6 +271,10 @@ export function BuildingsPage({
           : needsProcurement && game.credits < estimatedTotalSpend
             ? `建造与采购总资金不足，预计需要 ${formatCurrency(estimatedTotalSpend)}。`
             : undefined;
+  const canRetryProcurementQuote = needsProcurement && Boolean(procurementQuoteError) && game.credits >= buildCashCost;
+  const buildAction = buildPending ? 'submitting'
+    : canRetryProcurementQuote ? 'retry-quote'
+      : buildDisabledReason ? 'blocked' : 'ready';
   const actionDisabledReason = buildDisabledReason;
 
   const selectFacilityEntry = (facilityTypeId: string) => {
@@ -282,18 +311,33 @@ export function BuildingsPage({
     model.setTab('contracts');
   };
 
-  const submitBuild = () => {
-    if (actionDisabledReason) return;
-    if (!needsProcurement) {
-      void showResult(buildFacility(selectedType.id, buildQuantity));
+  const submitBuild = async () => {
+    if (buildPendingRef.current) return;
+    if (buildAction === 'retry-quote') {
+      setProcurementQuoteState({ key: procurementQuoteKey, quote: null, loading: true, error: '' });
+      setProcurementQuoteAttempt((attempt) => attempt + 1);
       return;
     }
-    if (!procurementQuote) return;
-    void showResult(buildFacility(selectedType.id, buildQuantity, {
-      autoProcure: true,
-      maxProcurementTotal: procurementQuote.estimatedTotal,
-      materialPriceCaps: procurementQuote.materialPriceCaps,
-    }));
+    if (buildAction !== 'ready' || (needsProcurement && !procurementQuote)) return;
+    buildPendingRef.current = true;
+    setBuildPending(true);
+    try {
+      const result = await buildFacility(selectedType.id, buildQuantity, needsProcurement && procurementQuote ? {
+        autoProcure: true,
+        maxProcurementTotal: procurementQuote.estimatedTotal,
+        materialPriceCaps: procurementQuote.materialPriceCaps,
+      } : undefined);
+      // The authoritative receipt ends submission; notification/state refresh is
+      // not a second submission lock. The shared write layer still owns retries.
+      void Promise.resolve().then(() => showResult(result)).catch(() => {});
+    } catch (reason) {
+      void Promise.resolve().then(() => showResult({
+        ok: false, message: reason instanceof Error ? reason.message : '建造失败，请稍后重试',
+      })).catch(() => {});
+    } finally {
+      buildPendingRef.current = false;
+      setBuildPending(false);
+    }
   };
 
   const buildCard = (
@@ -356,10 +400,11 @@ export function BuildingsPage({
       </DataList>
       <Button
         block
-        onClick={submitBuild}
-        disabled={Boolean(actionDisabledReason) || procurementQuoteLoading}
+        onClick={() => void submitBuild()}
+        disabled={buildAction === 'blocked' || buildAction === 'submitting'}
+        aria-busy={buildPending}
       >
-        {needsProcurement
+        {buildPending ? '正在建造…' : buildAction === 'retry-quote' ? '重试采购报价' : needsProcurement
           ? buildQuantity === 1
             ? `一键购齐并建造${selectedType.name}`
             : `一键购齐并建造 ${buildQuantity} 座${selectedType.name}`
