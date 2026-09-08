@@ -84,7 +84,13 @@
   pointer-events: auto;
 }
 
-.game-shell .page-content--player.page-content--with-fixed-actions .page-card-scroll {
+/* The trailing reserve belongs to the actual scroll content rather than the
+ * overflow viewport. Chromium can omit a scrollport's trailing padding from
+ * scrollable overflow once a grid child exceeds the viewport; putting the
+ * reserve on the PageLayout content stack guarantees the final business block
+ * can scroll completely above the fixed action. */
+.game-shell .page-content--player .page-fixed-actions-scroll-reserve {
+  box-sizing: border-box;
   padding-bottom: calc(
     max(var(--player-page-content-inset), env(safe-area-inset-bottom))
     + var(--control-height)
@@ -92,8 +98,8 @@
   );
 }
 
-.game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-card-scroll {
-  padding-bottom: var(--player-page-content-inset);
+.game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-fixed-actions-scroll-reserve {
+  padding-bottom: 0;
 }
 
 .game-shell .page-content--player .page-fixed-actions--mobile-only {
@@ -109,7 +115,7 @@
     --primary-surface-inset: var(--space-3);
   }
 
-  .game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-card-scroll {
+  .game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-fixed-actions-scroll-reserve {
     padding-bottom: calc(
       max(var(--player-page-content-inset), env(safe-area-inset-bottom))
       + var(--control-height)
