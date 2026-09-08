@@ -118,6 +118,7 @@ test('transport route cards stay rounded without row dividers and the fixed add 
       routeGrid.append(routeCard);
     }
     routesPanel.prepend(routeGrid);
+    routesPanel.querySelector('.transport-empty')?.remove();
 
     const firstCard = routeGrid.firstElementChild as HTMLElement;
     const firstStyle = getComputedStyle(firstCard);
