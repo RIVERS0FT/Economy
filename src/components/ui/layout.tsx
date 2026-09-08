@@ -38,11 +38,7 @@ export function PageLayout({
   const pageNavigation = usePlayerPageNavigation();
   const showBackButton = Boolean(pageNavigation || backAction);
   const hasFixedActions = Boolean(pageNavigation && fixedActions);
-  const pageStack = hasFixedActions ? (
-    <div className="ui-page-stack" data-fixed-actions-scroll-reserve="true">
-      {children}
-    </div>
-  ) : (
+  const pageStack = (
     <div className="ui-page-stack">
       {children}
     </div>
@@ -102,6 +98,13 @@ export function PageLayout({
           scrollbarRevealOnHover={false}
         >
           {pageStack}
+          {hasFixedActions ? (
+            <div
+              className="page-fixed-actions-scroll-reserve"
+              data-fixed-actions-scroll-reserve="true"
+              aria-hidden="true"
+            />
+          ) : null}
         </ScrollArea>
       ) : pageNavigation ? (
         <div className="page-card-static">
