@@ -63,10 +63,8 @@ forbidText(
 );
 
 for (const text of [
-  ".page-card-scroll:has([data-transport-route-index='true']) {",
-  'grid-template-rows: minmax(100%, auto);',
-  ".transport-page-content[data-transport-route-index='true'] {",
-  'min-height: 100%;',
+  '.transport-page-content {',
+  'gap: var(--layout-gutter);',
   '.transport-route-grid {',
   'gap: var(--space-3);',
 ]) requireText(transportCss, text, `运输页样式缺少：${text}`);
