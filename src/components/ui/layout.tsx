@@ -17,6 +17,8 @@ function classNames(...values: Array<string | false | null | undefined>) {
 export function PageLayout({
   title,
   actions,
+  fixedActions,
+  fixedActionsVisibility = 'always',
   backAction,
   scrollable = true,
   children,
@@ -24,6 +26,8 @@ export function PageLayout({
   title: ReactNode;
   description?: string;
   actions?: ReactNode;
+  fixedActions?: ReactNode;
+  fixedActionsVisibility?: 'always' | 'mobile';
   backAction?: {
     label: string;
     onClick: () => void;
@@ -33,6 +37,7 @@ export function PageLayout({
 }) {
   const pageNavigation = usePlayerPageNavigation();
   const showBackButton = Boolean(pageNavigation || backAction);
+  const hasFixedActions = Boolean(pageNavigation && fixedActions);
   const pageStack = (
     <div className="ui-page-stack">
       {children}
@@ -44,6 +49,8 @@ export function PageLayout({
       'page-content',
       pageNavigation && 'page-content--player',
       pageNavigation && !scrollable && 'page-content--fixed-body',
+      hasFixedActions && 'page-content--with-fixed-actions',
+      hasFixedActions && fixedActionsVisibility === 'mobile' && 'page-content--with-mobile-fixed-actions',
     )}>
       <div className="page-fixed-header">
         <div
@@ -91,12 +98,27 @@ export function PageLayout({
           scrollbarRevealOnHover={false}
         >
           {pageStack}
+          {hasFixedActions ? (
+            <div
+              className="page-fixed-actions-scroll-reserve"
+              data-fixed-actions-scroll-reserve="true"
+              aria-hidden="true"
+            />
+          ) : null}
         </ScrollArea>
       ) : pageNavigation ? (
         <div className="page-card-static">
           {pageStack}
         </div>
       ) : pageStack}
+      {hasFixedActions ? (
+        <div className={classNames(
+          'page-fixed-actions',
+          fixedActionsVisibility === 'mobile' && 'page-fixed-actions--mobile-only',
+        )}>
+          {fixedActions}
+        </div>
+      ) : null}
     </section>
   );
 }

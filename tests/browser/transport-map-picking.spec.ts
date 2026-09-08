@@ -15,7 +15,7 @@ test('transport route editor picks ordered stops directly on the strategic map a
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: '运输' })).toBeVisible();
 
-  await page.locator('.transport-page-footer').getByRole('button', { name: '增加路线', exact: true }).click();
+  await page.locator('[data-transport-page-fixed-action="true"]').click();
   const map = page.getByTestId('us-mainland-map');
   const viewport = map.locator('.province-map-static-viewport');
   const pickingBar = page.locator('.transport-map-picking-bar');

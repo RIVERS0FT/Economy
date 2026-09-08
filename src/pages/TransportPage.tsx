@@ -401,7 +401,19 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
 
   const canAddRoute = game.provinces.length >= 2 && routes.length < TRANSPORT_MAX_ROUTES_PER_PLAYER;
   return (
-    <PageLayout title="运输">
+    <PageLayout
+      title="运输"
+      fixedActions={(
+        <Button
+          variant="secondary"
+          data-transport-page-fixed-action="true"
+          disabled={!canAddRoute || Boolean(pendingAction)}
+          onClick={beginCreateRoute}
+        >
+          增加路线
+        </Button>
+      )}
+    >
       <div className="transport-page-content" data-transport-route-index="true">
         <div className="transport-page-index-body">
           {pendingDraftPanel}
@@ -445,10 +457,6 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               <p className="transport-empty">暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。</p>
             )}
           </section>
-        </div>
-
-        <div className="transport-page-footer" data-transport-page-footer="true">
-          <Button variant="secondary" disabled={!canAddRoute || Boolean(pendingAction)} onClick={beginCreateRoute}>增加路线</Button>
         </div>
       </div>
     </PageLayout>

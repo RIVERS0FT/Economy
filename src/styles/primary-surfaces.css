@@ -34,7 +34,8 @@
 .game-shell .page-content--player .page-fixed-header,
 .game-shell .page-content--player .page-card-scroll-area,
 .game-shell .page-content--player .page-card-scroll,
-.game-shell .page-content--player .page-card-static {
+.game-shell .page-content--player .page-card-static,
+.game-shell .page-content--player .page-fixed-actions {
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -63,8 +64,75 @@
   max-width: 100%;
 }
 
+.game-shell .page-content--player.page-content--with-fixed-actions {
+  position: relative;
+}
+
+.game-shell .page-content--player .page-fixed-actions {
+  position: absolute;
+  z-index: 3;
+  right: var(--player-page-content-inset);
+  bottom: max(var(--player-page-content-inset), env(safe-area-inset-bottom));
+  left: var(--player-page-content-inset);
+  width: auto;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.game-shell .page-content--player .page-fixed-actions > * {
+  pointer-events: auto;
+}
+
+/* Keep the fixed-action reserve as a real trailing scroll item. Chromium can
+ * collapse end padding from the reachable overflow of a grid scrollport, so
+ * padding the content stack alone can leave its final business item hidden
+ * behind the fixed action even though the computed padding is non-zero. */
+.game-shell .page-content--player [data-fixed-actions-scroll-reserve='true'] {
+  min-height: 0;
+  box-sizing: border-box;
+  padding-bottom: calc(
+    max(var(--player-page-content-inset), env(safe-area-inset-bottom))
+    + var(--control-height)
+    + var(--space-3)
+  );
+  pointer-events: none;
+}
+
+.game-shell .page-content--player.page-content--with-mobile-fixed-actions [data-fixed-actions-scroll-reserve='true'] {
+  padding-bottom: 0;
+}
+
+.game-shell .page-content--player .page-fixed-actions--mobile-only {
+  display: none;
+}
+
+.page-desktop-only-action {
+  display: flex;
+}
+
 @media (max-width: 720px) {
   :root {
     --primary-surface-inset: var(--space-3);
+  }
+
+  .game-shell .page-content--player.page-content--with-mobile-fixed-actions [data-fixed-actions-scroll-reserve='true'] {
+    padding-bottom: calc(
+      max(var(--player-page-content-inset), env(safe-area-inset-bottom))
+      + var(--control-height)
+      + var(--space-3)
+    );
+  }
+
+  .game-shell .page-content--player .page-fixed-actions--mobile-only {
+    display: flex;
+  }
+
+  .game-shell .page-content--player .page-fixed-actions > .ui-button {
+    width: 100%;
+  }
+
+  .page-desktop-only-action {
+    display: none;
   }
 }

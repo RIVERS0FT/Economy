@@ -32,6 +32,7 @@ for (const path of [
   'src/components/ui/RichSelectInput.tsx',
   'src/components/facilities/FacilityProductionConfigControls.tsx',
   'src/styles/transport-page.css',
+  'src/styles/primary-surfaces.css',
   'docs/UI_DESIGN_SYSTEM.md',
   'tests/browser/runtime-harness.tsx',
   'tests/browser/province-locked-access.spec.ts',
@@ -68,7 +69,9 @@ for (const text of [
   '地图不得提供独立的放大、缩小或重置功能面板',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
-  '运输页的“增加路线”固定放在页面正文承载面的最下方 sticky 操作区',
+  '页面底部固定操作层',
+  '正文滚动视口之外并覆盖正文',
+  '正文滚动必须预留按钮高度、页面间距和移动安全区',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   '玩家端 `PageLayout` 的标题区固定只包含返回、主标题和关闭三个槽位',
@@ -78,16 +81,21 @@ for (const text of [
   '正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 for (const text of [
-  'className="transport-page-footer"',
-  '<PageLayout title="运输">',
+  'fixedActions={(',
+  'data-transport-page-fixed-action="true"',
+  'title="运输"',
 ]) requireText('src/pages/TransportPage.tsx', text);
 for (const text of [
   'actions={(',
+  'className="transport-page-footer"',
 ]) forbidText('src/pages/TransportPage.tsx', text);
-requireText('src/styles/transport-page.css', '.transport-page-footer {');
+requireText('src/components/ui/layout.tsx', 'fixedActions?: ReactNode;');
+requireText('src/styles/primary-surfaces.css', '.page-fixed-actions {');
+forbidText('src/styles/transport-page.css', '.transport-page-footer {');
 forbidText('src/pages/TransportPage.tsx', 'className="transport-page-actions"');
 forbidText('src/styles/transport-page.css', '.transport-page-actions {');
 forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '运输页的“增加路线”固定放在正文顶部操作区');
+forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '运输页的“增加路线”固定放在页面正文承载面的最下方 sticky 操作区');
 for (const text of [
   'page-heading-actions--player',
   'data-player-page-actions',
@@ -449,4 +457,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场目录使用今日价格与真实成交信息，地区商品详情使用服务器当日价即时交易且禁止恢复五档/自定义价格；建筑和地区建筑目录继续共用统一页面实体列表表面、相邻细线、Chevron、目录插画槽和正负数值色；一级建筑按工厂类型 → 地区 → 现有地区工厂详情下钻；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留逻辑 1–4 动态美国居中手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场目录使用今日价格与真实成交信息，地区商品详情使用服务器当日价即时交易且禁止恢复五档/自定义价格；建筑和地区建筑目录继续共用统一页面实体列表表面、相邻细线、Chevron、目录插画槽和正负数值色；一级建筑按工厂类型 → 地区 → 现有地区工厂详情下钻；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；运输增加路线使用共享页面底部固定操作层；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留逻辑 1–4 动态美国居中手势缩放并禁止恢复独立缩放功能面板。');

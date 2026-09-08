@@ -100,8 +100,9 @@ test('desktop contract page prioritizes workbench and master detail contract man
   const audit = await mockContractAudit(page);
   await openContracts(page, 1440, 900);
 
-  const publishAction = page.locator('.contract-content-actions').getByRole('button', { name: '发布合同', exact: true });
-  await expect(publishAction).toBeVisible();
+  const desktopPublishAction = page.locator('.contract-content-actions').getByRole('button', { name: '发布合同', exact: true });
+  await expect(desktopPublishAction).toBeVisible();
+  await expect(page.locator('.page-fixed-actions--mobile-only')).toBeHidden();
   await expect(page.locator('.page-fixed-header').getByRole('button', { name: '发布合同', exact: true })).toHaveCount(0);
   expect(await gridTrackCount(page.locator('.ui-page-stack > .contract-summary-grid'))).toBe(4);
   expect(await gridTrackCount(page.locator('.contract-master-detail').first())).toBe(2);
@@ -127,7 +128,7 @@ test('desktop contract page prioritizes workbench and master detail contract man
   await expect(page.getByRole('combobox', { name: '合作方向' })).toBeVisible();
   await expect(page.locator('.contract-market-pane .contract-master-detail-panel .contract-card')).toHaveCount(1);
 
-  await page.getByRole('button', { name: '发布合同', exact: true }).click();
+  await desktopPublishAction.click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(2);
   await expect(page.locator('.contract-type-option')).toHaveCount(6);
   await expect(page.locator('.contract-type-option').filter({ hasText: '采购合同' })).toHaveAttribute('aria-pressed', 'true');
@@ -180,7 +181,9 @@ test('tablet contract page keeps compact master detail and two-column publish fi
   expect(await gridTrackCount(page.locator('.contract-master-detail').first())).toBe(2);
   await page.getByRole('tab', { name: /合同市场/ }).click();
   expect(await gridTrackCount(page.locator('.contract-market-filters'))).toBe(2);
-  await page.getByRole('button', { name: '发布合同', exact: true }).click();
+  const desktopPublishAction = page.locator('.contract-content-actions').getByRole('button', { name: '发布合同', exact: true });
+  await expect(desktopPublishAction).toBeVisible();
+  await desktopPublishAction.click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(1);
   expect(await gridTrackCount(page.locator('.contract-publish-grid'))).toBe(2);
   await expectUniformPageSectionGaps(page);
@@ -195,7 +198,36 @@ test('mobile contract page keeps two-column summaries, two-by-two workspace tabs
   expect(await gridTrackCount(page.locator('.contract-master-detail').first())).toBe(1);
   await expectUniformPageSectionGaps(page);
 
-  await page.getByRole('button', { name: '发布合同', exact: true }).click();
+  const desktopPublishAction = page.locator('.contract-content-actions').getByRole('button', { name: '发布合同', exact: true });
+  const fixedActions = page.locator('.page-fixed-actions--mobile-only');
+  const mobilePublishAction = fixedActions.getByRole('button', { name: '发布合同', exact: true });
+  const scroll = page.locator('.page-card-scroll');
+  const scrollReserve = page.locator('[data-fixed-actions-scroll-reserve="true"]');
+  await expect(desktopPublishAction).toBeHidden();
+  await expect(fixedActions).toBeVisible();
+  await expect(mobilePublishAction).toBeVisible();
+  await expect(scrollReserve).toBeVisible();
+  expect(await scroll.evaluate((element) => !element.contains(document.querySelector('.page-fixed-actions--mobile-only')))).toBe(true);
+  const [fixedActionBefore, fixedActionBox, mobilePublishBox] = await Promise.all([
+    fixedActions.boundingBox(), fixedActions.boundingBox(), mobilePublishAction.boundingBox(),
+  ]);
+  expect(fixedActionBefore).not.toBeNull();
+  expect(fixedActionBox).not.toBeNull();
+  expect(mobilePublishBox).not.toBeNull();
+  expect(Math.abs(mobilePublishBox!.width - fixedActionBox!.width)).toBeLessThanOrEqual(1);
+  const reservePaddingBottom = await scrollReserve.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom));
+  expect(reservePaddingBottom).toBeGreaterThan(mobilePublishBox!.height);
+  await scroll.evaluate((element) => {
+    element.scrollTop = Math.min(element.scrollHeight, Math.max(0, element.scrollTop + 240));
+  });
+  const fixedActionAfter = await fixedActions.boundingBox();
+  expect(fixedActionAfter).not.toBeNull();
+  expect(Math.abs(fixedActionAfter!.y - fixedActionBefore!.y)).toBeLessThanOrEqual(1);
+
+  await mobilePublishAction.click();
+  await expect(fixedActions.getByRole('button', { name: '收起发布表单', exact: true })).toBeVisible();
+  await expect(page.locator('.contract-publish-panel')).toBeVisible();
+  expect(await scroll.evaluate((element) => element.contains(document.querySelector('.contract-publish-panel')))).toBe(true);
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(1);
   expect(await gridTrackCount(page.locator('.contract-publish-grid'))).toBe(1);
   const quantity = page.getByLabel('每日最大供应量');
@@ -218,5 +250,8 @@ test('narrow mobile contract workspace keeps four stable two-by-two hit areas', 
   expect(await gridTrackCount(page.locator('.contract-workspace-tabs'))).toBe(2);
   await expect(page.getByRole('tab')).toHaveCount(4);
   await expectUniformPageSectionGaps(page);
+  const mobilePublishAction = page.locator('.page-fixed-actions--mobile-only').getByRole('button', { name: '发布合同', exact: true });
+  await expect(mobilePublishAction).toBeVisible();
+  await expect(page.locator('.contract-content-actions').getByRole('button', { name: '发布合同', exact: true })).toBeHidden();
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
