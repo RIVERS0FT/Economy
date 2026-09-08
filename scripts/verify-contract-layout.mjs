@@ -77,17 +77,23 @@ else {
 
 for (const text of [
   'fixedActions?: ReactNode;', "fixedActionsVisibility?: 'always' | 'mobile';",
-  "hasFixedActions && 'page-content--with-fixed-actions'", "fixedActionsVisibility === 'mobile' && 'page-fixed-actions--mobile-only'",
+  "hasFixedActions && 'page-content--with-fixed-actions'", "hasFixedActions && 'page-fixed-actions-scroll-reserve'",
+  "fixedActionsVisibility === 'mobile' && 'page-fixed-actions--mobile-only'",
   'className={classNames(', "'page-fixed-actions',",
 ]) requireText(layoutPath, text);
 for (const text of [
   '.game-shell .page-content--player.page-content--with-fixed-actions {', 'position: relative;',
   '.game-shell .page-content--player .page-fixed-actions {', 'position: absolute;',
   'bottom: max(var(--player-page-content-inset), env(safe-area-inset-bottom));',
-  '.game-shell .page-content--player.page-content--with-fixed-actions .page-card-scroll {',
+  '.game-shell .page-content--player .page-fixed-actions-scroll-reserve {',
+  '.game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-fixed-actions-scroll-reserve {',
   '+ var(--control-height)', '.page-fixed-actions--mobile-only', '.page-desktop-only-action',
   '@media (max-width: 720px)', 'width: 100%;',
 ]) requireText(fixedActionStylePath, text);
+forbidText(
+  fixedActionStylePath,
+  '.page-content--player.page-content--with-fixed-actions .page-card-scroll {',
+);
 
 for (const text of [
   '.contract-workspace-tabs', 'grid-template-columns: repeat(4, minmax(0, 1fr));', '.contract-master-detail',
@@ -150,4 +156,4 @@ if (failures.length) {
   console.error(`合同页统一布局验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('合同页布局验证通过：桌面发布操作保留正文首行，移动发布操作使用 PageLayout 底部固定层；默认工作台、四视图、主从详情、方向筛选与既有合同对象卡/审计兼容保持当前规则。');
+console.log('合同页布局验证通过：桌面发布操作保留正文首行，移动发布操作使用 PageLayout 底部固定层并在真实滚动内容尾部预留操作空间；默认工作台、四视图、主从详情、方向筛选与既有合同对象卡/审计兼容保持当前规则。');
