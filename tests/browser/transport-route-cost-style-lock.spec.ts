@@ -94,8 +94,10 @@ test('transport route cards stay rounded without row dividers and the fixed add 
   const fixedActions = page.locator('.page-fixed-actions');
   const addRoute = page.locator('[data-transport-page-fixed-action="true"]');
   const scroll = page.locator('.page-card-scroll');
+  const scrollReserve = page.locator('.page-fixed-actions-scroll-reserve');
   await expect(fixedActions).toBeVisible();
   await expect(addRoute).toBeVisible();
+  await expect(scrollReserve).toBeVisible();
   await expect(fixedActions).toHaveText('增加路线');
   await expect(fixedActions.locator('.ui-status-tag')).toHaveCount(0);
   await expect(fixedActions).not.toContainText(/\d+\s*\/\s*50/);
@@ -104,8 +106,10 @@ test('transport route cards stay rounded without row dividers and the fixed add 
   const visual = await scroll.evaluate((container) => {
     const routesPanel = container.querySelector<HTMLElement>('.transport-routes-panel');
     const fixedActionElement = document.querySelector<HTMLElement>('.page-fixed-actions');
+    const reserveElement = container.querySelector<HTMLElement>('.page-fixed-actions-scroll-reserve');
     if (!routesPanel) throw new Error('transport routes panel missing');
     if (!fixedActionElement) throw new Error('transport fixed action missing');
+    if (!reserveElement) throw new Error('transport fixed action scroll reserve missing');
 
     const routeGrid = document.createElement('div');
     routeGrid.className = 'transport-route-grid transport-route-style-fixture';
@@ -141,7 +145,7 @@ test('transport route cards stay rounded without row dividers and the fixed add 
     const firstSectionStyle = getComputedStyle(firstSection);
     const secondSectionStyle = getComputedStyle(secondSection);
     const fixedActionStyle = getComputedStyle(fixedActionElement);
-    const scrollStyle = getComputedStyle(container);
+    const reserveStyle = getComputedStyle(reserveElement);
     const result = {
       routeBorderRadius: firstStyle.borderRadius,
       routeBorderTopWidth: firstStyle.borderTopWidth,
@@ -161,7 +165,7 @@ test('transport route cards stay rounded without row dividers and the fixed add 
         right: fixedActionStyle.right,
         zIndex: fixedActionStyle.zIndex,
       },
-      scrollPaddingBottom: Number.parseFloat(scrollStyle.paddingBottom),
+      scrollReservePaddingBottom: Number.parseFloat(reserveStyle.paddingBottom),
     };
 
     legacyPanel.remove();
@@ -190,7 +194,7 @@ test('transport route cards stay rounded without row dividers and the fixed add 
   expect(scrollBox).not.toBeNull();
   expect(fixedActionBefore).not.toBeNull();
   expect(buttonBox).not.toBeNull();
-  expect(visual.scrollPaddingBottom).toBeGreaterThan(buttonBox!.height);
+  expect(visual.scrollReservePaddingBottom).toBeGreaterThan(buttonBox!.height);
   expect(fixedActionBefore!.y + fixedActionBefore!.height).toBeLessThanOrEqual(scrollBox!.y + scrollBox!.height + 1);
 
   const scrollTop = await scroll.evaluate((element) => {
@@ -209,6 +213,7 @@ test('transport route cards stay rounded without row dividers and the fixed add 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(fixedActions).toBeVisible();
   await expect(addRoute).toBeVisible();
+  await expect(scrollReserve).toBeVisible();
   await expect(fixedActions).toHaveText('增加路线');
   await expect(fixedActions.locator('.ui-status-tag')).toHaveCount(0);
   await expect(fixedActions).not.toContainText(/\d+\s*\/\s*50/);
@@ -220,6 +225,6 @@ test('transport route cards stay rounded without row dividers and the fixed add 
   expect(mobileButtonBox).not.toBeNull();
   expect(mobileFixedBox!.y + mobileFixedBox!.height).toBeLessThanOrEqual(mobileScrollBox!.y + mobileScrollBox!.height + 1);
   expect(Math.abs(mobileButtonBox!.width - mobileFixedBox!.width)).toBeLessThanOrEqual(1);
-  const mobileScrollPaddingBottom = await scroll.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom));
-  expect(mobileScrollPaddingBottom).toBeGreaterThan(mobileButtonBox!.height);
+  const mobileReservePaddingBottom = await scrollReserve.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom));
+  expect(mobileReservePaddingBottom).toBeGreaterThan(mobileButtonBox!.height);
 });
