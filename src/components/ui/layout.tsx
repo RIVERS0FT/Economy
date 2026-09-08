@@ -38,11 +38,12 @@ export function PageLayout({
   const pageNavigation = usePlayerPageNavigation();
   const showBackButton = Boolean(pageNavigation || backAction);
   const hasFixedActions = Boolean(pageNavigation && fixedActions);
-  const pageStack = (
-    <div className={classNames(
-      'ui-page-stack',
-      hasFixedActions && 'page-fixed-actions-scroll-reserve',
-    )}>
+  const pageStack = hasFixedActions ? (
+    <div className="ui-page-stack" data-fixed-actions-scroll-reserve="true">
+      {children}
+    </div>
+  ) : (
+    <div className="ui-page-stack">
       {children}
     </div>
   );
