@@ -89,7 +89,7 @@
  * scrollable overflow once a grid child exceeds the viewport; putting the
  * reserve on the PageLayout content stack guarantees the final business block
  * can scroll completely above the fixed action. */
-.game-shell .page-content--player .page-fixed-actions-scroll-reserve {
+.game-shell .page-content--player [data-fixed-actions-scroll-reserve='true'] {
   box-sizing: border-box;
   padding-bottom: calc(
     max(var(--player-page-content-inset), env(safe-area-inset-bottom))
@@ -98,7 +98,7 @@
   );
 }
 
-.game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-fixed-actions-scroll-reserve {
+.game-shell .page-content--player.page-content--with-mobile-fixed-actions [data-fixed-actions-scroll-reserve='true'] {
   padding-bottom: 0;
 }
 
@@ -115,7 +115,7 @@
     --primary-surface-inset: var(--space-3);
   }
 
-  .game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-fixed-actions-scroll-reserve {
+  .game-shell .page-content--player.page-content--with-mobile-fixed-actions [data-fixed-actions-scroll-reserve='true'] {
     padding-bottom: calc(
       max(var(--player-page-content-inset), env(safe-area-inset-bottom))
       + var(--control-height)
