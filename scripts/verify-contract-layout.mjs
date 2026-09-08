@@ -77,7 +77,7 @@ else {
 
 for (const text of [
   'fixedActions?: ReactNode;', "fixedActionsVisibility?: 'always' | 'mobile';",
-  "hasFixedActions && 'page-content--with-fixed-actions'", "hasFixedActions && 'page-fixed-actions-scroll-reserve'",
+  "hasFixedActions && 'page-content--with-fixed-actions'", 'data-fixed-actions-scroll-reserve="true"',
   "fixedActionsVisibility === 'mobile' && 'page-fixed-actions--mobile-only'",
   'className={classNames(', "'page-fixed-actions',",
 ]) requireText(layoutPath, text);
@@ -85,8 +85,8 @@ for (const text of [
   '.game-shell .page-content--player.page-content--with-fixed-actions {', 'position: relative;',
   '.game-shell .page-content--player .page-fixed-actions {', 'position: absolute;',
   'bottom: max(var(--player-page-content-inset), env(safe-area-inset-bottom));',
-  '.game-shell .page-content--player .page-fixed-actions-scroll-reserve {',
-  '.game-shell .page-content--player.page-content--with-mobile-fixed-actions .page-fixed-actions-scroll-reserve {',
+  ".game-shell .page-content--player [data-fixed-actions-scroll-reserve='true'] {",
+  ".game-shell .page-content--player.page-content--with-mobile-fixed-actions [data-fixed-actions-scroll-reserve='true'] {",
   '+ var(--control-height)', '.page-fixed-actions--mobile-only', '.page-desktop-only-action',
   '@media (max-width: 720px)', 'width: 100%;',
 ]) requireText(fixedActionStylePath, text);
@@ -144,7 +144,8 @@ for (const text of [
   'narrow mobile contract workspace keeps four stable two-by-two hit areas',
   "getByLabel('每日最大供应量')", "getByLabel('合同时间（天，可选）')", "getByLabel('开始延迟（天）')",
   "getByText('完成事实'", "getByText('我的履约档案'", 'auditRequestCount()',
-  "page.locator('.page-fixed-actions--mobile-only')", 'mobilePublishAction', 'desktopPublishAction',
+  "page.locator('.page-fixed-actions--mobile-only')", "page.locator('[data-fixed-actions-scroll-reserve=\"true\"]')",
+  'mobilePublishAction', 'desktopPublishAction',
 ]) requireText(browserTestPath, text);
 for (const text of ['independent contract cards keep object boundaries and warning tint', '.contract-card--attention', '.contract-card--normal', 'normalStyle.borderRadius', 'normalStyle.backdropFilter', 'summaryStyle.borderRadius']) requireText(attentionBrowserTestPath, text);
 for (const text of ['contract core workspace switches between workbench market active and history views', "getByRole('tabpanel', { name: '合同工作台' })", "getByRole('tabpanel', { name: '合同市场' })", "getByRole('tabpanel', { name: '我的合同' })"]) requireText(workspaceTestPath, text);
