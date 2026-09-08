@@ -10,8 +10,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 
 const routePath = 'src/pages/ContractPage.tsx';
 const pagePath = 'src/pages/ContractWorkspacePage.tsx';
+const layoutPath = 'src/components/ui/layout.tsx';
 const stylePath = 'src/styles/contracts.css';
 const coreStylePath = 'src/styles/contract-core-workspace.css';
+const fixedActionStylePath = 'src/styles/primary-surfaces.css';
 const contentSurfacePath = 'src/styles/content-surfaces.css';
 const scrollingSurfacePath = 'src/styles/scrolling-page-sections.css';
 const auditStylePath = 'src/styles/contract-audit.css';
@@ -30,10 +32,10 @@ const serverPath = 'server/src/contract-audit-store.js';
 const packagePath = 'package.json';
 
 [
-  routePath, pagePath, stylePath, coreStylePath, contentSurfacePath, scrollingSurfacePath, auditStylePath,
-  navigationPath, designPath, productDesignPath, uiDesignPath, surfaceDesignPath,
-  serverDesignPath, browserTestPath, attentionBrowserTestPath, workspaceTestPath, harnessPath,
-  formVerifierPath, serverPath, packagePath,
+  routePath, pagePath, layoutPath, stylePath, coreStylePath, fixedActionStylePath, contentSurfacePath,
+  scrollingSurfacePath, auditStylePath, navigationPath, designPath, productDesignPath, uiDesignPath,
+  surfaceDesignPath, serverDesignPath, browserTestPath, attentionBrowserTestPath, workspaceTestPath,
+  harnessPath, formVerifierPath, serverPath, packagePath,
 ].forEach(requireFile);
 
 for (const text of [
@@ -48,12 +50,13 @@ for (const text of [
   "type ContractWorkspaceView = 'workbench' | 'market' | 'active' | 'history'", 'contract-workspace-tabs',
   '合同工作台', '合同市场', '我的合同', '历史合同', 'contract-master-detail', 'contract-master-list-item',
   'contract-market-master-detail', '合作方向', '我要采购', '我要供货',
-  'contract-content-actions', 'contract-summary-grid', 'contract-market-pane', 'contract-personal-pane',
+  'contract-content-actions page-desktop-only-action', 'contract-summary-grid', 'contract-market-pane', 'contract-personal-pane',
   'contract-publish-layout', 'contract-type-grid', 'contract-history-panel', 'contract-history-result-grid',
   '每日最大供应量', '合同时间（天，可选）', '开始延迟（天）', '今日已使用', '今日剩余额度', '累计交付',
   '自动准备商品', '自动补充货款', '按当前日结束', 'LegacyRenewalResolution', '旧合同续签',
   '该区域只处理已经存在的旧有限批次续签', '我的履约档案', '完成事实', '实际交付事件',
   '重新拟定', '<option value="credits">普通货币</option>', 'value={`facility:${facility.id}`}',
+  'const publishAction = (', '<PageLayout title="合同" fixedActions={publishAction} fixedActionsVisibility="mobile">',
 ]) requireText(pagePath, text);
 for (const text of [
   'description="商品合同按地区使用固定价格', "type PersonalContractView = 'active' | 'history'",
@@ -62,15 +65,29 @@ for (const text of [
 for (const text of ['总交付批次（可选）', '首次交付（分钟）', '首次交付（小时）']) forbidText(pagePath, text);
 
 const pageSource = read(pagePath);
-const pageLayoutStart = pageSource.indexOf('<PageLayout title="合同">');
-const pageActionIndex = pageSource.indexOf('className="contract-content-actions"', pageLayoutStart);
+const pageLayoutStart = pageSource.indexOf('<PageLayout title="合同" fixedActions={publishAction} fixedActionsVisibility="mobile">');
+const pageActionIndex = pageSource.indexOf('className="contract-content-actions page-desktop-only-action"', pageLayoutStart);
 const pageSummaryIndex = pageSource.indexOf('className="contract-summary-grid"', pageLayoutStart);
 const pageTabsIndex = pageSource.indexOf('className="ui-segmented contract-workspace-tabs"', pageLayoutStart);
 if (pageLayoutStart < 0 || pageActionIndex < 0 || pageSummaryIndex < 0 || pageTabsIndex < 0) failures.push('合同 PageLayout 一级结构不完整');
 else {
-  if (pageActionIndex > pageSummaryIndex) failures.push('合同正文发布按钮必须位于摘要条之前');
+  if (pageActionIndex > pageSummaryIndex) failures.push('合同桌面正文发布按钮必须位于摘要条之前');
   if (pageSummaryIndex > pageTabsIndex) failures.push('合同摘要必须位于工作区分段按钮之前');
 }
+
+for (const text of [
+  'fixedActions?: ReactNode;', "fixedActionsVisibility?: 'always' | 'mobile';",
+  "hasFixedActions && 'page-content--with-fixed-actions'", "fixedActionsVisibility === 'mobile' && 'page-fixed-actions--mobile-only'",
+  'className={classNames(', "'page-fixed-actions',",
+]) requireText(layoutPath, text);
+for (const text of [
+  '.game-shell .page-content--player.page-content--with-fixed-actions {', 'position: relative;',
+  '.game-shell .page-content--player .page-fixed-actions {', 'position: absolute;',
+  'bottom: max(var(--player-page-content-inset), env(safe-area-inset-bottom));',
+  '.game-shell .page-content--player.page-content--with-fixed-actions .page-card-scroll {',
+  '+ var(--control-height)', '.page-fixed-actions--mobile-only', '.page-desktop-only-action',
+  '@media (max-width: 720px)', 'width: 100%;',
+]) requireText(fixedActionStylePath, text);
 
 for (const text of [
   '.contract-workspace-tabs', 'grid-template-columns: repeat(4, minmax(0, 1fr));', '.contract-master-detail',
@@ -103,6 +120,7 @@ for (const text of [
 for (const text of [
   '工作台｜合同市场｜我的合同｜历史', '默认进入“工作台”', '左侧选择、右侧完整详情',
   '合同市场按领域、合作方向、地区和商品筛选', '不得恢复合同市场与我的合同桌面常驻双栏',
+  '移动端使用与运输页相同的 `PageLayout` 页面底部固定操作层',
 ]) requireText(designPath, text);
 for (const text of [
   '合同页作为当前对象卡样板', '当前选中的公开合同或进行中合同使用独立对象卡',
@@ -120,6 +138,7 @@ for (const text of [
   'narrow mobile contract workspace keeps four stable two-by-two hit areas',
   "getByLabel('每日最大供应量')", "getByLabel('合同时间（天，可选）')", "getByLabel('开始延迟（天）')",
   "getByText('完成事实'", "getByText('我的履约档案'", 'auditRequestCount()',
+  "page.locator('.page-fixed-actions--mobile-only')", 'mobilePublishAction', 'desktopPublishAction',
 ]) requireText(browserTestPath, text);
 for (const text of ['independent contract cards keep object boundaries and warning tint', '.contract-card--attention', '.contract-card--normal', 'normalStyle.borderRadius', 'normalStyle.backdropFilter', 'summaryStyle.borderRadius']) requireText(attentionBrowserTestPath, text);
 for (const text of ['contract core workspace switches between workbench market active and history views', "getByRole('tabpanel', { name: '合同工作台' })", "getByRole('tabpanel', { name: '合同市场' })", "getByRole('tabpanel', { name: '我的合同' })"]) requireText(workspaceTestPath, text);
@@ -131,4 +150,4 @@ if (failures.length) {
   console.error(`合同页统一布局验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('合同页布局验证通过：默认工作台、四视图、主从详情、方向筛选与既有合同对象卡/审计兼容保持当前规则。');
+console.log('合同页布局验证通过：桌面发布操作保留正文首行，移动发布操作使用 PageLayout 底部固定层；默认工作台、四视图、主从详情、方向筛选与既有合同对象卡/审计兼容保持当前规则。');

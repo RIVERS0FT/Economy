@@ -4,7 +4,7 @@ async function openTransportDraft(page: import('@playwright/test').Page) {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
-  await page.locator('.transport-page-footer').getByRole('button', { name: '增加路线', exact: true }).click();
+  await page.locator('[data-transport-page-fixed-action="true"]').click();
   await page.locator('.province-map-region[data-province-name="加利福尼亚"]').click();
   await page.locator('.province-map-region[data-province-name="得克萨斯"]').click();
   await page.locator('.transport-map-picking-bar').getByRole('button', { name: '完成选择', exact: true }).click();

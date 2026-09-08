@@ -621,10 +621,15 @@ export function ContractWorkspacePage({ model }: { model: TutorialAwareGameViewM
       <StatusTag tone={statusTone(contract)}>{contractNeedsAttention(contract) ? '待处理' : STATUS_LABELS[contract.status]}</StatusTag>
     </Button>
   );
+  const publishAction = (
+    <Button onClick={() => { setRepublish(null); setShowPublish((value) => !value); }}>
+      {showPublish ? '收起发布表单' : '发布合同'}
+    </Button>
+  );
 
   return (
-    <PageLayout title="合同">
-      <div className="contract-content-actions"><Button onClick={() => { setRepublish(null); setShowPublish((value) => !value); }}>{showPublish ? '收起发布表单' : '发布合同'}</Button></div>
+    <PageLayout title="合同" fixedActions={publishAction} fixedActionsVisibility="mobile">
+      <div className="contract-content-actions page-desktop-only-action">{publishAction}</div>
       <div className="contract-summary-grid">
         <MetricCard label="等待我处理" value={<CompactNumber value={state.productionContractSummary.needsAttention} />} detail="议价、资金、商品或合同边界" tone={state.productionContractSummary.needsAttention ? 'warning' : 'success'} />
         <MetricCard label="24 小时内履约" value={<CompactNumber value={state.productionContractSummary.upcomingWithin24Hours} />} detail="自然日、到期或租期边界" />
@@ -676,7 +681,7 @@ export function ContractWorkspacePage({ model }: { model: TutorialAwareGameViewM
         <header className="contract-pane-heading"><div><h2>历史合同</h2><p>按真实结束事实筛选历史合同，可重新拟定但不会复制旧合同的运行状态。</p></div></header>
         <PagePanel className="contract-history-panel">
           <div className="contract-history-filters">
-            <SelectInput label="合同领域" value={historyKind} onChange={(event) => setHistoryKind(event.target.value as ContractKind | '')}><option value="">全部领域</option><option value="supply">商品合作</option><option value="loan">资金借贷</option><option value="facility_lease">工厂租赁</option></SelectInput>
+            <SelectInput label="合同领域" value={historyKind} onChange={(event) => setHistoryKind(event.target.value as ContractKind | '')}><option value="">全部领域</option><option value="supply">商品合作</option><option value="loan">玩家借贷</option><option value="facility_lease">工厂租赁</option></SelectInput>
             <SelectInput label="最终状态" value={historyStatus} onChange={(event) => setHistoryStatus(event.target.value as ProductionContractStatus | '')}><option value="">全部状态</option><option value="completed">已完成</option><option value="terminated">已终止</option><option value="cancelled">已取消</option><option value="expired">已过期</option></SelectInput>
             <SelectInput label="我的角色" value={historyRole} onChange={(event) => setHistoryRole(event.target.value as HistoryRole)}><option value="any">全部角色</option><option value="buyer">我采购</option><option value="supplier">我供货</option><option value="lender">我放贷</option><option value="borrower">我贷款</option><option value="lessor">我出租</option><option value="lessee">我租赁</option><option value="publisher">我发布</option></SelectInput>
             <SelectInput label="合同标的" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}><option value="">全部标的</option><option value="credits">普通货币</option>{model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}{model.game.facilityTypes.map((facility) => <option key={`facility:${facility.id}`} value={`facility:${facility.id}`}>{facility.name}</option>)}</SelectInput>

@@ -21,7 +21,7 @@ test('transport draft line style and physical geometry follow mode while the map
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
-  await page.locator('.transport-page-footer').getByRole('button', { name: '增加路线', exact: true }).click();
+  await page.locator('[data-transport-page-fixed-action="true"]').click();
 
   const statusBar = page.locator('.asset-bar');
   const pickingBar = page.locator('.transport-map-picking-bar');
@@ -82,7 +82,7 @@ test('transport draft line style and physical geometry follow mode while the map
   expect(mobilePickingBox!.y + mobilePickingBox!.height).toBeLessThanOrEqual(844 + 1);
 });
 
-test('transport route cards stay rounded without row dividers and the add action stays pinned to the page bottom', async ({ page }) => {
+test('transport route cards stay rounded without row dividers and the fixed add action overlays the scroll viewport', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
@@ -91,19 +91,21 @@ test('transport route cards stay rounded without row dividers and the add action
   await expect(page.getByText('暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。')).toBeVisible();
   await expect(page.getByRole('heading', { name: '运输路线', exact: true })).toHaveCount(0);
 
-  const footer = page.locator('.transport-page-footer');
-  const addRoute = footer.getByRole('button', { name: '增加路线', exact: true });
-  await expect(footer).toBeVisible();
+  const fixedActions = page.locator('.page-fixed-actions');
+  const addRoute = page.locator('[data-transport-page-fixed-action="true"]');
+  const scroll = page.locator('.page-card-scroll');
+  await expect(fixedActions).toBeVisible();
   await expect(addRoute).toBeVisible();
-  await expect(footer).toHaveText('增加路线');
-  await expect(footer.locator('.ui-status-tag')).toHaveCount(0);
-  await expect(footer).not.toContainText(/\d+\s*\/\s*50/);
+  await expect(fixedActions).toHaveText('增加路线');
+  await expect(fixedActions.locator('.ui-status-tag')).toHaveCount(0);
+  await expect(fixedActions).not.toContainText(/\d+\s*\/\s*50/);
+  expect(await scroll.evaluate((element) => !element.contains(document.querySelector('.page-fixed-actions')))).toBe(true);
 
-  const visual = await page.locator('.page-card-scroll').evaluate((container) => {
+  const visual = await scroll.evaluate((container) => {
     const routesPanel = container.querySelector<HTMLElement>('.transport-routes-panel');
-    const footerElement = document.querySelector<HTMLElement>('.transport-page-footer');
+    const fixedActionElement = document.querySelector<HTMLElement>('.page-fixed-actions');
     if (!routesPanel) throw new Error('transport routes panel missing');
-    if (!footerElement) throw new Error('transport page footer missing');
+    if (!fixedActionElement) throw new Error('transport fixed action missing');
 
     const routeGrid = document.createElement('div');
     routeGrid.className = 'transport-route-grid transport-route-style-fixture';
@@ -137,7 +139,8 @@ test('transport route cards stay rounded without row dividers and the add action
     const panelStyle = getComputedStyle(legacyPanel);
     const firstSectionStyle = getComputedStyle(firstSection);
     const secondSectionStyle = getComputedStyle(secondSection);
-    const footerStyle = getComputedStyle(footerElement);
+    const fixedActionStyle = getComputedStyle(fixedActionElement);
+    const scrollStyle = getComputedStyle(container);
     const result = {
       routeBorderRadius: firstStyle.borderRadius,
       routeBorderTopWidth: firstStyle.borderTopWidth,
@@ -150,10 +153,14 @@ test('transport route cards stay rounded without row dividers and the add action
       firstSectionBorderTopWidth: firstSectionStyle.borderTopWidth,
       secondSectionBorderTopWidth: secondSectionStyle.borderTopWidth,
       secondSectionBorderTopStyle: secondSectionStyle.borderTopStyle,
-      footerPosition: footerStyle.position,
-      footerBottom: footerStyle.bottom,
-      footerAlignSelf: footerStyle.alignSelf,
-      footerPaddingTop: footerStyle.paddingTop,
+      fixedActionStyle: {
+        position: fixedActionStyle.position,
+        bottom: fixedActionStyle.bottom,
+        left: fixedActionStyle.left,
+        right: fixedActionStyle.right,
+        zIndex: fixedActionStyle.zIndex,
+      },
+      scrollPaddingBottom: Number.parseFloat(scrollStyle.paddingBottom),
     };
 
     legacyPanel.remove();
@@ -172,34 +179,46 @@ test('transport route cards stay rounded without row dividers and the add action
   expect(visual.firstSectionBorderTopWidth).toBe('0px');
   expect(visual.secondSectionBorderTopWidth).toBe('1px');
   expect(visual.secondSectionBorderTopStyle).toBe('solid');
-  expect(visual.footerPosition).toBe('sticky');
-  expect(visual.footerBottom).toBe('0px');
-  expect(visual.footerAlignSelf).toBe('end');
-  expect(visual.footerPaddingTop).not.toBe('0px');
+  expect(visual.fixedActionStyle.position).toBe('absolute');
+  expect(visual.fixedActionStyle.bottom).not.toBe('auto');
+  expect(Number.parseFloat(visual.fixedActionStyle.zIndex)).toBeGreaterThan(0);
 
-  const scroll = page.locator('.page-card-scroll');
-  const [scrollBox, footerBefore] = await Promise.all([scroll.boundingBox(), footer.boundingBox()]);
+  const [scrollBox, fixedActionBefore, buttonBox] = await Promise.all([
+    scroll.boundingBox(), fixedActions.boundingBox(), addRoute.boundingBox(),
+  ]);
   expect(scrollBox).not.toBeNull();
-  expect(footerBefore).not.toBeNull();
-  expect(footerBefore!.y + footerBefore!.height).toBeLessThanOrEqual(scrollBox!.y + scrollBox!.height + 1);
+  expect(fixedActionBefore).not.toBeNull();
+  expect(buttonBox).not.toBeNull();
+  expect(visual.scrollPaddingBottom).toBeGreaterThan(buttonBox!.height);
+  expect(fixedActionBefore!.y + fixedActionBefore!.height).toBeLessThanOrEqual(scrollBox!.y + scrollBox!.height + 1);
 
   const scrollTop = await scroll.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
     return element.scrollTop;
   });
   expect(scrollTop).toBeGreaterThan(0);
-  const footerAfter = await footer.boundingBox();
-  expect(footerAfter).not.toBeNull();
-  expect(Math.abs(footerAfter!.y - footerBefore!.y)).toBeLessThanOrEqual(1);
+  const fixedActionAfter = await fixedActions.boundingBox();
+  expect(fixedActionAfter).not.toBeNull();
+  expect(Math.abs(fixedActionAfter!.y - fixedActionBefore!.y)).toBeLessThanOrEqual(1);
+  const lastCard = page.locator('.transport-route-style-fixture .transport-route-card').last();
+  const lastCardBox = await lastCard.boundingBox();
+  expect(lastCardBox).not.toBeNull();
+  expect(lastCardBox!.y + lastCardBox!.height).toBeLessThanOrEqual(fixedActionAfter!.y + 1);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(footer).toBeVisible();
+  await expect(fixedActions).toBeVisible();
   await expect(addRoute).toBeVisible();
-  await expect(footer).toHaveText('增加路线');
-  await expect(footer.locator('.ui-status-tag')).toHaveCount(0);
-  await expect(footer).not.toContainText(/\d+\s*\/\s*50/);
-  const [mobileScrollBox, mobileFooterBox] = await Promise.all([scroll.boundingBox(), footer.boundingBox()]);
+  await expect(fixedActions).toHaveText('增加路线');
+  await expect(fixedActions.locator('.ui-status-tag')).toHaveCount(0);
+  await expect(fixedActions).not.toContainText(/\d+\s*\/\s*50/);
+  const [mobileScrollBox, mobileFixedBox, mobileButtonBox] = await Promise.all([
+    scroll.boundingBox(), fixedActions.boundingBox(), addRoute.boundingBox(),
+  ]);
   expect(mobileScrollBox).not.toBeNull();
-  expect(mobileFooterBox).not.toBeNull();
-  expect(mobileFooterBox!.y + mobileFooterBox!.height).toBeLessThanOrEqual(mobileScrollBox!.y + mobileScrollBox!.height + 1);
+  expect(mobileFixedBox).not.toBeNull();
+  expect(mobileButtonBox).not.toBeNull();
+  expect(mobileFixedBox!.y + mobileFixedBox!.height).toBeLessThanOrEqual(mobileScrollBox!.y + mobileScrollBox!.height + 1);
+  expect(Math.abs(mobileButtonBox!.width - mobileFixedBox!.width)).toBeLessThanOrEqual(1);
+  const mobileScrollPaddingBottom = await scroll.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom));
+  expect(mobileScrollPaddingBottom).toBeGreaterThan(mobileButtonBox!.height);
 });

@@ -410,9 +410,11 @@ test('transport route picking keeps the persistent strategic outliner and compac
   expect(cardBox!.width).toBeCloseTo(1684 / 3, 0);
 
   const transportHeader = page.locator('.page-fixed-header');
-  const addRouteButton = transportContent.locator('.transport-page-footer').getByRole('button', { name: '增加路线', exact: true });
+  const fixedActions = page.locator('.page-fixed-actions');
+  const addRouteButton = page.locator('[data-transport-page-fixed-action="true"]');
   await expect(transportHeader.getByRole('button')).toHaveCount(2);
   await expect(transportHeader.getByRole('button', { name: '增加路线', exact: true })).toHaveCount(0);
+  await expect(fixedActions).toBeVisible();
   await expect(addRouteButton).toBeVisible();
   const transportOverflow = await transportContent.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
   expect(transportOverflow.scrollWidth).toBeLessThanOrEqual(transportOverflow.clientWidth + 1);
