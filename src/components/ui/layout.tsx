@@ -39,7 +39,10 @@ export function PageLayout({
   const showBackButton = Boolean(pageNavigation || backAction);
   const hasFixedActions = Boolean(pageNavigation && fixedActions);
   const pageStack = (
-    <div className="ui-page-stack">
+    <div className={classNames(
+      'ui-page-stack',
+      hasFixedActions && 'page-fixed-actions-scroll-reserve',
+    )}>
       {children}
     </div>
   );
@@ -238,46 +241,10 @@ export function DataRow({
   );
 }
 
-export function SwitchControl({
-  className = '',
-  ...props
-}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
-  return <input className={classNames('ui-switch', className)} type="checkbox" {...props} />;
+export function Field({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <label className={classNames('ui-field', className)}>{children}</label>;
 }
 
-export function ToggleField({
-  label,
-  description,
-  className = '',
-  ...props
-}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & {
-  label: string;
-  description: string;
-}) {
-  return (
-    <label className={classNames('ui-toggle-field', className)}>
-      <span>
-        <strong>{label}</strong>
-        <small>{description}</small>
-      </span>
-      <SwitchControl aria-label={label} {...props} />
-    </label>
-  );
-}
-
-export function ScrollableTable({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return (
-    <ScrollArea
-      axis="x"
-      className="table-scroll-area"
-      viewportClassName={classNames('table-wrap', className)}
-      scrollbarVisibility="adaptive"
-    >
-      {children}
-    </ScrollArea>
-  );
-}
-
-export function EmptyState({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={classNames('empty-state', className)}>{children}</div>;
+export function TextInput({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={classNames('ui-input', className)} {...props} />;
 }
