@@ -105,7 +105,7 @@ for (const text of [
   'fixedActionBefore',
   'fixedActionAfter',
   'scrollPaddingBottom',
-  "expect(fixedActionStyle.position).toBe('absolute')",
+  "expect(visual.fixedActionStyle.position).toBe('absolute')",
 ]) requireText(browserTest, text, `运输浏览器回归缺少：${text}`);
 forbidText(browserTest, "toContainText('0/50')", '运输浏览器回归不得要求已删除的路线数量胶囊。');
 forbidText(browserTest, "page.locator('.transport-page-footer')", '运输浏览器回归不得继续定位旧 sticky footer。');
@@ -125,7 +125,7 @@ for (const text of [
   "'data-transport-page-fixed-action=\"true\"'",
   "requireText('src/components/ui/layout.tsx', 'fixedActions?: ReactNode;');",
   "requireText('src/styles/primary-surfaces.css', '.page-fixed-actions {');",
-  "forbidText('src/pages/TransportPage.tsx', 'className=\"transport-page-footer\"');",
+  "'className=\"transport-page-footer\"',",
 ]) requireText(pageContentVerifier, text, `页面内容 verifier 未同步运输固定操作层规则：${text}`);
 
 if (failures.length > 0) {
