@@ -92,7 +92,12 @@ async function readPageGeometry(page: Page) {
     const staticBody = pageContent?.querySelector<HTMLElement>('.page-card-static') ?? null;
     const body = scrollBody ?? staticBody;
     const stack = body?.querySelector<HTMLElement>(':scope > .ui-page-stack') ?? null;
-    const firstContent = stack?.firstElementChild instanceof HTMLElement ? stack.firstElementChild : null;
+    const visibleChildren = stack
+      ? Array.from(stack.children).filter(
+        (element): element is HTMLElement => element instanceof HTMLElement && getComputedStyle(element).display !== 'none',
+      )
+      : [];
+    const firstContent = visibleChildren[0] ?? null;
     const mobileSheet = document.querySelector<HTMLElement>(
       '.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet',
     );
@@ -126,9 +131,7 @@ async function readPageGeometry(page: Page) {
     const headerRect = header.getBoundingClientRect();
     const stackRect = stack.getBoundingClientRect();
     const firstContentRect = firstContent?.getBoundingClientRect() ?? null;
-    const directChildren = Array.from(stack.children)
-      .filter((element): element is HTMLElement => element instanceof HTMLElement)
-      .map(rect);
+    const directChildren = visibleChildren.map(rect);
     const mobileSheetStyle = mobileSheet ? getComputedStyle(mobileSheet) : null;
     const primaryCardStyle = getComputedStyle(primaryCard);
 
