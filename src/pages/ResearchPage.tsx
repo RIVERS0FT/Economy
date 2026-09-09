@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
   type RefObject,
 } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
@@ -38,6 +39,10 @@ type ResearchNodeStatus = 'mastered' | 'active' | 'available' | 'locked';
 
 const RESEARCH_ACCELERATION_FALLBACK_MS = 30 * 60 * 1000;
 const RESEARCH_ACCELERATION_FALLBACK_COST = 1;
+
+function ResearchArtwork({ children }: { children: ReactNode }) {
+  return <span className="research-artwork-clip">{children}</span>;
+}
 
 function isMobileResearchLayout() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches;
@@ -234,9 +239,13 @@ function ResearchDetailBody({
       <MobileDetailSummary
         className="research-detail-summary"
         artworkClassName="research-detail-level-artwork"
-        artwork={commercialTypes[0] ? <CommercialBuildingArtwork commercialTypeId={commercialTypes[0].id} /> : technology.operationProductIds?.[0]
-          ? <ProductArtwork productId={technology.operationProductIds[0]} />
-          : facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{technology.stage}</span>}
+        artwork={
+          <ResearchArtwork>
+            {commercialTypes[0] ? <CommercialBuildingArtwork commercialTypeId={commercialTypes[0].id} /> : technology.operationProductIds?.[0]
+              ? <ProductArtwork productId={technology.operationProductIds[0]} />
+              : facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{technology.stage}</span>}
+          </ResearchArtwork>
+        }
         title={<h3>{technology.name}</h3>}
         meta={
           <>
@@ -277,7 +286,9 @@ function ResearchDetailBody({
           <div className="research-unlock-list">
             {facilities.map((facility) => (
               <div className="research-unlock-item" key={facility.id}>
-                <span className="research-unlock-artwork" aria-hidden="true"><FacilityIcon facilityTypeId={facility.id} /></span>
+                <span className="research-unlock-artwork" aria-hidden="true">
+                  <ResearchArtwork><FacilityIcon facilityTypeId={facility.id} /></ResearchArtwork>
+                </span>
                 <span className="research-unlock-copy">
                   <strong>{facility.name}</strong>
                   <span className="facility-build-output-list" aria-label={`${facility.name}可生产产物`}>
@@ -298,7 +309,9 @@ function ResearchDetailBody({
           <div className="research-unlock-list">
             {operationMethodEntries.map(({ facility, method }) => (
               <div className="research-unlock-item" key={`${facility.id}:${method.id}`}>
-                <span className="research-unlock-artwork" aria-hidden="true"><FacilityIcon facilityTypeId={facility.id} /></span>
+                <span className="research-unlock-artwork" aria-hidden="true">
+                  <ResearchArtwork><FacilityIcon facilityTypeId={facility.id} /></ResearchArtwork>
+                </span>
                 <span className="research-unlock-copy"><strong>{facility.name}</strong><small>{method.name}</small></span>
               </div>
             ))}
@@ -309,7 +322,9 @@ function ResearchDetailBody({
           <div className="research-unlock-list">
             {commercialTypes.map((type) => (
               <div className="research-unlock-item" key={type.id}>
-                <span className="research-unlock-artwork" aria-hidden="true"><CommercialBuildingArtwork commercialTypeId={type.id} /></span>
+                <span className="research-unlock-artwork" aria-hidden="true">
+                  <ResearchArtwork><CommercialBuildingArtwork commercialTypeId={type.id} /></ResearchArtwork>
+                </span>
                 <span className="research-unlock-copy"><strong>{type.name}</strong><small>{type.description}</small></span>
               </div>
             ))}
@@ -610,9 +625,11 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                       onClick={(event) => selectTechnology(technology.id, event.currentTarget)}
                     >
                       <span className="research-facility-artwork" aria-hidden="true">
-                        {commercialTypeId ? <CommercialBuildingArtwork commercialTypeId={commercialTypeId} /> : operationProductId
-                          ? <ProductArtwork productId={operationProductId} />
-                          : facility ? <FacilityIcon facilityTypeId={facility.id} /> : <span>{technology.stage}</span>}
+                        <ResearchArtwork>
+                          {commercialTypeId ? <CommercialBuildingArtwork commercialTypeId={commercialTypeId} /> : operationProductId
+                            ? <ProductArtwork productId={operationProductId} />
+                            : facility ? <FacilityIcon facilityTypeId={facility.id} /> : <span>{technology.stage}</span>}
+                        </ResearchArtwork>
                       </span>
                       <span className="research-technology-node-name">{technology.name}</span>
                     </button>
