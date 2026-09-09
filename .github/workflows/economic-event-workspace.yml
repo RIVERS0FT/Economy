@@ -14,7 +14,7 @@ jobs:
   workspace:
     if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/feat/economic-event-map-dialog'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,15 +28,24 @@ jobs:
             git apply .event-workspace.patch
             git diff --check
             git add src docs scripts tests
-            git diff --cached --quiet && exit 0
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat(events): add coordinate markers and illustrated event dialog'
-            git push origin HEAD:refs/heads/feat/economic-event-map-dialog
+            if ! git diff --cached --quiet; then
+              git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat(events): add coordinate markers and illustrated event dialog'
+              git push origin HEAD:refs/heads/feat/economic-event-map-dialog
+            fi
           fi
-      - name: Export tracked source for development review
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Export isolated development dependencies
         shell: bash
-        run: git archive --format=tar.gz --output="$RUNNER_TEMP/economy-source.tar.gz" HEAD
+        run: |
+          cp "$(command -v node)" "$RUNNER_TEMP/node24"
+          tar -czf "$RUNNER_TEMP/economy-dev-dependencies.tar.gz" node_modules -C "$RUNNER_TEMP" node24
       - uses: actions/upload-artifact@v4
         with:
-          name: economic-event-workspace-source
-          path: ${{ runner.temp }}/economy-source.tar.gz
+          name: economic-event-dev-dependencies
+          path: ${{ runner.temp }}/economy-dev-dependencies.tar.gz
           retention-days: 1
