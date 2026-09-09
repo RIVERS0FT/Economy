@@ -9,6 +9,7 @@ import {
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
+import { PublicProjectPanel, RegionalEconomicEventBanner } from '../components/projects/PublicProjectPanel';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
@@ -85,6 +86,7 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
           ? <StatusTag tone="danger">存在异常</StatusTag>
           : <StatusTag tone="success">经营正常</StatusTag>}
       />
+      <RegionalEconomicEventBanner model={model} />
       <div className="province-overview-metrics">
         <MetricCard label="地区水平" value={`${economicLevel} / 5`} />
         <MetricCard
@@ -122,6 +124,7 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
         />
         <DataRow label="已停止工业建筑" value={<CompactNumber value={stoppedFacilityCount} />} />
       </DataList>
+      <PublicProjectPanel model={model} />
     </section>
   );
 }
@@ -400,9 +403,12 @@ function ProvincePageContent({ model }: { model: OnlineAutoTradeAwareGameViewMod
       >
         {activeSection === 'overview' ? <ProvinceOverviewSection model={model} /> : null}
         {activeSection === 'market' ? (
-          <Suspense fallback={<ProvinceSectionLoading />}>
-            <EmbeddedMarketPage model={model} embedded />
-          </Suspense>
+          <>
+            <RegionalEconomicEventBanner model={model} />
+            <Suspense fallback={<ProvinceSectionLoading />}>
+              <EmbeddedMarketPage model={model} embedded />
+            </Suspense>
+          </>
         ) : null}
         {activeSection === 'commerce' || activeSection === 'buildings' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
