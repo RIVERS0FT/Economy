@@ -30,8 +30,8 @@ async function swipeDown(page: Page, handle: Locator, distance = 180) {
 }
 
 async function openResearchDetail(page: Page) {
-  const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
-  const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
+  const trigger = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
+  const dialog = page.getByRole('dialog', { name: '冶金与金属加工研发新技术' });
   await expect(trigger).toBeVisible();
   await trigger.tap();
   await expect(dialog).toBeVisible();
@@ -87,8 +87,8 @@ test.describe('shared mobile detail sheet close lifecycle', () => {
   test('backdrop touch closes after every reopen and restores focus while root scroll suppression stays active', async ({ page }) => {
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
-    const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
+    const trigger = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
+    const dialog = page.getByRole('dialog', { name: '冶金与金属加工研发新技术' });
     const host = page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet');
     const dialogLayer = page.locator('.workspace-dialog-layer');
     const pageScroll = page.locator('.page-scroll');
@@ -171,8 +171,8 @@ test.describe('shared mobile detail sheet close lifecycle', () => {
   test('detail view opens with stable monotonic geometry without moving the root sheet', async ({ page }) => {
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
-    const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
+    const trigger = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
+    const dialog = page.getByRole('dialog', { name: '冶金与金属加工研发新技术' });
     const host = page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet');
     const pageScroll = page.locator('.page-scroll');
     await expect(trigger).toBeVisible();
@@ -278,8 +278,8 @@ test.describe('shared mobile detail sheet close lifecycle', () => {
   test('swipe close restores the touch surface visual while preserving semantic focus', async ({ page }) => {
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
-    const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
+    const trigger = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
+    const dialog = page.getByRole('dialog', { name: '冶金与金属加工研发新技术' });
     const host = page.locator('.mobile-workspace-sheet-host');
     const pageScroll = page.locator('.page-scroll');
     const pageScrollArea = page.locator('.page-scroll-area');
@@ -328,8 +328,8 @@ test.describe('shared mobile detail sheet close lifecycle', () => {
   test('keyboard escape keeps the returned trigger focus visibly accessible', async ({ page }) => {
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
-    const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
+    const trigger = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
+    const dialog = page.getByRole('dialog', { name: '冶金与金属加工研发新技术' });
     const host = page.locator('.mobile-workspace-sheet-host');
     await trigger.focus();
     await page.keyboard.press('Enter');
@@ -366,8 +366,8 @@ test.describe('shared mobile detail sheet full-width geometry', () => {
       await page.setViewportSize({ width, height: 844 });
       await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-      const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
-      const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
+      const trigger = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
+      const dialog = page.getByRole('dialog', { name: '冶金与金属加工研发新技术' });
       const host = page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet');
       const backdrop = page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop');
 

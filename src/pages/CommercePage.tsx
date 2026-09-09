@@ -1,4 +1,5 @@
 import { useCommercialOperationConfiguration } from '../hooks/useCommercialOperationConfiguration';
+import { commercialResearchRequirement } from '../utils/commercialResearchAccess';
 import { autoOperationSuccessMessage, reportActionException } from '../notifications/operationFeedback';
 import type { BuildingConstructionDraft } from '../hooks/useBuildingConstructionDraft';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -71,6 +72,7 @@ export function CommercePage({
     [types],
   );
   const selectedBuildType = typeById.get(selectedBuildTypeId) ?? types[0];
+  const buildResearch = commercialResearchRequirement(game, selectedBuildType?.id ?? '');
   const selectedGroup = provinceGroups.find((group) => group.commercialTypeId === activeDetailTypeId);
   const selectedDetailType = selectedGroup ? typeById.get(selectedGroup.commercialTypeId) : undefined;
 
@@ -139,7 +141,7 @@ export function CommercePage({
         value={selectedBuildType.id}
         onChange={(event) => setSelectedBuildTypeId(event.target.value)}
       >
-        {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+        {types.map((type) => <option key={type.id} value={type.id}>{type.name}{commercialResearchRequirement(game, type.id).unlocked ? '' : ' · 待研发'}</option>)}
       </SelectInput>
       <SelectInput
         label="建造数量"
@@ -163,7 +165,7 @@ export function CommercePage({
       </DataList>
       <Button
         block
-        disabled={Boolean(pendingAction) || game.credits < selectedBuildType.buildCost * buildQuantity}
+        disabled={!buildResearch.unlocked || Boolean(pendingAction) || game.credits < selectedBuildType.buildCost * buildQuantity}
         onClick={() => void execute(
           `build:${selectedBuildType.id}`,
           'build',
@@ -175,6 +177,7 @@ export function CommercePage({
           ? `立即建造${selectedBuildType.name}`
           : `立即建造 ${buildQuantity} 座${selectedBuildType.name}`}
       </Button>
+      {!buildResearch.unlocked ? <p className="ui-helper-text" role="status">{buildResearch.message}</p> : null}
       <small className="ui-helper-text">
         首次建成该地区商业建筑后默认开启营业并按自动经营规则准备首批本地商品；已有已停止集群扩建时不会自动重启，也不会隐式跨州调货或创建商品挂单。
       </small>
@@ -232,6 +235,7 @@ export function CommercePage({
         products={game.products} inventories={game.inventories} inventoryFreezeDetails={game.inventoryFreezeDetails}
         markets={game.markets} now={game.lastProcessedAt}
         pending={Boolean(pendingAction)} onOpenProductMarket={openProductDetail}
+        researchLockedMessage={commercialResearchRequirement(game, selectedDetailType.id).unlocked ? undefined : commercialResearchRequirement(game, selectedDetailType.id).message}
         onAutoOperationChange={(policy) => operationConfiguration.update(selectedGroup, policy)}
         onToggle={(enabled) => void execute(
           `${enabled ? 'start' : 'stop'}:${selectedGroup.commercialTypeId}`,

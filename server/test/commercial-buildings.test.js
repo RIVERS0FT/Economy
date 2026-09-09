@@ -1,3 +1,4 @@
+import { ensurePlayerResearch } from '../src/research.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -16,6 +17,8 @@ const alabama = '120000';
 function setup() {
   const world = createWorld(now);
   const player = ensurePlayer(world, user, now);
+  ensurePlayerResearch(world, player, now);
+  player.research.completedTechnologyIds.push('urban-commerce', 'department-retail');
   player.credits = 10_000;
   return { world, player };
 }

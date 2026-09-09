@@ -1,3 +1,4 @@
+import { ensurePlayerResearch } from '../src/research.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -17,6 +18,8 @@ const commercialTypeId = 'clothing-store';
 function setup() {
   const world = createWorld(now);
   const player = ensurePlayer(world, user, now);
+  ensurePlayerResearch(world, player, now);
+  player.research.completedTechnologyIds.push('urban-commerce', 'department-retail');
   player.credits = 10_000;
   player.factoryAutoOperationPolicies = { [provinceScopedKey(provinceId, 'farm')]: { enabled: false, inputCoverageCycles: 2, mode: 'balanced', outputMode: 'surplus' } };
   player.facilityGroups = [{

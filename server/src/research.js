@@ -1,4 +1,5 @@
 import { FACILITY_TYPE_CATALOG } from './industry-catalog.js';
+import { LEGACY_RESEARCH_NODES, migrateResearchTechnologyId } from './legacy-research.js';
 import {
   isLegacyProductionMethodRecipeId,
   migrateLegacyProductionMethodRecipeId,
@@ -6,6 +7,7 @@ import {
 import { creditPopulationEmployment } from './population-economy.js';
 import {
   RESEARCH_DURATION_MS,
+  RESEARCH_CATALOG_VERSION,
   RESEARCH_LEVEL_CATALOG,
   RESEARCH_TECHNOLOGY_CATALOG,
   RESEARCH_TECHNOLOGY_BY_ID,
@@ -13,6 +15,7 @@ import {
   researchTechnologyClosure,
   researchTechnologyFor,
   researchTechnologyForFacility,
+  researchTechnologyForCommercial,
 } from './research-catalog.js';
 
 export { RESEARCH_DURATION_MS, RESEARCH_LEVEL_CATALOG, RESEARCH_TECHNOLOGY_CATALOG };
@@ -66,7 +69,7 @@ function sortedTechnologyIds(values) {
     .sort((left, right) => (TECHNOLOGY_ORDER.get(left) ?? 999) - (TECHNOLOGY_ORDER.get(right) ?? 999));
 }
 function grantTechnologyClosure(completed, technologyIds) {
-  for (const technologyId of researchTechnologyClosure(technologyIds)) completed.add(technologyId);
+  for (const technologyId of researchTechnologyClosure(technologyIds.map(migrateResearchTechnologyId))) completed.add(technologyId);
 }
 function grantLegacyOperationTechnologies(completed) {
   for (const [productionTechnologyId, operationTechnologyIds] of Object.entries(LEGACY_OPERATION_TECHNOLOGY_GRANTS)) {
@@ -79,11 +82,11 @@ function activeResearchWithLegacyOperationGrants(previousActive) {
   if (!additional) return previousActive;
   return {
     ...previousActive,
-    grantTechnologyIds: sortedTechnologyIds([
+    grantTechnologyIds: [
       previousActive.technologyId,
       ...(Array.isArray(previousActive.grantTechnologyIds) ? previousActive.grantTechnologyIds : []),
       ...additional,
-    ]),
+    ].map(migrateResearchTechnologyId),
   };
 }
 function productionMethodGroupForFacility(facility) {
@@ -162,9 +165,17 @@ function deriveUnlockedComplexity(completed) {
   return stageForRank(rank).id;
 }
 function normalizeCompletedAtMap(previous, completed, now) {
-  const source = previous?.completedAtByTechnologyId && typeof previous.completedAtByTechnologyId === 'object'
+  const previousSource = previous?.completedAtByTechnologyId && typeof previous.completedAtByTechnologyId === 'object'
     ? previous.completedAtByTechnologyId
     : {};
+  const source = {};
+  for (const [previousId, timestamp] of Object.entries(previousSource)) {
+    const id = Number(previous?.catalogVersion || 0) < RESEARCH_CATALOG_VERSION
+      ? migrateResearchTechnologyId(previousId) : previousId;
+    const value = Number(timestamp);
+    if (!Number.isFinite(value) || value < 0) continue;
+    source[id] = Math.min(source[id] ?? value, value);
+  }
   const fallback = Number.isFinite(Number(previous?.completedAt)) ? Number(previous.completedAt) : Number(now);
   return Object.fromEntries(sortedTechnologyIds(completed).map((technologyId) => {
     const value = Number(source[technologyId]);
@@ -184,12 +195,11 @@ function normalizeActiveResearch(previousActive, completed) {
   if (!previousActive || typeof previousActive !== 'object') return null;
   const startedAt = Number(previousActive.startedAt);
   const completesAt = Number(previousActive.completesAt);
-  if (!Number.isFinite(startedAt) || !Number.isFinite(completesAt) || completesAt <= startedAt) return null;
+  if (!Number.isFinite(startedAt) || !Number.isFinite(completesAt) || completesAt < startedAt) return null;
 
   const technology = researchTechnologyFor(previousActive.technologyId);
-  if (technology && !completed.has(technology.id)) {
+  if (technology) {
     const cost = Math.max(0, Math.floor(Number(previousActive.cost ?? technology.cost)));
-    if (cost !== technology.cost) return null;
     const timing = normalizeFixedResearchTiming(
       startedAt,
       completesAt,
@@ -221,7 +231,7 @@ function normalizeActiveResearch(previousActive, completed) {
     ? previousActive.grantTechnologyIds
     : researchTechnologiesForStage(target.id).map((technologyItem) => technologyItem.id);
   const grantTechnologyIds = sortedTechnologyIds(requestedGrantIds).filter((technologyId) => !completed.has(technologyId));
-  if (grantTechnologyIds.length === 0) return null;
+  // A paid project must settle its remaining payroll even if merging granted all its access.
   const legacy = LEGACY_LEVELS[target.id] || target;
   const cost = Math.max(0, Math.floor(Number(previousActive.cost ?? legacy.cost)));
   const timing = normalizeFixedResearchTiming(
@@ -248,14 +258,16 @@ export function ensurePlayerResearch(world, player, now = Date.now(), migrationO
   const previous = player.research && typeof player.research === 'object' ? player.research : null;
   const completed = new Set();
   const hasNodeState = Array.isArray(previous?.completedTechnologyIds);
+  const migrateCatalog = Number(previous?.catalogVersion || 0) < RESEARCH_CATALOG_VERSION;
   if (hasNodeState) {
     for (const technologyId of previous.completedTechnologyIds) {
-      if (RESEARCH_TECHNOLOGY_BY_ID.has(String(technologyId))) completed.add(String(technologyId));
+      if (migrateCatalog) grantTechnologyClosure(completed, [technologyId]);
+      else if (RESEARCH_TECHNOLOGY_BY_ID.has(String(technologyId))) completed.add(String(technologyId));
     }
   } else {
     const legacyRank = complexityRank(previous?.unlockedComplexity);
-    for (const technology of RESEARCH_TECHNOLOGY_CATALOG) {
-      if (technology.rank <= legacyRank) completed.add(technology.id);
+    for (const technology of LEGACY_RESEARCH_NODES) {
+      if (technology.rank <= legacyRank) grantTechnologyClosure(completed, [technology.technologyId]);
     }
   }
   for (const technology of RESEARCH_TECHNOLOGY_CATALOG) {
@@ -265,17 +277,42 @@ export function ensurePlayerResearch(world, player, now = Date.now(), migrationO
     const technology = researchTechnologyForFacility(facilityTypeId);
     if (technology) grantTechnologyClosure(completed, [technology.id]);
   }
-  if (migrationOptions?.grantLegacyOperationAccess) grantLegacyOperationTechnologies(completed);
+  if (migrationOptions?.grantLegacyOperationAccess) {
+    const legacyCompleted = new Set(previous?.completedTechnologyIds || []);
+    grantLegacyOperationTechnologies(legacyCompleted);
+    grantTechnologyClosure(completed, [...legacyCompleted]);
+  }
+  if (migrateCatalog) {
+    for (const group of player.commercialBuildingGroups || []) {
+      if (Number(group.count || 0) <= 0) continue;
+      const technology = researchTechnologyForCommercial(group.commercialTypeId);
+      if (technology) grantTechnologyClosure(completed, [technology.id]);
+    }
+  }
 
   const completedTechnologyIds = sortedTechnologyIds(completed);
   const completedAtByTechnologyId = normalizeCompletedAtMap(previous, completedTechnologyIds, now);
-  const activeSource = migrationOptions?.grantLegacyOperationAccess
+  let activeSource = migrationOptions?.grantLegacyOperationAccess
     ? activeResearchWithLegacyOperationGrants(previous?.active)
     : previous?.active;
+  if (migrateCatalog && activeSource) {
+    const legacyStage = String(activeSource.technologyId || '').startsWith('legacy-stage-')
+      || !activeSource.technologyId;
+    activeSource = {
+      ...activeSource,
+      technologyId: activeSource.technologyId ? migrateResearchTechnologyId(activeSource.technologyId) : undefined,
+      ...(Array.isArray(activeSource.grantTechnologyIds)
+        ? { grantTechnologyIds: activeSource.grantTechnologyIds.map(migrateResearchTechnologyId) }
+        : legacyStage ? { grantTechnologyIds: LEGACY_RESEARCH_NODES
+          .filter((entry) => entry.rank === complexityRank(activeSource.targetComplexity))
+          .map((entry) => entry.technologyId) } : {}),
+    };
+  }
   const active = normalizeActiveResearch(activeSource, completed);
   const completedAtValues = Object.values(completedAtByTechnologyId).map(Number).filter(Number.isFinite);
   const completedAt = completedAtValues.length > 0 ? Math.max(...completedAtValues) : null;
   const research = {
+    catalogVersion: RESEARCH_CATALOG_VERSION,
     unlockedComplexity: deriveUnlockedComplexity(completed),
     completedTechnologyIds,
     completedAtByTechnologyId,
@@ -336,7 +373,7 @@ function completeResearchIfDue(world, player, now) {
   currentResearch.completedAtByTechnologyId ||= {};
   for (const technologyId of grantTechnologyIds) {
     if (RESEARCH_TECHNOLOGY_BY_ID.has(technologyId)) {
-      currentResearch.completedAtByTechnologyId[technologyId] = Number(currentActive.completesAt);
+      currentResearch.completedAtByTechnologyId[technologyId] ??= Number(currentActive.completesAt);
     }
   }
   currentResearch.unlockedComplexity = deriveUnlockedComplexity(completed);
@@ -487,6 +524,14 @@ export function hasResearchAccessForFacility(world, player, facilityTypeId, now 
   return Boolean(research?.completedTechnologyIds?.includes(technology.id));
 }
 
+export function validateCommercialResearchAccess(world, player, commercialTypeId, now = Date.now()) {
+  const technology = researchTechnologyForCommercial(commercialTypeId);
+  if (!technology) return { ok: false, message: '该商业建筑没有配置研发科技' };
+  const research = processPlayerResearch(world, player, now);
+  return research?.completedTechnologyIds?.includes(technology.id)
+    ? null : { ok: false, message: `需要先完成「${technology.name}」研发` };
+}
+
 function lockedResult(world, player, facilityTypeId, now) {
   const technology = researchTechnologyForFacility(facilityTypeId);
   if (!technology) return { ok: false, message: '该工厂没有配置研发科技' };
@@ -568,6 +613,7 @@ export function createResearchClientState(_world, player) {
     player?.research && typeof player.research === 'object'
       ? player.research
       : {
+          catalogVersion: RESEARCH_CATALOG_VERSION,
           unlockedComplexity: 'C1',
           completedTechnologyIds: RESEARCH_TECHNOLOGY_CATALOG
             .filter((technology) => technology.initial)

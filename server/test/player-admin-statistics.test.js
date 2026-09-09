@@ -99,7 +99,7 @@ test('player statistics record successful economic actions once and keep reads r
 
     const research = store.apply(player, {
       action: 'startResearch',
-      payload: { technologyId: 'forestry-development' },
+      payload: { technologyId: 'resource-survey' },
       requestKey: 'player-stats-research-1',
       method: 'POST',
       path: '/api/game/research/start',
