@@ -22,6 +22,7 @@ const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const navigationDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const docsIndex = read('docs/README.md');
 const previewSpec = read('tests/browser/all-pages-preview.spec.ts');
+const tabMemorySpec = read('tests/browser/page-tab-memory.spec.ts');
 const publicEntrySource = server.slice(
   server.indexOf('function publicEntry'),
   server.indexOf('function boardDefinition'),
@@ -74,7 +75,7 @@ check(server.includes('tradingRuleVersion: TRADING_RULE_VERSION'), 'trading rule
 check(server.includes('delete state.pairDayScores'), 'legacy pair caps must be removed during migration');
 check(server.includes('processAssetAuctions'), 'weekly growth must settle auctions at the boundary');
 check(page.includes("const BOARD_ORDER: LeaderboardBoardId[] = ['wealth', 'growth', 'production', 'trading']"), 'four boards must keep the approved order');
-check(page.includes("useState<LeaderboardBoardId>('wealth')"), 'leaderboard page must default to the wealth board');
+check(page.includes("pageId: 'leaderboard'") && page.includes("fallback: 'wealth'"), 'leaderboard page must restore the remembered board and fall back to wealth');
 check(page.includes('className="leaderboard-board-switch ui-segmented"'), 'leaderboard page must use a shared four-button switch');
 check(page.includes('aria-pressed={selectedBoardId === boardId}'), 'leaderboard board buttons must expose selected state');
 check(page.includes('className="leaderboard-responsive-layout"'), 'leaderboard page must expose a container-responsive layout');
@@ -127,11 +128,13 @@ check(navigationDesign.includes('标题栏不得显示周榜起止时间或持�
 check(navigationDesign.includes('榜单表头和玩家数据行固定为“排名｜玩家｜成绩｜奖励”四列'), 'navigation design must record the four-column single-row leaderboard');
 check(navigationDesign.includes('排行榜玩家列固定复用 `PlayerAvatar`'), 'navigation design must require real player avatars');
 check(navigationDesign.includes('不显示标题下描述或标题右侧“实时／前三名奖励／测试周”等状态胶囊'), 'navigation design must record the simplified board heading');
+check(navigationDesign.includes('窄布局恢复该玩家上次选择的有效榜单'), 'navigation design must record leaderboard tab restoration');
 check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(4)"), 'browser preview must render four visible boards at wide width');
 check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(1)"), 'browser preview must render one visible board at narrow width');
 check(previewSpec.includes("toHaveAttribute('aria-label', '选择排行榜')"), 'browser preview must verify the four-button leaderboard switch');
 check(previewSpec.includes("leaderboard-board-heading p')).toHaveCount(0)"), 'browser preview must verify descriptions are removed');
 check(previewSpec.includes("leaderboard-column-labels span')).toHaveText(['排名', '玩家', '成绩', '奖励'])"), 'browser preview must verify the four leaderboard columns');
+check(tabMemorySpec.includes("getByRole('button', { name: '交易榜' })"), 'browser tab memory regression must cover leaderboard restoration');
 check(docsIndex.includes('`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`'), 'design index must route leaderboard page structure to the page DESIGN owner');
 check(docsIndex.includes('`PRODUCT_AND_GAMEPLAY_DESIGN.md`'), 'design index must route leaderboard scoring semantics to the product DESIGN owner');
 
