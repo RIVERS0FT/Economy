@@ -1,0 +1,42 @@
+name: Economic event development workspace
+
+on:
+  push:
+    branches: [feat/economic-event-map-dialog]
+    paths:
+      - .github/workflows/economic-event-workspace.yml
+      - .event-workspace.patch
+
+permissions:
+  contents: write
+
+jobs:
+  workspace:
+    if: github.repository == 'RIVERS0FT/Economy' && github.ref == 'refs/heads/feat/economic-event-map-dialog'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply reviewed development patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f .event-workspace.patch ]; then
+            git apply --check .event-workspace.patch
+            git apply .event-workspace.patch
+            git diff --check
+            git add src docs scripts tests
+            git diff --cached --quiet && exit 0
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat(events): add coordinate markers and illustrated event dialog'
+            git push origin HEAD:refs/heads/feat/economic-event-map-dialog
+          fi
+      - name: Export tracked source for development review
+        shell: bash
+        run: git archive --format=tar.gz --output="$RUNNER_TEMP/economy-source.tar.gz" HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economic-event-workspace-source
+          path: ${{ runner.temp }}/economy-source.tar.gz
+          retention-days: 1
