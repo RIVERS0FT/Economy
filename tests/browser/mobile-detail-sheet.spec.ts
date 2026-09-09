@@ -341,17 +341,24 @@ test.describe('shared mobile detail sheet close lifecycle', () => {
     await expect(host).toHaveAttribute('data-detail-active', 'false');
     await expect(trigger).toBeFocused();
     await expect(page.locator('html')).toHaveAttribute('data-input-modality', 'keyboard');
-    const focusVisual = await trigger.evaluate((element) => {
-      const style = getComputedStyle(element);
+    // Research focus belongs to the artwork ring, not the rectangular hit area.
+    await expect(trigger).toHaveCSS('outline-style', 'none');
+    await expect(trigger).toHaveCSS('box-shadow', 'none');
+    const focusVisual = await trigger.locator('.research-facility-artwork').evaluate((element) => {
+      const ring = getComputedStyle(element, '::before');
       return {
-        outlineStyle: style.outlineStyle,
-        outlineWidth: style.outlineWidth,
-        boxShadow: style.boxShadow,
+        content: ring.content,
+        borderStyle: ring.borderTopStyle,
+        borderWidth: ring.borderTopWidth,
+        borderRadius: ring.borderRadius,
+        selection: getComputedStyle(element).boxShadow,
       };
     });
-    expect(focusVisual.outlineStyle).toBe('solid');
-    expect(focusVisual.outlineWidth).toBe('2px');
-    expect(focusVisual.boxShadow).not.toBe('none');
+    expect(focusVisual.content).toBe('""');
+    expect(focusVisual.borderStyle).toBe('dashed');
+    expect(focusVisual.borderWidth).toBe('2px');
+    expect(focusVisual.borderRadius).toBe('50%');
+    expect(focusVisual.selection).not.toBe('none');
   });
 });
 
