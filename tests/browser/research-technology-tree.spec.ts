@@ -206,8 +206,8 @@ test.describe('research technology tree', () => {
     const box = await viewport.boundingBox();
     expect(box).not.toBeNull();
 
-    // The fullscreen research host can fit the tree at its default zoom, where pan is
-    // intentionally clamped to center. Zoom first so the regression exercises real panning.
+    // Exercise drag and explicit centering at a magnified zoom as well as the
+    // initial view; fitting the world must also remain draggable.
     const zoomBefore = Number(await viewport.getAttribute('data-zoom'));
     await page.mouse.move((box?.x ?? 0) + (box?.width ?? 0) / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2);
     await page.mouse.wheel(0, -420);
@@ -247,9 +247,15 @@ test.describe('research technology tree', () => {
     const focusedGeometry = await page.evaluate(() => {
       const viewportRect = document.querySelector<HTMLElement>('.research-tree-viewport')!.getBoundingClientRect();
       const activeRect = document.querySelector<HTMLElement>('.research-technology-node[data-status="active"]')!.getBoundingClientRect();
+      const panelRect = document.querySelector<HTMLElement>('.research-action-panel')!.getBoundingClientRect();
+      const controlsRect = document.querySelector<HTMLElement>('.research-tree-controls')!.getBoundingClientRect();
+      const left = panelRect.right + 24;
+      const right = viewportRect.right - 24;
+      const top = viewportRect.top + 24;
+      const bottom = controlsRect.top - 12;
       return {
-        expectedX: viewportRect.left + viewportRect.width / 2,
-        expectedY: viewportRect.top + viewportRect.height * 0.42,
+        expectedX: (left + right) / 2,
+        expectedY: top + (bottom - top) * 0.42,
         actualX: activeRect.left + activeRect.width / 2,
         actualY: activeRect.top + activeRect.height / 2,
       };

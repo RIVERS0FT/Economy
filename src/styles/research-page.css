@@ -66,7 +66,7 @@
 }
 
 .research-tree {
-  --research-trunk-color: color-mix(in srgb, var(--color-border-strong) 78%, transparent);
+  --research-trunk-color: var(--color-text-muted);
   --research-focus-color: var(--color-accent-violet);
   position: relative;
   width: 100%;
@@ -88,13 +88,14 @@
   stroke: var(--research-trunk-color);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
-  opacity: 0.5;
+  opacity: 0.85;
   transition: opacity 160ms ease, stroke 160ms ease, stroke-width 160ms ease;
 }
 
 .research-tree-edge[data-related='true'] {
-  stroke: color-mix(in srgb, var(--research-focus-color) 62%, var(--color-border-strong));
-  opacity: 0.76;
+  stroke: color-mix(in srgb, var(--research-focus-color) 62%, var(--color-text-muted));
+  stroke-width: 2.5;
+  opacity: 0.9;
 }
 
 .research-tree-edge[data-highlighted='true'] {
@@ -205,10 +206,18 @@
   opacity: 1;
 }
 
-.research-facility-node:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 4px;
-  border-radius: var(--radius-control);
+html[data-input-modality='keyboard'] .research-technology-node.research-facility-node:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+html[data-input-modality='keyboard'] .research-technology-node:focus-visible .research-facility-artwork::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border: 2px dashed var(--color-focus-ring, var(--color-success));
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .research-facility-artwork {
@@ -304,7 +313,7 @@
   max-width: 100%;
   overflow: hidden;
   color: var(--color-text-primary);
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 700;
   line-height: var(--line-height-tight);
   text-overflow: ellipsis;

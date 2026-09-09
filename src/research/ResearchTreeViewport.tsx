@@ -36,10 +36,14 @@ interface ViewportSize {
   height: number;
 }
 
+interface ViewportFrame extends ViewportSize {
+  left: number;
+  top: number;
+}
+
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.6;
 const PAN_VISIBLE_MARGIN = 64;
-const FOCUS_VISIBLE_MARGIN = 88;
 const DRAG_THRESHOLD = 6;
 const KEYBOARD_PAN_STEP = 56;
 const WHEEL_SETTLE_DELAY_MS = 140;
@@ -85,24 +89,24 @@ function centeredState(
   zoom: number,
   viewport: ViewportSize,
   world: ViewportSize,
+  frame: ViewportFrame = { ...viewport, left: 0, top: 0 },
 ) {
   return clampResearchTreeViewport({
     zoom,
-    panX: viewport.width / 2 - point.x * zoom,
-    panY: viewport.height * 0.42 - point.y * zoom,
+    panX: frame.left + frame.width / 2 - point.x * zoom,
+    panY: frame.top + frame.height * 0.42 - point.y * zoom,
   }, viewport, world);
 }
 
-function fitState(viewport: ViewportSize, world: ViewportSize) {
-  const padding = 28;
+function fitState(viewport: ViewportSize, world: ViewportSize, frame: ViewportFrame) {
   const zoom = clamp(Math.min(
-    (viewport.width - padding * 2) / world.width,
-    (viewport.height - padding * 2) / world.height,
+    frame.width / world.width,
+    frame.height / world.height,
   ), MIN_ZOOM, MAX_ZOOM);
   return clampResearchTreeViewport({
     zoom,
-    panX: (viewport.width - world.width * zoom) / 2,
-    panY: (viewport.height - world.height * zoom) / 2,
+    panX: frame.left + (frame.width - world.width * zoom) / 2,
+    panY: frame.top + (frame.height - world.height * zoom) / 2,
   }, viewport, world);
 }
 
@@ -139,6 +143,21 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
   const [state, setState] = useState<ViewportState>({ panX: 0, panY: 0, zoom: 1 });
   const world = { width, height };
 
+  const visibleFrame = useCallback((): ViewportFrame => {
+    const size = viewportSizeRef.current;
+    const viewport = viewportRef.current;
+    const rect = viewport?.getBoundingClientRect();
+    const panel = viewport?.parentElement?.querySelector<HTMLElement>('.research-action-panel');
+    const panelRect = panel?.getBoundingClientRect();
+    const controls = viewport?.querySelector<HTMLElement>('.research-tree-controls')?.getBoundingClientRect();
+    const padding = 24;
+    const left = panelRect && panelRect.width > 0 && rect
+      ? Math.min(panelRect.right - rect.left + padding, size.width - 160)
+      : padding;
+    const bottom = controls && rect ? size.height - (controls.top - rect.top) + 12 : padding;
+    return { left, top: padding, width: Math.max(1, size.width - left - padding), height: Math.max(1, size.height - padding - bottom) };
+  }, []);
+
   const clampState = useCallback((next: ViewportState) => (
     clampResearchTreeViewport(next, viewportSizeRef.current, { width, height })
   ), [height, width]);
@@ -160,17 +179,25 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
     const viewport = viewportRef.current;
     if (!viewport) return;
     const rect = viewport.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return;
     const size = { width: Math.max(1, rect.width), height: Math.max(1, rect.height) };
     viewportSizeRef.current = size;
     setState((current) => {
       if (!initializedRef.current) {
         initializedRef.current = true;
         const target = focusPoint ?? { x: width / 2, y: height / 2 };
-        return centeredState(target, defaultZoomForWidth(size.width), size, { width, height });
+        const frame = visibleFrame();
+        const zoom = Math.max(0.55, Math.min(defaultZoomForWidth(size.width), frame.width / width));
+        const next = centeredState(target, zoom, size, { width, height }, frame);
+        // Fit the full width when readable; otherwise keep the initial target
+        // safely inside the unobscured area and retain pan/zoom exploration.
+        if (width * zoom <= frame.width) next.panX = frame.left + (frame.width - width * zoom) / 2;
+        if (height * zoom <= frame.height) next.panY = frame.top + (frame.height - height * zoom) / 2;
+        return next;
       }
       return clampResearchTreeViewport(current, size, { width, height });
     });
-  }, [focusPoint, height, width]);
+  }, [focusPoint, height, width, visibleFrame]);
 
   useLayoutEffect(() => {
     measureAndClamp();
@@ -200,12 +227,12 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
   const centerCurrent = useCallback(() => {
     const size = viewportSizeRef.current;
     const point = focusPoint ?? { x: width / 2, y: height / 2 };
-    setState((current) => centeredState(point, current.zoom, size, world));
-  }, [focusPoint, height, width]);
+    setState((current) => centeredState(point, current.zoom, size, world, visibleFrame()));
+  }, [focusPoint, height, width, visibleFrame]);
 
   const fitTree = useCallback(() => {
-    setState(fitState(viewportSizeRef.current, world));
-  }, [height, width]);
+    setState(fitState(viewportSizeRef.current, world, visibleFrame()));
+  }, [height, width, visibleFrame]);
 
   const zoomBy = useCallback((factor: number) => {
     const size = viewportSizeRef.current;
@@ -324,11 +351,11 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
     const y = Number(node?.dataset.researchNodeY);
     if (Number.isFinite(x) && Number.isFinite(y)) {
       const size = viewportSizeRef.current;
-      setState((current) => centeredState({ x, y }, current.zoom, size, { width, height }));
+      setState((current) => centeredState({ x, y }, current.zoom, size, { width, height }, visibleFrame()));
       return;
     }
     centerCurrent();
-  }, [centerCurrent, height, width]);
+  }, [centerCurrent, height, width, visibleFrame]);
 
   const handleWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -384,18 +411,24 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
     const y = Number(target.dataset.researchNodeY);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     setState((current) => {
-      const size = viewportSizeRef.current;
+      const frame = visibleFrame();
       const screenX = current.panX + x * current.zoom;
       const screenY = current.panY + y * current.zoom;
+      const halfWidth = target.offsetWidth * current.zoom / 2 + 12;
+      const halfHeight = target.offsetHeight * current.zoom / 2 + 12;
+      const left = frame.left + halfWidth;
+      const right = frame.left + frame.width - halfWidth;
+      const top = frame.top + halfHeight;
+      const bottom = frame.top + frame.height - halfHeight;
       let dx = 0;
       let dy = 0;
-      if (screenX < FOCUS_VISIBLE_MARGIN) dx = FOCUS_VISIBLE_MARGIN - screenX;
-      else if (screenX > size.width - FOCUS_VISIBLE_MARGIN) dx = size.width - FOCUS_VISIBLE_MARGIN - screenX;
-      if (screenY < FOCUS_VISIBLE_MARGIN) dy = FOCUS_VISIBLE_MARGIN - screenY;
-      else if (screenY > size.height - FOCUS_VISIBLE_MARGIN) dy = size.height - FOCUS_VISIBLE_MARGIN - screenY;
+      if (screenX < left) dx = left - screenX;
+      else if (screenX > right) dx = right - screenX;
+      if (screenY < top) dy = top - screenY;
+      else if (screenY > bottom) dy = bottom - screenY;
       return dx || dy ? clampState({ ...current, panX: current.panX + dx, panY: current.panY + dy }) : current;
     });
-  }, [clampState]);
+  }, [clampState, visibleFrame]);
 
   const zoomPercent = Math.round(state.zoom * 100);
   const zoomTier = state.zoom < 0.5 ? 'overview' : 'detail';
