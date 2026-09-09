@@ -1,0 +1,132 @@
+.regional-economic-event-banner {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.regional-economic-event-banner__heading,
+.public-project-goal__heading,
+.public-project-goal__meta,
+.regional-economic-event-banner__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.regional-economic-event-banner p,
+.public-project-card__description {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.regional-economic-event-banner__meta,
+.public-project-goal__meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.public-projects-stack,
+.public-project-goals {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.public-project-card {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.public-project-goal {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+}
+
+.public-project-goal progress {
+  inline-size: 100%;
+  block-size: 0.45rem;
+}
+
+.public-project-goal__action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.public-project-leaderboard {
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-3);
+}
+
+.public-project-leaderboard summary {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.public-project-leaderboard ol {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-project-leaderboard li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.public-project-leaderboard li.is-current-player {
+  font-weight: 700;
+}
+
+.strategic-map-regional-events {
+  position: absolute;
+  inset-inline: var(--space-3);
+  inset-block-start: var(--space-3);
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.strategic-map-regional-event {
+  pointer-events: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-panel);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-panel);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .regional-economic-event-banner__heading,
+  .regional-economic-event-banner__meta,
+  .public-project-goal__heading,
+  .public-project-goal__meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .public-project-goal__action {
+    grid-template-columns: 1fr;
+  }
+
+  .strategic-map-regional-events {
+    inset-inline: var(--space-2);
+    inset-block-start: var(--space-2);
+  }
+}

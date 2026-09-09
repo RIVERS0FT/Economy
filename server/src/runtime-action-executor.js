@@ -27,6 +27,7 @@ import { isOpenOrder, orderKind } from './order-identity.js';
 import { orderById } from './order-book-runtime.js';
 import { applyPlayerProfileAction } from './player-profile.js';
 import { requirePlayerActionMetadata } from './player-action-registry.js';
+import { applyPublicProjectAction } from './public-projects.js';
 import { applyResearchAction, validateResearchAccess } from './research.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createRuntimeMutationScope } from './world-storage-v2.js';
@@ -81,6 +82,7 @@ const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'collectFacility', 'placeOrder', 'cancelOrder', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
+  'contributePublicProject',
 ]);
 
 function normalizeJson(value) {
@@ -150,6 +152,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
         gameResult = applyResearchAction(world, user, action, payload, now);
       } else if (action === 'commercialBuilding') {
         gameResult = applyCommercialBuildingAction(world, user, payload, now);
+      } else if (action === 'contributePublicProject' || action === 'claimPublicProjectReward') {
+        gameResult = applyPublicProjectAction(world, user, action, payload, now);
       } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement') {
         gameResult = createFacilityBuildProcurementOrders(world, user, payload, now);
       } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement-cancel') {

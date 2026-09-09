@@ -33,6 +33,15 @@ function resolveActionUnchecked(method, path) {
   if (method === 'POST' && path === '/api/game/provinces/unlock') return { action: 'unlockProvince', category: 'general' };
   if (method === 'POST' && path === '/api/game/transport') return { action: 'transportShip', category: 'orders' };
 
+  const publicProjectAction = path.match(/^\/api\/game\/public-projects\/([^/]+)\/(contribute|claim)$/);
+  if (method === 'POST' && publicProjectAction) {
+    return {
+      action: publicProjectAction[2] === 'contribute' ? 'contributePublicProject' : 'claimPublicProjectReward',
+      category: publicProjectAction[2] === 'contribute' ? 'orders' : 'general',
+      routePayload: { projectId: decodeRouteParameter(publicProjectAction[1]) },
+    };
+  }
+
   const bankLoanAction = path.match(/^\/api\/game\/bank\/loans\/([^/]+)\/(repay|auto-repay)$/);
   if (method === 'POST' && bankLoanAction) {
     return {

@@ -44,6 +44,8 @@ test('public action routes use the registry rate-limit category', () => {
     ['POST', '/api/game/auctions'],
     ['POST', '/api/game/provinces/unlock'],
     ['POST', '/api/game/transport'],
+    ['POST', '/api/game/public-projects/project-1/contribute'],
+    ['POST', '/api/game/public-projects/project-1/claim'],
     ['POST', '/api/game/contracts/contract-1/accept'],
     ['POST', '/api/game/auctions/auction-1/bids'],
     ['POST', '/api/game/facilities/farm/start'],

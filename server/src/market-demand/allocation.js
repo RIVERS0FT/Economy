@@ -1,5 +1,7 @@
 import { allocateMoneyBudget, clamp, floorMoney, normalizeShares, round4, roundMoney, smoothShares } from './math.js';
 import { DEFAULT_PROVINCE_ID } from '../provinces.js';
+import { economicEventRegionalClassShares, economicEventRegionalProductWeight } from '../economic-events.js';
+import { processPublicProjects } from '../public-projects.js';
 
 export function createDemandAllocationRuntime({
   productFor,
@@ -86,6 +88,8 @@ export function createDemandAllocationRuntime({
   }
 
   function directDemandChoices(world, group, state, directBudget, now, { classShares, provinceId } = {}) {
+    processPublicProjects(world, now);
+    const regionalClassShares = economicEventRegionalClassShares(world, group.id, classShares, now, provinceId);
     const productBudgets = new Map();
     const classAllocation = {};
     const productDetails = new Map();
@@ -105,6 +109,7 @@ export function createDemandAllocationRuntime({
         const availabilityFactor = clamp(0.35, 1.15, 0.35 + 0.80 * price.coverage);
         scores[product.id] = option.baseWeight
           * Math.max(0, Number(productWeightMultiplier(world, product.id, now) || 1))
+          * economicEventRegionalProductWeight(world, product.id, now, provinceId)
           * priceIndex ** -demandClass.elasticity
           * availabilityFactor;
         minima[product.id] = option.minShare || 0;
@@ -120,7 +125,7 @@ export function createDemandAllocationRuntime({
       });
     }
 
-    const classBudgets = allocateClassBudgets(group, state, directBudget, classDetails, classShares);
+    const classBudgets = allocateClassBudgets(group, state, directBudget, classDetails, regionalClassShares);
     for (const demandClass of group.classes) {
       const classBudget = classBudgets.get(demandClass.id) || 0;
       const detail = classDetails.get(demandClass.id);

@@ -13,10 +13,11 @@ test('公开经济事件日历保留最近一天已结束事件并返回未来�
   const first = createEconomicCalendarClientState(now);
   const second = createEconomicCalendarClientState(now + 1);
   assert.deepEqual(first, second);
-  assert.equal(first.version, 2);
+  assert.equal(first.version, 3);
   assert.equal(first.timeZone, 'Asia/Shanghai');
   assert.equal('visibleUntil' in first, false);
   assert.ok(first.events.length >= 2);
+  assert.ok(first.events.every((event) => event.scope === 'global'));
   assert.ok(first.events.every((event) => event.endsAt > now - 24 * 60 * 60 * 1000 && event.startsAt <= now + 7 * 24 * 60 * 60 * 1000));
   assert.ok(nextEconomicEventDeadline(now) > now);
 });

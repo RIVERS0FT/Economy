@@ -107,6 +107,8 @@ export const PLAYER_ACTION_REGISTRY = Object.freeze({
   chooseStartingProvince: defineAction({ mutationScope: 'local-player', domain: 'province' }),
   unlockProvince: defineAction({ mutationScope: 'local-player', domain: 'province' }),
   transportShip: defineAction({ rateLimitCategory: 'orders', mutationScope: 'local-player', domain: 'transport', latencyClass: 'market' }),
+  contributePublicProject: defineAction({ rateLimitCategory: 'orders', mutationScope: 'local-player', domain: 'public-project', latencyClass: 'market', economicActivity: true }),
+  claimPublicProjectReward: defineAction({ mutationScope: 'local-player', domain: 'public-project' }),
   startFacility: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
   pauseFacility: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
   setFacilityRecipe: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
