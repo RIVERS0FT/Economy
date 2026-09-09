@@ -22,6 +22,7 @@ import {
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
+import { usePageTabPreference } from '../hooks/usePageTabPreference';
 import type { ProvinceSection } from '../navigation/playerPageStack';
 import { provinceEconomicLevelFor } from '../utils/provinceEconomicLevel';
 
@@ -48,6 +49,7 @@ const PROVINCE_SECTIONS: Array<{ id: ProvinceSection; label: string }> = [
   { id: 'buildings', label: '工业' },
   { id: 'warehouse', label: '仓库' },
 ];
+const PROVINCE_SECTION_IDS = PROVINCE_SECTIONS.map((section) => section.id);
 
 const STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID = new Map(
   stateEconomicBaselines.states.map((row) => [row.provinceId, row]),
@@ -135,7 +137,12 @@ function ProvinceSectionLoading() {
 function ProvincePageContent({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const pageNavigation = usePlayerPageNavigation();
   const commercialGame = model.game as typeof model.game & ProvinceCommercialState;
-  const [fallbackSection, setFallbackSection] = useState<ProvinceSection>('overview');
+  const [fallbackSection, setFallbackSection] = usePageTabPreference<ProvinceSection>({
+    userId: model.user.id,
+    pageId: 'province',
+    allowed: PROVINCE_SECTION_IDS,
+    fallback: 'overview',
+  });
   const [fallbackFacilityDetailTypeId, setFallbackFacilityDetailTypeId] = useState<string | null>(null);
   const [fallbackCommercialDetailTypeId, setFallbackCommercialDetailTypeId] = useState<string | null>(null);
   const location = pageNavigation?.currentLocation;
@@ -218,7 +225,7 @@ function ProvincePageContent({ model }: { model: OnlineAutoTradeAwareGameViewMod
       const provinceLocation = {
         type: 'province' as const,
         provinceId: model.selectedProvinceId,
-        section: 'overview' as const,
+        section: fallbackSection,
       };
       if (current.type === 'map') {
         pageNavigation.pushPage(provinceLocation);
@@ -226,7 +233,7 @@ function ProvincePageContent({ model }: { model: OnlineAutoTradeAwareGameViewMod
         pageNavigation.replacePage(provinceLocation);
       }
     }
-  }, [model.selectedProvinceId, model.tab, pageNavigation]);
+  }, [fallbackSection, model.selectedProvinceId, model.tab, pageNavigation]);
 
   useEffect(() => {
     if (!pageNavigation || activeSection !== 'market') return;
@@ -255,11 +262,11 @@ function ProvincePageContent({ model }: { model: OnlineAutoTradeAwareGameViewMod
   ]);
 
   const selectSection = (section: ProvinceSection, focus = false) => {
+    setFallbackSection(section);
     if (section === 'market') model.showMarketCatalog();
     if (pageNavigation) {
       pageNavigation.replacePage({ type: 'province', provinceId: model.selectedProvinceId, section });
     } else {
-      setFallbackSection(section);
       setFallbackFacilityDetailTypeId(null);
       setFallbackCommercialDetailTypeId(null);
     }
