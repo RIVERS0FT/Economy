@@ -22,7 +22,6 @@ const contractRoute = read('src/pages/ContractPage.tsx');
 const contractWorkspace = read('src/pages/ContractWorkspacePage.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
-const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const docsIndex = read('docs/README.md');
 const auditStore = read('server/src/contract-audit-store.js');
 
@@ -80,13 +79,15 @@ assert.ok(!contractWorkspace.includes('总交付批次（可选）'), 'new daily
 
 assert.ok(pageDesign.includes('未来七天'), 'page design must define the seven-day public event calendar');
 assert.ok(pageDesign.includes('战略追踪器'), 'page design must assign public economic events to the strategic outliner');
-assert.ok(pageDesign.includes('大型公共项目'), 'page design must define public-project placement without a new top-level page');
 assert.ok(productDesign.includes('每类人口的周期总预算'), 'product design must preserve each population model budget');
 assert.ok(productDesign.includes('直接／派生预算'), 'product design must preserve direct and derived budgets');
 assert.ok(productDesign.includes('地区动态事件'), 'product design must own regional event gameplay semantics');
 assert.ok(productDesign.includes('大型公共项目'), 'product design must own public-project gameplay semantics');
-assert.ok(serverDesign.includes('public-projects'), 'server design must record the authoritative public-project write contract');
-assert.ok(serverDesign.includes('market.calendar'), 'server design must keep event/project delivery in the existing market calendar slice');
+assert.ok(productDesign.includes('统一战略追踪器“公开经济事件”分区'), 'recorded design must keep regional events and projects in the existing outliner section');
+assert.ok(productDesign.includes('`announcedAt` 之前不得进入玩家状态、战略追踪器或地图提示'), 'recorded design must forbid pre-announcement leakage');
+assert.ok(productDesign.includes('其他州库存、冻结库存和在途库存都不得被项目接口直接读取或扣除'), 'recorded design must forbid implicit cross-state or frozen project inventory');
+assert.ok(productDesign.includes('必须先通过正式运输把商品送达项目州'), 'recorded design must require transport before cross-state contribution');
+assert.ok(productDesign.includes('项目贡献积分保存为独立非负整数统计'), 'recorded design must keep project points separate from ordinary currency and assets');
 assert.ok(pageDesign.includes('提出续签条款不代表同意续签'), 'page design must require explicit bilateral renewal approval for legacy compatibility');
 assert.ok(pageDesign.includes('新每日额度商品合同不使用续签'), 'page design must forbid renewal on new daily supply contracts');
 assert.ok(docsIndex.includes('`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`') && docsIndex.includes('`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`'), 'design index must route legacy renewal UI and server semantics to their DESIGN owners');
