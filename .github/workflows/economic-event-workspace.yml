@@ -20,32 +20,47 @@ jobs:
         with:
           fetch-depth: 0
       - name: Apply reviewed development patch
+        if: hashFiles('.event-workspace.patch') != ''
         shell: bash
         run: |
           set -euo pipefail
-          if [ -f .event-workspace.patch ]; then
-            git apply --check .event-workspace.patch
-            git apply .event-workspace.patch
+          patch="$RUNNER_TEMP/economic-event.patch"
+          if head -n 1 .event-workspace.patch | grep -q '^# gzip-base64-sha256: '; then
+            expected="$(head -n 1 .event-workspace.patch | cut -d ' ' -f 3)"
+            tail -n +2 .event-workspace.patch | base64 -d | gzip -d > "$patch"
+            printf '%s  %s\n' "$expected" "$patch" | sha256sum -c -
+          else
+            cp .event-workspace.patch "$patch"
+          fi
+          if git apply --reverse --check --unidiff-zero "$patch"; then
+            echo 'Reviewed changes already applied'
+          else
+            git apply --check --unidiff-zero "$patch"
+            git apply --unidiff-zero "$patch"
             git diff --check
             git add src docs scripts tests
-            if ! git diff --cached --quiet; then
-              git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat(events): add coordinate markers and illustrated event dialog'
-              git push origin HEAD:refs/heads/feat/economic-event-map-dialog
-            fi
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat(events): add coordinate markers and illustrated event dialog'
+            git push origin HEAD:refs/heads/feat/economic-event-map-dialog
           fi
       - uses: actions/setup-node@v4
+        if: hashFiles('.event-workspace.patch') != ''
         with:
           node-version: 24.4.0
           cache: npm
-      - name: Install pinned dependencies
-        run: npm ci
-      - name: Export isolated development dependencies
-        shell: bash
+      - name: Prepare pinned application
+        if: hashFiles('.event-workspace.patch') != ''
+        run: npm ci && npm run generate:artwork && npm run generate:local-preview && npm run typecheck
+      - name: Prepare browser
+        if: hashFiles('.event-workspace.patch') != ''
+        run: bash scripts/prepare-playwright-chromium.sh
+      - name: Event behavior and browser validation
+        if: hashFiles('.event-workspace.patch') != ''
         run: |
-          cp "$(command -v node)" "$RUNNER_TEMP/node24"
-          tar -czf "$RUNNER_TEMP/economy-dev-dependencies.tar.gz" node_modules -C "$RUNNER_TEMP" node24
+          node --experimental-strip-types --test tests/dt/economic-event-presentation.test.ts
+          npm run test:browser -- tests/browser/economic-event-map-dialog.spec.ts --workers=2 --reporter=list
       - uses: actions/upload-artifact@v4
+        if: always() && hashFiles('.event-workspace.patch') != ''
         with:
-          name: economic-event-dev-dependencies
-          path: ${{ runner.temp }}/economy-dev-dependencies.tar.gz
+          name: economic-event-browser-review
+          path: test-results/
           retention-days: 1
