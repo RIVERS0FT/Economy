@@ -53,6 +53,10 @@ export function EconomicEventDialog({ event, products, referenceNow, onClose }: 
       className="economic-event-dialog"
       aria-labelledby={titleId}
       data-economic-event-id={event?.id ?? ''}
+      onKeyDown={(action) => {
+        // Let the native dialog dispatch cancel, but do not close a page beneath it.
+        if (action.key === 'Escape') action.stopPropagation();
+      }}
       onCancel={(action) => { action.preventDefault(); action.stopPropagation(); onClose(); }}
     >
       <PageHeader
