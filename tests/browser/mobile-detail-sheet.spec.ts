@@ -343,15 +343,23 @@ test.describe('shared mobile detail sheet close lifecycle', () => {
     await expect(page.locator('html')).toHaveAttribute('data-input-modality', 'keyboard');
     const focusVisual = await trigger.evaluate((element) => {
       const style = getComputedStyle(element);
+      const artwork = element.querySelector('.research-facility-artwork')!;
+      const ring = getComputedStyle(artwork, '::before');
       return {
         outlineStyle: style.outlineStyle,
-        outlineWidth: style.outlineWidth,
         boxShadow: style.boxShadow,
+        ringContent: ring.content,
+        ringStyle: ring.borderTopStyle,
+        ringWidth: ring.borderTopWidth,
+        ringRadius: ring.borderRadius,
       };
     });
-    expect(focusVisual.outlineStyle).toBe('solid');
-    expect(focusVisual.outlineWidth).toBe('2px');
-    expect(focusVisual.boxShadow).not.toBe('none');
+    expect(focusVisual.outlineStyle).toBe('none');
+    expect(focusVisual.boxShadow).toBe('none');
+    expect(focusVisual.ringContent).toBe('""');
+    expect(focusVisual.ringStyle).toBe('dashed');
+    expect(focusVisual.ringWidth).toBe('2px');
+    expect(focusVisual.ringRadius).toBe('50%');
   });
 });
 

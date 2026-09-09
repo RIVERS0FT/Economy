@@ -26,6 +26,7 @@ import {
 } from './economic-mutation.js';
 import { ensureGemState } from './invitations.js';
 import { ensureWarehouse } from './warehouse.js';
+import { RESEARCH_CATALOG_VERSION } from './research-catalog.js';
 
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
 const PRODUCTION_COLD_START_YIELD_MS = 1_000;
@@ -88,7 +89,10 @@ export class EconomyStore extends CoreEconomyStore {
   loadWorld(now, mutationScope = null) {
     if (!this.worldCache) {
       const loaded = super.loadWorld(now);
-      if (!needsFacilityColdCompatibilityMigration(loaded.world)) return loaded;
+      const needsResearchMigration = Object.values(loaded.world.players || {}).some((player) => (
+        Number(player?.research?.catalogVersion || 0) < RESEARCH_CATALOG_VERSION
+      ));
+      if (!needsFacilityColdCompatibilityMigration(loaded.world) && !needsResearchMigration) return loaded;
       const world = this.migrateLoadedWorld(loaded.world, now);
       const revision = this.saveWorldIfChanged(loaded.revision, world, now, loaded.stateJson);
       return { revision, stateJson: null, world: measureRequestPhase('worldDraftCloneMs', () => installProvinceRuntimeAliases(structuredClone(world))) };

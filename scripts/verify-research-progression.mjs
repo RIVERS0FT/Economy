@@ -18,7 +18,7 @@ import {
 import { createWorld, ensurePlayer } from '../server/src/domain.js';
 
 assert.equal(RESEARCH_DURATION_MS, 6 * 60 * 60_000);
-assert.equal(RESEARCH_TECHNOLOGY_CATALOG.length, 18);
+assert.equal(RESEARCH_TECHNOLOGY_CATALOG.length, 32);
 assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.initial).length, 3);
 assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.initial)
   .every((technology) => technology.durationMs === 0), true);
@@ -77,7 +77,7 @@ assert.deepEqual(player.research.completedTechnologyIds, ['basic-crops', 'basic-
 assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'logging-camp' }, now)?.ok, false);
 const started = applyResearchAction(world, user, 'startResearch', { technologyId: 'resource-survey' }, now);
 assert.equal(started.ok, true);
-assert.equal(player.credits, 50);
+assert.equal(player.credits, 500 - technologyById.get('resource-survey').cost);
 assert.equal(player.research.active.durationMs, RESEARCH_DURATION_BY_STAGE.C2);
 assert.equal(player.research.active.completesAt, now + RESEARCH_DURATION_BY_STAGE.C2);
 processResearchWorld(world, now + RESEARCH_DURATION_BY_STAGE.C2 - 1);

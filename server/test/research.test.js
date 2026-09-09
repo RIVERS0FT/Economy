@@ -1,4 +1,4 @@
-import { RESEARCH_DURATION_BY_STAGE } from '../src/research-catalog.js';
+import { RESEARCH_DURATION_BY_STAGE, researchTechnologyFor } from '../src/research-catalog.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWorld, ensurePlayer } from '../src/domain.js';
@@ -31,7 +31,7 @@ test('new players start with three initial technologies and unlock facilities by
 
   const started = applyResearchAction(world, user, 'startResearch', { technologyId: 'resource-survey' }, NOW);
   assert.equal(started.ok, true);
-  assert.equal(player.credits, 50);
+  assert.equal(player.credits, 500 - researchTechnologyFor('resource-survey').cost);
   assert.equal(player.research.active.technologyId, 'resource-survey');
   assert.equal(player.research.active.durationMs, RESEARCH_DURATION_BY_STAGE.C2);
   assert.equal(player.research.active.completesAt, NOW + RESEARCH_DURATION_BY_STAGE.C2);
@@ -46,7 +46,7 @@ test('new players start with three initial technologies and unlock facilities by
   assert.equal(player.research.unlockedComplexity, 'C1');
   assert.equal(hasResearchAccessForFacility(world, player, 'logging-camp', NOW + RESEARCH_DURATION_BY_STAGE.C2), true);
   assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'logging-camp' }, NOW + RESEARCH_DURATION_BY_STAGE.C2), null);
-  assert.equal(player.stats.researchPayroll, 450);
+  assert.equal(player.stats.researchPayroll, researchTechnologyFor('resource-survey').cost);
 });
 
 test('technology prerequisites form real industrial chains', () => {
@@ -54,7 +54,7 @@ test('technology prerequisites form real industrial chains', () => {
   player.credits = 10_000;
   const blocked = applyResearchAction(world, user, 'startResearch', { technologyId: 'metallurgical-engineering' }, NOW);
   assert.equal(blocked.ok, false);
-  assert.match(blocked.message, /资源勘探/);
+  assert.match(blocked.message, /林矿勘探/);
 
   assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'resource-survey' }, NOW).ok, true);
   processResearchWorld(world, NOW + RESEARCH_DURATION_BY_STAGE.C2);
@@ -134,9 +134,9 @@ test('C1 and C2 non-base production methods require their declared technologies'
     facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--saw-assisted-logging',
   }, NOW);
   assert.equal(blockedTool?.ok, false);
-  assert.match(blockedTool.message, /工具与动力应用/);
+  assert.match(blockedTool.message, /林业工具与动力/);
 
-  player.research.completedTechnologyIds.push('powered-production');
+  player.research.completedTechnologyIds.push('powered-forestry');
   assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
     facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--saw-assisted-logging',
   }, NOW), null);
@@ -145,9 +145,9 @@ test('C1 and C2 non-base production methods require their declared technologies'
     facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--mechanized-logging',
   }, NOW);
   assert.equal(blockedMechanized?.ok, false);
-  assert.match(blockedMechanized.message, /机械化作业/);
+  assert.match(blockedMechanized.message, /林矿机械化/);
 
-  player.research.completedTechnologyIds.push('mechanized-production', 'powered-production');
+  player.research.completedTechnologyIds.push('mechanized-extraction', 'powered-forestry');
   assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
     facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--mechanized-logging',
   }, NOW), null);

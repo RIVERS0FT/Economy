@@ -32,8 +32,6 @@ import type {
   FacilityTypeDefinition,
   ResearchTechnologyDefinition,
 } from '../types';
-import { recipesForType } from './production/ProductionFacilityDetail';
-import '../styles/facility-build-select.css';
 
 type ResearchNodeStatus = 'mastered' | 'active' | 'available' | 'locked';
 
@@ -101,16 +99,6 @@ function progressForResearchTechnology(
   const duration = Math.max(1, active.durationMs ?? technology.durationMs);
   const remaining = Math.max(0, active.completesAt - now);
   return Math.max(0, Math.min(1, (duration - remaining) / duration));
-}
-
-function outputProductIdsForFacility(facility: FacilityTypeDefinition) {
-  const seenProductIds = new Set<string>();
-  return recipesForType(facility).flatMap((recipe) => {
-    const productId = recipe.output.productId;
-    if (seenProductIds.has(productId)) return [];
-    seenProductIds.add(productId);
-    return [productId];
-  });
 }
 
 function pseudoTechnologyForActive(
@@ -291,14 +279,6 @@ function ResearchDetailBody({
                 </span>
                 <span className="research-unlock-copy">
                   <strong>{facility.name}</strong>
-                  <span className="facility-build-output-list" aria-label={`${facility.name}可生产产物`}>
-                    {outputProductIdsForFacility(facility).map((productId) => (
-                      <span className="facility-build-output-item" key={productId}>
-                        <ProductArtwork productId={productId} />
-                        <span>{model.game.products.find((product) => product.id === productId)?.name ?? productId}</span>
-                      </span>
-                    ))}
-                  </span>
                 </span>
               </div>
             ))}

@@ -134,11 +134,7 @@ for (const viewportSize of [
       for (const unlockFrame of await unlockFrames.all()) {
         await expectFilledArtwork(unlockFrame, ':is(.facility-icon, .commercial-building-artwork)');
       }
-      // Product labels in the unlock list remain ordinary small inline icons.
-      for (const output of await detail.locator('.facility-build-output-item > .product-artwork').all()) {
-        const outputWidth = await output.evaluate((element) => Number.parseFloat(getComputedStyle(element).width));
-        expect(outputWidth).toBeLessThan(30);
-      }
+      await expect(detail.locator('.facility-build-output-list, .facility-build-output-item')).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       if (mobile) {
         await page.keyboard.press('Escape');
