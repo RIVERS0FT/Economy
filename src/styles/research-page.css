@@ -245,7 +245,7 @@
 
 .research-technology-node[data-selected='true'] .research-facility-artwork {
   box-shadow:
-    0 0 0 2px var(--color-surface),
+    0 0 0 2px var(--color-surface-panel),
     0 0 0 5px var(--research-focus-color);
 }
 
@@ -425,7 +425,7 @@
   height: 2.5rem;
   overflow: hidden;
   border-radius: 50%;
-  background: var(--color-surface);
+  background: var(--color-surface-panel);
 }
 
 .research-unlock-copy {
