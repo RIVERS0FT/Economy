@@ -143,7 +143,7 @@ V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.strin
 
 ## 4. 世界迁移、状态交付与客户端版本
 
-统一科技目录升级通过玩家 research.catalogVersion 幂等迁移；旧节点和已付任务在冷加载时映射，商业资格校验仍留在商业动作事务。目录同时交付工业、生产方式关联和商业解锁信息，客户端兼容下限随科技身份变更提高，避免旧客户端使用退役节点或遗漏商业门槛。
+统一科技目录升级通过玩家 research.catalogVersion 幂等迁移；即使世界版本与存储版本已是当前值，冷加载仍须检查玩家科技目录版本，将旧节点和已付任务映射并持久化后才交付状态，商业资格校验仍留在商业动作事务。目录同时交付工业、生产方式关联和商业解锁信息，客户端兼容下限随科技身份变更提高，避免旧客户端使用退役节点或遗漏商业门槛。
 
 - 客户端状态版本唯一来源是 `server/shared/economy-state-version.js`；版本数值和最低兼容下限以该共享模块为准。商品燃料结算必须提高兼容下限，使旧现金燃料规划器不能继续消费新版运输投影，而通过既有入口刷新流程取得匹配客户端。运输投影继续复用 `transportRoutes` 与 `transportShipments`：路线只保存路径与运输方式，当前运输记录只携带节点循环所需的轻量当前段、当前车载摘要、每趟费用／燃料摘要和 `docked` 状态；普通玩家不存在手动 `route-dispatch`。商业目录 `commercialBuildingTypes` 与商品、工厂、研发和地区目录同为 catalog 完整快照的必需字段；否则会把同一玩家的工业建设入口保留在旧目录中而静默丢失商业建设入口。服务器响应、`src/types.ts`、浏览器合并器、README、DESIGN 和 verifier 不得维护独立版本常量。版本低于下限或高于当前值时返回明确的“客户端状态版本不兼容”，客户端只允许刷新入口 HTML，不得在旧 JavaScript 内原地重试状态请求。
 - 客户端状态版本不兼容属于当前页面不可恢复错误。登录、注册、会话初始化和状态请求的网络异常转换为中文刷新提示，不得直接展示浏览器原生英文错误。
@@ -167,7 +167,7 @@ V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.strin
 
 具有明确目标且失败可恢复的直接控制允许维护独立于 authority 的客户端 Intent Overlay。Intent 只影响控件展示，不写入 `EconomyState` 或参与权威推导；快速连续目标按顺序发送且只允许一个请求在途，最新目标始终优先。
 
-`EconomyStore` 必须在单进程内缓存已迁移、已清理的 committed world、对应全局修订号和 segmented snapshot。当前 V2 世界冷启动直接从 `economy_world_meta`、`economy_world_players` 与 `economy_world_segments` 重建；当 storage schema 和世界版本都已经是当前值时，重复重启不得再次执行完整迁移、重写分段行或增加修订号。旧 `economy_world.state_json` 只允许被读取一次完成 V2 迁移，迁移成功后改写为轻量 manifest。
+`EconomyStore` 必须在单进程内缓存已迁移、已清理的 committed world、对应全局修订号和 segmented snapshot。当前 V2 世界冷启动直接从 `economy_world_meta`、`economy_world_players` 与 `economy_world_segments` 重建；当 storage schema、世界版本与玩家科技目录版本都已经是当前值且无待清理的旧字段时，重复重启不得再次执行完整迁移、重写分段行或增加修订号。旧 `economy_world.state_json` 只允许被读取一次完成 V2 迁移，迁移成功后改写为轻量 manifest。
 
 正式服务必须启用单一全局到期调度器：`world-deadline-planner.js` 从运行中工厂周期、市场需求和价格传导周期、人口政策到期、开放拍卖、合同到期／宽限期／公开过期、银行每日结息、贷款到期／宽限结束、每日签到跨日、排行榜结算、运输当前在途段到站与订单历史裁剪中选出最早绝对时间，只设置一个 `setTimeout`；没有到期事件时不得进入 SQLite 世界事务。调度器最多每秒推进一次到期世界；玩家写入到达已过期截止时间时，`runtime-store.js` 必须先复用同一权威写执行器中的调度 barrier 完成一次推进，再执行玩家动作。调度器对当前世界调用工厂、拍卖、排行榜等处理器时必须传递 `migrate: false`；完整迁移仅属于冷加载。
 

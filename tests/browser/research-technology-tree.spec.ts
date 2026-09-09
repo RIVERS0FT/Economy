@@ -40,14 +40,14 @@ test.describe('research technology tree', () => {
     expect(fixedPageOverflow.stackOnlyWorkspace).toBe(true);
     expect(fixedPageOverflow.stackScrollHeight).toBeLessThanOrEqual(fixedPageOverflow.stackClientHeight + 1);
     await expect(page.locator('.research-stage-node')).toHaveCount(0);
-    await expect(page.locator('.research-technology-node')).toHaveCount(18);
-    await expect(page.locator('.research-technology-node .research-facility-artwork')).toHaveCount(18);
-    await expect(page.locator('.research-technology-node .research-technology-node-name')).toHaveCount(18);
+    await expect(page.locator('.research-technology-node')).toHaveCount(32);
+    await expect(page.locator('.research-technology-node .research-facility-artwork')).toHaveCount(32);
+    await expect(page.locator('.research-technology-node .research-technology-node-name')).toHaveCount(32);
     await expect(page.locator('.research-technology-node-meta')).toHaveCount(0);
     await expect(page.locator('.research-technology-node-status')).toHaveCount(0);
     await expect(page.locator('.research-tree-heading')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: '技术树' })).toHaveCount(0);
-    await expect(page.getByText('18 项科技', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('32 项科技', { exact: true })).toHaveCount(0);
     const researchGeometry = await page.evaluate(() => {
       const action = document.querySelector<HTMLElement>('.research-action-panel')?.getBoundingClientRect();
       const fixedBody = document.querySelector<HTMLElement>('.page-card-static')?.getBoundingClientRect();
@@ -142,7 +142,7 @@ test.describe('research technology tree', () => {
   test('keeps node geometry stable on hover and selected dependency lines visible', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
-    const node = page.getByRole('button', { name: /工具与动力应用，可研发，C2 机械制造/ });
+    const node = page.getByRole('button', { name: /农用工具，可研发，C2 机械制造/ });
     const viewport = page.locator('.research-tree-viewport');
     const transformLayer = page.locator('.research-tree-transform-layer');
     await node.scrollIntoViewIfNeeded();
@@ -197,7 +197,7 @@ test.describe('research technology tree', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
     const viewport = page.locator('.research-tree-viewport');
-    const node = page.getByRole('button', { name: /工具与动力应用，可研发，C2 机械制造/ });
+    const node = page.getByRole('button', { name: /农用工具，可研发，C2 机械制造/ });
     const activeNode = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
     const beforeWorld = await node.evaluate((element) => ({
       x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
@@ -206,8 +206,8 @@ test.describe('research technology tree', () => {
     const box = await viewport.boundingBox();
     expect(box).not.toBeNull();
 
-    // The fullscreen research host can fit the tree at its default zoom, where pan is
-    // intentionally clamped to center. Zoom first so the regression exercises real panning.
+    // Exercise drag and explicit centering at a magnified zoom as well as the
+    // initial view; fitting the world must also remain draggable.
     const zoomBefore = Number(await viewport.getAttribute('data-zoom'));
     await page.mouse.move((box?.x ?? 0) + (box?.width ?? 0) / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2);
     await page.mouse.wheel(0, -420);
@@ -247,9 +247,15 @@ test.describe('research technology tree', () => {
     const focusedGeometry = await page.evaluate(() => {
       const viewportRect = document.querySelector<HTMLElement>('.research-tree-viewport')!.getBoundingClientRect();
       const activeRect = document.querySelector<HTMLElement>('.research-technology-node[data-status="active"]')!.getBoundingClientRect();
+      const panelRect = document.querySelector<HTMLElement>('.research-action-panel')!.getBoundingClientRect();
+      const controlsRect = document.querySelector<HTMLElement>('.research-tree-controls')!.getBoundingClientRect();
+      const left = panelRect.right + 24;
+      const right = viewportRect.right - 24;
+      const top = viewportRect.top + 24;
+      const bottom = controlsRect.top - 12;
       return {
-        expectedX: viewportRect.left + viewportRect.width / 2,
-        expectedY: viewportRect.top + viewportRect.height * 0.42,
+        expectedX: (left + right) / 2,
+        expectedY: top + (bottom - top) * 0.42,
         actualX: activeRect.left + activeRect.width / 2,
         actualY: activeRect.top + activeRect.height / 2,
       };
@@ -269,10 +275,10 @@ test.describe('research technology tree', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    const toolOperation = page.getByRole('button', { name: /工具与动力应用，可研发，C2 机械制造/ });
+    const toolOperation = page.getByRole('button', { name: /农用工具，可研发，C2 机械制造/ });
     await toolOperation.click();
     const panel = page.locator('.research-action-panel');
-    await expect(panel).toContainText('工具与动力应用');
+    await expect(panel).toContainText('农用工具');
     await expect(panel).toContainText('机械制造');
     await expect(panel).toContainText('解锁生产方式');
     await expect(panel).toContainText('工具');
@@ -289,7 +295,9 @@ test.describe('research technology tree', () => {
     await mechanicalEngineering.press('Enter');
     await expect(panel).toContainText('机械制造');
     await expect(panel).toContainText('解锁工业建筑');
-    await expect(panel.getByLabel('机械厂可生产产物')).toContainText('机械');
+    await expect(panel).toContainText('机械厂');
+    await expect(panel.locator('[aria-label$="可生产产物"], .facility-build-output-list')).toHaveCount(0);
+    await expect(panel.locator('.research-unlock-item')).toHaveCount(2);
   });
 
   test('preserves an explicit technology selection across refreshed snapshots', async ({ page }) => {

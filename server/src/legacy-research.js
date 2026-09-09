@@ -35,3 +35,18 @@ export const LEGACY_RESEARCH_NODES = Object.freeze([
 ]);
 const byId = new Map(LEGACY_RESEARCH_NODES.map((entry) => [entry.id, entry.technologyId]));
 export function migrateResearchTechnologyId(id) { return byId.get(String(id)) || String(id); }
+
+// Catalogs before v3 promised all of these capabilities in one paid node.
+const SPLIT_TECHNOLOGY_GRANTS = Object.freeze({
+  'resource-survey': ['resource-survey', 'petroleum-survey'],
+  'wood-industry': ['wood-industry', 'pulp-paper-industry'],
+  'chemical-engineering': ['chemical-engineering', 'agrochemical-engineering'],
+  'powered-production': ['powered-production', 'powered-forestry', 'industrial-tools', 'processing-tools'],
+  'applied-chemistry': ['applied-chemistry', 'veterinary-science', 'extraction-chemistry'],
+  'mechanized-production': ['mechanized-production', 'mechanized-livestock', 'mechanized-extraction',
+    'mechanized-petroleum', 'mechanized-milling', 'mechanized-sawmilling', 'mechanized-feed'],
+});
+export function migrateResearchTechnologyIds(id) {
+  const mapped = migrateResearchTechnologyId(id);
+  return SPLIT_TECHNOLOGY_GRANTS[mapped] || [mapped];
+}

@@ -32,8 +32,8 @@
 ## 3. Transient Camera + settled viewBox
 
 - 逻辑缩放固定为 `1×–4×`。Camera 只有一套权威数学状态：SVG 世界坐标中的 `centerX / centerY / zoom`。`committed/current/target` 只是同一 Camera 在“已提交矢量状态／当前显示状态／目标状态”三个时点的快照，不得演化为第二套 Camera。
-- `1×` 的基础视场根据真实地图容器宽高比和美国本土 focus bounds 计算。桌面／横屏在不裁掉美国的前提下以美国本土包围盒约占有效视场面积 `2/3` 为目标；窄屏／竖屏优先完整显示连续 48 州和约 `12px` 屏幕安全边距，允许面积比例低于 `2/3`。
-- Camera 的合法世界边界在初始化或真实容器 resize 时一次计算并固定：以美国本土 focus bounds 为基准，水平方向最多扩展约 `35%`、垂直方向最多扩展约 `25%`，同时必须至少容纳完整 `1×` 基础视场。**该 world bounds 不得随 zoom 改变。**
+- `1×` 的基础视场根据真实地图容器宽高比和美国本土 focus bounds 计算。美国本土包围盒居中、等比放入宽度和高度各为地图视口 `50%` 的矩形，贴满其中一个方向，另一方向不超过一半；桌面、横屏和竖屏遵循同一规则，不拉伸地图以强行同时填满两轴。
+- Camera 的合法世界边界在初始化或真实容器 resize 时一次计算，并严格等于居中的 `1×` 基础视场。**该 world bounds 不得随 zoom 改变。** 放大后允许拖动浏览的世界范围与未缩放时一致；active 快照、SVG fallback 和 settled SVG 使用同一范围与外层视口裁剪，不能在缩放后额外露出默认视场之外的世界。
 - 当前视场尺寸必须由倍率反求：`viewWidth = baseViewWidth / zoom`，`viewHeight = baseViewHeight / zoom`。Camera 中心必须满足 `min + viewSize/2 <= center <= max - viewSize/2`；若某轴固定世界边界小于当前视场，则该轴锁定在世界边界中心。
 - 鼠标滚轮和双指缩放围绕真实屏幕焦点执行：先按当前 target viewBox 把屏幕点反求为世界坐标，再计算新倍率与新视场，并调整 center 使同一世界锚点仍位于该屏幕位置，最后按固定 world bounds clamp。
 - 鼠标／单指拖动把屏幕位移按 target viewBox 尺寸换算为世界坐标中心位移，再使用同一固定边界 clamp。不得先越界再回弹。
