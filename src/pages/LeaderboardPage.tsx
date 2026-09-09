@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { CompactNumber, CompactRank } from '../components/ui/CompactNumber';
 import { PlayerAvatar } from '../components/ui/PlayerAvatar';
 import { Button, PageLayout, Panel, StatusTag } from '../components/ui/layout';
+import { usePageTabPreference } from '../hooks/usePageTabPreference';
 import {
   leaderboardsFromGame,
   type LeaderboardBoardId,
@@ -171,7 +172,12 @@ function LeaderboardCard({ board }: { board: RankedLeaderboardBoard }) {
 export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
   const leaderboards = leaderboardsFromGame(model.game) ?? fallbackLeaderboards(model);
   const { period } = leaderboards;
-  const [selectedBoardId, setSelectedBoardId] = useState<LeaderboardBoardId>('wealth');
+  const [selectedBoardId, setSelectedBoardId] = usePageTabPreference<LeaderboardBoardId>({
+    userId: model.user.id,
+    pageId: 'leaderboard',
+    allowed: BOARD_ORDER,
+    fallback: 'wealth',
+  });
   const periodLabel = period.key === 'initializing'
     ? '周榜初始化中'
     : `${formatPeriodTime(period.startsAt)} — ${formatPeriodTime(period.endsAt)}`;
