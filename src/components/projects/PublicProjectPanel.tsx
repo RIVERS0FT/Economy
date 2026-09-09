@@ -156,12 +156,10 @@ export function PublicProjectPanel({
 
   if (projects.length === 0) return null;
 
-  const refreshConfirmedState = async (action: string) => {
-    try {
-      await model.refresh({ mode: 'authoritative' });
-    } catch {
+  const refreshConfirmedState = (action: string) => {
+    void model.refresh({ mode: 'authoritative' }).catch(() => {
       model.notify(`${action}已完成，但状态同步失败`, 'warning');
-    }
+    });
   };
 
   const executeContribution = async (project: PublicProjectView, productId: string, quantity: number) => {
@@ -174,7 +172,7 @@ export function PublicProjectPanel({
         await reportActionException(model, null, '公共项目提交');
       } else {
         await model.showResult(result);
-        if (result.ok) await refreshConfirmedState('公共项目提交');
+        if (result.ok) refreshConfirmedState('公共项目提交');
       }
     } catch (reason) {
       await reportActionException(model, reason, '公共项目提交');
@@ -192,7 +190,7 @@ export function PublicProjectPanel({
         await reportActionException(model, null, '公共项目奖励');
       } else {
         await model.showResult(result);
-        if (result.ok) await refreshConfirmedState('公共项目奖励');
+        if (result.ok) refreshConfirmedState('公共项目奖励');
       }
     } catch (reason) {
       await reportActionException(model, reason, '公共项目奖励');
