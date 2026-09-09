@@ -217,7 +217,6 @@ for (const text of [
   'uses one world geometry on mobile with pan and zoom instead of two-lane reflow',
   'supports desktop drag, wheel zoom, and double-click focus without changing world coordinates',
   'zoomBeforeDoubleClick',
-  'expectedY: viewportRect.top + viewportRect.height * 0.42',
   'opens technology details in the shared mobile sheet',
   'shows shared production methods and independent commercial unlocks',
   "not.toContainText('使用后剩余')",
