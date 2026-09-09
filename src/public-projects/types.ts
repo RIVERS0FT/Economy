@@ -40,6 +40,7 @@ export interface PublicProjectView {
   provinceName: string;
   title: string;
   description: string;
+  announcedAt: number;
   startsAt: number;
   endsAt: number;
   status: PublicProjectStatus;
