@@ -48,7 +48,7 @@ assert.ok(!overview.includes('EconomicEventLogPanel') && !overview.includes('公
 assert.ok(strategicWorkspace.includes('<StrategicOutliner'), 'strategic shell must own the unified strategic outliner');
 assert.ok(!strategicWorkspace.includes('strategic-economic-event-rail'), 'strategic shell must not restore the legacy event-only right rail');
 assert.ok(strategicOutliner.includes('economicCalendar?.events'), 'strategic outliner must project public economic events from authoritative state');
-assert.ok(strategicOutliner.includes('function CompactEventRow') && strategicOutliner.includes('<details') && strategicOutliner.includes('<summary>'), 'economic events must stay compact until expanded inside the outliner');
+assert.ok(strategicOutliner.includes('function CompactEventRow') && strategicOutliner.includes('openEvent(event.id)') && strategicOutliner.includes('aria-haspopup="dialog"'), 'compact economic event rows must open the shared detail dialog');
 assert.ok(strategicOutliner.includes('currentEvents') && strategicOutliner.includes('completedEvents'), 'strategic outliner must separate current/upcoming events from recently completed events');
 assert.ok(economicEvents.includes("id: `public-project-event:${String(project.id)}`"), 'public projects must reuse the existing economic-event outliner section instead of adding a fifth section');
 assert.ok(economicEvents.includes('Number(event.announcedAt) <= normalizedNow'), 'regional events must not be delivered before their announcement time');
@@ -66,7 +66,8 @@ assert.ok(!publicProjects.includes('player.credits ='), 'public project rewards 
 assert.ok(publicProjects.includes('Number(project.announcedAt ?? project.startsAt) <= normalizedNow'), 'unannounced public projects must stay out of player state');
 assert.ok(provincePage.includes('<RegionalEconomicEventBanner model={model} />') && provincePage.includes('<PublicProjectPanel model={model} />'), 'state overview must host regional events and public projects without adding navigation');
 assert.ok(publicProjectPanel.includes('model.game.provinceInventories?.[project.provinceId]?.[goal.productId]'), 'project contribution UI must show only target-state inventory availability');
-assert.ok(strategicWorkspace.includes('strategic-map-regional-events'), 'strategic map must expose announced regional event and project signals');
+assert.ok(read('src/components/provinces/UsMainlandMap.tsx').includes('<EconomicEventMapLayer'), 'event and project markers must share the authoritative map SVG');
+assert.ok(!strategicWorkspace.includes('strategic-map-regional-events'), 'event entries must not regress to non-geographic floating buttons');
 
 assert.ok(contractRoute.includes("import { ContractWorkspacePage } from './ContractWorkspacePage';") && contractRoute.includes('<ContractWorkspacePage model={model} />'), 'ContractPage must remain a thin route wrapper around the current workspace');
 assert.ok(contractWorkspace.includes('function LegacyRenewalResolution'), 'current contract workspace must preserve existing legacy renewal resolution');

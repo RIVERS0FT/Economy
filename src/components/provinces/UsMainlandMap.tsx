@@ -1,3 +1,5 @@
+import { EconomicEventMapLayer } from '../economic-events/EconomicEventMapLayer';
+import { GLOBAL_EVENT_MAP_COORDINATE } from '../../economic-events/presentation';
 import { CompactNumber } from '../ui/CompactNumber';
 import {
   useCallback,
@@ -124,6 +126,7 @@ const mainlandOutlineGeometry = merge(
 );
 
 const provinceMapProjection = createProvinceMapProjection(mainlandFeatures.map((entry) => entry.geometry));
+const globalEventPoint = provinceMapProjection.project(GLOBAL_EVENT_MAP_COORDINATE);
 const provinceMapWorldFillPath = createProvinceMapWorldFillPath(provinceMapProjection);
 const provinceMapWorldStrokePath = createProvinceMapWorldStrokePath(provinceMapProjection);
 const provinceMapMainlandOutlinePath = provinceGeometryPath(mainlandOutlineGeometry, provinceMapProjection);
@@ -846,6 +849,7 @@ export function UsMainlandMap({
                     </g>
                   ))}
                 </g>
+                <EconomicEventMapLayer capitalPoints={capitalPointByProvinceId} globalPoint={globalEventPoint} hidden={routePickingActive} onContentChange={refreshRasterSnapshot} />
                 <g className="province-map-shipments" data-map-clock-scope="shipment-leaf">
                   {shipmentOverlays.length > 0 ? (
                     <LiveServerTime referenceNow={referenceNow} intervalMs={500}>

@@ -1,3 +1,4 @@
+import { createEconomicEventFixture } from './economic-event-fixture';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../../server/src/industry-catalog.js';
 import { COMMERCIAL_BUILDING_TYPE_CATALOG } from '../../server/src/commercial-catalog.js';
 import { RESEARCH_LEVEL_CATALOG, RESEARCH_TECHNOLOGY_CATALOG } from '../../server/src/research-catalog.js';
@@ -395,6 +396,9 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
 }
 
 function MapHarness() {
+  const [eventFixtureNow] = useState(Date.now);
+  const [eventCalendar, setEventCalendar] = useState(() => createEconomicEventFixture(eventFixtureNow));
+  if (scenario === 'economic-events') Object.assign(window, { __setEconomicEventCalendar: setEventCalendar });
   const [tab, setTab] = useState<TabId>(scenario === 'locked-province' ? 'province' : 'map');
   const [provinceId, setProvinceId] = useState(scenario === 'locked-province' ? 'US-TX' : '110000');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
@@ -402,6 +406,10 @@ function MapHarness() {
   const [marketViewMode, setMarketViewMode] = useState<'catalog' | 'detail'>('catalog');
   const model = useMemo(() => {
     const next = buildOverviewModel(tab, setTab);
+    if (scenario === 'economic-events') {
+      next.game.lastProcessedAt = eventFixtureNow;
+      next.game.economicCalendar = eventCalendar;
+    }
     const game = scenario === 'locked-province'
       ? {
           ...next.game,
@@ -431,7 +439,7 @@ function MapHarness() {
         }
       },
     };
-  }, [marketAssetId, marketAssetKind, marketViewMode, provinceId, tab]);
+  }, [eventCalendar, eventFixtureNow, marketAssetId, marketAssetKind, marketViewMode, provinceId, tab]);
   const page = tab === 'province'
     ? <ProvincePage model={model} />
     : tab === 'market'

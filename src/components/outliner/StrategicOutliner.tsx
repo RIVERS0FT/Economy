@@ -1,3 +1,4 @@
+import { useEconomicEvents } from '../economic-events/EconomicEventContext';
 import { CompactCurrency, CompactNumber } from '../ui/CompactNumber';
 import type { ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
@@ -203,38 +204,18 @@ function eventTiming(event: EconomicCalendarEvent, now: number) {
   return '已结束';
 }
 
-function CompactEventRow({
-  event,
-  now,
-  productNames,
-}: {
-  event: EconomicCalendarEvent;
-  now: number;
-  productNames: ReadonlyMap<string, string>;
-}) {
+function CompactEventRow({ event, now }: { event: EconomicCalendarEvent; now: number }) {
+  const economicEvents = useEconomicEvents();
   const active = event.startsAt <= now && now < event.endsAt;
   const completed = event.endsAt <= now;
   return (
-    <details
-      className="strategic-outliner-event"
-      data-active={active ? 'true' : 'false'}
-      data-completed={completed ? 'true' : 'false'}
-    >
-      <summary>
-        <span className="strategic-outliner-event__status" aria-hidden="true" />
-        <strong>{event.title}</strong>
-        <small>{eventTiming(event, now)}</small>
-      </summary>
-      <div className="strategic-outliner-event__details">
-        <p>{event.description}</p>
-        {event.classLabels.length > 0 ? <small>类别：{event.classLabels.join('、')}</small> : null}
-        {event.productIds.length > 0 ? (
-          <small>
-            商品：{event.productIds.map((id) => productNames.get(id) ?? id).join('、')}
-          </small>
-        ) : null}
-      </div>
-    </details>
+    <button type="button" className="strategic-outliner-event"
+      data-active={active ? 'true' : 'false'} data-completed={completed ? 'true' : 'false'}
+      aria-haspopup="dialog" onClick={() => economicEvents?.openEvent(event.id)}>
+      <span className="strategic-outliner-event__status" aria-hidden="true" />
+      <strong>{event.title}</strong>
+      <small>{eventTiming(event, now)}</small>
+    </button>
   );
 }
 
@@ -247,6 +228,7 @@ export function StrategicOutliner({
   tutorial?: GameTutorialController;
   pendingItems: PendingNotificationItem[];
 }) {
+  const economicEvents = useEconomicEvents();
   const preferences = useStrategicOutliner(model.user.id);
   const now = useNow(model.game.lastProcessedAt);
   const auctions = getAuctionState(model.game).assetAuctions;
@@ -257,8 +239,7 @@ export function StrategicOutliner({
   const contextPinned = preferences.isPinned(contextPin);
   const research = model.game.research.active;
   const construction = model.game.facilityConstruction;
-  const productNames = new Map(model.game.products.map((product) => [product.id, product.name]));
-  const events = [...(model.game.economicCalendar?.events ?? [])].sort((left, right) => (
+  const events = [...(economicEvents?.events ?? model.game.economicCalendar?.events ?? [])].sort((left, right) => (
     left.startsAt - right.startsAt || left.id.localeCompare(right.id)
   ));
   const currentEvents = events.filter((event) => event.endsAt > now);
@@ -502,7 +483,7 @@ export function StrategicOutliner({
           className="strategic-outliner-section--events"
         >
           {currentEvents.map((event) => (
-            <CompactEventRow key={event.id} event={event} now={now} productNames={productNames} />
+            <CompactEventRow key={event.id} event={event} now={now} />
           ))}
           {currentEvents.length === 0 ? <p className="strategic-outliner-empty">近期没有正在进行或即将开始的公开经济事件。</p> : null}
           {completedEvents.length > 0 ? (
@@ -510,7 +491,7 @@ export function StrategicOutliner({
               <summary>最近结束 {<CompactNumber value={completedEvents.length} />}</summary>
               <div>
                 {completedEvents.map((event) => (
-                  <CompactEventRow key={event.id} event={event} now={now} productNames={productNames} />
+                  <CompactEventRow key={event.id} event={event} now={now} />
                 ))}
               </div>
             </details>
