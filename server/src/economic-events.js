@@ -1,4 +1,4 @@
-import { DEFAULT_PROVINCE_ID, PROVINCE_CATALOG } from './provinces.js';
+import { DEFAULT_PROVINCE_ID, PROVINCE_CATALOG, splitProvinceScopedKey } from './provinces.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -123,9 +123,19 @@ function regionalSlotIndexAt(now) {
 function activeProvinceIds(world) {
   const active = new Set();
   for (const player of Object.values(world?.players || {})) {
-    if (player?.startingProvinceId) active.add(String(player.startingProvinceId));
     for (const group of player?.facilityGroups || []) {
       if (Number(group?.count || 0) > 0 && group?.provinceId) active.add(String(group.provinceId));
+    }
+    for (const group of player?.commercialBuildingGroups || []) {
+      if (Number(group?.count || 0) > 0 && group?.provinceId) active.add(String(group.provinceId));
+    }
+    for (const [key, inventory] of Object.entries(player?.inventories || {})) {
+      if (
+        Number(inventory?.available || 0) <= 0
+        && Number(inventory?.frozen || 0) <= 0
+        && Number(inventory?.inTransit || 0) <= 0
+      ) continue;
+      active.add(splitProvinceScopedKey(key).provinceId);
     }
   }
   const valid = PROVINCE_CATALOG.map((province) => province.id).filter((provinceId) => active.has(provinceId));
@@ -161,7 +171,7 @@ function createRegionalEvent(world, slotIndex) {
     startsAt,
     endsAt: startsAt + REGIONAL_EVENT_DURATION_MS,
     demandMultiplierBps: REGIONAL_ECONOMIC_EVENT_DEMAND_MULTIPLIER_BPS,
-    createdAt: Math.min(Date.now(), startsAt),
+    createdAt: startsAt,
     closedAt: null,
   };
 }
@@ -239,6 +249,37 @@ export function economicEventRegionalProductWeight(world, productId, now = Date.
   return Math.max(0, Number(template.productMultipliersBps?.[productId] || 10_000)) / 10_000;
 }
 
+function projectEventRows(world, normalizedNow, visibleUntil) {
+  return (world?.marketDemand?.publicProjects?.projects || [])
+    .filter((project) => {
+      const announcedAt = Number(project.announcedAt ?? project.startsAt);
+      const completedAt = Number(project.completedAt || 0);
+      const effectiveEndsAt = completedAt > 0 ? Math.min(Number(project.endsAt), completedAt) : Number(project.endsAt);
+      return announcedAt <= normalizedNow
+        && effectiveEndsAt > normalizedNow - EVENT_RESULT_WINDOW_MS
+        && Number(project.startsAt) <= visibleUntil;
+    })
+    .map((project) => {
+      const goals = Array.isArray(project.goals) ? project.goals : [];
+      const completedGoalCount = goals.filter((goal) => Number(goal.contributedQuantity || 0) >= Number(goal.targetQuantity || 0)).length;
+      const completedAt = Number(project.completedAt || 0);
+      const effectiveEndsAt = completedAt > 0 ? Math.min(Number(project.endsAt), completedAt) : Number(project.endsAt);
+      return {
+        id: `public-project-event:${String(project.id)}`,
+        templateId: 'public-project',
+        scope: 'global',
+        title: String(project.title || '大型公共项目'),
+        description: `${String(project.provinceName || project.provinceId)}大型公共项目：全服已提交 ${Math.max(0, Math.floor(Number(project.totalContributedQuantity || 0)))} 件，完成 ${completedGoalCount}/${goals.length} 个商品目标。`,
+        announcedAt: Number(project.announcedAt ?? project.startsAt),
+        startsAt: Number(project.startsAt),
+        endsAt: effectiveEndsAt,
+        rampMs: 0,
+        classLabels: [],
+        productIds: goals.map((goal) => String(goal.productId || '')).filter(Boolean),
+      };
+    });
+}
+
 export function createEconomicCalendarClientState(now = Date.now(), world = null) {
   const normalizedNow = Math.max(0, Number(now) || 0);
   const visibleUntil = normalizedNow + VISIBLE_WINDOW_MS;
@@ -258,7 +299,11 @@ export function createEconomicCalendarClientState(now = Date.now(), world = null
       productIds: [...event.template.productIds],
     }));
   const regionalEvents = (world?.marketDemand?.regionalEvents?.events || [])
-    .filter((event) => Number(event.endsAt) > normalizedNow - EVENT_RESULT_WINDOW_MS && Number(event.startsAt) <= visibleUntil)
+    .filter((event) => (
+      Number(event.announcedAt) <= normalizedNow
+      && Number(event.endsAt) > normalizedNow - EVENT_RESULT_WINDOW_MS
+      && Number(event.startsAt) <= visibleUntil
+    ))
     .map((event) => {
       const template = EVENT_TEMPLATE_BY_ID.get(String(event.templateId));
       return {
@@ -278,10 +323,12 @@ export function createEconomicCalendarClientState(now = Date.now(), world = null
         productIds: [...(template?.productIds || [])],
       };
     });
+  const projectEvents = projectEventRows(world, normalizedNow, visibleUntil);
   return {
     version: 3,
     timeZone: 'Asia/Shanghai',
-    events: [...globalEvents, ...regionalEvents].sort((left, right) => left.startsAt - right.startsAt || left.id.localeCompare(right.id)),
+    events: [...globalEvents, ...regionalEvents, ...projectEvents]
+      .sort((left, right) => left.startsAt - right.startsAt || left.id.localeCompare(right.id)),
   };
 }
 
