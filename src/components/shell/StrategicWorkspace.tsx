@@ -3,6 +3,7 @@ import regionCatalog from '../../../shared/provinces.json';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import type { GameTutorialController } from '../../game-guide/useGameTutorial';
 import type { PendingNotificationItem } from '../../notifications/notificationCenter';
+import type { ExtendedEconomicCalendarState } from '../../public-projects/types';
 import type { ProvinceAssetSummary, ProvinceDefinition, TransportModeId, TransportShipment } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { isTransportRouteClosed, transportRouteSetupCost, transportRouteStopIds } from '../../utils/provinceLogistics';
@@ -23,6 +24,7 @@ import {
   MarketIcon,
   WarehouseIcon,
 } from '../icons/GameIcons';
+import '../../styles/regional-events-public-projects.css';
 
 const fallbackProvinces = regionCatalog as ProvinceDefinition[];
 
@@ -122,6 +124,30 @@ export function StrategicMapStage({ model, lens }: {
     setSelectedProvinceId(provinceId);
     model.setTab('province');
   };
+  const calendar = model.game.economicCalendar as unknown as ExtendedEconomicCalendarState | undefined;
+  const mapNow = Number(model.game.lastProcessedAt || Date.now());
+  const regionalEventSignals = (calendar?.events ?? [])
+    .filter((event) => (
+      event.scope === 'regional'
+      && Boolean(event.provinceId)
+      && event.announcedAt <= mapNow
+      && event.endsAt > mapNow
+    ))
+    .map((event) => ({
+      id: `event:${event.id}`,
+      provinceId: String(event.provinceId),
+      label: event.startsAt <= mapNow ? event.title : `${event.provinceName ?? '地区'} · 事件预告`,
+    }));
+  const publicProjectSignals = (calendar?.publicProjects?.projects ?? [])
+    .filter((project) => project.status === 'active' || project.status === 'upcoming')
+    .map((project) => ({
+      id: `project:${project.id}`,
+      provinceId: project.provinceId,
+      label: `${project.provinceName} · 公共项目`,
+    }));
+  const mapSignals = [...regionalEventSignals, ...publicProjectSignals]
+    .filter((signal, index, all) => all.findIndex((candidate) => candidate.id === signal.id) === index)
+    .slice(0, 4);
   const transportRoutes = Array.isArray(model.game.transportRoutes) ? model.game.transportRoutes : [];
   const routeById = useMemo(() => new Map(transportRoutes.map((route) => [route.id, route])), [transportRoutes]);
   const draftStops = routeDraft?.draft ? transportRouteStopIds(routeDraft.draft) : [];
@@ -220,6 +246,20 @@ export function StrategicMapStage({ model, lens }: {
         shipmentOverlays={shipmentOverlays}
         referenceNow={model.game.lastProcessedAt}
       />
+      {!routeDraft?.picking && mapSignals.length > 0 ? (
+        <div className="strategic-map-regional-events" aria-label="地区动态事件与公共项目">
+          {mapSignals.map((signal) => (
+            <button
+              key={signal.id}
+              type="button"
+              className="strategic-map-regional-event"
+              onClick={() => openProvincePage(signal.provinceId)}
+            >
+              {signal.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {routeDraft?.picking ? (
         <div className="transport-map-picking-bar" role="region" aria-label="运输路线地图选州" data-picking-stop-count={draftStops.length}>
           <div className="transport-map-picking-sequence">
