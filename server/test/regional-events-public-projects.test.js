@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import {
+  ECONOMIC_EVENT_TEMPLATES,
   REGIONAL_ECONOMIC_EVENT_EPOCH_MS,
   createEconomicCalendarClientState,
   economicEventRegionalProductWeight,
@@ -38,15 +39,11 @@ test('地区动态事件按真实经营足迹选州并只提高目标州对应�
   assert.ok(active);
   assert.equal(active.provinceId, footprintProvinceId);
   assert.ok(first.audit.some((entry) => entry.eventId === active.id && entry.action === 'created'));
-  const affectedProductId = active.templateId === 'daily-restocking'
-    ? ['paper', 'crude-oil', 'plastic'].find((productId) => (
-      economicEventRegionalProductWeight(world, productId, NOW, active.provinceId) > 1
-    ))
-    : first.events.length > 0
-      ? active && Object.keys(world.marketDemand?.priceTransmission?.products || {}).find((productId) => (
-          economicEventRegionalProductWeight(world, productId, NOW, active.provinceId) > 1
-        ))
-      : null;
+  const template = ECONOMIC_EVENT_TEMPLATES.find((candidate) => candidate.id === active.templateId);
+  assert.ok(template);
+  const affectedProductId = template.productIds.find((productId) => (
+    economicEventRegionalProductWeight(world, productId, NOW, active.provinceId) > 1
+  ));
   assert.ok(affectedProductId);
   const otherProvinceId = PROVINCE_CATALOG.find((province) => province.id !== active.provinceId)?.id;
   assert.ok(otherProvinceId);
