@@ -13,6 +13,8 @@
   background: var(--color-surface-panel);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-panel);
+  -webkit-backdrop-filter: var(--frosted-glass-filter);
+  backdrop-filter: var(--frosted-glass-filter);
 }
 
 .economic-event-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
@@ -22,7 +24,7 @@
 .economic-event-dialog__art img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; }
 .economic-event-dialog__art::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to right, transparent 45%, var(--color-surface-panel) 100%); }
 .economic-event-dialog__scroll { min-height: 0; min-width: 0; width: 100%; height: 100%; }
-.economic-event-dialog__content { box-sizing: border-box; padding: var(--layout-gutter); overflow-wrap: anywhere; }
+.economic-event-dialog__content { box-sizing: border-box; padding: var(--layout-gutter); overflow-x: hidden; overflow-y: auto; overflow-wrap: anywhere; }
 .economic-event-dialog__copy { display: grid; gap: var(--space-4); min-width: 0; }
 .economic-event-dialog__copy p, .economic-event-dialog__copy dl { margin: 0; line-height: 1.65; }
 .economic-event-dialog__copy h2 { margin: 0 0 var(--space-2); font-size: var(--font-size-sm); }
