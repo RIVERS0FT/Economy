@@ -1,8 +1,8 @@
 name: Patch owner design docs
 
 on:
-  push:
-    branches: [feat/regional-events-public-projects]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
