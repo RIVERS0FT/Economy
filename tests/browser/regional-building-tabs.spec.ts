@@ -12,11 +12,11 @@ async function selectQuantity(page: Page, quantity: number) {
   await page.getByRole('option', { name: String(quantity), exact: true }).click();
   await expect(control).toContainText(String(quantity));
 }
-async function switchProvince(page: Page, provinceId: string) {
+async function switchProvince(page: Page, provinceId: string, expectedTab: string) {
   await page.evaluate((id) => {
     (window as unknown as { __setCommercialProvince: (value: string) => void }).__setCommercialProvince(id);
   }, provinceId);
-  await expect(tab(page, '概览')).toHaveAttribute('aria-selected', 'true');
+  await expect(tab(page, expectedTab)).toHaveAttribute('aria-selected', 'true');
 }
 
 for (const width of [320, 390, 720, 1440]) {
@@ -72,7 +72,7 @@ test('regional keyboard navigation includes both categories and retains tab sema
   await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'province-section-tab-overview');
 });
 
-test('regional construction drafts survive category and detail returns without crossing provinces', async ({ page }) => {
+test('regional construction drafts stay province-local while page tab memory follows province switches', async ({ page }) => {
   await openRegion(page);
   await tab(page, '商业').click();
   const type = page.getByRole('combobox', { name: '商业建筑类型', exact: true });
@@ -96,12 +96,11 @@ test('regional construction drafts survive category and detail returns without c
   await expect(tab(page, '商业')).toHaveAttribute('aria-selected', 'true');
   await expect(type).toContainText('生鲜超市');
   await expect(page.getByRole('combobox', { name: '建造数量', exact: true })).toContainText('5');
-  await switchProvince(page, '120000');
-  await tab(page, '商业').click();
+  await switchProvince(page, '120000', '商业');
   await expect(type).toContainText('便利店');
   await expect(page.getByRole('combobox', { name: '建造数量', exact: true })).toContainText('1');
   await expect(cards(page)).toHaveCount(1);
-  await switchProvince(page, '110000');
+  await switchProvince(page, '110000', '商业');
   await tab(page, '工业').click();
   await expect(page.getByRole('combobox', { name: '建造数量', exact: true })).toContainText('10');
   await tab(page, '商业').click();

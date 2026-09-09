@@ -32,6 +32,7 @@ import {
 } from '../contracts/types';
 import { ContractNegotiationSection } from '../contracts/ContractNegotiationSection';
 import { consumeContractMarketIntent } from '../contracts/navigation';
+import { usePageTabPreference } from '../hooks/usePageTabPreference';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
@@ -44,6 +45,7 @@ type PublishType = 'supply' | 'purchase' | 'lend' | 'borrow' | 'lease-out' | 'le
 type HistoryRole = 'any' | 'publisher' | 'buyer' | 'supplier' | 'lender' | 'borrower' | 'lessor' | 'lessee';
 type RunAction = (key: string, operation: () => Promise<{ result: { ok: boolean; message: string } }>) => Promise<void>;
 
+const CONTRACT_WORKSPACE_VIEWS: readonly ContractWorkspaceView[] = ['workbench', 'market', 'active', 'history'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STATUS_LABELS: Record<ProductionContractStatus, string> = {
   open: '等待承接', active: '履约中', completed: '已完成', cancelled: '已取消', terminated: '已终止', expired: '已过期',
@@ -533,7 +535,12 @@ function ContractPerformancePanel({ performance, error }: { performance: Contrac
 export function ContractWorkspacePage({ model }: { model: TutorialAwareGameViewModel }) {
   const state = productionContractStateFromGame(model.game);
   const intent = useMemo(() => consumeContractMarketIntent(), []);
-  const [workspaceView, setWorkspaceView] = useState<ContractWorkspaceView>(intent?.productId ? 'market' : 'workbench');
+  const [workspaceView, setWorkspaceView] = usePageTabPreference<ContractWorkspaceView>({
+    userId: model.user.id,
+    pageId: 'contracts',
+    allowed: CONTRACT_WORKSPACE_VIEWS,
+    fallback: 'workbench',
+  });
   const [showPublish, setShowPublish] = useState(false);
   const [republish, setRepublish] = useState<ContractAuditHistoryItem | null>(null);
   const [busyKey, setBusyKey] = useState('');
@@ -555,6 +562,10 @@ export function ContractWorkspacePage({ model }: { model: TutorialAwareGameViewM
   const [historyNextCursor, setHistoryNextCursor] = useState<string | null>(null);
   const [contractPerformance, setContractPerformance] = useState<ContractPerformanceSummary | null>(null);
   const [contractPerformanceError, setContractPerformanceError] = useState('');
+
+  useEffect(() => {
+    if (intent?.productId) setWorkspaceView('market');
+  }, [intent?.productId, setWorkspaceView]);
 
   const products = new Map(model.game.products.map((product) => [product.id, product.name]));
   const facilities = new Map(model.game.facilityTypes.map((facility) => [facility.id, facility.name]));
