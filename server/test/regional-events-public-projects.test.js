@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import {
   REGIONAL_ECONOMIC_EVENT_EPOCH_MS,
+  createEconomicCalendarClientState,
   economicEventRegionalProductWeight,
   processRegionalEconomicEvents,
 } from '../src/economic-events.js';
@@ -13,32 +14,61 @@ import {
 } from '../src/public-projects.js';
 import { inventoryForProvince, PROVINCE_CATALOG } from '../src/provinces.js';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const NOW = REGIONAL_ECONOMIC_EVENT_EPOCH_MS + 3 * DAY_MS + 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const NOW = REGIONAL_ECONOMIC_EVENT_EPOCH_MS + 3 * DAY_MS + HOUR_MS;
 
-function createPlayer() {
-  const world = createWorld(NOW);
+function createPlayer(now = NOW) {
+  const world = createWorld(now);
   const user = { id: 77_001, email: 'regional-project@example.com', name: '地区项目测试' };
-  const player = ensurePlayer(world, user, NOW);
+  const player = ensurePlayer(world, user, now);
   return { world, user, player };
 }
 
-test('地区动态事件持久化到市场需求状态，并只提高目标州对应商品权重', () => {
+test('地区动态事件按真实经营足迹选州并只提高目标州对应商品权重', () => {
   const { world, player } = createPlayer();
+  const footprintProvinceId = PROVINCE_CATALOG.find((province) => province.id !== player.startingProvinceId)?.id;
+  assert.ok(footprintProvinceId);
+  inventoryForProvince(player, 'wheat', footprintProvinceId).available = 5;
+
   const first = processRegionalEconomicEvents(world, NOW);
   const second = processRegionalEconomicEvents(world, NOW + 1);
   assert.equal(first, second);
   const active = first.events.find((event) => NOW >= event.startsAt && NOW < event.endsAt);
   assert.ok(active);
-  assert.equal(active.provinceId, player.startingProvinceId);
+  assert.equal(active.provinceId, footprintProvinceId);
   assert.ok(first.audit.some((entry) => entry.eventId === active.id && entry.action === 'created'));
-  const affectedProductId = ['paper', 'crude-oil', 'plastic'].find((productId) => (
-    economicEventRegionalProductWeight(world, productId, NOW, active.provinceId) > 1
-  ));
+  const affectedProductId = active.templateId === 'daily-restocking'
+    ? ['paper', 'crude-oil', 'plastic'].find((productId) => (
+      economicEventRegionalProductWeight(world, productId, NOW, active.provinceId) > 1
+    ))
+    : first.events.length > 0
+      ? active && Object.keys(world.marketDemand?.priceTransmission?.products || {}).find((productId) => (
+          economicEventRegionalProductWeight(world, productId, NOW, active.provinceId) > 1
+        ))
+      : null;
   assert.ok(affectedProductId);
   const otherProvinceId = PROVINCE_CATALOG.find((province) => province.id !== active.provinceId)?.id;
   assert.ok(otherProvinceId);
   assert.equal(economicEventRegionalProductWeight(world, affectedProductId, NOW, otherProvinceId), 1);
+});
+
+test('地区事件和公共项目可以预生成，但公告时间前不得进入玩家状态', () => {
+  const early = REGIONAL_ECONOMIC_EVENT_EPOCH_MS + DAY_MS + HOUR_MS;
+  const { world, user } = createPlayer(early);
+  const regional = processRegionalEconomicEvents(world, early);
+  const hiddenEvent = regional.events.find((event) => Number(event.announcedAt) > early);
+  assert.ok(hiddenEvent);
+
+  const projectState = processPublicProjects(world, early);
+  const hiddenProject = projectState.projects.find((project) => Number(project.announcedAt) > early);
+  assert.ok(hiddenProject);
+
+  const calendar = createEconomicCalendarClientState(early, world);
+  assert.equal(calendar.events.some((event) => event.id === hiddenEvent.id), false);
+  assert.equal(calendar.events.some((event) => event.id === `public-project-event:${hiddenProject.id}`), false);
+  const playerProjects = createPublicProjectClientState(world, user.id, early);
+  assert.equal(playerProjects.projects.some((project) => project.id === hiddenProject.id), false);
 });
 
 test('大型公共项目只扣目标州本地非冻结库存，并按最终贡献领取项目积分', () => {
