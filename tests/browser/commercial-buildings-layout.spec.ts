@@ -205,3 +205,17 @@ test('commercial empty state and long names remain usable at 320px', async ({ pa
   await assertNoOverflow(page);
   await expect(page.locator('.regional-entity-title__name')).toContainText('超长名称');
 });
+
+test('commercial construction explains shared research requirements and blocks locked types', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openCommerce(page, 'commercial-locked');
+  await expect(page.getByRole('button', { name: '立即建造便利店', exact: true })).toBeEnabled();
+  await page.getByRole('combobox', { name: '商业建筑类型' }).click();
+  await page.getByRole('option', { name: '餐厅 · 待研发', exact: true }).click();
+  await expect(page.getByRole('button', { name: '立即建造餐厅', exact: true })).toBeDisabled();
+  await expect(page.getByText('需要先完成「城市商业」研发', { exact: true })).toBeVisible();
+  await page.getByRole('combobox', { name: '商业建筑类型' }).click();
+  await page.getByRole('option', { name: '服装店 · 待研发', exact: true }).click();
+  await expect(page.getByRole('button', { name: '立即建造服装店', exact: true })).toBeDisabled();
+  await expect(page.getByText('需要先完成「城市商业」研发', { exact: true })).toBeVisible();
+});

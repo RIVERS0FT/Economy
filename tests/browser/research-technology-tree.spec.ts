@@ -40,14 +40,14 @@ test.describe('research technology tree', () => {
     expect(fixedPageOverflow.stackOnlyWorkspace).toBe(true);
     expect(fixedPageOverflow.stackScrollHeight).toBeLessThanOrEqual(fixedPageOverflow.stackClientHeight + 1);
     await expect(page.locator('.research-stage-node')).toHaveCount(0);
-    await expect(page.locator('.research-technology-node')).toHaveCount(32);
-    await expect(page.locator('.research-technology-node .research-facility-artwork')).toHaveCount(32);
-    await expect(page.locator('.research-technology-node .research-technology-node-name')).toHaveCount(32);
+    await expect(page.locator('.research-technology-node')).toHaveCount(18);
+    await expect(page.locator('.research-technology-node .research-facility-artwork')).toHaveCount(18);
+    await expect(page.locator('.research-technology-node .research-technology-node-name')).toHaveCount(18);
     await expect(page.locator('.research-technology-node-meta')).toHaveCount(0);
     await expect(page.locator('.research-technology-node-status')).toHaveCount(0);
     await expect(page.locator('.research-tree-heading')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: '技术树' })).toHaveCount(0);
-    await expect(page.getByText('32 项科技', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('18 项科技', { exact: true })).toHaveCount(0);
     const researchGeometry = await page.evaluate(() => {
       const action = document.querySelector<HTMLElement>('.research-action-panel')?.getBoundingClientRect();
       const fixedBody = document.querySelector<HTMLElement>('.page-card-static')?.getBoundingClientRect();
@@ -142,7 +142,7 @@ test.describe('research technology tree', () => {
   test('keeps node geometry stable on hover and selected dependency lines visible', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
-    const node = page.getByRole('button', { name: /工具作业，可研发，C2 作业科技/ });
+    const node = page.getByRole('button', { name: /工具与动力应用，可研发，C2 机械制造/ });
     const viewport = page.locator('.research-tree-viewport');
     const transformLayer = page.locator('.research-tree-transform-layer');
     await node.scrollIntoViewIfNeeded();
@@ -197,8 +197,8 @@ test.describe('research technology tree', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
     const viewport = page.locator('.research-tree-viewport');
-    const node = page.getByRole('button', { name: /工具作业，可研发，C2 作业科技/ });
-    const activeNode = page.getByRole('button', { name: /冶金技术，研发中/ });
+    const node = page.getByRole('button', { name: /工具与动力应用，可研发，C2 机械制造/ });
+    const activeNode = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
     const beforeWorld = await node.evaluate((element) => ({
       x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
       y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
@@ -265,23 +265,30 @@ test.describe('research technology tree', () => {
     expect(afterWorld).toEqual(beforeWorld);
   });
 
-  test('distinguishes operation research from production research', async ({ page }) => {
+  test('shows shared production methods and independent commercial unlocks', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    const toolOperation = page.getByRole('button', { name: /工具作业，可研发，C2 作业科技/ });
+    const toolOperation = page.getByRole('button', { name: /工具与动力应用，可研发，C2 机械制造/ });
     await toolOperation.click();
     const panel = page.locator('.research-action-panel');
-    await expect(panel).toContainText('工具作业');
-    await expect(panel).toContainText('作业科技');
-    await expect(panel).toContainText('解锁作业制度');
+    await expect(panel).toContainText('工具与动力应用');
+    await expect(panel).toContainText('机械制造');
+    await expect(panel).toContainText('解锁生产方式');
     await expect(panel).toContainText('工具');
     await expect(panel).not.toContainText('工具作坊');
 
-    const mechanicalEngineering = page.getByRole('button', { name: /机械工程，尚未开放，C5 生产科技/ });
+    const commerce = page.locator('[data-technology-id="urban-commerce"]');
+    await commerce.press('Enter');
+    await expect(panel).toContainText('商业经营');
+    await expect(panel).toContainText('解锁商业建筑');
+    await expect(panel).toContainText('餐厅');
+    await expect(panel).toContainText('服装店');
+
+    const mechanicalEngineering = page.getByRole('button', { name: /机械工程，尚未开放，C5 机械制造/ });
     await mechanicalEngineering.press('Enter');
-    await expect(panel).toContainText('生产科技');
-    await expect(panel).toContainText('解锁工厂');
+    await expect(panel).toContainText('机械制造');
+    await expect(panel).toContainText('解锁工业建筑');
     await expect(panel.getByLabel('机械厂可生产产物')).toContainText('机械');
   });
 
@@ -289,10 +296,10 @@ test.describe('research technology tree', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    const applianceNode = page.getByRole('button', { name: /家电工程，尚未开放/ });
+    const applianceNode = page.getByRole('button', { name: /机电集成，尚未开放/ });
     await applianceNode.press('Enter');
     await expect(applianceNode).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.research-action-panel')).toContainText('家电工程');
+    await expect(page.locator('.research-action-panel')).toContainText('机电集成');
     const beforeRefreshPosition = await applianceNode.evaluate((element) => ({
       x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
       y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
@@ -303,8 +310,8 @@ test.describe('research technology tree', () => {
     await assetsButton.click();
 
     await expect(applianceNode).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.research-action-panel')).toContainText('家电工程');
-    await expect(page.getByRole('button', { name: /冶金技术，研发中/ })).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('.research-action-panel')).toContainText('机电集成');
+    await expect(page.getByRole('button', { name: /冶金与金属加工，研发中/ })).toHaveAttribute('aria-pressed', 'false');
     const afterRefreshPosition = await applianceNode.evaluate((element) => ({
       x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
       y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
@@ -316,7 +323,7 @@ test.describe('research technology tree', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    await page.getByRole('button', { name: /家电工程，尚未开放/ }).press('Enter');
+    await page.getByRole('button', { name: /机电集成，尚未开放/ }).press('Enter');
     const panel = page.locator('.research-action-panel');
     await expect(panel).toContainText('研发投入');
     await expect(panel).toContainText('研发费用');
@@ -327,7 +334,7 @@ test.describe('research technology tree', () => {
     await expect(panel).not.toContainText('产业经营视角');
     await expect(panel).not.toContainText('就业资金已释放');
 
-    await page.getByRole('button', { name: /冶金技术，研发中/ }).press('Enter');
+    await page.getByRole('button', { name: /冶金与金属加工，研发中/ }).press('Enter');
     await expect(panel.getByRole('button', { name: '研发中 · 1 宝石加速 30m' })).toBeVisible();
     await expect(panel.locator('.research-gem-acceleration')).toHaveCount(0);
     await expect(panel).not.toContainText('使用后剩余');
@@ -410,9 +417,9 @@ test.describe('research technology tree', () => {
 
     await expect(page.locator('.research-action-panel')).toBeHidden();
     await expect(page.locator('.research-tree')).toBeVisible();
-    const activeNode = page.getByRole('button', { name: /冶金技术，研发中/ });
+    const activeNode = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
     await activeNode.click();
-    const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
+    const dialog = page.getByRole('dialog', { name: '冶金与金属加工研发新技术' });
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveClass(/mobile-detail-sheet/);
     const mobilePageStructure = await page.locator('.page-card-static > .ui-page-stack').evaluate((stack) => ({

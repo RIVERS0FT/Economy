@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
+import { CommercialBuildingArtwork } from '../components/commercial/CommercialBuildingArtwork';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { MobileDetailSummary } from '../components/ui/MobileDetailSummary';
@@ -42,6 +43,8 @@ function isMobileResearchLayout() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches;
 }
 
+const branchLabels = { agriculture: '农牧技术', materials: '材料化工', machinery: '机械制造', commerce: '商业经营' };
+
 const statusLabels: Record<ResearchNodeStatus, string> = {
   mastered: '已掌握',
   active: '研发中',
@@ -72,8 +75,8 @@ function statusFor(
   technologiesById: ReadonlyMap<string, ResearchTechnologyDefinition>,
   activeTechnologyId?: string,
 ): ResearchNodeStatus {
-  if (completed.has(technology.id)) return 'mastered';
   if (technology.id === activeTechnologyId) return 'active';
+  if (completed.has(technology.id)) return 'mastered';
   return missingPrerequisites(technology, completed, technologiesById).length === 0
     ? 'available'
     : 'locked';
@@ -118,7 +121,7 @@ function pseudoTechnologyForActive(
     durationMs: active.durationMs ?? Math.max(1, active.completesAt - active.startedAt),
     prerequisiteTechnologyIds: [],
     unlockFacilityTypeIds: [],
-    description: '从旧版整级研发迁移而来的阶段项目，完成后授予该阶段剩余科技。',
+    description: '保留已付费项目的原始投入与截止时间，完成后授予约定科技。',
     legacy: true,
   };
 }
@@ -155,7 +158,7 @@ function resolveResearchDetailPresentation({
   const accelerationMs = active?.gemAccelerationMs ?? RESEARCH_ACCELERATION_FALLBACK_MS;
   const accelerationCost = active?.gemAccelerationCost ?? RESEARCH_ACCELERATION_FALLBACK_COST;
   const progress = progressForResearchTechnology(technology, active, now, isMastered);
-  const actionLabel = isMastered
+  const actionLabel = isMastered && !isSelectedActive
     ? `已掌握「${technology.name}」`
     : isSelectedActive
       ? awaitingConfirmation ? '确认研发完成中…' : `研发中 · 剩余 ${formatDuration(remaining)}`
@@ -203,13 +206,12 @@ function ResearchDetailBody({
     completed,
     now: liveNow,
   });
-  const operationMethodEntries = technology.kind === 'operation'
-    ? model.game.facilityTypes.flatMap((facility) => (facility.productionMethodGroups ?? []).flatMap((group) => (
+  const commercialTypes = (model.game.commercialBuildingTypes ?? []).filter((type) => technology.unlockCommercialTypeIds?.includes(type.id));
+  const operationMethodEntries = model.game.facilityTypes.flatMap((facility) => (facility.productionMethodGroups ?? []).flatMap((group) => (
         group.methods
           .filter((method) => method.requiredTechnologyIds?.includes(technology.id))
           .map((method) => ({ facility, method }))
-      )))
-    : [];
+      )));
   const {
     active,
     status,
@@ -218,6 +220,9 @@ function ResearchDetailBody({
     awaitingConfirmation,
     progress,
   } = presentation;
+
+  const investmentCost = isSelectedActive && active ? active.cost : technology.cost;
+  const investmentDuration = isSelectedActive && active ? active.durationMs ?? technology.durationMs : technology.durationMs;
 
   return (
     <div className="research-detail-content">
@@ -229,13 +234,13 @@ function ResearchDetailBody({
       <MobileDetailSummary
         className="research-detail-summary"
         artworkClassName="research-detail-level-artwork"
-        artwork={technology.kind === 'operation' && technology.operationProductIds?.[0]
+        artwork={commercialTypes[0] ? <CommercialBuildingArtwork commercialTypeId={commercialTypes[0].id} /> : technology.operationProductIds?.[0]
           ? <ProductArtwork productId={technology.operationProductIds[0]} />
           : facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{technology.stage}</span>}
         title={<h3>{technology.name}</h3>}
         meta={
           <>
-            <StatusTag tone="neutral">{technology.kind === 'operation' ? '作业科技' : '生产科技'}</StatusTag>
+            <StatusTag tone="neutral">{technology.branch ? branchLabels[technology.branch] : '技术研发'}</StatusTag>
             <span className="research-detail-summary-status">
               <StatusTag tone={statusTones[status]}>{statusLabels[status]}</StatusTag>
             </span>
@@ -253,66 +258,64 @@ function ResearchDetailBody({
           <div className="research-investment-item">
             <span>研发费用</span>
             <strong>
-              {technology.cost === 0
+              {investmentCost === 0
                 ? '无需费用'
-                : <CurrencyAmount>{formatCurrency(technology.cost)}</CurrencyAmount>}
+                : <CurrencyAmount>{formatCurrency(investmentCost)}</CurrencyAmount>}
             </strong>
           </div>
           <div className="research-investment-item">
             <span>研发时间</span>
-            <strong>{technology.durationMs > 0 ? formatDuration(technology.durationMs) : '立即掌握'}</strong>
+            <strong>{investmentDuration > 0 ? formatDuration(investmentDuration) : '立即掌握'}</strong>
           </div>
         </div>
       </section>
 
-      <section
-        className="research-unlocks mobile-detail-section"
-        aria-labelledby={`research-unlocks-${technology.id}`}
-      >
-        <strong id={`research-unlocks-${technology.id}`}>
-          {technology.kind === 'operation' ? '解锁作业制度' : '解锁工厂'}
-        </strong>
-        {technology.kind === 'operation' ? (
-          operationMethodEntries.length > 0 ? (
-            <div className="research-unlock-list">
-              {operationMethodEntries.map(({ facility, method }) => (
-                <div className="research-unlock-item" key={`${facility.id}:${method.id}`}>
-                  <span className="research-unlock-artwork" aria-hidden="true">
-                    <FacilityIcon facilityTypeId={facility.id} />
-                  </span>
-                  <span className="research-unlock-copy">
-                    <strong>{facility.name}</strong>
-                    <small>{method.name}</small>
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : <p className="ui-helper-text">当前工厂目录尚未返回该作业科技对应的制度。</p>
-        ) : facilities.length > 0 ? (
+      <section className="research-unlocks mobile-detail-section" aria-labelledby={`research-unlocks-${technology.id}`}>
+        <strong id={`research-unlocks-${technology.id}`}>解锁内容</strong>
+        {facilities.length > 0 ? <>
+          <h4>解锁工业建筑</h4>
           <div className="research-unlock-list">
-            {facilities.map((facility) => {
-              const outputProductIds = outputProductIdsForFacility(facility);
-              return (
-                <div className="research-unlock-item" key={facility.id}>
-                  <span className="research-unlock-artwork" aria-hidden="true">
-                    <FacilityIcon facilityTypeId={facility.id} />
+            {facilities.map((facility) => (
+              <div className="research-unlock-item" key={facility.id}>
+                <span className="research-unlock-artwork" aria-hidden="true"><FacilityIcon facilityTypeId={facility.id} /></span>
+                <span className="research-unlock-copy">
+                  <strong>{facility.name}</strong>
+                  <span className="facility-build-output-list" aria-label={`${facility.name}可生产产物`}>
+                    {outputProductIdsForFacility(facility).map((productId) => (
+                      <span className="facility-build-output-item" key={productId}>
+                        <ProductArtwork productId={productId} />
+                        <span>{model.game.products.find((product) => product.id === productId)?.name ?? productId}</span>
+                      </span>
+                    ))}
                   </span>
-                  <span className="research-unlock-copy">
-                    <strong>{facility.name}</strong>
-                    <span className="facility-build-output-list" aria-label={`${facility.name}可生产产物`}>
-                      {outputProductIds.map((productId) => (
-                        <span className="facility-build-output-item" key={productId}>
-                          <ProductArtwork productId={productId} />
-                          <span>{model.game.products.find((product) => product.id === productId)?.name ?? productId}</span>
-                        </span>
-                      ))}
-                    </span>
-                  </span>
-                </div>
-              );
-            })}
+                </span>
+              </div>
+            ))}
           </div>
-        ) : <p className="ui-helper-text">该项目完成后授予阶段剩余科技，不直接对应单座工厂。</p>}
+        </> : null}
+        {operationMethodEntries.length > 0 ? <>
+          <h4>解锁生产方式</h4>
+          <div className="research-unlock-list">
+            {operationMethodEntries.map(({ facility, method }) => (
+              <div className="research-unlock-item" key={`${facility.id}:${method.id}`}>
+                <span className="research-unlock-artwork" aria-hidden="true"><FacilityIcon facilityTypeId={facility.id} /></span>
+                <span className="research-unlock-copy"><strong>{facility.name}</strong><small>{method.name}</small></span>
+              </div>
+            ))}
+          </div>
+        </> : null}
+        {commercialTypes.length > 0 ? <>
+          <h4>解锁商业建筑</h4>
+          <div className="research-unlock-list">
+            {commercialTypes.map((type) => (
+              <div className="research-unlock-item" key={type.id}>
+                <span className="research-unlock-artwork" aria-hidden="true"><CommercialBuildingArtwork commercialTypeId={type.id} /></span>
+                <span className="research-unlock-copy"><strong>{type.name}</strong><small>{type.description}</small></span>
+              </div>
+            ))}
+          </div>
+        </> : null}
+        {technology.legacy ? <p className="ui-helper-text">完成后授予原任务约定的科技。</p> : null}
       </section>
 
       {isSelectedActive && active ? (
@@ -530,7 +533,7 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
     <>
       <PageLayout
         title="研发"
-        description="按产业链选择科技节点；C1–C7 仅表示产业阶段，工厂准入由具体科技决定。"
+        description="按技术领域选择科技；C1–C7 表示知识阶段，科技可解锁多种建筑与生产方式。"
         scrollable={false}
       >
         <div className="research-workspace">
@@ -578,7 +581,8 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                   const facility = technology.unlockFacilityTypeIds
                     .map((facilityTypeId) => facilitiesById.get(facilityTypeId))
                     .find(Boolean);
-                  const operationProductId = technology.kind === 'operation' ? technology.operationProductIds?.[0] : undefined;
+                  const operationProductId = technology.operationProductIds?.[0];
+                  const commercialTypeId = technology.unlockCommercialTypeIds?.[0];
                   const isAncestor = researchTreeFocus.ancestorIds.has(technology.id);
                   const isDirectChild = researchTreeFocus.directChildIds.has(technology.id);
                   const nodeStyle = {
@@ -602,11 +606,11 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                       style={nodeStyle}
                       key={technology.id}
                       aria-pressed={isSelected}
-                      aria-label={`${technology.name}，${statusLabels[status]}，${technology.stage} ${technology.kind === 'operation' ? '作业科技' : '生产科技'}`}
+                      aria-label={`${technology.name}，${statusLabels[status]}，${technology.stage} ${technology.branch ? branchLabels[technology.branch] : '技术研发'}`}
                       onClick={(event) => selectTechnology(technology.id, event.currentTarget)}
                     >
                       <span className="research-facility-artwork" aria-hidden="true">
-                        {operationProductId
+                        {commercialTypeId ? <CommercialBuildingArtwork commercialTypeId={commercialTypeId} /> : operationProductId
                           ? <ProductArtwork productId={operationProductId} />
                           : facility ? <FacilityIcon facilityTypeId={facility.id} /> : <span>{technology.stage}</span>}
                       </span>

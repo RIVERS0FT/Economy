@@ -171,7 +171,7 @@ test('legacy method IDs migrate to equivalent special methods without resetting 
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   migrateResearchWorld(world, now);
-  player.research.completedTechnologyIds.push('tool-manufacturing', 'tool-operation');
+  player.research.completedTechnologyIds.push('metallurgical-engineering', 'powered-production');
   player.facilityGroups = [
     {
       facilityTypeId: 'mine', count: 1, participatingCount: 1, enabled: true,
@@ -201,7 +201,7 @@ test('whole-good inputs still fail atomically when a cycle input is unavailable'
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   migrateResearchWorld(world, now);
-  player.research.completedTechnologyIds.push('fertilizer-engineering', 'fertilizer-application');
+  player.research.completedTechnologyIds.push('chemical-engineering', 'applied-chemistry');
   player.credits = 100;
   player.inventories.fertilizer.available = 2;
   player.facilityGroups = [{

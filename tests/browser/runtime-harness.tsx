@@ -1,3 +1,6 @@
+import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../../server/src/industry-catalog.js';
+import { COMMERCIAL_BUILDING_TYPE_CATALOG } from '../../server/src/commercial-catalog.js';
+import { RESEARCH_LEVEL_CATALOG, RESEARCH_TECHNOLOGY_CATALOG } from '../../server/src/research-catalog.js';
 import { useOperationNotifications } from '../../src/hooks/useOperationNotifications';
 import { installIdempotentGameWriteFetch } from '../../src/api/idempotentGameWriteFetch';
 import { TutorialProgressHarness } from './TutorialProgressHarness';
@@ -907,503 +910,28 @@ function ResearchHarness() {
   const [tab, setTab] = useState<TabId>('research');
   const model = useMemo(() => {
     const next = buildOverviewModel(tab, setTab);
-    const baseType = next.game.facilityTypes[0];
-    const facilityCatalog = [
-      { id: 'farm', name: '农场', complexity: 'C1' },
-      { id: 'orchard', name: '果园', complexity: 'C1' },
-      { id: 'mine', name: '矿场', complexity: 'C2' },
-      { id: 'sawmill', name: '锯木厂', complexity: 'C2' },
-      { id: 'steelworks', name: '冶炼厂', complexity: 'C3' },
-      { id: 'food-factory', name: '食品厂', complexity: 'C3' },
-      { id: 'refinery', name: '炼油厂', complexity: 'C4' },
-      { id: 'machine-factory', name: '机械厂', complexity: 'C5' },
-      { id: 'electronics-factory', name: '电子厂', complexity: 'C6' },
-      { id: 'appliance-factory', name: '家电厂', complexity: 'C7' },
-    ] as const;
-    next.game.facilityTypes = facilityCatalog.map((facility) => ({
-      ...baseType,
-      ...facility,
-    }));
-    next.game.researchLevels = [
-      {
-            "id": "C1",
-            "rank": 1,
-            "cost": 0,
-            "durationMs": 0
-      },
-      {
-            "id": "C2",
-            "rank": 2,
-            "cost": 2100,
-            "durationMs": 1740000
-      },
-      {
-            "id": "C3",
-            "rank": 3,
-            "cost": 3100,
-            "durationMs": 5280000
-      },
-      {
-            "id": "C4",
-            "rank": 4,
-            "cost": 6800,
-            "durationMs": 15000000
-      },
-      {
-            "id": "C5",
-            "rank": 5,
-            "cost": 4400,
-            "durationMs": 9900000
-      },
-      {
-            "id": "C6",
-            "rank": 6,
-            "cost": 4500,
-            "durationMs": 11700000
-      },
-      {
-            "id": "C7",
-            "rank": 7,
-            "cost": 7000,
-            "durationMs": 18900000
-      }
-];
-    Object.assign(next.game, { researchTechnologies: [
-      {
-            "id": "basic-crops",
-            "name": "基础种植",
-            "stage": "C1",
-            "rank": 1,
-            "cost": 0,
-            "durationMs": 0,
-            "initial": true,
-            "prerequisiteTechnologyIds": [],
-            "unlockFacilityTypeIds": [
-                  "farm",
-                  "orchard"
-            ],
-            "description": "掌握基础农作物与果树种植。"
-      },
-      {
-            "id": "basic-livestock",
-            "name": "基础养殖",
-            "stage": "C1",
-            "rank": 1,
-            "cost": 0,
-            "durationMs": 0,
-            "initial": true,
-            "prerequisiteTechnologyIds": [],
-            "unlockFacilityTypeIds": [
-                  "ranch",
-                  "fishery"
-            ],
-            "description": "掌握基础畜牧与渔业生产。"
-      },
-      {
-            "id": "forestry-development",
-            "name": "林业开发",
-            "stage": "C2",
-            "rank": 2,
-            "cost": 300,
-            "durationMs": 240000,
-            "prerequisiteTechnologyIds": [
-                  "basic-crops"
-            ],
-            "unlockFacilityTypeIds": [
-                  "logging-camp"
-            ],
-            "description": "建立规模化木材采伐能力。"
-      },
-      {
-            "id": "mineral-exploration",
-            "name": "矿产勘探",
-            "stage": "C2",
-            "rank": 2,
-            "cost": 350,
-            "durationMs": 300000,
-            "prerequisiteTechnologyIds": [
-                  "basic-crops"
-            ],
-            "unlockFacilityTypeIds": [
-                  "mine"
-            ],
-            "description": "建立铁矿与铜矿勘探开采能力。"
-      },
-      {
-            "id": "petroleum-exploration",
-            "name": "石油勘探",
-            "stage": "C2",
-            "rank": 2,
-            "cost": 400,
-            "durationMs": 360000,
-            "prerequisiteTechnologyIds": [
-                  "basic-crops"
-            ],
-            "unlockFacilityTypeIds": [
-                  "oil-field"
-            ],
-            "description": "建立原油勘探与开采能力。"
-      },
-      {
-            "id": "grain-processing",
-            "name": "粮食加工",
-            "stage": "C2",
-            "rank": 2,
-            "cost": 300,
-            "durationMs": 180000,
-            "prerequisiteTechnologyIds": [
-                  "basic-crops"
-            ],
-            "unlockFacilityTypeIds": [
-                  "mill"
-            ],
-            "description": "掌握粮食与糖料初级加工。"
-      },
-      {
-            "id": "wood-processing",
-            "name": "木材加工",
-            "stage": "C2",
-            "rank": 2,
-            "cost": 400,
-            "durationMs": 360000,
-            "prerequisiteTechnologyIds": [
-                  "forestry-development"
-            ],
-            "unlockFacilityTypeIds": [
-                  "sawmill"
-            ],
-            "description": "将原木加工为标准木板。"
-      },
-      {
-            "id": "feed-processing",
-            "name": "饲料加工",
-            "stage": "C2",
-            "rank": 2,
-            "cost": 350,
-            "durationMs": 300000,
-            "prerequisiteTechnologyIds": [
-                  "basic-crops"
-            ],
-            "unlockFacilityTypeIds": [
-                  "feed-factory"
-            ],
-            "description": "生产标准化配合饲料。"
-      },
-      {
-            "id": "tool-operation",
-            "name": "工具作业",
-            "stage": "C2",
-            "rank": 2,
-            "cost": 300,
-            "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["basic-crops"],
-            "unlockFacilityTypeIds": [],
-            "kind": "operation",
-            "operationProductIds": ["tools"],
-            "description": "掌握使用工业工具的作业能力，不提供工具制造能力。"
-      },
-      {
-            "id": "feed-husbandry",
-            "name": "饲料饲养",
-            "stage": "C2",
-            "rank": 2,
-            "cost": 200,
-            "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["basic-livestock"],
-            "unlockFacilityTypeIds": [],
-            "kind": "operation",
-            "operationProductIds": ["feed"],
-            "description": "掌握使用配合饲料的作业能力，不提供饲料生产能力。"
-      },
-      {
-            "id": "pulp-technology",
-            "name": "制浆技术",
-            "stage": "C3",
-            "rank": 3,
-            "cost": 550,
-            "durationMs": 900000,
-            "prerequisiteTechnologyIds": [
-                  "forestry-development"
-            ],
-            "unlockFacilityTypeIds": [
-                  "pulp-mill"
-            ],
-            "description": "将木材转化为工业纸浆。"
-      },
-      {
-            "id": "metallurgy",
-            "name": "冶金技术",
-            "stage": "C3",
-            "rank": 3,
-            "cost": 700,
-            "durationMs": 1200000,
-            "prerequisiteTechnologyIds": [
-                  "mineral-exploration"
-            ],
-            "unlockFacilityTypeIds": [
-                  "steelworks"
-            ],
-            "description": "冶炼钢材与铜材。"
-      },
-      {
-            "id": "textile-technology",
-            "name": "纺织技术",
-            "stage": "C3",
-            "rank": 3,
-            "cost": 600,
-            "durationMs": 1080000,
-            "prerequisiteTechnologyIds": [
-                  "grain-processing",
-                  "basic-livestock"
-            ],
-            "unlockFacilityTypeIds": [
-                  "textile-mill"
-            ],
-            "description": "建立棉纺与毛纺生产体系。"
-      },
-      {
-            "id": "food-industry",
-            "name": "食品工业",
-            "stage": "C3",
-            "rank": 3,
-            "cost": 550,
-            "durationMs": 900000,
-            "prerequisiteTechnologyIds": [
-                  "grain-processing"
-            ],
-            "unlockFacilityTypeIds": [
-                  "food-factory"
-            ],
-            "description": "建立规模化食品与预制餐生产。"
-      },
-      {
-            "id": "papermaking",
-            "name": "造纸技术",
-            "stage": "C3",
-            "rank": 3,
-            "cost": 700,
-            "durationMs": 1200000,
-            "prerequisiteTechnologyIds": [
-                  "pulp-technology"
-            ],
-            "unlockFacilityTypeIds": [
-                  "paper-mill"
-            ],
-            "description": "将纸浆加工为终端纸品。"
-      },
-      {
-            "id": "fertilizer-application", "name": "化肥施用", "stage": "C3", "rank": 3, "cost": 400, "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["basic-crops"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["fertilizer"], "description": "掌握化肥施用能力。"
-      },
-      {
-            "id": "veterinary-application", "name": "药剂精养", "stage": "C3", "rank": 3, "cost": 450, "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["feed-husbandry"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["veterinary-medicine"], "description": "掌握养殖药剂使用能力。"
-      },
-      {
-            "id": "industrial-fuel-operation", "name": "工业动力作业", "stage": "C3", "rank": 3, "cost": 450, "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["industrial-fuel"], "description": "掌握工业动力作业能力。"
-      },
-      {
-            "id": "industrial-chemical-operation", "name": "工业化学作业", "stage": "C3", "rank": 3, "cost": 500, "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["industrial-chemicals"], "description": "掌握化工作业能力。"
-      },
-      {
-            "id": "oil-refining",
-            "name": "石油炼化",
-            "stage": "C4",
-            "rank": 4,
-            "cost": 950,
-            "durationMs": 1800000,
-            "prerequisiteTechnologyIds": [
-                  "petroleum-exploration"
-            ],
-            "unlockFacilityTypeIds": [
-                  "refinery"
-            ],
-            "description": "从原油生产塑料等基础化工材料。"
-      },
-      {
-            "id": "fertilizer-engineering",
-            "name": "化肥工程",
-            "stage": "C4",
-            "rank": 4,
-            "cost": 1000,
-            "durationMs": 2100000,
-            "prerequisiteTechnologyIds": [
-                  "oil-refining"
-            ],
-            "unlockFacilityTypeIds": [
-                  "fertilizer-factory"
-            ],
-            "description": "建立工业化肥生产能力。"
-      },
-      {
-            "id": "veterinary-medicine",
-            "name": "养殖药剂",
-            "stage": "C4",
-            "rank": 4,
-            "cost": 1250,
-            "durationMs": 2700000,
-            "prerequisiteTechnologyIds": [
-                  "feed-processing",
-                  "fertilizer-engineering"
-            ],
-            "unlockFacilityTypeIds": [
-                  "veterinary-medicine-factory"
-            ],
-            "description": "生产专业养殖药剂。"
-      },
-      {
-            "id": "beverage-industry",
-            "name": "饮料工业",
-            "stage": "C4",
-            "rank": 4,
-            "cost": 850,
-            "durationMs": 1800000,
-            "prerequisiteTechnologyIds": [
-                  "grain-processing",
-                  "basic-livestock"
-            ],
-            "unlockFacilityTypeIds": [
-                  "beverage-factory"
-            ],
-            "description": "建立乳制与果汁饮料生产线。"
-      },
-      {
-            "id": "furniture-manufacturing",
-            "name": "家具制造",
-            "stage": "C4",
-            "rank": 4,
-            "cost": 800,
-            "durationMs": 1800000,
-            "prerequisiteTechnologyIds": [
-                  "wood-processing"
-            ],
-            "unlockFacilityTypeIds": [
-                  "furniture-factory"
-            ],
-            "description": "将标准木板加工为家具。"
-      },
-      {
-            "id": "garment-manufacturing",
-            "name": "成衣制造",
-            "stage": "C4",
-            "rank": 4,
-            "cost": 900,
-            "durationMs": 2100000,
-            "prerequisiteTechnologyIds": [
-                  "textile-technology"
-            ],
-            "unlockFacilityTypeIds": [
-                  "garment-factory"
-            ],
-            "description": "将纺织品加工为成衣。"
-      },
-      {
-            "id": "tool-manufacturing",
-            "name": "工具制造",
-            "stage": "C4",
-            "rank": 4,
-            "cost": 1050,
-            "durationMs": 2700000,
-            "prerequisiteTechnologyIds": [
-                  "metallurgy",
-                  "wood-processing"
-            ],
-            "unlockFacilityTypeIds": [
-                  "tool-workshop"
-            ],
-            "description": "生产工业工具并奠定机械工业基础。"
-      },
-      {
-            "id": "machinery-operation", "name": "机械化作业", "stage": "C4", "rank": 4, "cost": 700, "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["machinery"], "description": "掌握机械化作业能力。"
-      },
-      {
-            "id": "tractor-operation", "name": "拖拉机作业", "stage": "C4", "rank": 4, "cost": 800, "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["machinery-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["tractor"], "description": "掌握拖拉机农业作业能力。"
-      },
-      {
-            "id": "mechanical-engineering",
-            "name": "机械工程",
-            "stage": "C5",
-            "rank": 5,
-            "cost": 2500,
-            "durationMs": 5400000,
-            "prerequisiteTechnologyIds": [
-                  "tool-manufacturing",
-                  "metallurgy"
-            ],
-            "unlockFacilityTypeIds": [
-                  "machine-factory"
-            ],
-            "description": "建立通用机械制造体系。"
-      },
-      {
-            "id": "agricultural-machinery",
-            "name": "农业机械",
-            "stage": "C5",
-            "rank": 5,
-            "cost": 1900,
-            "durationMs": 4500000,
-            "prerequisiteTechnologyIds": [
-                  "mechanical-engineering",
-                  "fertilizer-engineering"
-            ],
-            "unlockFacilityTypeIds": [
-                  "tractor-factory"
-            ],
-            "description": "将机械工程应用于拖拉机制造。"
-      },
-      {
-            "id": "electronics-engineering",
-            "name": "电子工程",
-            "stage": "C6",
-            "rank": 6,
-            "cost": 4500,
-            "durationMs": 11700000,
-            "prerequisiteTechnologyIds": [
-                  "mechanical-engineering",
-                  "oil-refining",
-                  "metallurgy"
-            ],
-            "unlockFacilityTypeIds": [
-                  "electronics-factory"
-            ],
-            "description": "建立电子元件与电子产品制造体系。"
-      },
-      {
-            "id": "appliance-engineering",
-            "name": "家电工程",
-            "stage": "C7",
-            "rank": 7,
-            "cost": 7000,
-            "durationMs": 18900000,
-            "prerequisiteTechnologyIds": [
-                  "electronics-engineering",
-                  "mechanical-engineering"
-            ],
-            "unlockFacilityTypeIds": [
-                  "appliance-factory"
-            ],
-            "description": "综合机械与电子技术生产家电。"
-      }
-] });
+    Object.assign(next.game, {
+      facilityTypes: structuredClone(FACILITY_TYPE_CATALOG),
+      products: structuredClone(PRODUCT_CATALOG),
+      commercialBuildingTypes: structuredClone(COMMERCIAL_BUILDING_TYPE_CATALOG),
+      researchLevels: structuredClone(RESEARCH_LEVEL_CATALOG),
+      researchTechnologies: structuredClone(RESEARCH_TECHNOLOGY_CATALOG),
+    });
     next.game.credits = 5_000;
     next.game.gems = 4;
     next.game.research = scenario === 'research-active'
       ? {
           unlockedComplexity: 'C1',
-          completedTechnologyIds: ['basic-crops', 'basic-livestock', 'mineral-exploration'],
+          completedTechnologyIds: ['basic-crops', 'basic-livestock', 'basic-commerce', 'resource-survey'],
           completedAtByTechnologyId: {
             'basic-crops': fixedNow - 60_000,
             'basic-livestock': fixedNow - 60_000,
-            'mineral-exploration': fixedNow - 60_000,
+            'resource-survey': fixedNow - 60_000,
           },
           completedAt: fixedNow - 60_000,
           active: {
-            technologyId: 'metallurgy',
-            technologyName: '冶金技术',
+            technologyId: 'metallurgical-engineering',
+            technologyName: '冶金与金属加工',
             targetComplexity: 'C3',
             startedAt: fixedNow - 5 * 60_000,
             completesAt: fixedNow + 15 * 60_000,
@@ -1417,17 +945,11 @@ function ResearchHarness() {
       : scenario === 'research-accelerated'
         ? {
             unlockedComplexity: 'C4',
-            completedTechnologyIds: [
-              'basic-crops', 'basic-livestock', 'forestry-development', 'mineral-exploration',
-              'petroleum-exploration', 'grain-processing', 'wood-processing', 'feed-processing',
-              'pulp-technology', 'metallurgy', 'textile-technology', 'food-industry', 'papermaking',
-              'oil-refining', 'fertilizer-engineering', 'veterinary-medicine', 'beverage-industry',
-              'furniture-manufacturing', 'garment-manufacturing', 'tool-manufacturing',
-            ],
+            completedTechnologyIds: RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.rank <= 4).map((technology) => technology.id),
             completedAtByTechnologyId: {},
             completedAt: fixedNow - 60_000,
             active: {
-              technologyId: 'mechanical-engineering',
+              technologyId: 'machine-engineering',
               technologyName: '机械工程',
               targetComplexity: 'C5',
               startedAt: fixedNow - 60 * 60_000,
@@ -1441,7 +963,7 @@ function ResearchHarness() {
           }
         : {
             unlockedComplexity: 'C1',
-            completedTechnologyIds: ['basic-crops', 'basic-livestock'],
+            completedTechnologyIds: ['basic-crops', 'basic-livestock', 'basic-commerce'],
             completedAtByTechnologyId: {},
             completedAt: fixedNow - 60_000,
             active: null,
@@ -1879,6 +1401,9 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     stopFacilityGroup: async () => ({ ok: true, message: '测试停工' }),
     setFacilityRecipes: async () => ({ ok: true, message: '测试配置' }),
     game: { ...base.game, credits: 10_000, lastProcessedAt: fixtureNow, commercialBuildingTypes: scenario === 'missing-commercial-catalog' ? [] : types,
+      researchTechnologies: structuredClone(RESEARCH_TECHNOLOGY_CATALOG),
+      research: { catalogVersion: 2, unlockedComplexity: 'C1', completedAt: null, active: null,
+        completedTechnologyIds: RESEARCH_TECHNOLOGY_CATALOG.filter((t) => scenario !== 'commercial-locked' || t.initial).map((t) => t.id) },
       commercialBuildingGroups: groups, products, markets, provinceMarkets: { '110000': markets, '120000': markets },
       facilityGroups: provinceFacilityGroups[provinceId as keyof typeof provinceFacilityGroups] ?? [], provinceFacilityGroups,
       inventories: provinceInventories[provinceId as keyof typeof provinceInventories] ?? {}, provinceInventories,

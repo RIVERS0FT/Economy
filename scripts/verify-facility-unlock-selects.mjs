@@ -25,26 +25,25 @@ const facilityTypes = [
 ];
 const researchTechnologies = [
   { id: 'basic-crops', unlockFacilityTypeIds: ['farm'] },
-  { id: 'mineral-exploration', unlockFacilityTypeIds: ['mine'] },
-  { id: 'forestry-development', unlockFacilityTypeIds: ['logging-camp'] },
-  { id: 'metallurgy', unlockFacilityTypeIds: ['steelworks'] },
+  { id: 'resource-survey', unlockFacilityTypeIds: ['mine', 'logging-camp'] },
+  { id: 'metallurgical-engineering', unlockFacilityTypeIds: ['steelworks'] },
 ];
 const nodeResearchGame = {
   facilityTypes,
   researchTechnologies,
   research: {
     unlockedComplexity: 'C1',
-    completedTechnologyIds: ['basic-crops', 'mineral-exploration'],
+    completedTechnologyIds: ['basic-crops', 'resource-survey'],
   },
 };
 assert.deepEqual(
   getUnlockedFacilityTypes(nodeResearchGame).map((facility) => facility.id),
-  ['farm', 'mine'],
+  ['farm', 'mine', 'logging-camp'],
   'node research must unlock only facilities owned by completed technology nodes while preserving catalog order',
 );
 assert.deepEqual(
   [...getUnlockedFacilityTypeIds(nodeResearchGame)],
-  ['farm', 'mine'],
+  ['farm', 'mine', 'logging-camp'],
   'completed technology nodes must be the modern unlock source instead of whole-stage complexity',
 );
 

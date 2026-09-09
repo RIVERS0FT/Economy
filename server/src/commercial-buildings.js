@@ -5,6 +5,7 @@ import { commercialExpansionStaffingRate, commercialStaffingCapacity, hasCommerc
 import { normalizeCommercialAutoOperationPolicy } from '../../shared/commercial-auto-operation.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import { PRODUCT_CATALOG } from './product-catalog.js';
+import { validateCommercialResearchAccess } from './research.js';
 import {
   DEFAULT_PROVINCE_ID,
   PROVINCE_CATALOG,
@@ -312,6 +313,8 @@ function buildCommercialBuilding(world, userId, payload, now) {
   if (!type) return result(false, '商业建筑类型不存在');
   const quantity = normalizePositiveInteger(payload.quantity, MAX_BUILD_QUANTITY);
   if (!quantity) return result(false, `建造数量必须为 1 到 ${MAX_BUILD_QUANTITY} 的整数`);
+  const researchLocked = validateCommercialResearchAccess(world, player, type.id, now);
+  if (researchLocked) return researchLocked;
   const provinceId = normalizeProvinceId(payload.provinceId);
   const existingGroup = groupFor(player, type.id, provinceId, false, now);
   const firstBuild = !existingGroup || existingGroup.count < 1;
@@ -350,6 +353,8 @@ function startCommercialBuilding(world, userId, payload, now) {
   const type = typeFor(payload.commercialTypeId);
   const group = player && type ? groupFor(player, type.id, payload.provinceId, false, now) : null;
   if (!player || !type || !group || group.count < 1) return result(false, '商业建筑集群不存在');
+  const researchLocked = validateCommercialResearchAccess(world, player, type.id, now);
+  if (researchLocked) return researchLocked;
   processGroup(world, player, group, now);
   if (!group.enabled) commitCommercialStaffing(group, now);
   group.enabled = true;
