@@ -56,7 +56,7 @@ assert.ok(economicEvents.includes('Number(event.announcedAt) <= normalizedNow'),
 assert.ok(!read('src/pages/MarketPage.tsx').includes('公开经济事件'), 'market page must not own the economic event log');
 
 for (const token of [
-  '/api/game/public-projects/',
+  'public-projects',
   'contributePublicProject',
   'claimPublicProjectReward',
 ]) assert.ok(routes.includes(token) || read('server/src/player-action-registry.js').includes(token), `public project action contract missing ${token}`);
