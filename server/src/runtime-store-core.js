@@ -31,6 +31,7 @@ import { executeRuntimeAction } from './runtime-action-executor.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createEconomicCalendarClientState } from './economic-events.js';
 import { processMarketReserveOperations } from './market-reserve-operations.js';
+import { createPublicProjectClientState } from './public-projects.js';
 import { flushAuctionAuditEvents } from './auction-audit-store.js';
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import { createStatePartitionSnapshot } from './state-partitions.js';
@@ -175,6 +176,13 @@ function filterStateForCurrentSave(state, world, userId) {
 function anyDueDomain(domains, candidates) {
   for (const domain of domains) if (candidates.has(domain)) return true;
   return false;
+}
+
+function createEconomicCalendarState(world, userId, now) {
+  return {
+    ...createEconomicCalendarClientState(now, world),
+    publicProjects: createPublicProjectClientState(world, Number(userId), now),
+  };
 }
 
 // Runtime policy mutations intentionally bypass the legacy population-policy audit table.
@@ -379,7 +387,7 @@ export class EconomyStore extends PersistentEconomyStore {
         const state = filterStateForCurrentSave({
           ...createStablePartitionClientState(baseState),
           ...contractState,
-          economicCalendar: createEconomicCalendarClientState(now),
+          economicCalendar: createEconomicCalendarState(world, Number(user.id), now),
         }, world, Number(user.id));
         const partitionSnapshot = this.createClientPartitionSnapshot(state);
         return this.rememberStateProjection(user.id, currentRevision, {
@@ -407,11 +415,14 @@ export class EconomyStore extends PersistentEconomyStore {
         ));
       }, { immediate: false });
 
+    const stateWorld = cached?.world ?? this.worldCache?.world;
     const state = filterStateForCurrentSave({
       ...createStablePartitionClientState(snapshot.state),
       ...contractState,
-      economicCalendar: createEconomicCalendarClientState(now),
-    }, this.worldCache?.world, Number(user.id));
+      economicCalendar: stateWorld
+        ? createEconomicCalendarState(stateWorld, Number(user.id), now)
+        : createEconomicCalendarClientState(now),
+    }, stateWorld, Number(user.id));
     const partitionSnapshot = this.createClientPartitionSnapshot(state);
     return this.rememberStateProjection(user.id, snapshot.revision, {
       ...snapshot,
