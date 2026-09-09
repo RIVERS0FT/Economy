@@ -1,0 +1,21 @@
+name: Export design docs
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economy-design-docs
+          retention-days: 1
+          path: |
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
