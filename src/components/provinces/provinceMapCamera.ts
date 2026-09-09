@@ -8,10 +8,7 @@ const INPUT_SETTLE_MS = 90;
 const MOBILE_BLANK_DOUBLE_TAP_MS = 360;
 const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28;
 const MULTITOUCH_TAP_SUPPRESS_MS = 420;
-const MAINLAND_PAN_EDGE_INSET = 12;
-const MAINLAND_MIN_AREA_RATIO = 2 / 3;
-const MAINLAND_CONTEXT_EXPAND_X = 0.35;
-const MAINLAND_CONTEXT_EXPAND_Y = 0.25;
+const MAINLAND_VIEWPORT_FRACTION = 0.5;
 const MIN_ZOOM_EPSILON = 1e-5;
 
 interface CameraState {
@@ -107,24 +104,13 @@ function baseViewSize(
   focusWidth: number,
   focusHeight: number,
 ) {
-  const aspect = viewportWidth / Math.max(1, viewportHeight);
   const focusArea = focusWidth * focusHeight;
-  const targetViewArea = focusArea / MAINLAND_MIN_AREA_RATIO;
-  let width = Math.sqrt(targetViewArea * aspect);
-  let height = width / aspect;
-
-  const availableWidth = Math.max(1, viewportWidth - MAINLAND_PAN_EDGE_INSET * 2);
-  const availableHeight = Math.max(1, viewportHeight - MAINLAND_PAN_EDGE_INSET * 2);
-  const fitScale = Math.min(availableWidth / focusWidth, availableHeight / focusHeight);
-  if (fitScale > 0 && Number.isFinite(fitScale)) {
-    const fitWidth = viewportWidth / fitScale;
-    const fitHeight = viewportHeight / fitScale;
-    if (width < fitWidth || height < fitHeight) {
-      const factor = Math.max(fitWidth / width, fitHeight / height);
-      width *= factor;
-      height *= factor;
-    }
-  }
+  const fitScale = Math.min(
+    viewportWidth * MAINLAND_VIEWPORT_FRACTION / focusWidth,
+    viewportHeight * MAINLAND_VIEWPORT_FRACTION / focusHeight,
+  );
+  const width = viewportWidth / fitScale;
+  const height = viewportHeight / fitScale;
 
   return {
     width,
@@ -229,10 +215,7 @@ export function createProvinceMapCamera(
   container.dataset.mapCameraBoundaryMode = options.focusBounds ? 'fixed-world-bounds' : 'source-viewbox';
   container.dataset.mapPanBoundary = options.focusBounds ? 'fixed-world-context' : 'source-viewbox';
   container.dataset.mapPanClampMode = options.focusBounds ? 'fixed-world-viewbox' : 'none';
-  container.dataset.mapPanEdgeInset = String(MAINLAND_PAN_EDGE_INSET);
-  container.dataset.mapFocusAreaTarget = MAINLAND_MIN_AREA_RATIO.toFixed(6);
-  container.dataset.mapContextExpandX = MAINLAND_CONTEXT_EXPAND_X.toFixed(2);
-  container.dataset.mapContextExpandY = MAINLAND_CONTEXT_EXPAND_Y.toFixed(2);
+  container.dataset.mapFocusViewportFraction = String(MAINLAND_VIEWPORT_FRACTION);
 
   const readMetrics = () => {
     if (metrics) return metrics;
@@ -266,8 +249,6 @@ export function createProvinceMapCamera(
     const base = baseViewSize(viewportWidth, viewportHeight, focusWidth, focusHeight);
     const baseCenterX = (options.focusBounds.minX + options.focusBounds.maxX) / 2;
     const baseCenterY = (options.focusBounds.minY + options.focusBounds.maxY) / 2;
-    const worldWidth = Math.max(focusWidth * (1 + MAINLAND_CONTEXT_EXPAND_X * 2), base.width);
-    const worldHeight = Math.max(focusHeight * (1 + MAINLAND_CONTEXT_EXPAND_Y * 2), base.height);
     metrics = {
       viewportWidth,
       viewportHeight,
@@ -277,10 +258,10 @@ export function createProvinceMapCamera(
       baseCenterX,
       baseCenterY,
       worldBounds: {
-        minX: baseCenterX - worldWidth / 2,
-        minY: baseCenterY - worldHeight / 2,
-        maxX: baseCenterX + worldWidth / 2,
-        maxY: baseCenterY + worldHeight / 2,
+        minX: baseCenterX - base.width / 2,
+        minY: baseCenterY - base.height / 2,
+        maxX: baseCenterX + base.width / 2,
+        maxY: baseCenterY + base.height / 2,
       },
     };
     return metrics;

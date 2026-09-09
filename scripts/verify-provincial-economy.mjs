@@ -300,7 +300,7 @@ execFileSync(process.execPath, ['scripts/generate-province-map-world-context.mjs
 const camera = read('src/components/provinces/provinceMapCamera.ts');
 for (const text of [
   'export const PROVINCE_MAP_ZOOM_MIN = 1', 'export const PROVINCE_MAP_ZOOM_MAX = 4',
-  'MAINLAND_MIN_AREA_RATIO = 2 / 3', 'MAINLAND_CONTEXT_EXPAND_X = 0.35', 'MAINLAND_CONTEXT_EXPAND_Y = 0.25',
+  'MAINLAND_VIEWPORT_FRACTION = 0.5',
   "container.dataset.mapCameraMode = 'svg-viewbox'", "container.dataset.mapCameraHotPath = 'single-css-transform-write'",
   "container.dataset.mapCameraTransientMode = 'compositor-transform'", "container.dataset.mapZoomHotPath = 'css-transform'",
   "container.dataset.mapZoomCommitMode = 'settle-viewbox'",
@@ -421,8 +421,8 @@ for (const [path, selector, expectedOverflow] of [
 const worldBoundaryTest = read('tests/browser/province-map-world-boundary.spec.ts');
 for (const text of [
   'continents-10m-fill-110m-stroke', 'data-map-world-fill-resolution', 'data-map-world-stroke-resolution',
-  'states-10m-union', 'data-map-focus-area-target', 'vertices).toBeLessThan(2_000)',
-  'baseline.areaRatio', 'centerOffsetX', 'fixed-world-context', 'fixed-world-viewbox', 'fixed-world-bounds',
+  'states-10m-union', 'data-map-focus-viewport-fraction', 'vertices).toBeLessThan(2_000)',
+  'baseline.widthRatio', 'baseline.heightRatio', 'centerOffsetX', 'fixed-world-context', 'fixed-world-viewbox', 'fixed-world-bounds',
   'data-map-camera-world-bounds', 'expectViewInsideBounds', 'waitForSettledCamera',
 ]) assert.ok(worldBoundaryTest.includes(text), `战略地图固定边界浏览器回归缺少: ${text}`);
 const mapBrowserTest = read('tests/browser/province-map.spec.ts');
