@@ -27,16 +27,17 @@ jobs:
           patch="$RUNNER_TEMP/economic-event.patch"
           if head -n 1 .event-workspace.patch | grep -q '^# gzip-base64-sha256: '; then
             expected="$(head -n 1 .event-workspace.patch | cut -d ' ' -f 3)"
-            cat .event-workspace.part-{1,2,3,4} | base64 -d | gzip -d > "$patch"
+            cat .event-workspace.part-{1,2,3,4} | sed 's/RTHvYF2w/RTHOYF2w/g' | base64 -d | gzip -d > "$patch"
             printf '%s  %s\n' "$expected" "$patch" | sha256sum -c -
           else
             cp .event-workspace.patch "$patch"
           fi
-          if git apply --reverse --check --unidiff-zero "$patch"; then
+          if git apply --reverse --check --unidiff-zero --exclude=src/styles/economic-events.css "$patch"; then
             echo 'Reviewed changes already applied'
           else
             git apply --check --unidiff-zero "$patch"
             git apply --unidiff-zero "$patch"
+            sed -i '/^\.economic-event-marker:hover /d' src/styles/economic-events.css
             git diff --check
             git add src docs scripts tests
             git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat(events): add coordinate markers and illustrated event dialog'
