@@ -52,43 +52,17 @@ export function PageLayout({
       hasFixedActions && 'page-content--with-fixed-actions',
       hasFixedActions && fixedActionsVisibility === 'mobile' && 'page-content--with-mobile-fixed-actions',
     )}>
-      <div className="page-fixed-header">
-        <div
-          className={classNames('page-heading', showBackButton && 'page-heading--player-navigation')}
-          data-player-page-navigation={pageNavigation ? 'true' : undefined}
-        >
-          {showBackButton ? (
-            <Button
-              variant="secondary"
-              className="page-navigation-button page-navigation-button--back"
-              aria-label={backAction?.label ?? '返回上一页面'}
-              title={backAction?.label ?? '返回上一页面'}
-              disabled={!backAction && !pageNavigation?.canGoBack}
-              onClick={backAction?.onClick ?? pageNavigation?.onBack}
-            >
-              <BackIcon />
-            </Button>
-          ) : null}
-          <div className="page-heading-title">
-            <h1>{title}</h1>
-          </div>
-          {pageNavigation ? (
-            <Button
-              variant="secondary"
-              className="page-navigation-button page-navigation-button--close"
-              aria-label="关闭当前页面并显示地图"
-              title="关闭并显示地图"
-              onClick={pageNavigation.onClose}
-            >
-              <CloseIcon />
-            </Button>
-          ) : actions ? (
-            <div className="page-heading-actions">
-              {actions}
-            </div>
-          ) : null}
-        </div>
-      </div>
+      <PageHeader
+        title={title}
+        actions={actions}
+        backAction={showBackButton ? {
+          label: backAction?.label ?? '返回上一页面',
+          disabled: !backAction && !pageNavigation?.canGoBack,
+          onClick: backAction?.onClick ?? pageNavigation?.onBack,
+        } : undefined}
+        closeAction={pageNavigation ? { label: '关闭当前页面并显示地图', title: '关闭并显示地图', onClick: pageNavigation.onClose } : undefined}
+        playerNavigation={Boolean(pageNavigation)}
+      />
       {pageNavigation && scrollable ? (
         <ScrollArea
           axis="y"
@@ -120,6 +94,36 @@ export function PageLayout({
         </div>
       ) : null}
     </section>
+  );
+}
+
+export function PageHeader({ title, actions, backAction, closeAction, playerNavigation = false }: {
+  title: ReactNode;
+  actions?: ReactNode;
+  backAction?: { label: string; disabled?: boolean; onClick?: () => void };
+  closeAction?: { label: string; title?: string; onClick: () => void };
+  playerNavigation?: boolean;
+}) {
+  const navigation = Boolean(backAction || closeAction);
+  return (
+    <div className="page-fixed-header">
+      <div className={classNames('page-heading', navigation && 'page-heading--player-navigation')}
+        data-player-page-navigation={playerNavigation ? 'true' : undefined}>
+        {backAction ? (
+          <Button variant="secondary" className="page-navigation-button page-navigation-button--back"
+            aria-label={backAction.label} title={backAction.label} disabled={backAction.disabled} onClick={backAction.onClick}>
+            <BackIcon />
+          </Button>
+        ) : navigation ? <span aria-hidden="true" /> : null}
+        <div className="page-heading-title"><h1>{title}</h1></div>
+        {closeAction ? (
+          <Button variant="secondary" className="page-navigation-button page-navigation-button--close"
+            aria-label={closeAction.label} title={closeAction.title ?? closeAction.label} onClick={closeAction.onClick}>
+            <CloseIcon />
+          </Button>
+        ) : actions ? <div className="page-heading-actions">{actions}</div> : null}
+      </div>
+    </div>
   );
 }
 

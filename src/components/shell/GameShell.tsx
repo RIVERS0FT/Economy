@@ -1,3 +1,4 @@
+import { EconomicEventProvider } from '../economic-events/EconomicEventProvider';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useGameAuthorityDependencies } from '../../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
@@ -442,6 +443,7 @@ export function GameShell({ model, children, offline = false }: {
   ]);
 
   return (
+    <EconomicEventProvider key={model.user.id} game={model.game}>
     <TransportRouteDraftContext.Provider value={transportRouteDraftValue}>
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
       <ApplicationMapLayerPortal>
@@ -564,5 +566,6 @@ export function GameShell({ model, children, offline = false }: {
       </SignedInShell>
     </AuctionNewIdsContext.Provider>
     </TransportRouteDraftContext.Provider>
+    </EconomicEventProvider>
   );
 }
