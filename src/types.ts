@@ -201,7 +201,8 @@ export interface ResearchTechnologyDefinition {
   durationMs: number;
   prerequisiteTechnologyIds: string[];
   unlockFacilityTypeIds: string[];
-  kind?: 'production' | 'operation';
+  branch?: 'agriculture' | 'materials' | 'machinery' | 'commerce';
+  unlockCommercialTypeIds?: string[];
   operationProductIds?: string[];
   description: string;
   initial?: boolean;
@@ -224,6 +225,7 @@ export interface ActiveResearch {
 }
 
 export interface ResearchState {
+  catalogVersion?: number;
   unlockedComplexity: FacilityComplexity;
   completedTechnologyIds?: string[];
   completedAtByTechnologyId?: Record<string, number>;
@@ -732,7 +734,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState extends CommercialStateFields {
-  version: 42;
+  version: 43;
   userId: number;
   playerName: string;
   startingProvinceId: string;

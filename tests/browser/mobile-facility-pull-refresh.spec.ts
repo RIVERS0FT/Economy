@@ -109,8 +109,8 @@ test.describe('mobile workspace sheet pull-to-refresh prevention', () => {
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
     const host = page.locator('.mobile-workspace-sheet-host');
-    const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
-    const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
+    const trigger = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
+    const dialog = page.getByRole('dialog', { name: '冶金与金属加工研发新技术' });
     await trigger.tap();
     await expect(dialog).toBeVisible();
     await expect(host).toHaveAttribute('data-detail-active', 'true');

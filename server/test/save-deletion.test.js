@@ -246,7 +246,7 @@ test('stale tab writes are rejected after save deletion while the new epoch rema
         quantity: 1,
         price: 0.01,
       }, 'save-stale-order-0001'],
-      ['startResearch', { technologyId: 'forestry-development' }, 'save-stale-research-0001'],
+      ['startResearch', { technologyId: 'resource-survey' }, 'save-stale-research-0001'],
     ];
     for (const [action, payload, requestKey] of staleWrites) {
       assert.throws(

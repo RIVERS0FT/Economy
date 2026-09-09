@@ -39,7 +39,7 @@ function CommercialCycleProgress({ group, now }: { group: CommercialBuildingGrou
 }
 
 export function CommercialBuildingDetail({ group, type, products, inventories, inventoryFreezeDetails, markets, now, pending, onToggle,
-  onAutoOperationChange, onOpenProductMarket }: {
+  onAutoOperationChange, onOpenProductMarket, researchLockedMessage }: {
   group: CommercialBuildingGroup;
   type: CommercialBuildingTypeDefinition;
   products: ProductDefinition[];
@@ -48,6 +48,7 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
   markets: Record<string, { officialPrice?: number | null }>;
   now: number;
   pending: boolean;
+  researchLockedMessage?: string;
   onToggle: (enabled: boolean) => void;
   onAutoOperationChange: (policy: Partial<CommercialAutoOperationPolicy>) => void;
   onOpenProductMarket: (productId: string) => void;
@@ -69,10 +70,11 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
           artwork={<CommercialBuildingArtwork commercialTypeId={type.id} className="facility-detail-artwork-icon" />} title={null}
           meta={<><span className="facility-information-total"><small>总数量</small><strong><CompactNumber value={group.count} /></strong></span>
             <StatusTag tone={tone}>{COMMERCIAL_STATUS_LABELS[group.status]}</StatusTag></>}
-          action={<SwitchControl checked={group.enabled} disabled={pending || group.count < 1}
+          action={<SwitchControl checked={group.enabled} disabled={pending || group.count < 1 || (!group.enabled && Boolean(researchLockedMessage))}
             aria-label={group.enabled ? `停止${type.name}营业` : `开始${type.name}营业`}
             title={group.enabled ? '停止后续营业' : '开始营业'} onChange={(event) => onToggle(event.target.checked)} />}
           description={<div className="facility-information-details">
+            {researchLockedMessage ? <small className="ui-helper-text" role="status">{researchLockedMessage}</small> : null}
             <div className="facility-count-summary" aria-label={`${type.name}营业数量`}>
               <span>本周期营业 <strong><CompactNumber value={group.participatingCount} /></strong></span>
             </div>

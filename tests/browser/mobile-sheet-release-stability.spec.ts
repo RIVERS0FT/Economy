@@ -38,7 +38,7 @@ async function startTouchDrag(page: Page, handle: Locator) {
 
 async function openResearchDetail(page: Page) {
   const host = page.locator('.mobile-workspace-sheet-host');
-  const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
+  const trigger = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
   await expect(trigger).toBeVisible();
   await trigger.tap();
   await expect(host).toHaveAttribute('data-detail-active', 'true');

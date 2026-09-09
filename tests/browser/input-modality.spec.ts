@@ -9,7 +9,7 @@ test.describe('shared input modality interaction protocol', () => {
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
     const trigger = page.getByRole('button', { name: '放大技术树' });
-    const detailTrigger = page.getByRole('button', { name: /冶金技术，研发中/ });
+    const detailTrigger = page.getByRole('button', { name: /冶金与金属加工，研发中/ });
     const host = page.locator('.mobile-workspace-sheet-host');
     const basePage = host.locator('.mobile-workspace-sheet-page-layer');
     const detailView = host.locator('.mobile-workspace-sheet-detail-view');

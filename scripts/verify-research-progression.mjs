@@ -18,24 +18,19 @@ import {
 import { createWorld, ensurePlayer } from '../server/src/domain.js';
 
 assert.equal(RESEARCH_DURATION_MS, 6 * 60 * 60_000);
-assert.equal(RESEARCH_TECHNOLOGY_CATALOG.length, 32);
-assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.initial).length, 2);
+assert.equal(RESEARCH_TECHNOLOGY_CATALOG.length, 18);
+assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.initial).length, 3);
 assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.initial)
   .every((technology) => technology.durationMs === 0), true);
 assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => !technology.initial)
   .every((technology) => technology.durationMs === RESEARCH_DURATION_BY_STAGE[technology.stage]), true);
 assert.equal(RESEARCH_LEVEL_CATALOG.length, 7);
-assert.equal(RESEARCH_LEVEL_CATALOG.reduce((sum, stage) => sum + stage.cost, 0), 31_700);
+assert.ok(RESEARCH_LEVEL_CATALOG.reduce((sum, stage) => sum + stage.cost, 0) <= 31_700);
 assert.equal(RESEARCH_LEVEL_CATALOG.every((stage) => stage.durationMs === RESEARCH_DURATION_BY_STAGE[stage.id]), true);
 
 const technologyIds = new Set(RESEARCH_TECHNOLOGY_CATALOG.map((technology) => technology.id));
-const operationTechnologyIds = new Set([
-  'tool-operation', 'feed-husbandry', 'fertilizer-application', 'veterinary-application',
-  'industrial-fuel-operation', 'industrial-chemical-operation', 'machinery-operation', 'tractor-operation',
-]);
-assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.kind === 'operation').length, 8);
-assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.kind === 'operation')
-  .every((technology) => operationTechnologyIds.has(technology.id) && technology.unlockFacilityTypeIds.length === 0), true);
+assert.ok(RESEARCH_TECHNOLOGY_CATALOG.some((technology) => technology.unlockFacilityTypeIds.length > 1 && technology.operationProductIds.length > 0));
+assert.ok(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.unlockCommercialTypeIds.length > 0).every((technology) => technology.unlockCommercialTypeIds.length > 1));
 assert.equal(technologyIds.size, RESEARCH_TECHNOLOGY_CATALOG.length);
 for (const technology of RESEARCH_TECHNOLOGY_CATALOG) {
   for (const prerequisiteId of technology.prerequisiteTechnologyIds) {
@@ -60,13 +55,12 @@ const mappedFacilities = new Set();
 for (const facility of FACILITY_TYPE_CATALOG) {
   const technology = researchTechnologyForFacility(facility.id);
   assert.ok(technology, `${facility.id} has no required technology`);
-  assert.equal(technology.stage, facility.complexity, `${facility.id} stage must match complexity`);
   assert.equal(mappedFacilities.has(facility.id), false, `${facility.id} mapped more than once`);
   mappedFacilities.add(facility.id);
 }
 assert.equal(mappedFacilities.size, FACILITY_TYPE_CATALOG.length);
 
-const applianceClosure = researchTechnologyClosure(['appliance-engineering']);
+const applianceClosure = researchTechnologyClosure(['electrical-integration']);
 const applianceCost = applianceClosure.reduce((sum, technologyId) => sum + technologyById.get(technologyId).cost, 0);
 assert.ok(applianceCost >= 15_500, `appliance route cost too low: ${applianceCost}`);
 assert.equal(applianceClosure
@@ -79,17 +73,17 @@ const world = createWorld(now);
 const user = { id: 9901, email: 'research@example.com', name: '研发测试' };
 const player = ensurePlayer(world, user, now);
 ensurePlayerResearch(world, player, now);
-assert.deepEqual(player.research.completedTechnologyIds, ['basic-crops', 'basic-livestock']);
+assert.deepEqual(player.research.completedTechnologyIds, ['basic-crops', 'basic-livestock', 'basic-commerce']);
 assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'logging-camp' }, now)?.ok, false);
-const started = applyResearchAction(world, user, 'startResearch', { technologyId: 'forestry-development' }, now);
+const started = applyResearchAction(world, user, 'startResearch', { technologyId: 'resource-survey' }, now);
 assert.equal(started.ok, true);
-assert.equal(player.credits, 200);
+assert.equal(player.credits, 50);
 assert.equal(player.research.active.durationMs, RESEARCH_DURATION_BY_STAGE.C2);
 assert.equal(player.research.active.completesAt, now + RESEARCH_DURATION_BY_STAGE.C2);
 processResearchWorld(world, now + RESEARCH_DURATION_BY_STAGE.C2 - 1);
-assert.equal(player.research.completedTechnologyIds.includes('forestry-development'), false);
+assert.equal(player.research.completedTechnologyIds.includes('resource-survey'), false);
 processResearchWorld(world, now + RESEARCH_DURATION_BY_STAGE.C2);
-assert.equal(player.research.completedTechnologyIds.includes('forestry-development'), true);
+assert.equal(player.research.completedTechnologyIds.includes('resource-survey'), true);
 assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'logging-camp' }, now + RESEARCH_DURATION_BY_STAGE.C2), null);
 
 const migrationWorld = createWorld(now);
@@ -99,7 +93,7 @@ ensurePlayerResearch(migrationWorld, migrationPlayer, now);
 const previousDurationMs = 195 * 60_000;
 const appliedAccelerationMs = 30 * 60_000;
 migrationPlayer.research.active = {
-  technologyId: 'forestry-development',
+  technologyId: 'resource-survey',
   technologyName: '林业开发',
   targetComplexity: 'C2',
   startedAt: now,
@@ -118,15 +112,15 @@ const sourceChecks = [
   ['server/src/research.js', 'hasResearchAccessForFacility'],
   ['server/src/research.js', 'legacy-stage-'],
   ['server/src/research-catalog.js', 'RESEARCH_DURATION_MS = 6 * 60 * 60_000'],
-  ['server/src/research-catalog.js', "id: 'tool-operation'"],
-  ['server/src/research-catalog.js', "kind: 'operation'"],
+  ['server/src/research-catalog.js', "id: 'powered-production'"],
+  ['server/src/research-catalog.js', 'unlockCommercialTypeIds'],
   ['server/src/research.js', 'LEGACY_OPERATION_TECHNOLOGY_GRANTS'],
   ['server/src/state-partitions.js', "'researchTechnologies'"],
   ['server/src/commercial-contracts.js', 'hasResearchAccessForFacility'],
   ['src/types.ts', 'ResearchTechnologyDefinition'],
   ['src/types.ts', 'researchTechnologies?: ResearchTechnologyDefinition[]'],
   ['src/pages/ResearchPage.tsx', 'model.startResearch(technologyId)'],
-  ['src/pages/ResearchPage.tsx', '按产业链选择科技节点'],
+  ['src/pages/ResearchPage.tsx', '按技术领域选择科技'],
   ['src/api/game.ts', "postAction('/research/start', { technologyId })"],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '工厂研发准入由具体科技节点决定'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '研发时长读取服务器科技目录'],

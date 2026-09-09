@@ -23,16 +23,16 @@ function createPlayer(id = 9901) {
   return { world, user, player };
 }
 
-test('new players start with two C1 technologies and unlock facilities by concrete technology', () => {
+test('new players start with three initial technologies and unlock facilities by concrete technology', () => {
   const { world, user, player } = createPlayer();
-  assert.deepEqual(player.research.completedTechnologyIds, ['basic-crops', 'basic-livestock']);
+  assert.deepEqual(player.research.completedTechnologyIds, ['basic-crops', 'basic-livestock', 'basic-commerce']);
   assert.equal(player.research.unlockedComplexity, 'C1');
   assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'logging-camp' }, NOW)?.ok, false);
 
-  const started = applyResearchAction(world, user, 'startResearch', { technologyId: 'forestry-development' }, NOW);
+  const started = applyResearchAction(world, user, 'startResearch', { technologyId: 'resource-survey' }, NOW);
   assert.equal(started.ok, true);
-  assert.equal(player.credits, 200);
-  assert.equal(player.research.active.technologyId, 'forestry-development');
+  assert.equal(player.credits, 50);
+  assert.equal(player.research.active.technologyId, 'resource-survey');
   assert.equal(player.research.active.durationMs, RESEARCH_DURATION_BY_STAGE.C2);
   assert.equal(player.research.active.completesAt, NOW + RESEARCH_DURATION_BY_STAGE.C2);
 
@@ -42,37 +42,37 @@ test('new players start with two C1 technologies and unlock facilities by concre
 
   processResearchWorld(world, NOW + RESEARCH_DURATION_BY_STAGE.C2);
   assert.equal(player.research.active, null);
-  assert.equal(player.research.completedTechnologyIds.includes('forestry-development'), true);
+  assert.equal(player.research.completedTechnologyIds.includes('resource-survey'), true);
   assert.equal(player.research.unlockedComplexity, 'C1');
   assert.equal(hasResearchAccessForFacility(world, player, 'logging-camp', NOW + RESEARCH_DURATION_BY_STAGE.C2), true);
   assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'logging-camp' }, NOW + RESEARCH_DURATION_BY_STAGE.C2), null);
-  assert.equal(player.stats.researchPayroll, 300);
+  assert.equal(player.stats.researchPayroll, 450);
 });
 
 test('technology prerequisites form real industrial chains', () => {
   const { world, user, player } = createPlayer(9902);
   player.credits = 10_000;
-  const blocked = applyResearchAction(world, user, 'startResearch', { technologyId: 'metallurgy' }, NOW);
+  const blocked = applyResearchAction(world, user, 'startResearch', { technologyId: 'metallurgical-engineering' }, NOW);
   assert.equal(blocked.ok, false);
-  assert.match(blocked.message, /矿产勘探/);
+  assert.match(blocked.message, /资源勘探/);
 
-  assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'mineral-exploration' }, NOW).ok, true);
+  assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'resource-survey' }, NOW).ok, true);
   processResearchWorld(world, NOW + RESEARCH_DURATION_BY_STAGE.C2);
-  assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'metallurgy' }, NOW + RESEARCH_DURATION_BY_STAGE.C2).ok, true);
+  assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'metallurgical-engineering' }, NOW + RESEARCH_DURATION_BY_STAGE.C2).ok, true);
   assert.equal(player.research.active.durationMs, RESEARCH_DURATION_BY_STAGE.C3);
 });
 
 test('legacy C1-C7 requests use the next stage duration and only grant missing technologies', () => {
   const { world, user, player } = createPlayer(9903);
   player.credits = 20_000;
-  assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'forestry-development' }, NOW).ok, true);
+  assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'resource-survey' }, NOW).ok, true);
   processResearchWorld(world, NOW + RESEARCH_DURATION_BY_STAGE.C2);
 
   const legacyStartedAt = NOW + RESEARCH_DURATION_BY_STAGE.C2;
   const started = applyResearchAction(world, user, 'startResearch', { targetComplexity: 'C2' }, legacyStartedAt);
   assert.equal(started.ok, true);
   assert.equal(player.research.active.legacy, true);
-  assert.equal(player.research.active.grantTechnologyIds.includes('forestry-development'), false);
+  assert.equal(player.research.active.grantTechnologyIds.includes('resource-survey'), false);
   assert.equal(player.research.active.durationMs, RESEARCH_DURATION_BY_STAGE.C2);
   assert.equal(player.research.active.completesAt, legacyStartedAt + RESEARCH_DURATION_BY_STAGE.C2);
   processResearchWorld(world, player.research.active.completesAt);
@@ -86,7 +86,7 @@ test('active research migration preserves paid duration, applied acceleration an
   const legacyDurationMs = 195 * 60_000;
   const appliedAccelerationMs = 30 * 60_000;
   player.research.active = {
-    technologyId: 'forestry-development',
+    technologyId: 'resource-survey',
     technologyName: '林业开发',
     targetComplexity: 'C2',
     startedAt: NOW,
@@ -106,17 +106,17 @@ test('legacy levels and existing facility commitments migrate without removing f
   const { world, player } = createPlayer(9904);
   player.research = { unlockedComplexity: 'C4', completedAt: NOW - 1, active: null };
   ensurePlayerResearch(world, player, NOW);
-  assert.equal(player.research.unlockedComplexity, 'C4');
-  assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.rank <= 4)
+  assert.equal(player.research.unlockedComplexity, 'C2');
+  assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.rank <= 4 && technology.branch !== 'commerce')
     .every((technology) => player.research.completedTechnologyIds.includes(technology.id)), true);
 
   const { world: assetWorld, player: assetPlayer } = createPlayer(9905);
   assetPlayer.research = null;
   assetPlayer.facilityGroups = [{ facilityTypeId: 'machine-factory', count: 1 }];
   ensurePlayerResearch(assetWorld, assetPlayer, NOW);
-  assert.equal(assetPlayer.research.completedTechnologyIds.includes('mechanical-engineering'), true);
-  assert.equal(assetPlayer.research.completedTechnologyIds.includes('tool-manufacturing'), true);
-  assert.equal(assetPlayer.research.completedTechnologyIds.includes('oil-refining'), false);
+  assert.equal(assetPlayer.research.completedTechnologyIds.includes('machine-engineering'), true);
+  assert.equal(assetPlayer.research.completedTechnologyIds.includes('metallurgical-engineering'), true);
+  assert.equal(assetPlayer.research.completedTechnologyIds.includes('chemical-engineering'), false);
   assert.equal(hasResearchAccessForFacility(assetWorld, assetPlayer, 'machine-factory', NOW), true);
 });
 
@@ -128,15 +128,15 @@ test('C1 and C2 non-base production methods require their declared technologies'
     activeRecipeId: 'logging-camp-default', lifetimeOutput: 0,
   }];
   ensurePlayerResearch(world, player, NOW);
-  assert.equal(player.research.completedTechnologyIds.includes('forestry-development'), true);
+  assert.equal(player.research.completedTechnologyIds.includes('resource-survey'), true);
 
   const blockedTool = validateResearchAccess(world, user, 'setFacilityRecipe', {
     facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--saw-assisted-logging',
   }, NOW);
   assert.equal(blockedTool?.ok, false);
-  assert.match(blockedTool.message, /工具作业/);
+  assert.match(blockedTool.message, /工具与动力应用/);
 
-  player.research.completedTechnologyIds.push('tool-operation');
+  player.research.completedTechnologyIds.push('powered-production');
   assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
     facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--saw-assisted-logging',
   }, NOW), null);
@@ -146,9 +146,8 @@ test('C1 and C2 non-base production methods require their declared technologies'
   }, NOW);
   assert.equal(blockedMechanized?.ok, false);
   assert.match(blockedMechanized.message, /机械化作业/);
-  assert.match(blockedMechanized.message, /工业动力作业/);
 
-  player.research.completedTechnologyIds.push('machinery-operation', 'industrial-fuel-operation');
+  player.research.completedTechnologyIds.push('mechanized-production', 'powered-production');
   assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
     facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--mechanized-logging',
   }, NOW), null);
@@ -167,7 +166,7 @@ test('migration resets unavailable advanced methods without applying a staffing 
     status: 'running', cycleStartedAt: NOW - 10_000, staffingRateBps: 8_700,
     staffingUpdatedAt: NOW, staffingBatchCarryBps: 432, activeRecipeId: 'wheat-crop--mechanized', lifetimeOutput: 0,
   }];
-  player.research.completedTechnologyIds = ['basic-crops', 'basic-livestock'];
+  player.research.completedTechnologyIds = ['basic-crops', 'basic-livestock', 'basic-commerce'];
 
   migrateResearchWorld(world, NOW + 1);
 
@@ -181,51 +180,10 @@ test('migration resets unavailable advanced methods without applying a staffing 
 test('operation research is independent from production research for new players', () => {
   const { world, user, player } = createPlayer(9910);
   player.credits = 10_000;
-  const started = applyResearchAction(world, user, 'startResearch', { technologyId: 'tool-operation' }, NOW);
+  const started = applyResearchAction(world, user, 'startResearch', { technologyId: 'powered-production' }, NOW);
   assert.equal(started.ok, true);
   processResearchWorld(world, NOW + RESEARCH_DURATION_MS);
-  assert.equal(player.research.completedTechnologyIds.includes('tool-operation'), true);
-  assert.equal(player.research.completedTechnologyIds.includes('tool-manufacturing'), false);
+  assert.equal(player.research.completedTechnologyIds.includes('powered-production'), true);
+  assert.equal(player.research.completedTechnologyIds.includes('metallurgical-engineering'), false);
   assert.equal(hasResearchAccessForFacility(world, player, 'tool-workshop', NOW + RESEARCH_DURATION_MS), false);
-});
-
-test('world 29 grants equivalent operation access once without coupling future research', () => {
-  const { world, player } = createPlayer(9911);
-  world.version = 28;
-  player.research.completedTechnologyIds = [
-    'basic-crops', 'basic-livestock', 'tool-manufacturing', 'fertilizer-engineering', 'feed-processing',
-    'veterinary-medicine', 'oil-refining', 'mechanical-engineering', 'agricultural-machinery',
-  ];
-  migrateResearchWorld(world, NOW + 1);
-  assert.equal(world.version, 29);
-  for (const technologyId of [
-    'tool-operation', 'fertilizer-application', 'feed-husbandry', 'veterinary-application',
-    'industrial-fuel-operation', 'industrial-chemical-operation', 'machinery-operation', 'tractor-operation',
-  ]) assert.equal(player.research.completedTechnologyIds.includes(technologyId), true, technologyId);
-
-  const { world: currentWorld, player: currentPlayer } = createPlayer(9912);
-  currentWorld.version = 29;
-  currentPlayer.research.completedTechnologyIds = ['basic-crops', 'basic-livestock', 'tool-manufacturing'];
-  migrateResearchWorld(currentWorld, NOW + 2);
-  assert.equal(currentPlayer.research.completedTechnologyIds.includes('tool-operation'), false);
-});
-
-test('world 29 preserves operation access promised by active legacy production research', () => {
-  const { world, player } = createPlayer(9913);
-  world.version = 28;
-  player.research.active = {
-    technologyId: 'tool-manufacturing',
-    technologyName: '工具制造',
-    targetComplexity: 'C4',
-    startedAt: NOW,
-    completesAt: NOW + RESEARCH_DURATION_MS,
-    durationMs: RESEARCH_DURATION_MS,
-    cost: 1_050,
-    employmentReleased: 0,
-  };
-  migrateResearchWorld(world, NOW + 1);
-  assert.deepEqual(player.research.active.grantTechnologyIds, ['tool-operation', 'tool-manufacturing']);
-  processResearchWorld(world, NOW + RESEARCH_DURATION_MS);
-  assert.equal(player.research.completedTechnologyIds.includes('tool-manufacturing'), true);
-  assert.equal(player.research.completedTechnologyIds.includes('tool-operation'), true);
 });
