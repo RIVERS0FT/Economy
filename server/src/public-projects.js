@@ -64,6 +64,7 @@ function createProject(world, event, now) {
     provinceName: province?.name || String(event.provinceName || event.provinceId),
     title: `${province?.shortName || province?.name || event.provinceId}公共保障项目`,
     description: `围绕“${template.title}”集中保障本州关键商品。商品必须先进入项目州本地仓库，再由玩家主动提交。`,
+    announcedAt: Number(event.announcedAt ?? event.startsAt),
     startsAt: Number(event.startsAt),
     endsAt: Number(event.startsAt) + PROJECT_DURATION_MS,
     status: Number(now) < Number(event.startsAt) ? 'upcoming' : 'active',
@@ -259,7 +260,11 @@ export function createPublicProjectClientState(world, userId, now = Date.now()) 
     version: 1,
     points: Math.max(0, Math.floor(Number(world?.players?.[String(userId)]?.stats?.publicProjectPoints || 0))),
     projects: projects
-      .filter((project) => Number(project.endsAt) > normalizedNow - PROJECT_RETENTION_MS && Number(project.startsAt) <= normalizedNow + PROJECT_VISIBLE_AHEAD_MS)
+      .filter((project) => (
+        Number(project.announcedAt ?? project.startsAt) <= normalizedNow
+        && Number(project.endsAt) > normalizedNow - PROJECT_RETENTION_MS
+        && Number(project.startsAt) <= normalizedNow + PROJECT_VISIBLE_AHEAD_MS
+      ))
       .map((project) => {
         const status = projectCompletedGoalCount(project) >= (project.goals || []).length && (project.goals || []).length > 0
           ? 'completed'
@@ -289,6 +294,7 @@ export function createPublicProjectClientState(world, userId, now = Date.now()) 
           provinceName: project.provinceName,
           title: project.title,
           description: project.description,
+          announcedAt: Number(project.announcedAt ?? project.startsAt),
           startsAt: project.startsAt,
           endsAt: project.endsAt,
           status,
