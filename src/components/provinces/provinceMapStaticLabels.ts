@@ -8,7 +8,9 @@ const BASE_MAX_RENDERABLE_FONT_SIZE = 24;
 const CORRIDOR_LENGTH_SAFETY = 0.94;
 const CORRIDOR_HEIGHT_SAFETY = 0.82;
 const CORRIDOR_PROFILE_STEPS = 10;
-const MAX_CURVE_TANGENT_DEGREES = 10;
+const MAX_CURVE_TANGENT_DEGREES = 20;
+const CURVE_SHAPE_RESPONSE = 1;
+const MAX_CURVE_CORRIDOR_HEIGHT_RATIO = 0.4;
 const GLYPH_BOX_SAFETY = 1.04;
 const GEOMETRY_EPSILON = 0.001;
 const BOUNDARY_EPSILON = 0.08;
@@ -536,11 +538,11 @@ function shapeCurveOffsets(candidate: CorridorCandidate, usedWidth: number, used
   const average = offsets.reduce((sum, value) => sum + value, 0) / Math.max(1, offsets.length);
   const spareHalfHeight = Math.max(0, (candidate.availableHeight - usedHeight) / 2);
   const baselineShift = clamp(average * 0.25, -spareHalfHeight * 0.32, spareHalfHeight * 0.32);
-  const rawBend = (middle - (first + last) / 2) * 0.35;
+  const rawBend = (middle - (first + last) / 2) * CURVE_SHAPE_RESPONSE;
   const tangentBound = Math.tan(MAX_CURVE_TANGENT_DEGREES * Math.PI / 180) * usedWidth / 2;
   const maxBend = Math.max(0, Math.min(
-    candidate.availableHeight * 0.12,
-    usedHeight * 0.5,
+    candidate.availableHeight * MAX_CURVE_CORRIDOR_HEIGHT_RATIO,
+    usedHeight,
     tangentBound,
   ));
   const bend = clamp(rawBend, -maxBend, maxBend);
