@@ -1,5 +1,5 @@
 /* Strategic map rendering owns only the map camera viewport, route strokes and map-only floating surfaces. */
-.province-map-static-viewport,
+:root .province-map-static-viewport,
 .province-map-world-svg {
   overflow: hidden;
 }

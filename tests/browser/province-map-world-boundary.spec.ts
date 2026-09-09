@@ -1,12 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-async function dragToEdge(canvas: Locator, direction: 'right' | 'down', times = 4) {
+async function dragToEdge(canvas: Locator, direction: 'right' | 'down' | 'left' | 'up', times = 4) {
   const bounds = await canvas.boundingBox();
   if (!bounds) throw new Error('map bounds missing');
   const startX = bounds.x + bounds.width / 2;
   const startY = bounds.y + bounds.height / 2;
-  const endX = direction === 'right' ? bounds.x + bounds.width - 8 : startX;
-  const endY = direction === 'down' ? bounds.y + bounds.height - 8 : startY;
+  const endX = direction === 'right' ? bounds.x + bounds.width - 8 : direction === 'left' ? bounds.x + 8 : startX;
+  const endY = direction === 'down' ? bounds.y + bounds.height - 8 : direction === 'up' ? bounds.y + 8 : startY;
   await canvas.evaluate((element, input) => {
     const target = element as HTMLElement;
     const originalCapture = target.setPointerCapture;
@@ -100,6 +100,8 @@ async function mainlandFootprint(page: Page) {
     const top = Math.min(...rects.map((rect) => rect.top));
     const bottom = Math.max(...rects.map((rect) => rect.bottom));
     return {
+      widthRatio: (right - left) / canvasRect.width,
+      heightRatio: (bottom - top) / canvasRect.height,
       areaRatio: ((right - left) * (bottom - top)) / (canvasRect.width * canvasRect.height),
       centerOffsetX: (left + right) / 2 - (canvasRect.left + canvasRect.right) / 2,
       centerOffsetY: (top + bottom) / 2 - (canvasRect.top + canvasRect.bottom) / 2,
@@ -196,8 +198,7 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   await expect(canvas).toHaveAttribute('data-map-pan-boundary', 'fixed-world-context');
   await expect(canvas).toHaveAttribute('data-map-pan-clamp-mode', 'fixed-world-viewbox');
   await expect(canvas).toHaveAttribute('data-map-camera-boundary-mode', 'fixed-world-bounds');
-  await expect(canvas).toHaveAttribute('data-map-pan-edge-inset', '12');
-  await expect(canvas).toHaveAttribute('data-map-focus-area-target', '0.666667');
+  await expect(canvas).toHaveAttribute('data-map-focus-viewport-fraction', '0.5');
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
 
   const fixedBoundsText = await canvas.getAttribute('data-map-camera-world-bounds');
@@ -205,8 +206,13 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   const baseline = await mainlandFootprint(page);
   const minimumView = await readCameraViewBox(canvas);
   expectViewInsideBounds(minimumView, fixedBounds);
-  expect(baseline.areaRatio).toBeGreaterThan(0.62);
-  expect(baseline.areaRatio).toBeLessThan(0.70);
+  expect(minimumView.x).toBeCloseTo(fixedBounds.minX, 2);
+  expect(minimumView.y).toBeCloseTo(fixedBounds.minY, 2);
+  expect(minimumView.x + minimumView.width).toBeCloseTo(fixedBounds.maxX, 2);
+  expect(minimumView.y + minimumView.height).toBeCloseTo(fixedBounds.maxY, 2);
+  expect(Math.max(baseline.widthRatio, baseline.heightRatio)).toBeCloseTo(0.5, 2);
+  expect(baseline.widthRatio).toBeLessThanOrEqual(0.501);
+  expect(baseline.heightRatio).toBeLessThanOrEqual(0.501);
   expect(Math.abs(baseline.centerOffsetX)).toBeLessThan(3);
   expect(Math.abs(baseline.centerOffsetY)).toBeLessThan(3);
 
@@ -229,6 +235,7 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   await waitForSettledCamera(canvas);
   const rightBoundary = await readCameraViewBox(canvas);
   expectViewInsideBounds(rightBoundary, fixedBounds);
+  expect(rightBoundary.x).toBeCloseTo(minimumView.x, 2);
   await dragToEdge(canvas, 'right', 3);
   await waitForSettledCamera(canvas);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).x - rightBoundary.x)).toBeLessThan(0.02);
@@ -248,12 +255,29 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   await waitForSettledCamera(canvas);
   const bottomBoundary = await readCameraViewBox(canvas);
   expectViewInsideBounds(bottomBoundary, fixedBounds);
+  expect(bottomBoundary.y).toBeCloseTo(minimumView.y, 2);
   await dragToEdge(canvas, 'down', 3);
   await waitForSettledCamera(canvas);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).y - bottomBoundary.y)).toBeLessThan(0.02);
+
+  for (const deltaY of [180, -180]) {
+    await canvas.dispatchEvent('wheel', { deltaY, clientX: 720, clientY: 450 });
+    await waitForSettledCamera(canvas);
+    for (const direction of ['right', 'down', 'left', 'up'] as const) {
+      await dragToEdge(canvas, direction, 12);
+      await waitForSettledCamera(canvas);
+      const edge = await readCameraViewBox(canvas);
+      expectViewInsideBounds(edge, fixedBounds);
+      expect(await canvas.getAttribute('data-map-camera-world-bounds')).toBe(fixedBoundsText);
+      if (direction === 'right') expect(edge.x).toBeCloseTo(minimumView.x, 2);
+      if (direction === 'down') expect(edge.y).toBeCloseTo(minimumView.y, 2);
+      if (direction === 'left') expect(edge.x + edge.width).toBeCloseTo(minimumView.x + minimumView.width, 2);
+      if (direction === 'up') expect(edge.y + edge.height).toBeCloseTo(minimumView.y + minimumView.height, 2);
+    }
+  }
 });
 
-test('portrait minimum zoom keeps the whole mainland visible and centered instead of cropping to force the two-thirds target', async ({ page }) => {
+test('portrait minimum zoom fits the mainland inside the centered half-width half-height box', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -262,7 +286,9 @@ test('portrait minimum zoom keeps the whole mainland visible and centered instea
   const canvas = map.locator('.province-map-static-viewport');
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
   const footprint = await mainlandFootprint(page);
-  expect(footprint.areaRatio).toBeLessThan(2 / 3);
+  expect(Math.max(footprint.widthRatio, footprint.heightRatio)).toBeCloseTo(0.5, 2);
+  expect(footprint.widthRatio).toBeLessThanOrEqual(0.501);
+  expect(footprint.heightRatio).toBeLessThanOrEqual(0.501);
   expect(Math.abs(footprint.centerOffsetX)).toBeLessThan(3);
   expect(Math.abs(footprint.centerOffsetY)).toBeLessThan(3);
   const visibleStates = await map.locator('.province-map-region').evaluateAll((regions) => regions.every((region) => {
@@ -277,3 +303,56 @@ test('portrait minimum zoom keeps the whole mainland visible and centered instea
   }));
   expect(visibleStates).toBe(true);
 });
+
+for (const rasterReady of [true, false]) {
+  test(`active and settled views share the same screen clip and world extent with raster ${rasterReady}`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
+    const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 900, height: 900 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport);
+      await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
+      await expect(canvas).toHaveAttribute('data-map-raster-ready', 'true', { timeout: 15_000 });
+      const footprint = await mainlandFootprint(page);
+      expect(Math.max(footprint.widthRatio, footprint.heightRatio)).toBeCloseTo(0.5, 2);
+      expect(footprint.widthRatio).toBeLessThanOrEqual(0.501);
+      expect(footprint.heightRatio).toBeLessThanOrEqual(0.501);
+      const baseView = await readCameraViewBox(canvas);
+      for (const deltaY of [-180, 180]) {
+        const activeView = await canvas.evaluate((element, input) => new Promise<{ x: number; y: number; width: number; height: number; clip: string; rasterActive: string | undefined }>((resolve) => {
+          const container = element as HTMLElement;
+          container.dataset.mapRasterReady = String(input.rasterReady);
+          const bounds = container.getBoundingClientRect();
+          container.dispatchEvent(new WheelEvent('wheel', {
+            bubbles: true, cancelable: true, deltaY: input.deltaY,
+            clientX: bounds.left + bounds.width * 0.65,
+            clientY: bounds.top + bounds.height * 0.4,
+          }));
+          requestAnimationFrame(() => {
+            const layer = container.querySelector(input.rasterReady ? '.province-map-camera-raster' : '.province-map-camera-surface')!;
+            const matrix = new DOMMatrix(getComputedStyle(layer).transform);
+            const [x, y, width, height] = container.dataset.mapCameraPreloadViewBox!.split(' ').map(Number);
+            resolve({
+              x: x - matrix.e * width / (bounds.width * matrix.a),
+              y: y - matrix.f * height / (bounds.height * matrix.d),
+              width: width / matrix.a,
+              height: height / matrix.d,
+              clip: getComputedStyle(container).overflow,
+              rasterActive: container.dataset.mapRasterActive,
+            });
+          });
+        }), { deltaY, rasterReady });
+        expect(activeView.clip).toBe('hidden');
+        expect(activeView.rasterActive).toBe(String(rasterReady));
+        await waitForSettledCamera(canvas);
+        const settled = await readCameraViewBox(canvas);
+        for (const key of ['x', 'y', 'width', 'height'] as const) {
+          expect(Math.abs(activeView[key] - settled[key])).toBeLessThan(0.1);
+        }
+        await expect(canvas).toHaveCSS('overflow', 'hidden');
+      }
+      const restored = await readCameraViewBox(canvas);
+      for (const key of ['x', 'y', 'width', 'height'] as const) expect(restored[key]).toBeCloseTo(baseView[key], 2);
+    }
+  });
+}
