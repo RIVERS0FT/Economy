@@ -161,9 +161,11 @@ if (failures.length === 0) {
   forbidText(paths.auction, 'const now = useNow(model.game.lastProcessedAt);');
 
   for (const text of [
-    'version: 2',
+    'version: 3',
     'const visibleUntil = normalizedNow + VISIBLE_WINDOW_MS',
     'for (const candidate of [event.startsAt, event.endsAt])',
+    'REGIONAL_ECONOMIC_EVENT_EPOCH_MS',
+    'REGIONAL_EVENT_DURATION_MS',
   ]) requireText(paths.economicEvents, text);
   forbidText(paths.economicEvents, 'visibleUntil,\n    events');
   forbidText(paths.economicEvents, 'event.startsAt - VISIBLE_WINDOW_MS');
