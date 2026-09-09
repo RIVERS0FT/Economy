@@ -26,6 +26,7 @@ const serverDesignPath = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
 const browserTestPath = 'tests/browser/contract-layout.spec.ts';
 const attentionBrowserTestPath = 'tests/browser/contract-attention-background.spec.ts';
 const workspaceTestPath = 'tests/browser/contract-workspace.spec.ts';
+const tabMemoryTestPath = 'tests/browser/page-tab-memory.spec.ts';
 const harnessPath = 'tests/browser/runtime-harness.tsx';
 const formVerifierPath = 'scripts/verify-form-controls.mjs';
 const serverPath = 'server/src/contract-audit-store.js';
@@ -35,7 +36,7 @@ const packagePath = 'package.json';
   routePath, pagePath, layoutPath, stylePath, coreStylePath, fixedActionStylePath, contentSurfacePath,
   scrollingSurfacePath, auditStylePath, navigationPath, designPath, productDesignPath, uiDesignPath,
   surfaceDesignPath, serverDesignPath, browserTestPath, attentionBrowserTestPath, workspaceTestPath,
-  harnessPath, formVerifierPath, serverPath, packagePath,
+  tabMemoryTestPath, harnessPath, formVerifierPath, serverPath, packagePath,
 ].forEach(requireFile);
 
 for (const text of [
@@ -48,6 +49,8 @@ for (const text of ['productionContractActions', 'productionContractAudit', 'Pag
 for (const text of [
   'PagePanel', 'IntegerInput', 'MoneyInput', 'SelectInput', 'ToggleField', 'parseIntegerDraft',
   "type ContractWorkspaceView = 'workbench' | 'market' | 'active' | 'history'", 'contract-workspace-tabs',
+  "usePageTabPreference<ContractWorkspaceView>", "pageId: 'contracts'", "fallback: 'workbench'",
+  "if (intent?.productId) setWorkspaceView('market')",
   '合同工作台', '合同市场', '我的合同', '历史合同', 'contract-master-detail', 'contract-master-list-item',
   'contract-market-master-detail', '合作方向', '我要采购', '我要供货',
   'contract-content-actions page-desktop-only-action', 'contract-summary-grid', 'contract-market-pane', 'contract-personal-pane',
@@ -124,7 +127,8 @@ for (const text of [
   '现货市场负责即时价格发现与即时成交，合同负责锁定未来经营关系',
 ]) requireText(productDesignPath, text);
 for (const text of [
-  '工作台｜合同市场｜我的合同｜历史', '默认进入“工作台”', '左侧选择、右侧完整详情',
+  '工作台｜合同市场｜我的合同｜历史', '普通进入合同页优先恢复该玩家上次选择的有效工作区', '左侧选择、右侧完整详情',
+  '合法 `provinceId + productId` 合同导航意图仍优先直接进入“合同市场”',
   '合同市场按领域、合作方向、地区和商品筛选', '不得恢复合同市场与我的合同桌面常驻双栏',
   '移动端使用与运输页相同的 `PageLayout` 页面底部固定操作层',
 ]) requireText(designPath, text);
@@ -149,6 +153,7 @@ for (const text of [
 ]) requireText(browserTestPath, text);
 for (const text of ['independent contract cards keep object boundaries and warning tint', '.contract-card--attention', '.contract-card--normal', 'normalStyle.borderRadius', 'normalStyle.backdropFilter', 'summaryStyle.borderRadius']) requireText(attentionBrowserTestPath, text);
 for (const text of ['contract core workspace switches between workbench market active and history views', "getByRole('tabpanel', { name: '合同工作台' })", "getByRole('tabpanel', { name: '合同市场' })", "getByRole('tabpanel', { name: '我的合同' })"]) requireText(workspaceTestPath, text);
+for (const text of ["getByRole('tab', { name: /合同市场/ })", "page.reload()", "name: '交易榜'"]) requireText(tabMemoryTestPath, text);
 for (const text of ["import { ContractPage } from '../../src/pages/ContractPage';", '<ContractPage model={model} />', "id: 'contract-active'", 'renewalProposal:', "id: 'contract-active-normal'", "supplyMode: 'daily'", "dailyMaxQuantity: 60", "id: 'contract-open'"]) requireText(harnessPath, text);
 requireText(formVerifierPath, "'src/pages/ContractWorkspacePage.tsx'");
 for (const text of ['"verify:contract-layout": "node scripts/verify-contract-layout.mjs"', 'node scripts/verify-contract-layout.mjs']) requireText(packagePath, text);
@@ -157,4 +162,4 @@ if (failures.length) {
   console.error(`合同页统一布局验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('合同页布局验证通过：桌面发布操作保留正文首行，移动发布操作使用 PageLayout 底部固定层并在真实滚动内容尾部预留操作空间；默认工作台、四视图、主从详情、方向筛选与既有合同对象卡/审计兼容保持当前规则。');
+console.log('合同页布局验证通过：桌面发布操作保留正文首行，移动发布操作使用 PageLayout 底部固定层并在真实滚动内容尾部预留操作空间；工作区恢复上次有效 Tab，显式合同市场意图优先，四视图、主从详情、方向筛选与既有合同对象卡/审计兼容保持当前规则。');
