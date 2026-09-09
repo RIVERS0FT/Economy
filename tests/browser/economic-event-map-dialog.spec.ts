@@ -49,6 +49,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
     await expect.poll(() => dialog.locator('img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
     const headerTop = header!.y;
     await dialog.locator('.economic-event-dialog__content').evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    expect(await dialog.locator('.economic-event-dialog__content').evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
     expect((await dialog.locator('.page-fixed-header').boundingBox())!.y).toBeCloseTo(headerTop, 0);
     await page.screenshot({ path: testInfo.outputPath(`event-dialog-${viewport.width}.png`) });
     await page.keyboard.press('Escape');
@@ -112,7 +113,10 @@ test('map markers retain real anchors and screen-sized hits after zoom; no per-s
 test('expiry and missing authority update the open detail without stale map points or page navigation', async ({ page }) => {
   await page.clock.install();
   await openEvents(page);
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
+    // The isolated fixture has no HTTP state read to establish the server clock.
+    const { acceptServerNow } = await import(new URL('./src/utils/serverClock.js', location.href).href);
+    acceptServerNow(Date.now());
     (window as any).__setEconomicEventCalendar((calendar: any) => ({ ...calendar, events: calendar.events.map((event: any) => event.id === 'fixture-event-0' ? { ...event, endsAt: Date.now() + 60_000 } : event) }));
   });
   await page.locator('[data-economic-event-marker="fixture-event-0"]').click();
