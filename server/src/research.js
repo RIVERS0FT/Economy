@@ -1,5 +1,5 @@
 import { FACILITY_TYPE_CATALOG } from './industry-catalog.js';
-import { LEGACY_RESEARCH_NODES, migrateResearchTechnologyId } from './legacy-research.js';
+import { LEGACY_RESEARCH_NODES, migrateResearchTechnologyId, migrateResearchTechnologyIds } from './legacy-research.js';
 import {
   isLegacyProductionMethodRecipeId,
   migrateLegacyProductionMethodRecipeId,
@@ -170,11 +170,11 @@ function normalizeCompletedAtMap(previous, completed, now) {
     : {};
   const source = {};
   for (const [previousId, timestamp] of Object.entries(previousSource)) {
-    const id = Number(previous?.catalogVersion || 0) < RESEARCH_CATALOG_VERSION
-      ? migrateResearchTechnologyId(previousId) : previousId;
+    const ids = Number(previous?.catalogVersion || 0) < RESEARCH_CATALOG_VERSION
+      ? migrateResearchTechnologyIds(previousId) : [previousId];
     const value = Number(timestamp);
     if (!Number.isFinite(value) || value < 0) continue;
-    source[id] = Math.min(source[id] ?? value, value);
+    for (const id of ids) source[id] = Math.min(source[id] ?? value, value);
   }
   const fallback = Number.isFinite(Number(previous?.completedAt)) ? Number(previous.completedAt) : Number(now);
   return Object.fromEntries(sortedTechnologyIds(completed).map((technologyId) => {
@@ -261,13 +261,13 @@ export function ensurePlayerResearch(world, player, now = Date.now(), migrationO
   const migrateCatalog = Number(previous?.catalogVersion || 0) < RESEARCH_CATALOG_VERSION;
   if (hasNodeState) {
     for (const technologyId of previous.completedTechnologyIds) {
-      if (migrateCatalog) grantTechnologyClosure(completed, [technologyId]);
+      if (migrateCatalog) grantTechnologyClosure(completed, migrateResearchTechnologyIds(technologyId));
       else if (RESEARCH_TECHNOLOGY_BY_ID.has(String(technologyId))) completed.add(String(technologyId));
     }
   } else {
     const legacyRank = complexityRank(previous?.unlockedComplexity);
     for (const technology of LEGACY_RESEARCH_NODES) {
-      if (technology.rank <= legacyRank) grantTechnologyClosure(completed, [technology.technologyId]);
+      if (technology.rank <= legacyRank) grantTechnologyClosure(completed, migrateResearchTechnologyIds(technology.technologyId));
     }
   }
   for (const technology of RESEARCH_TECHNOLOGY_CATALOG) {
@@ -280,7 +280,7 @@ export function ensurePlayerResearch(world, player, now = Date.now(), migrationO
   if (migrationOptions?.grantLegacyOperationAccess) {
     const legacyCompleted = new Set(previous?.completedTechnologyIds || []);
     grantLegacyOperationTechnologies(legacyCompleted);
-    grantTechnologyClosure(completed, [...legacyCompleted]);
+    grantTechnologyClosure(completed, [...legacyCompleted].flatMap(migrateResearchTechnologyIds));
   }
   if (migrateCatalog) {
     for (const group of player.commercialBuildingGroups || []) {
@@ -302,10 +302,12 @@ export function ensurePlayerResearch(world, player, now = Date.now(), migrationO
       ...activeSource,
       technologyId: activeSource.technologyId ? migrateResearchTechnologyId(activeSource.technologyId) : undefined,
       ...(Array.isArray(activeSource.grantTechnologyIds)
-        ? { grantTechnologyIds: activeSource.grantTechnologyIds.map(migrateResearchTechnologyId) }
+        ? { grantTechnologyIds: [activeSource.technologyId, ...activeSource.grantTechnologyIds]
+          .filter(Boolean).flatMap(migrateResearchTechnologyIds) }
         : legacyStage ? { grantTechnologyIds: LEGACY_RESEARCH_NODES
           .filter((entry) => entry.rank === complexityRank(activeSource.targetComplexity))
-          .map((entry) => entry.technologyId) } : {}),
+          .flatMap((entry) => migrateResearchTechnologyIds(entry.technologyId)) }
+          : { grantTechnologyIds: migrateResearchTechnologyIds(activeSource.technologyId) }),
     };
   }
   const active = normalizeActiveResearch(activeSource, completed);

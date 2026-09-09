@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve, sep } from 'node:path';
+import { EconomyStore } from '../src/runtime-store.js';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { FACILITY_TYPE_CATALOG } from '../src/industry-catalog.js';
 import { COMMERCIAL_BUILDING_TYPE_CATALOG } from '../src/commercial-catalog.js';
@@ -19,7 +23,7 @@ function setup() {
 }
 
 test('unified catalog covers every asset once, crosses building complexity and has an acyclic knowledge graph', () => {
-  assert.equal(RESEARCH_TECHNOLOGY_CATALOG.length, 18);
+  assert.equal(RESEARCH_TECHNOLOGY_CATALOG.length, 32);
   for (const [catalog, field] of [[FACILITY_TYPE_CATALOG, 'unlockFacilityTypeIds'], [COMMERCIAL_BUILDING_TYPE_CATALOG, 'unlockCommercialTypeIds']]) {
     for (const type of catalog) assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((t) => t[field].includes(type.id)).length, 1, type.id);
     assert.deepEqual(new Set(RESEARCH_TECHNOLOGY_CATALOG.flatMap((t) => t[field])), new Set(catalog.map((t) => t.id)));
@@ -31,6 +35,15 @@ test('unified catalog covers every asset once, crosses building complexity and h
     for (const predecessor of technology.prerequisiteTechnologyIds) visit(predecessor, new Set([...parents, id]));
   };
   for (const t of RESEARCH_TECHNOLOGY_CATALOG) visit(t.id);
+  for (const technology of RESEARCH_TECHNOLOGY_CATALOG) {
+    const buildings = technology.unlockFacilityTypeIds.length + technology.unlockCommercialTypeIds.length;
+    const methods = FACILITY_TYPE_CATALOG.flatMap((facility) => facility.productionMethodGroups
+      .flatMap((group) => group.methods.filter((method) => method.requiredTechnologyIds.includes(technology.id))));
+    assert.ok(buildings <= 2, `${technology.id}: ${buildings} buildings`);
+    assert.ok(methods.length <= 2, `${technology.id}: ${methods.length} methods`);
+    assert.ok(buildings + methods.length > 0, `${technology.id}: empty unlocks`);
+  }
+  assert.equal(RESEARCH_TECHNOLOGY_CATALOG.reduce((sum, technology) => sum + technology.cost, 0), 29_950);
   const wood = researchTechnologyFor('wood-industry');
   assert.ok(new Set(FACILITY_TYPE_CATALOG.filter((f) => wood.unlockFacilityTypeIds.includes(f.id)).map((f) => f.complexity)).size > 1);
   for (const f of FACILITY_TYPE_CATALOG) for (const group of f.productionMethodGroups) for (const method of group.methods) {
@@ -186,4 +199,129 @@ test('merged completion dates preserve the earliest earned timestamp', () => {
     completedAt: NOW - 1000, active: null };
   ensurePlayerResearch(world, player, NOW);
   assert.equal(player.research.completedAtByTechnologyId['resource-survey'], NOW - 2000);
+});
+
+const splitPromises = [
+  ['resource-survey', ['resource-survey', 'petroleum-survey']],
+  ['wood-industry', ['wood-industry', 'pulp-paper-industry']],
+  ['chemical-engineering', ['chemical-engineering', 'agrochemical-engineering']],
+  ['powered-production', ['powered-production', 'powered-forestry', 'industrial-tools', 'processing-tools']],
+  ['applied-chemistry', ['applied-chemistry', 'veterinary-science', 'extraction-chemistry']],
+  ['mechanized-production', ['mechanized-production', 'mechanized-livestock', 'mechanized-extraction',
+    'mechanized-petroleum', 'mechanized-milling', 'mechanized-sawmilling', 'mechanized-feed']],
+];
+
+test('v2 completed and accelerated paid projects preserve every split entitlement exactly once', () => {
+  for (const [oldId, promisedIds] of splitPromises) {
+    for (const paid of [false, true]) {
+      const { world, player } = setup();
+      const credits = player.credits;
+      player.research = { catalogVersion: 2, completedTechnologyIds: paid ? [] : [oldId],
+        completedAtByTechnologyId: paid ? {} : { [oldId]: NOW - 1234 },
+        active: paid ? { technologyId: oldId, startedAt: NOW - 60_000, completesAt: NOW + 60_000,
+          durationMs: 32 * 60_000, targetComplexity: researchTechnologyFor(oldId).stage,
+          cost: 450, employmentReleased: 100 } : null };
+      player.stats.researchPayroll = paid ? 100 : 0;
+      ensurePlayerResearch(world, player, NOW);
+      const migrated = structuredClone(player);
+      ensurePlayerResearch(world, player, NOW + 1);
+      assert.deepEqual(player, migrated);
+      if (paid) {
+        assert.equal(player.research.active.startedAt, NOW - 60_000);
+        assert.equal(player.research.active.completesAt, NOW + 60_000);
+        assert.equal(player.research.active.durationMs, 32 * 60_000);
+        assert.equal(player.research.active.employmentReleased, 100);
+        processPlayerResearch(world, player, NOW + 60_000);
+      }
+      for (const id of promisedIds) {
+        assert.ok(player.research.completedTechnologyIds.includes(id), `${oldId} -> ${id}`);
+        assert.equal(player.research.completedAtByTechnologyId[id], paid ? NOW + 60_000 : NOW - 1234);
+      }
+      processPlayerResearch(world, player, NOW + 120_000);
+      assert.equal(player.stats.researchPayroll, paid ? 450 : 0);
+      assert.equal(player.credits, credits);
+    }
+  }
+});
+
+test('splitting v2 research preserves an invested advanced production cycle', () => {
+  const { world, player } = setup();
+  player.research = { catalogVersion: 2, completedTechnologyIds: [
+    'resource-survey', 'powered-production', 'applied-chemistry', 'mechanized-production',
+  ], active: null };
+  player.facilityGroups = [{ facilityTypeId: 'oil-field', count: 1, enabled: true, status: 'running',
+    activeRecipeId: 'oil-field-default--powered-drilling', cycleStartedAt: NOW - 10_000,
+    staffingRateBps: 8700, staffingBatchCarryBps: 432, lifetimeOutput: 20 }];
+  const groups = structuredClone(player.facilityGroups);
+  ensurePlayerResearch(world, player, NOW);
+  assert.deepEqual(player.facilityGroups, groups);
+});
+
+test('new research only grants the selected split branch', () => {
+  const { world, user, player } = setup();
+  assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'resource-survey' }, NOW).ok, true);
+  processPlayerResearch(world, player, player.research.active.completesAt);
+  assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'mine' }, NOW), null);
+  assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'oil-field' }, NOW)?.ok, false);
+  assert.equal(player.research.completedTechnologyIds.includes('petroleum-survey'), false);
+  assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'powered-production' }, NOW).ok, true);
+  processPlayerResearch(world, player, player.research.active.completesAt);
+  assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
+    facilityTypeId: 'farm', recipeId: 'wheat-crop--tool-tillage',
+  }, NOW), null);
+  assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--saw-assisted-logging',
+  }, NOW)?.ok, false);
+});
+
+test('persisted v2 research migrates on cold load and retains paid split grants across restart', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'economy-research-split-'));
+  const path = join(directory, 'economy.sqlite');
+  const user = { id: 99883, email: 'research-cold@example.com', name: '研发存档测试', role: 'user' };
+  let store;
+  try {
+    store = new EconomyStore(path, { scheduledProcessing: false });
+    store.getState(user, NOW);
+    const row = store.database.prepare('SELECT state_json FROM economy_world_players WHERE user_id = ?').get(user.id);
+    const player = JSON.parse(row.state_json);
+    player.research = { catalogVersion: 2, completedTechnologyIds: ['resource-survey'],
+      completedAtByTechnologyId: { 'resource-survey': NOW - 1000 }, active: {
+        technologyId: 'wood-industry', startedAt: NOW, completesAt: NOW + 60_000,
+        durationMs: 31 * 60_000, targetComplexity: 'C3', cost: 1800, employmentReleased: 100,
+      } };
+    player.stats.researchPayroll = 100;
+    store.database.prepare('UPDATE economy_world_players SET state_json = ? WHERE user_id = ?')
+      .run(JSON.stringify(player), user.id);
+    store.close();
+    store = new EconomyStore(path, { scheduledProcessing: true });
+    store.stopScheduler();
+    const migrated = store.getState(user, NOW + 1);
+    assert.equal(migrated.research.catalogVersion, RESEARCH_CATALOG_VERSION);
+    assert.ok(migrated.research.completedTechnologyIds.includes('petroleum-survey'));
+    assert.ok(migrated.research.active.grantTechnologyIds.includes('pulp-paper-industry'));
+    assert.equal(migrated.research.active.completesAt, NOW + 60_000);
+    const credits = migrated.credits;
+    const revision = store.worldCache.revision;
+    store.close();
+    store = new EconomyStore(path, { scheduledProcessing: true });
+    store.stopScheduler();
+    assert.deepEqual(store.getState(user, NOW + 2).research, migrated.research);
+    assert.equal(store.worldCache.revision, revision);
+    store.close();
+    store = new EconomyStore(path, { scheduledProcessing: false });
+    const completed = store.getState(user, NOW + 60_000);
+    assert.equal(completed.research.active, null);
+    for (const id of ['wood-industry', 'pulp-paper-industry']) assert.ok(completed.research.completedTechnologyIds.includes(id));
+    assert.equal(completed.credits, credits);
+    assert.equal(store.worldCache.world.players[String(user.id)].stats.researchPayroll, 1800);
+    store.close();
+    store = new EconomyStore(path, { scheduledProcessing: false });
+    const reopened = store.getState(user, NOW + 60_001);
+    assert.deepEqual(reopened.research, completed.research);
+    assert.equal(store.worldCache.world.players[String(user.id)].stats.researchPayroll, 1800);
+  } finally {
+    store?.close();
+    assert.ok(resolve(directory).startsWith(`${resolve(tmpdir())}${sep}economy-research-split-`));
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
