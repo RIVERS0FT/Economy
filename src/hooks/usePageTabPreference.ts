@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface PageTabPreferenceStorage {
   getItem: (key: string) => string | null;
@@ -14,6 +14,7 @@ interface PageTabPreferenceOptions<T extends string> {
 }
 
 const PAGE_TAB_PREFERENCE_VERSION = 'v1';
+const ALLOWED_VALUE_SEPARATOR = '\u001f';
 
 export function pageTabPreferenceKey(userId: string | number, pageId: string) {
   return `economy.page-tab.${PAGE_TAB_PREFERENCE_VERSION}:${userId}:${pageId}`;
@@ -61,18 +62,20 @@ export function savePageTabPreference<T extends string>({
 }
 
 export function usePageTabPreference<T extends string>(options: PageTabPreferenceOptions<T>) {
-  const { userId, pageId, allowed, fallback } = options;
-  const allowedKey = useMemo(() => allowed.join('\u001f'), [allowed]);
+  const { userId, pageId, allowed, fallback, storage } = options;
+  const allowedKey = allowed.join(ALLOWED_VALUE_SEPARATOR);
   const [value, setValueState] = useState<T>(() => loadPageTabPreference(options));
 
   useEffect(() => {
-    setValueState(loadPageTabPreference(options));
-  }, [userId, pageId, allowedKey, fallback]);
+    const stableAllowed = allowedKey.split(ALLOWED_VALUE_SEPARATOR) as T[];
+    setValueState(loadPageTabPreference({ userId, pageId, allowed: stableAllowed, fallback, storage }));
+  }, [userId, pageId, allowedKey, fallback, storage]);
 
   const setValue = useCallback((next: T) => {
-    const normalized = savePageTabPreference(options, next);
+    const stableAllowed = allowedKey.split(ALLOWED_VALUE_SEPARATOR) as T[];
+    const normalized = savePageTabPreference({ userId, pageId, allowed: stableAllowed, fallback, storage }, next);
     setValueState(normalized);
-  }, [userId, pageId, allowedKey, fallback]);
+  }, [userId, pageId, allowedKey, fallback, storage]);
 
   return [value, setValue] as const;
 }
