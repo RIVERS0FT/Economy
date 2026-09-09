@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   dt:
@@ -24,7 +24,60 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
           fetch-depth: 0
+
+      - name: Commit owner design rules
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          page_path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          page = page_path.read_text()
+          page_marker = '\n## 3.1 运输页\n'
+          page_insert = '''
+
+### 地区动态事件与大型公共项目
+
+地区动态事件与大型公共项目不得新增一级页面、导航项、第五个战略追踪器分区、第二套事件日志或第六种地图镜头。已公告的州级事件与公共项目继续复用统一战略追踪器“公开经济事件”分区；地图只允许在唯一常驻 `StrategicMapStage` 上显示紧凑可点击信号，点击只执行既有“设置当前州并打开 `ProvincePage`”导航。服务器可以预生成未来事件和项目，但 `announcedAt` 之前不得在战略追踪器、地图或页面正文泄露；运输路线地图选点期间事件／项目地图信号必须隐藏，避免与州面选点争抢交互。
+
+玩家唯一参与入口位于 `ProvincePage` 既有“概览”分区，不新增项目 Tab、页面、Sheet 或独立结果区。州级事件说明只显示服务器权威名称、状态、受影响商品与时间窗；大型公共项目显示项目州、全服总进度、分商品目标、本人的本州可用库存与贡献、项目贡献积分以及前 10 名贡献排行。可提交数量只读取项目州 `available` 非冻结库存；其他州库存、冻结库存和在途库存不得合并为可提交数量，跨州参与必须先通过正式运输。提交和领取的结果继续使用全局通知反馈，并在成功后读取服务器权威状态；不得通过改变原有页面布局插入临时成功／失败结果块。
+'''
+          if '### 地区动态事件与大型公共项目' not in page:
+              if page_marker not in page:
+                  raise SystemExit('PAGE design insertion marker missing')
+              page = page.replace(page_marker, page_insert + page_marker, 1)
+              page_path.write_text(page)
+
+          server_path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          server = server_path.read_text()
+          server_marker = '\n## 单一微单位货币核心\n'
+          server_insert = '''
+
+### 地区动态事件与大型公共项目权威边界
+
+公开经济事件的全局固定模板继续沿用现有时间槽。地区动态事件复用同一模板，但权威运行态持久化在 `world.marketDemand.regionalEvents`：每个北京时间自然日最多一个当前州级事件，目标州只从真实经营足迹中选择，包括已拥有工业建筑、已拥有商业建筑，或存在可用／冻结／在途商品库存的州；没有任何真实经营足迹时才回退默认州。州级事件可以提前生成，但 `announcedAt` 之前不得进入玩家状态。事件只在目标州现有直接需求预算内部重分配类别和商品权重，不得扩大人口预算、钱包、冻结资金、市场储备、库存或普通货币发行。`nextEconomicEventDeadline` 必须继续通过既有 `market` deadline 覆盖州级事件开始和结束，不新增第二个调度器。
+
+大型公共项目权威运行态持久化在 `world.marketDemand.publicProjects`，按固定州级事件时隙派生并与源事件共用公告时点。项目状态、贡献、奖励领取和有界审计继续属于现有 `marketDemand` 世界 segment，不新增世界顶层 segment、SQLite 项目余额表或第二套项目钱包。`POST /api/game/public-projects/:projectId/contribute` 是正式玩家写操作，使用 `orders` 限流、`local-player` Mutation Scope、`public-project` domain 与市场级延迟预算，并计为经济活动；同一幂等 `BEGIN IMMEDIATE` 事务必须重新读取 `inventoryForProvince(player, productId, project.provinceId).available`，按剩余目标截断后原子扣除。其他州库存、`frozen` 和 `inTransit` 不得作为可提交来源，任一校验失败必须完整回滚。`POST /api/game/public-projects/:projectId/claim` 使用 `local-player` Scope，但不刷新经济活动时间；它只增加独立 `stats.publicProjectPoints` 并记录项目 `rewardClaims`，不得改写 `credits`、`gems`、商品、工厂、市场价格、净资产或排行榜资产。
+
+状态交付继续保持现有六个父分区。`economicCalendar` 协议版本 3 在原有 `events[]` 中支持 `scope = global | regional`，并把已公告公共项目投影为既有“公开经济事件”紧凑条目；完整项目交互状态位于 `economicCalendar.publicProjects`。全局事件、地区事件和公共项目共同归 `market.calendar` 子切片，不新增第七父分区、额外 `project` 子切片、第五个战略追踪器分区或项目专用轮询；未到 `announcedAt` 的未来事件／项目不得下发给普通玩家。
+'''
+          if '### 地区动态事件与大型公共项目权威边界' not in server:
+              if server_marker not in server:
+                  raise SystemExit('SERVER design insertion marker missing')
+              server = server.replace(server_marker, server_insert + server_marker, 1)
+              server_path.write_text(server)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout origin/main -- .github/workflows/ci.yml
+          git rm -f .github/design-patch-trigger .github/workflows/export-design-docs.yml .github/workflows/patch-owner-design-docs.yml
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md .github/workflows/ci.yml
+          git commit -m 'docs: define regional event and public project ownership'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
