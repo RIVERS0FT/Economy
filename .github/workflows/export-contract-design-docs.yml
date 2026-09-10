@@ -1,0 +1,27 @@
+name: Export Contract Design Docs
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  ARTIFACT_RETENTION_DAYS: 1
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Upload contract design docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-design-docs
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+          path: |
+            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
