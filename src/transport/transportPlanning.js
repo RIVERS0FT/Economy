@@ -62,7 +62,7 @@ export function estimateTransportRoute(game, route, now, provinceById = new Map(
   return best;
 }
 
-/** Final unloading, other docked vehicles, then new starts; each tier rotates. */
+/** Final unloading, other docks, custody maintenance, task starts, then trade; each tier rotates. */
 export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
   const routes = Array.isArray(game.transportRoutes) ? game.transportRoutes : [];
   const shipments = Array.isArray(game.transportShipments) ? game.transportShipments : [];
@@ -76,6 +76,7 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
   const finalServices = [];
   const services = [];
   const maintenance = [];
+  const taskStarts = [];
   const starts = [];
   for (const route of ordered) {
     const active = activeByRoute.get(route.id) ?? null;
@@ -109,7 +110,7 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
       }
       if (!hasSlot) continue;
       if (task?.ready) {
-        starts.push({ kind: 'task', operation: 'task-cycle-start', routeId: route.id,
+        taskStarts.push({ kind: 'task', operation: 'task-cycle-start', routeId: route.id,
           key: `task-start:${route.id}`, fingerprint: `${task.fingerprint}:${inTransitCount}` });
         continue;
       }
@@ -122,5 +123,5 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
       });
     }
   }
-  return [...finalServices, ...services, ...maintenance, ...starts];
+  return [...finalServices, ...services, ...maintenance, ...taskStarts, ...starts];
 }
