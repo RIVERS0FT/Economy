@@ -71,29 +71,43 @@ const playerFor = (world, userId) => world.players?.[String(userId)] || null;
 const addMoney = (...values) => roundInternalMoney(values.reduce((sum, value) => sum + Number(value || 0), 0)) || 0;
 const mutableInventory = (player, productId, provinceId) => inventoryForProvince(player, productId, provinceId);
 
-function freezeCredits(player, amount) {
+function isMarketReserveContract(contract) {
+  return contract?.publisherType === 'market_reserve' && contract?.publisherRole === 'buyer';
+}
+function marketReserveGroupFor(world, contract) {
+  if (!isMarketReserveContract(contract)) return null;
+  return world.marketDemand?.liquidity?.groups?.[String(contract.marketReserveGroupId || '')] || null;
+}
+function marketReserveProductFor(world, contract) {
+  return marketReserveGroupFor(world, contract)?.reserves?.[String(contract.productId || '')] || null;
+}
+function buyerAccountFor(world, contract) {
+  return isMarketReserveContract(contract) ? marketReserveGroupFor(world, contract) : playerFor(world, contract.buyerId);
+}
+
+function freezeCredits(account, amount) {
   const target = Math.max(0, roundInternalMoney(amount || 0) || 0);
   if (target <= 0) return true;
-  if (!player || Number(player.credits || 0) + 0.0000001 < target) return false;
-  player.credits = Math.max(0, roundInternalMoney(Number(player.credits || 0) - target) || 0);
-  player.frozenCredits = addMoney(player.frozenCredits, target);
+  if (!account || Number(account.credits || 0) + 0.0000001 < target) return false;
+  account.credits = Math.max(0, roundInternalMoney(Number(account.credits || 0) - target) || 0);
+  account.frozenCredits = addMoney(account.frozenCredits, target);
   return true;
 }
-function consumeFrozenCredits(player, amount) {
+function consumeFrozenCredits(account, amount) {
   const target = Math.max(0, roundInternalMoney(amount || 0) || 0);
-  if (!player || target <= 0) return 0;
-  const consumed = Math.min(target, Math.max(0, roundInternalMoney(player.frozenCredits || 0) || 0));
-  player.frozenCredits = Math.max(0, roundInternalMoney(Number(player.frozenCredits || 0) - consumed) || 0);
+  if (!account || target <= 0) return 0;
+  const consumed = Math.min(target, Math.max(0, roundInternalMoney(account.frozenCredits || 0) || 0));
+  account.frozenCredits = Math.max(0, roundInternalMoney(Number(account.frozenCredits || 0) - consumed) || 0);
   return consumed;
 }
-function releaseFrozenCredits(player, amount) {
-  const released = consumeFrozenCredits(player, amount);
-  if (released > 0) player.credits = addMoney(player.credits, released);
+function releaseFrozenCredits(account, amount) {
+  const released = consumeFrozenCredits(account, amount);
+  if (account && released > 0) account.credits = addMoney(account.credits, released);
   return released;
 }
 function transferFrozenCredits(from, to, amount) {
   const transferred = consumeFrozenCredits(from, amount);
-  if (transferred > 0) to.credits = addMoney(to.credits, transferred);
+  if (to && transferred > 0) to.credits = addMoney(to.credits, transferred);
   return transferred;
 }
 const dailyGross = (contract) => multiplyMoneyByInteger(contract.unitPrice, contract.dailyMaxQuantity) || 0;
@@ -196,7 +210,8 @@ function normalizeDailyContract(contract, now = Date.now()) {
     prioritySupply: normalizePrioritySupply(contract?.prioritySupply), negotiations: normalizeNegotiations(contract, contract?.negotiations, now),
     status: ['open', 'active', 'completed', 'cancelled', 'terminated', 'expired'].includes(contract?.status) ? contract.status : 'open', graceEndsAt: undefined,
   };
-  delete normalized.publisherName; delete normalized.buyerName; delete normalized.supplierName;
+  if (!isMarketReserveContract(normalized)) delete normalized.publisherName;
+  delete normalized.buyerName; delete normalized.supplierName;
   return applyAliases(normalized);
 }
 function releaseSupplierGoods(contract, supplier) {
@@ -254,20 +269,31 @@ function resetDailyWindow(contract, buyer, supplier, now) {
 }
 const contractIsStarted = (contract, now) => contract.startsAt !== null && Number(now) >= Number(contract.startsAt);
 function processOne(world, contract, now) {
-  const buyer = playerFor(world, contract.buyerId); const supplier = playerFor(world, contract.supplierId);
+  const buyer = buyerAccountFor(world, contract); const supplier = playerFor(world, contract.supplierId);
+  const reserveProduct = isMarketReserveContract(contract) ? marketReserveProductFor(world, contract) : null;
   contract.negotiations = normalizeNegotiations(contract, contract.negotiations, now).filter((item) => item.expiresAt > now);
   if (contract.status === 'open') {
     if (now >= contract.offerExpiresAt) { contract.status = 'expired'; contract.endedAt = now; contract.nextDueAt = null; contract.negotiations = []; }
     return applyAliases(contract);
   }
   if (contract.status !== 'active') return applyAliases(contract);
-  if (!buyer || !supplier) { releaseAssets(contract, buyer, supplier); contract.status = 'terminated'; contract.terminationReason = 'participant_missing'; contract.endedAt = now; contract.nextDueAt = null; return applyAliases(contract); }
+  if (!buyer || !supplier || (isMarketReserveContract(contract) && !reserveProduct)) { releaseAssets(contract, buyer, supplier); contract.status = 'terminated'; contract.terminationReason = 'participant_missing'; contract.endedAt = now; contract.nextDueAt = null; return applyAliases(contract); }
   if (!contractIsStarted(contract, now)) { contract.nextDueAt = contract.startsAt; return applyAliases(contract); }
   if (contract.endsAt !== null && now >= contract.endsAt) { releaseAssets(contract, buyer, supplier); contract.status = 'completed'; contract.completedAt = contract.endsAt; contract.endedAt = contract.endsAt; contract.nextDueAt = null; return applyAliases(contract); }
   resetDailyWindow(contract, buyer, supplier, now);
   if (contract.terminationRequestedBy && dayKey(now) > Number(contract.terminationRequestedDayKey)) { releaseAssets(contract, buyer, supplier); contract.status = 'completed'; contract.terminationReason = 'termination_requested'; contract.completedAt = now; contract.endedAt = now; contract.nextDueAt = null; return applyAliases(contract); }
   if (contract.buyerAutoFund) reserveBuyerCredits(contract, buyer);
   if (contract.supplierAutoReserve) reserveSupplierGoods(contract, supplier, now);
+  if (isMarketReserveContract(contract)) {
+    const affordable = contract.unitPrice > 0 ? Math.floor((Number(contract.buyerEscrowCredits || 0) + 0.0000001) / contract.unitPrice) : 0;
+    const prepared = Math.min(dailyRemaining(contract), nonNegativeInteger(contract.supplierReservedQuantity), nonNegativeInteger(affordable));
+    if (prepared > 0) settleQuantity(world, contract, prepared, now, true);
+    if (dailyRemaining(contract) === 0) {
+      releaseAssets(contract, buyer, supplier);
+      contract.status = 'completed'; contract.completedAt = now; contract.endedAt = now; contract.nextDueAt = null;
+      return applyAliases(contract);
+    }
+  }
   contract.nextDueAt = Math.min(nextDayAt(now), contract.endsAt ?? Number.POSITIVE_INFINITY); if (!Number.isFinite(contract.nextDueAt)) contract.nextDueAt = nextDayAt(now);
   return applyAliases(contract);
 }
@@ -317,8 +343,10 @@ function normalizeStats(player) {
   return player.stats;
 }
 function settleQuantity(world, contract, quantity, now, preparedOnly = false) {
-  const buyer = playerFor(world, contract.buyerId); const supplier = playerFor(world, contract.supplierId);
-  if (!buyer || !supplier) return 0;
+  const reserveBuyer = isMarketReserveContract(contract);
+  const buyer = buyerAccountFor(world, contract); const supplier = playerFor(world, contract.supplierId);
+  const reserveProduct = reserveBuyer ? marketReserveProductFor(world, contract) : null;
+  if (!buyer || !supplier || (reserveBuyer && !reserveProduct)) return 0;
   if (!preparedOnly) processOne(world, contract, now);
   if (contract.status !== 'active' || !contractIsStarted(contract, now)
     || (contract.endsAt != null && now >= contract.endsAt)) return 0;
@@ -329,16 +357,22 @@ function settleQuantity(world, contract, quantity, now, preparedOnly = false) {
   const affordable = contract.unitPrice > 0 ? Math.floor((Number(contract.buyerEscrowCredits || 0) + 0.0000001) / contract.unitPrice) : 0;
   const amount = Math.min(nonNegativeInteger(quantity), dailyRemaining(contract), nonNegativeInteger(contract.supplierReservedQuantity), nonNegativeInteger(affordable)); if (amount <= 0) return 0;
   const gross = multiplyMoneyByInteger(contract.unitPrice, amount); if (gross === null || gross <= 0) return 0;
-  const supplierInventory = mutableInventory(supplier, contract.productId, contract.provinceId); const buyerInventory = mutableInventory(buyer, contract.productId, contract.provinceId);
+  const supplierInventory = mutableInventory(supplier, contract.productId, contract.provinceId);
+  const buyerInventory = reserveBuyer ? null : mutableInventory(buyer, contract.productId, contract.provinceId);
   if (supplierInventory.frozen < amount || contract.buyerEscrowCredits + 0.0000001 < gross) return 0;
   adoptLegacyCommodityFreeze(supplierInventory, 'contract', contract.id, contract.supplierReservedQuantity);
   consumeCommodityFreeze(supplierInventory, 'contract', contract.id, amount);
-  buyerInventory.available = nonNegativeInteger(buyerInventory.available) + amount; contract.supplierReservedQuantity -= amount;
+  if (reserveBuyer) reserveProduct.inventory = nonNegativeInteger(reserveProduct.inventory) + amount;
+  else buyerInventory.available = nonNegativeInteger(buyerInventory.available) + amount;
+  contract.supplierReservedQuantity -= amount;
   const paid = consumeFrozenCredits(buyer, gross); contract.buyerEscrowCredits = Math.max(0, roundInternalMoney(contract.buyerEscrowCredits - paid) || 0);
   const previousGross = Math.max(0, roundInternalMoney(contract.marketSellFeeGross || 0) || 0); const previousFee = Math.max(0, roundInternalMoney(contract.marketSellFeeCharged || 0) || 0); const nextGross = addMoney(previousGross, gross); const nextFee = calculateCumulativeMarketSellFee(nextGross); const fee = Math.max(0, roundInternalMoney(nextFee - previousFee) || 0); const net = Math.max(0, roundInternalMoney(gross - fee) || 0);
   supplier.credits = addMoney(supplier.credits, net); if (fee > 0) creditPopulationEmployment(world, fee, 'marketService'); contract.marketSellFeeGross = nextGross; contract.marketSellFeeCharged = nextFee;
   contract.dailyUsedQuantity += amount; contract.totalDeliveredQuantity += amount; contract.completedDeliveryEvents += 1; contract.lastDeliveryQuantity = amount; contract.lastDeliveryGross = gross; contract.lastDeliveryFee = fee; contract.lastDeliveryAt = now;
-  const bs = normalizeStats(buyer); const ss = normalizeStats(supplier); bs.contractDeliveriesCompleted += 1; ss.contractDeliveriesCompleted += 1; bs.contractGoodsPurchased += amount; ss.contractGoodsSupplied += amount; bs.contractCreditsPaid = addMoney(bs.contractCreditsPaid, gross); ss.contractCreditsReceived = addMoney(ss.contractCreditsReceived, net); bs.boughtGoods += amount; ss.soldGoods += amount; bs.commodityVolume += amount; ss.commodityVolume += amount; ss.marketServiceFees = addMoney(ss.marketServiceFees, fee); ss.employmentPayments = addMoney(ss.employmentPayments, fee);
+  const ss = normalizeStats(supplier); ss.contractDeliveriesCompleted += 1; ss.contractGoodsSupplied += amount; ss.contractCreditsReceived = addMoney(ss.contractCreditsReceived, net); ss.soldGoods += amount; ss.commodityVolume += amount; ss.marketServiceFees = addMoney(ss.marketServiceFees, fee); ss.employmentPayments = addMoney(ss.employmentPayments, fee);
+  if (!reserveBuyer) {
+    const bs = normalizeStats(buyer); bs.contractDeliveriesCompleted += 1; bs.contractGoodsPurchased += amount; bs.contractCreditsPaid = addMoney(bs.contractCreditsPaid, gross); bs.boughtGoods += amount; bs.commodityVolume += amount;
+  }
   if (!preparedOnly) {
     if (contract.buyerAutoFund) reserveBuyerCredits(contract, buyer);
     if (contract.supplierAutoReserve) reserveSupplierGoods(contract, supplier, now);
@@ -350,7 +384,7 @@ export function quotePreparedDailySupply(world, buyerId, provinceId, productId, 
   let remaining = nonNegativeInteger(requested);
   const allocations = [];
   const contracts = currentContracts(world).filter((contract) => (
-    isDailySupplyContract(contract) && contract.status === 'active'
+    isDailySupplyContract(contract) && !isMarketReserveContract(contract) && contract.status === 'active'
     && Number(contract.buyerId) === Number(buyerId)
     && normalizeProvinceId(contract.provinceId) === normalizeProvinceId(provinceId)
     && contract.productId === productId && contractIsStarted(contract, now)
@@ -377,7 +411,7 @@ export function quotePreparedDailySupply(world, buyerId, provinceId, productId, 
 
 export function consumePreparedDailySupply(world, buyerId, allocation, now) {
   const contract = currentContracts(world).find((item) => item.id === allocation.contractId);
-  if (!contract || Number(contract.buyerId) !== Number(buyerId)
+  if (!contract || isMarketReserveContract(contract) || Number(contract.buyerId) !== Number(buyerId)
     || contract.unitPrice !== allocation.unitPrice || Number(contract.currentDayKey) !== dayKey(now)) {
     throw new Error('周期采购合同基线已变化');
   }
@@ -388,7 +422,7 @@ export function consumePreparedDailySupply(world, buyerId, allocation, now) {
 
 export function consumeDailySupplyForBuyer(world, buyerId, provinceId, productId, quantity, marketUnitPrice, now = Date.now()) {
   processDailySupplyContracts(world, now); let remaining = nonNegativeInteger(quantity); const boundary = Number.isFinite(Number(marketUnitPrice)) ? Number(marketUnitPrice) : Number.POSITIVE_INFINITY; let delivered = 0; let gross = 0; const contractIds = [];
-  const contracts = (world.productionContracts || []).filter((contract) => isDailySupplyContract(contract) && contract.status === 'active' && Number(contract.buyerId) === Number(buyerId) && normalizeProvinceId(contract.provinceId) === normalizeProvinceId(provinceId) && String(contract.productId) === String(productId) && contractIsStarted(contract, now) && dailyRemaining(contract) > 0 && Number(contract.unitPrice) < boundary).sort((a,b) => Number(a.unitPrice)-Number(b.unitPrice) || Number(a.acceptedAt||0)-Number(b.acceptedAt||0) || String(a.id).localeCompare(String(b.id)));
+  const contracts = (world.productionContracts || []).filter((contract) => isDailySupplyContract(contract) && !isMarketReserveContract(contract) && contract.status === 'active' && Number(contract.buyerId) === Number(buyerId) && normalizeProvinceId(contract.provinceId) === normalizeProvinceId(provinceId) && String(contract.productId) === String(productId) && contractIsStarted(contract, now) && dailyRemaining(contract) > 0 && Number(contract.unitPrice) < boundary).sort((a,b) => Number(a.unitPrice)-Number(b.unitPrice) || Number(a.acceptedAt||0)-Number(b.acceptedAt||0) || String(a.id).localeCompare(String(b.id)));
   for (const contract of contracts) { if (remaining <= 0) break; const amount = settleQuantity(world, contract, remaining, now); if (amount <= 0) continue; delivered += amount; remaining -= amount; gross = addMoney(gross, multiplyMoneyByInteger(contract.unitPrice, amount) || 0); contractIds.push(contract.id); }
   return { quantity: delivered, gross, contractIds };
 }
@@ -401,20 +435,34 @@ function createContract(world, user, payload, now) {
   const publisherRole = payload.publisherRole === 'supplier' ? 'supplier' : 'buyer'; const contract = normalizeDailyContract({ id:`daily-supply-${randomUUID()}`,kind:'supply',supplyMode:'daily',publisherId:Number(user.id),publisherRole,buyerId:publisherRole==='buyer'?Number(user.id):null,supplierId:publisherRole==='supplier'?Number(user.id):null,provinceId,productId,dailyMaxQuantity,unitPrice,durationDays,startDelayDays,status:'open',createdAt:now,offerExpiresAt:now+OFFER_TTL_MS,buyerEscrowCredits:0,supplierReservedQuantity:0,buyerBondCredits:0,supplierBondCredits:0,buyerAutoFund:true,supplierAutoReserve:true,prioritySupply:{enabled:false,minDailyProduction:0,minContractPrice:0},negotiations:[] }, now);
   world.productionContracts ||= []; world.productionContracts.push(contract); return result(true, '每日额度商品合同已发布');
 }
+export function createMarketReserveDailyProcurementContract(world, payload, now = Date.now()) {
+  const groupId = String(payload?.groupId || ''); const group = world.marketDemand?.liquidity?.groups?.[groupId];
+  const productId = PRODUCT_IDS.has(String(payload?.productId || '')) ? String(payload.productId) : null;
+  const dailyMaxQuantity = positiveInteger(payload?.dailyMaxQuantity, MAX_DAILY_QUANTITY); const unitPrice = positiveMoney(payload?.unitPrice);
+  const rawProvinceId = String(payload?.provinceId || DEFAULT_PROVINCE_ID); const provinceId = PROVINCE_IDS.has(rawProvinceId) ? normalizeProvinceId(rawProvinceId) : null;
+  const durationDays = positiveInteger(payload?.durationDays ?? 1, MAX_DURATION_DAYS); const startDelayDays = nonNegativeInteger(payload?.startDelayDays ?? 0);
+  const offerTtlMs = Math.max(10 * 60 * 1000, Number(payload?.offerTtlMs || 60 * 60 * 1000));
+  if (!group || !productId || !dailyMaxQuantity || !unitPrice || !provinceId || !durationDays || startDelayDays > MAX_START_DELAY_DAYS) return null;
+  if ((world.productionContracts || []).some((contract) => contract.publisherType === 'market_reserve' && ['open', 'active'].includes(contract.status) && String(contract.marketReserveGroupId || '') === groupId && String(contract.productId || '') === productId)) return null;
+  const groupName = String(payload?.groupName || group.name || '市场');
+  const contract = normalizeDailyContract({ id:`market-reserve-daily-contract-${randomUUID()}`,kind:'supply',supplyMode:'daily',publisherId:0,publisherName:`${groupName}储备`,publisherType:'market_reserve',fixedTerms:true,marketReserveGroupId:groupId,publisherRole:'buyer',buyerId:null,supplierId:null,provinceId,productId,dailyMaxQuantity,unitPrice,durationDays,startDelayDays,status:'open',createdAt:now,offerExpiresAt:now+offerTtlMs,buyerEscrowCredits:0,supplierReservedQuantity:0,buyerBondCredits:0,supplierBondCredits:0,buyerAutoFund:true,supplierAutoReserve:true,prioritySupply:{enabled:false,minDailyProduction:0,minContractPrice:0},negotiations:[] }, now);
+  world.productionContracts ||= []; world.productionContracts.push(contract); return contract;
+}
 function activate(world, contract, counterpartyId, now) {
-  contract.buyerId = contract.publisherRole === 'buyer' ? Number(contract.publisherId) : Number(counterpartyId); contract.supplierId = contract.publisherRole === 'supplier' ? Number(contract.publisherId) : Number(counterpartyId); if (contract.buyerId === contract.supplierId) return result(false, '不能与自己签订合同');
-  const buyer = playerFor(world, contract.buyerId); const supplier = playerFor(world, contract.supplierId); if (!buyer || !supplier) return result(false, '合同参与方不存在');
-  const buyerAccess = provinceUnlockError(buyer, contract.provinceId); const supplierAccess = provinceUnlockError(supplier, contract.provinceId); if (buyerAccess || supplierAccess) return result(false, '双方必须已解锁合同所在地区');
+  const reserveBuyer = isMarketReserveContract(contract);
+  contract.buyerId = reserveBuyer ? null : (contract.publisherRole === 'buyer' ? Number(contract.publisherId) : Number(counterpartyId)); contract.supplierId = contract.publisherRole === 'supplier' ? Number(contract.publisherId) : Number(counterpartyId); if (!reserveBuyer && contract.buyerId === contract.supplierId) return result(false, '不能与自己签订合同');
+  const buyer = buyerAccountFor(world, contract); const supplier = playerFor(world, contract.supplierId); if (!buyer || !supplier || (reserveBuyer && !marketReserveProductFor(world, contract))) return result(false, '合同参与方不存在');
+  const buyerAccess = reserveBuyer ? null : provinceUnlockError(buyer, contract.provinceId); const supplierAccess = provinceUnlockError(supplier, contract.provinceId); if (buyerAccess || supplierAccess) return result(false, '双方必须已解锁合同所在地区');
   if ((world.productionContracts || []).filter((c) => c?.status === 'active' && [c?.buyerId,c?.supplierId,c?.lenderId,c?.borrowerId,c?.lessorId,c?.lesseeId].some((id)=>Number(id)===Number(counterpartyId))).length >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '进行中的合同数量已达上限');
-  const bond = bondAmount(contract); const gross = dailyGross(contract); if (Number(buyer.credits||0)+0.0000001 < gross+bond) return result(false, '采购方资金不足以冻结首日最高货款和履约保证金'); if (Number(supplier.credits||0)+0.0000001 < bond) return result(false, '供应方资金不足以冻结履约保证金');
+  const bond = bondAmount(contract); const gross = dailyGross(contract); if (Number(buyer.credits||0)+0.0000001 < gross+bond) return result(false, '采购方资金不足以冻结当日最高货款和履约保证金'); if (Number(supplier.credits||0)+0.0000001 < bond) return result(false, '供应方资金不足以冻结履约保证金');
   if (!freezeCredits(buyer,bond)) return result(false,'采购方履约保证金冻结失败'); contract.buyerBondCredits=bond; if(!freezeCredits(supplier,bond)){releaseFrozenCredits(buyer,bond);contract.buyerBondCredits=0;return result(false,'供应方履约保证金冻结失败');} contract.supplierBondCredits=bond;
   contract.status='active';contract.acceptedAt=now;contract.startsAt=now+contract.startDelayDays*CONTRACT_DAY_MS;contract.endsAt=contract.durationDays===null?null:contract.startsAt+contract.durationDays*CONTRACT_DAY_MS;contract.currentDayKey=dayKey(contract.startsAt);contract.dailyUsedQuantity=0;contract.negotiations=[];
-  if(contract.startDelayDays===0){if(contract.buyerAutoFund)reserveBuyerCredits(contract,buyer);if(contract.supplierAutoReserve)reserveSupplierGoods(contract,supplier,now);} processOne(world,contract,now);return result(true,'每日额度商品合同已签订');
+  if(contract.startDelayDays===0){if(contract.buyerAutoFund)reserveBuyerCredits(contract,buyer);if(contract.supplierAutoReserve)reserveSupplierGoods(contract,supplier,now);} processOne(world,contract,now);return result(true,reserveBuyer?'市场储备每日额度采购合同已签订并进入履约':'每日额度商品合同已签订');
 }
 function proposeNegotiation(user, contract, payload, now) {
   if (!contract || contract.status !== 'open' || contract.fixedTerms) return result(false,'当前合同不接受议价'); if (Number(contract.publisherId)===Number(user.id)) return result(false,'发布者不能向自己的合同发起议价'); contract.negotiations ||= []; if(contract.negotiations.some((item)=>Number(item.proposerId)===Number(user.id))) return result(false,'你已经有一个进行中的议价'); if(contract.negotiations.length>=MAX_NEGOTIATIONS_PER_CONTRACT)return result(false,'该合同同时进行中的议价已达上限'); const terms=normalizeTerms(contract,payload); if(!terms)return result(false,'议价条款无效'); contract.negotiations.push({id:`daily-supply-negotiation-${randomUUID()}`,proposerId:Number(user.id),lastActionBy:Number(user.id),revision:1,terms,createdAt:now,updatedAt:now,expiresAt:Math.min(contract.offerExpiresAt,now+NEGOTIATION_TTL_MS)}); return result(true,'议价已发送');
 }
-function counterNegotiation(user,contract,id,payload,now){const n=(contract?.negotiations||[]).find((item)=>item.id===id);if(!contract||contract.status!=='open'||!n)return result(false,'议价不存在或已经结束');const uid=Number(user.id);if(![Number(contract.publisherId),Number(n.proposerId)].includes(uid))return result(false,'你不是该议价参与方');if(Number(n.lastActionBy)===uid)return result(false,'请等待对方回应');if(n.revision>=MAX_NEGOTIATION_REVISIONS)return result(false,'议价轮数已达到上限');const terms=normalizeTerms(contract,payload);if(!terms)return result(false,'议价条款无效');n.revision+=1;n.terms=terms;n.lastActionBy=uid;n.updatedAt=now;n.expiresAt=Math.min(contract.offerExpiresAt,now+NEGOTIATION_TTL_MS);return result(true,'反报价已发送');}
+function counterNegotiation(user,contract,id,payload,now){const n=(contract?.negotiations||[]).find((item)=>item.id===id);if(!contract||contract.status!=='open'||!n)return result(false,'议价不存在或已经结束');const uid=Number(user.id);if(![Number(contract.publisherId),Number(n.proposerId)].includes(uid))return result(false,'你不是该议价参与方');if(Number(n.lastActionBy)===uid)return result(false,'请等待对方回应');if(n.revision>=MAX_NEGOTIATIONS_PER_CONTRACT)return result(false,'议价轮数已达到上限');const terms=normalizeTerms(contract,payload);if(!terms)return result(false,'议价条款无效');n.revision+=1;n.terms=terms;n.lastActionBy=uid;n.updatedAt=now;n.expiresAt=Math.min(contract.offerExpiresAt,now+NEGOTIATION_TTL_MS);return result(true,'反报价已发送');}
 function removeNegotiation(user,contract,id,proposerOnly=false){const index=(contract?.negotiations||[]).findIndex((item)=>item.id===id);if(!contract||contract.status!=='open'||index<0)return result(false,'议价不存在或已经结束');const n=contract.negotiations[index];const publisher=Number(contract.publisherId)===Number(user.id);const proposer=Number(n.proposerId)===Number(user.id);if(proposerOnly?!proposer:(!publisher&&!proposer))return result(false,'你不是该议价参与方');contract.negotiations.splice(index,1);return result(true,proposerOnly?'议价已撤回':'议价已拒绝');}
 export function applyDailySupplyContractAction(world,user,action,payload={},now=Date.now()){
   processDailySupplyContracts(world,now); if(action==='createProductionContract')return createContract(world,user,payload,now); const contract=(world.productionContracts||[]).find((item)=>item.id===String(payload.contractId||'')); if(!isDailySupplyContract(contract))return null;
@@ -424,12 +472,12 @@ export function applyDailySupplyContractAction(world,user,action,payload={},now=
   if(action==='setProductionContractAutoReserve'){if(contract.status!=='active'||Number(contract.supplierId)!==Number(user.id))return result(false,'只有供应方可以修改供应设置');contract.supplierAutoReserve=payload.enabled!==false;if(payload.prioritySupply)contract.prioritySupply=normalizePrioritySupply(payload.prioritySupply);const supplier=playerFor(world,user.id);if(contract.supplierAutoReserve&&!priorityEligible(contract,supplier,now))releaseSupplierGoods(contract,supplier);if(contract.supplierAutoReserve)reserveSupplierGoods(contract,supplier,now);applyAliases(contract);return result(true,'供应优先条件已保存');}
   if(action==='setProductionContractAutoFund'){if(contract.status!=='active'||Number(contract.buyerId)!==Number(user.id))return result(false,'只有采购方可以修改自动补款');contract.buyerAutoFund=payload.enabled!==false;if(contract.buyerAutoFund)reserveBuyerCredits(contract,playerFor(world,user.id));return result(true,'自动补充当日货款设置已保存');}
   if(action==='requestProductionContractTermination'){if(contract.status!=='active'||![contract.buyerId,contract.supplierId].map(Number).includes(Number(user.id)))return result(false,'只有合同参与方可以申请结束');contract.terminationRequestedBy=Number(user.id);contract.terminationRequestedAt=now;contract.terminationRequestedDayKey=dayKey(now);contract.nextDueAt=nextDayAt(now);return result(true,'合同将在当前自然日结束后正常终止');}
-  if(action==='terminateProductionContractNow'){if(contract.status!=='active'||![contract.buyerId,contract.supplierId].map(Number).includes(Number(user.id)))return result(false,'只有合同参与方可以立即终止');const buyer=playerFor(world,contract.buyerId),supplier=playerFor(world,contract.supplierId);releaseDailyEscrow(contract,buyer);releaseSupplierGoods(contract,supplier);if(Number(user.id)===Number(contract.buyerId)){transferFrozenCredits(buyer,supplier,contract.buyerBondCredits);releaseFrozenCredits(supplier,contract.supplierBondCredits);contract.terminationReason='buyer_default';}else{transferFrozenCredits(supplier,buyer,contract.supplierBondCredits);releaseFrozenCredits(buyer,contract.buyerBondCredits);contract.terminationReason='supplier_default';}contract.buyerBondCredits=0;contract.supplierBondCredits=0;contract.status='terminated';contract.breachedAt=now;contract.endedAt=now;contract.nextDueAt=null;return result(true,'合同已立即终止，违约保证金已支付给对方');}
+  if(action==='terminateProductionContractNow'){if(contract.status!=='active'||![contract.buyerId,contract.supplierId].map(Number).includes(Number(user.id)))return result(false,'只有合同参与方可以立即终止');const buyer=buyerAccountFor(world,contract),supplier=playerFor(world,contract.supplierId);releaseDailyEscrow(contract,buyer);releaseSupplierGoods(contract,supplier);if(Number(user.id)===Number(contract.buyerId)){transferFrozenCredits(buyer,supplier,contract.buyerBondCredits);releaseFrozenCredits(supplier,contract.supplierBondCredits);contract.terminationReason='buyer_default';}else{transferFrozenCredits(supplier,buyer,contract.supplierBondCredits);releaseFrozenCredits(buyer,contract.buyerBondCredits);contract.terminationReason='supplier_default';}contract.buyerBondCredits=0;contract.supplierBondCredits=0;contract.status='terminated';contract.breachedAt=now;contract.endedAt=now;contract.nextDueAt=null;return result(true,'合同已立即终止，违约保证金已支付给对方');}
   if(action==='proposeProductionContractNegotiation')return proposeNegotiation(user,contract,payload,now); if(action==='counterProductionContractNegotiation')return counterNegotiation(user,contract,String(payload.negotiationId||''),payload,now); if(action==='rejectProductionContractNegotiation')return removeNegotiation(user,contract,String(payload.negotiationId||'')); if(action==='revokeProductionContractNegotiation')return removeNegotiation(user,contract,String(payload.negotiationId||''),true);
   if(action==='acceptProductionContractNegotiation'){const n=(contract.negotiations||[]).find((item)=>item.id===String(payload.negotiationId||''));if(!n||Number(n.lastActionBy)===Number(user.id)||![Number(contract.publisherId),Number(n.proposerId)].includes(Number(user.id)))return result(false,'当前议价不能接受');Object.assign(contract,n.terms);applyAliases(contract);return activate(world,contract,n.proposerId,now);}
   if(['proposeProductionContractRenewal','acceptProductionContractRenewal','rejectProductionContractRenewal','revokeProductionContractRenewal'].includes(action))return result(false,'每日额度商品合同不使用续签；有限合同结束后可重新发布'); return result(false,'合同操作不存在');
 }
 function publicNegotiations(world,contract,userId){const publisher=Number(contract.publisherId)===Number(userId);return(contract.negotiations||[]).flatMap((item)=>{const proposer=Number(item.proposerId)===Number(userId);if(!publisher&&!proposer)return[];return[{id:item.id,revision:item.revision,terms:{...item.terms},createdAt:item.createdAt,updatedAt:item.updatedAt,expiresAt:item.expiresAt,proposerName:publisher?optionalPlayerDisplayName(world,item.proposerId):null,isProposer:proposer,awaitingMyResponse:Number(item.lastActionBy)!==Number(userId)}];});}
-function issueFor(world,contract,now){if(contract.status!=='active'||!contractIsStarted(contract,now))return null;const buyer=playerFor(world,contract.buyerId),supplier=playerFor(world,contract.supplierId);if(!buyer||!supplier)return'合同参与方状态异常';const remaining=dailyRemaining(contract);const target=multiplyMoneyByInteger(contract.unitPrice,remaining)||0;if(contract.buyerEscrowCredits+Number(buyer.credits||0)+0.0000001<target)return'采购方当日可用货款不足';const inventory=mutableInventory(supplier,contract.productId,contract.provinceId);if(contract.supplierReservedQuantity+inventory.available<remaining)return'供应方当日可用供应量不足';return null;}
-export function publicDailySupplyContract(world,contract,userId,now=Date.now()){const isBuyer=Number(contract.buyerId)===Number(userId),isSupplier=Number(contract.supplierId)===Number(userId);return{...applyAliases({...contract}),publisherName:playerDisplayName(world,contract.publisherId),buyerName:optionalPlayerDisplayName(world,contract.buyerId),supplierName:optionalPlayerDisplayName(world,contract.supplierId),dailyRemainingQuantity:dailyRemaining(contract),dailyGrossLimit:dailyGross(contract),issue:issueFor(world,contract,now),isPublisher:Number(contract.publisherId)===Number(userId),isBuyer,isSupplier,isParticipant:isBuyer||isSupplier,negotiations:publicNegotiations(world,contract,userId),prioritySupply:isSupplier?normalizePrioritySupply(contract.prioritySupply):undefined};}
+function issueFor(world,contract,now){if(contract.status!=='active'||!contractIsStarted(contract,now))return null;const buyer=buyerAccountFor(world,contract),supplier=playerFor(world,contract.supplierId);if(!buyer||!supplier||(isMarketReserveContract(contract)&&!marketReserveProductFor(world,contract)))return'合同参与方状态异常';const remaining=dailyRemaining(contract);const target=multiplyMoneyByInteger(contract.unitPrice,remaining)||0;if(contract.buyerEscrowCredits+Number(buyer.credits||0)+0.0000001<target)return'采购方当日可用货款不足';const inventory=mutableInventory(supplier,contract.productId,contract.provinceId);if(contract.supplierReservedQuantity+inventory.available<remaining)return'供应方当日可用供应量不足';return null;}
+export function publicDailySupplyContract(world,contract,userId,now=Date.now()){const reserveBuyer=isMarketReserveContract(contract);const isBuyer=!reserveBuyer&&Number(contract.buyerId)===Number(userId),isSupplier=Number(contract.supplierId)===Number(userId);const publisherName=reserveBuyer?String(contract.publisherName||'市场储备'):playerDisplayName(world,contract.publisherId);return{...applyAliases({...contract}),publisherName,buyerName:reserveBuyer?publisherName:optionalPlayerDisplayName(world,contract.buyerId),supplierName:optionalPlayerDisplayName(world,contract.supplierId),dailyRemainingQuantity:dailyRemaining(contract),dailyGrossLimit:dailyGross(contract),issue:issueFor(world,contract,now),isPublisher:!reserveBuyer&&Number(contract.publisherId)===Number(userId),isBuyer,isSupplier,isParticipant:isBuyer||isSupplier,negotiations:reserveBuyer?[]:publicNegotiations(world,contract,userId),prioritySupply:isSupplier?normalizePrioritySupply(contract.prioritySupply):undefined};}
 export function dailySupplyContractAvailableHold(world,supplierId,productId,provinceId,now=Date.now()){processDailySupplyContracts(world,now);return(world.productionContracts||[]).filter((c)=>isDailySupplyContract(c)&&c.status==='active'&&c.supplierAutoReserve!==false&&Number(c.supplierId)===Number(supplierId)&&String(c.productId)===String(productId)&&normalizeProvinceId(c.provinceId)===normalizeProvinceId(provinceId)).reduce((sum,c)=>sum+Math.max(0,dailyRemaining(c)-nonNegativeInteger(c.supplierReservedQuantity)),0);}
