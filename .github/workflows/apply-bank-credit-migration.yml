@@ -26,7 +26,26 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          sed "s/'### 6.5'/'## 7. 容量与客户端交付'/" scripts/apply-bank-credit-migration.mjs | node --input-type=module 2>&1 | tee migration.log
+          python3 - <<'PY'
+          from pathlib import Path
+          industry = Path('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
+          text = industry.read_text()
+          old = '- 银行贷款冻结数量继续参与生产，但不得出售、拍卖或重复冻结；贷款冻结与拍卖／交易冻结在内部仍分别保存，普通玩家界面统一归类为“冻结”。 内部 `frozenCount` 仍只表示交易／拍卖冻结；工厂详情的“冻结中”数量由客户端合并 `frozenCount + mortgagedCount + contractCollateralCount`，不得反向改变生产可用数量。'
+          new = '- 只有规则切换前尚未结束的历史银行抵押贷款冻结数量继续参与生产，但不得出售、拍卖或重复冻结；该兼容冻结与拍卖／交易冻结在内部仍分别保存。新资产授信贷款不冻结工厂。内部 `frozenCount` 仍只表示交易／拍卖冻结；工厂详情的“冻结中”数量由客户端合并交易冻结、历史银行抵押贷款冻结与玩家借贷合同冻结后展示。'
+          if text.count(old) != 1:
+              raise SystemExit(f'INDUSTRY exact rule match count={text.count(old)}')
+          industry.write_text(text.replace(old, new))
+
+          source = Path('scripts/apply-bank-credit-migration.mjs').read_text()
+          start_marker = "replaceOnce(\n  'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',"
+          end_marker = "replaceOnce(\n  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',"
+          start = source.index(start_marker)
+          end = source.index(end_marker, start)
+          source = source[:start] + source[end:]
+          source = source.replace("'### 6.5'", "'## 7. 容量与客户端交付'")
+          Path('/tmp/apply-bank-credit-migration.mjs').write_text(source)
+          PY
+          node /tmp/apply-bank-credit-migration.mjs 2>&1 | tee migration.log
           rm -f scripts/apply-bank-credit-migration.done
           git diff --check
       - name: Upload migration failure log
