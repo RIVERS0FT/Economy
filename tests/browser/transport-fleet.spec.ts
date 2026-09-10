@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 
 async function open(page: Page) {
   await page.route(/\/transport-fleet-harness$/, (route) => route.fulfill({ contentType: 'text/html',
-    body: '<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Transport fleet</title><div id="root"></div><script type="module" src="/economy/tests/browser/transport-fleet-harness.tsx"></script></html>' }));
+    body: '<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Transport slots</title><div id="root"></div><script type="module" src="/economy/tests/browser/transport-fleet-harness.tsx"></script></html>' }));
   await page.goto('transport-fleet-harness');
   await page.waitForFunction(() => Boolean(window.transportFleet));
 }
@@ -10,89 +10,88 @@ async function patch(page: Page, value: Record<string, unknown>) {
   await page.evaluate((value) => window.transportFleet.patch(value), value);
 }
 
-test('batch expansion is explicit, submitted once, and leaves active capacity unchanged', async ({ page }) => {
-  const requests: Route[] = [];
-  await page.route('**/fleet-write', (route) => { requests.push(route); });
+function configuredSlots(mode: 'road' | 'rail' | 'air' = 'air') {
+  return {
+    version: 1,
+    stage: 'C3',
+    limit: 5,
+    used: 1,
+    slots: [
+      { id: 'transport-slot-1', index: 1, mode: 'road', experience: 38, level: 6, nextLevelExperience: 54, speedBonusBps: 1500, occupied: true, routeId: 'route-1' },
+      { id: 'transport-slot-2', index: 2, mode, experience: 0, level: 1, nextLevelExperience: 3, speedBonusBps: 0, occupied: false },
+      { id: 'transport-slot-3', index: 3, mode: 'air', experience: 0, level: 1, nextLevelExperience: 3, speedBonusBps: 0, occupied: false },
+      { id: 'transport-slot-4', index: 4, mode: 'road', experience: 3, level: 2, nextLevelExperience: 8, speedBonusBps: 300, occupied: false },
+      { id: 'transport-slot-5', index: 5, mode: 'rail', experience: 0, level: 1, nextLevelExperience: 3, speedBonusBps: 0, occupied: false },
+    ],
+  };
+}
+
+test('technology slots render as independent tool choices with persistent training state', async ({ page }) => {
   await open(page);
-  await expect(page.getByRole('button', { name: '公路运输', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /编辑路线|更换运输方式|发运/ })).toHaveCount(0);
-  await page.getByRole('button', { name: '增加运力', exact: true }).click();
-  const form = page.getByRole('form', { name: '增加运力' });
-  await form.getByRole('spinbutton').fill('3');
-  await expect(form.locator('[data-transport-expansion-cost]')).toHaveAttribute('data-transport-expansion-cost', '240');
-  await expect(form.locator('[data-transport-expanded-capacity]')).toHaveAttribute('data-transport-expanded-capacity', '800');
-  expect(requests).toHaveLength(0);
-  await form.getByRole('button', { name: '确认增购', exact: true }).click();
+  const panel = page.locator('[data-transport-slots="true"]');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText('1 / 5', { exact: true })).toBeVisible();
+  await expect(panel.getByText('科技 C3', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot-id]')).toHaveCount(5);
+  const occupied = page.locator('[data-slot-id="transport-slot-1"]');
+  await expect(occupied.getByRole('combobox', { name: '运输工具' })).toBeDisabled();
+  await expect(occupied).toContainText('卡车 Lv.6');
+  await expect(occupied).toContainText('速度 +15%');
+  await expect(occupied).toContainText('熟练度 38 / 54');
+  const free = page.locator('[data-slot-id="transport-slot-2"]');
+  await expect(free.getByRole('combobox', { name: '运输工具' })).toHaveValue('rail');
+  await expect(free).toContainText('火车 Lv.3');
+  await expect(page.getByRole('button', { name: '增加运力', exact: true })).toHaveCount(0);
+});
+
+test('switching an idle slot sends one authoritative command and resets only that tool training', async ({ page }) => {
+  const requests: Route[] = [];
+  await page.route('**/api/game/transport', (route) => { requests.push(route); });
+  await open(page);
+  const card = page.locator('[data-slot-id="transport-slot-2"]');
+  const select = card.getByRole('combobox', { name: '运输工具' });
+  await select.selectOption('air');
   await expect.poll(() => requests.length).toBe(1);
-  await expect(form.getByRole('button', { name: '确认增购' })).toBeDisabled();
-  expect(requests[0].request().postDataJSON()).toEqual({ routeId: 'route-1', quantity: 3, expectedVehicleCount: 1 });
-  await requests[0].fulfill({ json: { ok: true, message: '运力增购完成', count: 4, credits: 9760 } });
-  await expect(form).toHaveCount(0);
-  await expect(page.locator('[data-transport-owned-count]')).toHaveAttribute('data-transport-owned-count', '4');
-  await expect(page.locator('[data-transport-route-capacity]')).toHaveAttribute('data-transport-route-capacity', '800');
-  await expect(page.locator('[data-transport-capacity]')).toHaveAttribute('data-transport-capacity', '200');
-  await expect(page.locator('[data-transport-dispatched-count]')).toHaveAttribute('data-transport-dispatched-count', '1');
-  await expect(page.getByText('运力增购完成', { exact: true })).toHaveCount(0);
-  expect(await page.evaluate(() => window.transportFleet.notices)).toEqual(['运力增购完成']);
+  expect(requests[0].request().postDataJSON()).toMatchObject({ operation: 'slot-configure', slotId: 'transport-slot-2', mode: 'air' });
+  await requests[0].fulfill({ json: { revision: 42, result: { ok: true, message: '槽位 2 已切换为飞机，培养进度已重置', transportSlots: configuredSlots('air') } } });
+  await expect(select).toHaveValue('air');
+  await expect(card).toContainText('飞机 Lv.1');
+  await expect(card).toContainText('熟练度 0 / 3');
+  await expect(page.getByText('槽位 2 已切换为飞机，培养进度已重置', { exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => window.transportFleet.notices)).toEqual(['槽位 2 已切换为飞机，培养进度已重置']);
   expect(requests).toHaveLength(1);
 });
 
-test('stale forms cannot become second purchases, drafts reset across save generations', async ({ page }) => {
+test('occupied slots cannot change tools and become editable after the trip releases the slot', async ({ page }) => {
+  const requests: Route[] = [];
+  await page.route('**/api/game/transport', (route) => { requests.push(route); route.abort(); });
   await open(page);
-  await page.getByRole('button', { name: '增加运力', exact: true }).click();
-  const form = page.getByRole('form', { name: '增加运力' });
-  await form.getByRole('spinbutton').fill('2');
-  await patch(page, { count: 3 });
-  await expect(form.getByRole('button', { name: '运力已变化，请重新确认' })).toBeDisabled();
-  await expect(form.getByRole('spinbutton')).toBeDisabled();
-  expect(await page.evaluate(() => window.transportFleet.writes.length)).toBe(0);
-  await patch(page, { saveEpoch: 2 });
-  await expect(form).toHaveCount(0);
-  await page.getByRole('button', { name: '增加运力', exact: true }).click();
-  await expect(form.getByRole('spinbutton')).toHaveValue('1');
-  await form.getByRole('button', { name: '取消增购' }).click();
-  expect(await page.evaluate(() => window.transportFleet.writes.length)).toBe(0);
+  const slot = page.locator('[data-slot-id="transport-slot-1"]');
+  await expect(slot).toHaveAttribute('data-slot-occupied', 'true');
+  await expect(slot.getByRole('combobox', { name: '运输工具' })).toBeDisabled();
+  expect(requests).toHaveLength(0);
+  await patch(page, { active: false });
+  await expect(slot).toHaveAttribute('data-slot-occupied', 'false');
+  await expect(slot.getByRole('combobox', { name: '运输工具' })).toBeEnabled();
 });
 
-test('funds, count limits and failures stay local to the form without success-result layout changes', async ({ page }) => {
-  await page.route('**/fleet-write', (route) => route.fulfill({ json: { ok: false, message: '增购被服务端拒绝' } }));
+test('slot cards fit desktop and 320px mobile; route deletion explicitly preserves cultivated tools', async ({ page }) => {
   await open(page);
-  await patch(page, { credits: 79 });
-  await page.getByRole('button', { name: '增加运力', exact: true }).click();
-  const form = page.getByRole('form', { name: '增加运力' });
-  await expect(form.getByRole('button', { name: '确认增购' })).toBeDisabled();
-  await patch(page, { credits: 10000 });
-  await form.getByRole('spinbutton').fill('100');
-  await expect(form.getByRole('button', { name: '确认增购' })).toBeDisabled();
-  await form.getByRole('spinbutton').fill('2');
-  const before = await form.boundingBox();
-  await form.getByRole('button', { name: '确认增购' }).click();
-  await expect.poll(() => page.evaluate(() => window.transportFleet.notices.length)).toBe(1);
-  await expect(form).toBeVisible();
-  await expect(page.getByText('增购被服务端拒绝', { exact: true })).toHaveCount(0);
-  const after = await form.boundingBox();
-  expect(Math.abs(before!.height - after!.height)).toBeLessThanOrEqual(1);
-  await form.getByRole('button', { name: '取消增购' }).click();
-  await patch(page, { count: 100 });
-  await expect(page.getByRole('button', { name: '增加运力', exact: true })).toBeDisabled();
-});
-
-test('fleet confirmation fits desktop and 320px/mobile, deletion discloses removal without refunds', async ({ page }) => {
-  await open(page);
-  await page.getByRole('button', { name: '增加运力', exact: true }).click();
-  const form = page.getByRole('form', { name: '增加运力' });
   for (const width of [1200, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect(form).toBeVisible();
+    const panel = page.locator('[data-transport-slots="true"]');
+    await expect(panel).toBeVisible();
     await expect(async () => {
-      const size = await form.evaluate((element) => ({ width: element.clientWidth, content: element.scrollWidth,
+      const size = await panel.evaluate((element) => ({ width: element.clientWidth, content: element.scrollWidth,
         page: document.documentElement.scrollWidth, viewport: window.innerWidth }));
       expect(size.content).toBeLessThanOrEqual(size.width + 1);
       expect(size.page).toBeLessThanOrEqual(size.viewport + 1);
     }).toPass();
   }
-  await form.getByRole('button', { name: '取消增购' }).click();
+  await page.locator('[data-route-id="route-1"]').click();
+  await expect(page.locator('[data-transport-route-capacity]')).toHaveAttribute('data-transport-route-capacity', '200');
+  await expect(page.getByText('拥有数量', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '本趟完成后删除', exact: true }).click();
-  await expect(page.locator('.transport-delete-confirmation')).toContainText('增购费用不退还');
+  await expect(page.locator('.transport-delete-confirmation')).toContainText('运输槽位及其中运输工具的培养等级保留');
   await expect(page.getByRole('button', { name: '确认本趟完成后删除' })).toBeVisible();
 });
