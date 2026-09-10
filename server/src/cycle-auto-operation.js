@@ -9,6 +9,7 @@ import { internalMoneyToMicros, multiplyMoneyByInteger } from './money.js';
 import { inventoryForProvince, normalizeProvinceId, provinceScopedKey } from './provinces.js';
 import { allocateDailySupplyReservesForSupplier, consumePreparedDailySupply, quotePreparedDailySupply,
   recordDailyProductProduction } from './daily-supply-contracts.js';
+import { reconcileTransportTaskReserves } from './transport-tasks.js';
 
 function priceFor(world, provinceId, productId) {
   const price = world.markets?.[provinceScopedKey(provinceId, productId)]?.officialPrice;
@@ -170,11 +171,12 @@ export function completeBuildingCycleAutoOperation(world, player, group, kind, c
   const provinceId = normalizeProvinceId(group.provinceId);
   // Freeze existing stock even for manually operated consumers, before any sale.
   const plans = reconcileBuildingInputFreezes(world, player, now, provinceId);
+  const transportReservesChanged = reconcileTransportTaskReserves(world, player, player.userId, now, provinceId);
   const policy = kind === 'commercial' ? commercialAutoOperationPolicyFor(group)
     : factoryAutoOperationPolicyFor(player, provinceId, group.facilityTypeId);
-  if (!group.enabled || !policy.enabled) return false;
+  if (!group.enabled || !policy.enabled) return transportReservesChanged;
 
-  let changed = false;
+  let changed = transportReservesChanged;
   for (const product of PRODUCT_CATALOG) {
     const quantity = Number(player.inventories?.[provinceScopedKey(provinceId, product.id)]?.available || 0);
     if (quantity < 1 || priceFor(world, provinceId, product.id) === null) continue;
