@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { postTransportTask } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { SelectInput } from '../components/ui/FormControls';
@@ -58,6 +58,7 @@ export function TransportSlotsPanel({ model }: { model: LoadedGameViewModel }) {
   const delivered = useMemo(() => slotStateFor(model), [model.game]);
   const [localState, setLocalState] = useState<TransportSlotState | null>(null);
   const [pendingSlotId, setPendingSlotId] = useState('');
+  useEffect(() => setLocalState(null), [delivered]);
   const state = localState ?? delivered;
 
   async function configure(slot: TransportSlotView, mode: TransportModeId) {
@@ -68,7 +69,6 @@ export function TransportSlotsPanel({ model }: { model: LoadedGameViewModel }) {
       const projected = (response.result as typeof response.result & { transportSlots?: TransportSlotState }).transportSlots;
       if (projected) setLocalState(projected);
       await model.showResult({ ...response.result, revision: response.revision });
-      if (response.result.ok) await model.refresh({ mode: 'authoritative' });
     } finally {
       setPendingSlotId('');
     }
