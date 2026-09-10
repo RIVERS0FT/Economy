@@ -29,9 +29,9 @@ function Help({ children, content }: { children: ReactNode; content: ReactNode }
 /** Only current consumers are suggested; the server still recomputes actual demand. */
 function consumerProducts(game: EconomyState, provinceId: string) {
   const ids = new Set<string>();
-  for (const group of game.provinceFacilityGroups[provinceId] ?? []) {
+  for (const group of game.provinceFacilityGroups?.[provinceId] ?? []) {
     if (!group.enabled || group.count < 1) continue;
-    const type = game.facilityTypes.find((entry) => entry.id === group.facilityTypeId);
+    const type = game.facilityTypes?.find((entry) => entry.id === group.facilityTypeId);
     const recipe = type?.recipes.find((entry) => entry.id === group.activeRecipeId)
       ?? type?.recipes.find((entry) => entry.id === type.defaultRecipeId);
     for (const input of recipe?.inputs ?? type?.inputs ?? []) ids.add(input.productId);
@@ -68,7 +68,9 @@ export function TransportBusinessPanel({ route, model, busy = false }: {
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const userId = game.userId;
   const saveEpoch = game.saveEpoch;
-  const availableProducts = useMemo(() => consumerProducts(game, destination), [game, destination]);
+  // Legacy routes and partial previews have no business partition. Keep the
+  // existing route surface usable without reading unrelated building slices.
+  const availableProducts = useMemo(() => business ? consumerProducts(game, destination) : [], [business, game, destination]);
   const selectedProductId = availableProducts.some((product) => product.id === productId)
     ? productId : availableProducts[0]?.id ?? '';
   const quantity = Number(quantityDraft);
