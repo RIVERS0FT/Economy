@@ -25,10 +25,17 @@ jobs:
       - name: Apply exact source and design replacements
         shell: bash
         run: |
-          set -euo pipefail
-          sed "s/'### 6.5'/'## 7. 容量与客户端交付'/" scripts/apply-bank-credit-migration.mjs | node --input-type=module
+          set -o pipefail
+          sed "s/'### 6.5'/'## 7. 容量与客户端交付'/" scripts/apply-bank-credit-migration.mjs | node --input-type=module 2>&1 | tee migration.log
           rm -f scripts/apply-bank-credit-migration.done
           git diff --check
+      - name: Upload migration failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bank-credit-migration-failure
+          path: migration.log
+          retention-days: 1
       - name: Commit migration result
         shell: bash
         run: |
