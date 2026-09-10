@@ -7,6 +7,9 @@ import { processMarketReserveOperations } from '../src/market-reserve-operations
 
 const now = 1_800_000_000_000;
 const cycleMs = 5 * 60 * 1000;
+const dayMs = 24 * 60 * 60 * 1000;
+const beijingOffsetMs = 8 * 60 * 60 * 1000;
+const nextBeijingDayAt = (timestamp) => (Math.floor((timestamp + beijingOffsetMs) / dayMs) + 1) * dayMs - beijingOffsetMs;
 const supplierUser = { id: 701, email: 'reserve-supplier@example.com', name: 'Reserve Supplier' };
 const bidderUser = { id: 702, email: 'reserve-bidder@example.com', name: 'Reserve Bidder' };
 
@@ -101,6 +104,7 @@ test('two shortage cycles publish a fixed-term daily market reserve procurement 
   let activeContract = world.productionContracts.find((item) => item.id === contract.id);
   assert.ok(activeContract);
   assert.equal(activeContract.status, 'active');
+  assert.equal(activeContract.endsAt, nextBeijingDayAt(activeContract.startsAt));
   assert.ok(activeContract.buyerEscrowCredits > 0);
   assert.ok(activeContract.buyerBondCredits > 0);
   assert.ok(reserveGroup(world).frozenCredits >= activeContract.buyerEscrowCredits + activeContract.buyerBondCredits);
