@@ -1,0 +1,89 @@
+name: Temporary reserve daily boundary patch
+
+on:
+  push:
+    branches:
+      - fix/market-reserve-daily-contracts
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[reserve-boundary-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/market-reserve-daily-contracts
+          fetch-depth: 0
+      - name: Patch natural-day boundary and validate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          daily_path = Path('server/src/daily-supply-contracts.js')
+          daily = daily_path.read_text(encoding='utf-8')
+          old = "contract.status='active';contract.acceptedAt=now;contract.startsAt=now+contract.startDelayDays*CONTRACT_DAY_MS;contract.endsAt=contract.durationDays===null?null:contract.startsAt+contract.durationDays*CONTRACT_DAY_MS;contract.currentDayKey=dayKey(contract.startsAt);contract.dailyUsedQuantity=0;contract.negotiations=[];"
+          new = "contract.status='active';contract.acceptedAt=now;contract.startsAt=now+contract.startDelayDays*CONTRACT_DAY_MS;contract.endsAt=reserveBuyer?nextDayAt(contract.startsAt):(contract.durationDays===null?null:contract.startsAt+contract.durationDays*CONTRACT_DAY_MS);contract.currentDayKey=dayKey(contract.startsAt);contract.dailyUsedQuantity=0;contract.negotiations=[];"
+          if new not in daily:
+              if old not in daily:
+                  raise SystemExit('daily reserve activation boundary anchor missing')
+              daily = daily.replace(old, new, 1)
+          daily_path.write_text(daily, encoding='utf-8')
+
+          test_path = Path('server/test/market-reserve-operations.test.js')
+          test = test_path.read_text(encoding='utf-8')
+          helper_anchor = "const cycleMs = 5 * 60 * 1000;\n"
+          helper = "const dayMs = 24 * 60 * 60 * 1000;\nconst beijingOffsetMs = 8 * 60 * 60 * 1000;\nconst nextBeijingDayAt = (timestamp) => (Math.floor((timestamp + beijingOffsetMs) / dayMs) + 1) * dayMs - beijingOffsetMs;\n"
+          if 'const nextBeijingDayAt' not in test:
+              if helper_anchor not in test:
+                  raise SystemExit('market reserve test helper anchor missing')
+              test = test.replace(helper_anchor, helper_anchor + helper, 1)
+          assertion_anchor = "  assert.ok(activeContract);\n  assert.equal(activeContract.status, 'active');\n"
+          assertion = "  assert.equal(activeContract.endsAt, nextBeijingDayAt(activeContract.startsAt));\n"
+          if assertion not in test:
+              if assertion_anchor not in test:
+                  raise SystemExit('market reserve active assertion anchor missing')
+              test = test.replace(assertion_anchor, assertion_anchor + assertion, 1)
+          test_path.write_text(test, encoding='utf-8')
+
+          product_path = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
+          product = product_path.read_text(encoding='utf-8')
+          old = '`durationDays = 1`、`startDelayDays = 0`；单位采购价仍为'
+          new = '`durationDays = 1`、`startDelayDays = 0`，承接后只覆盖当前北京时间自然日并在下一个 00:00 边界结束，不得跨日重置出第二份额度；单位采购价仍为'
+          if new not in product:
+              if old not in product:
+                  raise SystemExit('product reserve duration wording missing')
+              product = product.replace(old, new, 1)
+          product_path.write_text(product, encoding='utf-8')
+
+          server_path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          server = server_path.read_text(encoding='utf-8')
+          old = '期限 1 天、无开始延迟；承接后储备与供应玩家'
+          new = '期限 1 天、无开始延迟，承接后截止时间固定为下一个北京时间自然日边界，不能跨日重置第二份额度；承接后储备与供应玩家'
+          if new not in server:
+              if old not in server:
+                  raise SystemExit('server reserve duration wording missing')
+              server = server.replace(old, new, 1)
+          server_path.write_text(server, encoding='utf-8')
+          PY
+          node --check server/src/daily-supply-contracts.js
+          node --check server/src/market-reserve-operations.js
+          node --check server/test/market-reserve-operations.test.js
+          node scripts/verify-market-reserve-operations.mjs
+          node scripts/verify-daily-supply-contracts.mjs
+          node --test server/test/market-reserve-operations.test.js
+          git diff --check
+      - name: Commit patch
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/src/daily-supply-contracts.js server/test/market-reserve-operations.test.js docs/PRODUCT_AND_GAMEPLAY_DESIGN.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+          git commit -m "fix: bound reserve daily quota to Beijing day [reserve-boundary-patched]"
+          git push origin HEAD:fix/market-reserve-daily-contracts
