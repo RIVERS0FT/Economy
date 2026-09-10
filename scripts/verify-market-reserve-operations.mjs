@@ -13,6 +13,7 @@ const requiredFiles = [
   'server/src/asset-auctions.js',
   'server/src/runtime-store.js',
   'server/src/runtime-store-core.js',
+  'server/src/contract-audit-store.js',
   'server/test/market-reserve-operations.test.js',
   'src/contracts/ContractNegotiationSection.tsx',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
@@ -58,7 +59,7 @@ for (const path of ['server/src/contracts.js', 'server/src/daily-supply-contract
   if (source.includes("world.players['0']") || source.includes('world.players[\"0\"]')) failures.push(`${path} 不得创建伪市场储备玩家`);
 }
 requireText('src/contracts/ContractNegotiationSection.tsx', "contract.supplyMode !== 'daily' || contract.fixedTerms");
-for (const text of ['紧急储备卖单', '市场储备采购合同', '储备清仓拍卖', '新发布统一使用每日额度合同', '旧版公开储备采购合同']) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
+for (const text of ['紧急储备卖单', '市场储备采购合同', '储备清仓拍卖', '市场储备新发布统一使用地区化每日额度合同', '旧版公开储备采购合同']) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
 for (const text of ['市场储备新发布的采购合同', 'createMarketReserveDailyProcurementContract', '规则切换前已经进入履约的市场储备旧合同']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 if (failures.length) {
   console.error(failures.join('\n'));
