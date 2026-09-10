@@ -12,10 +12,12 @@ import { Button, PageLayout, StatusTag, WidgetHeading } from '../components/ui/l
 import type { TransportModeId, TransportRoute, TransportShipment, TransportTripType } from '../types';
 import { estimateTransportRoute } from '../transport/transportPlanning.js';
 import { TransportForecast, TransportFuel, TransportLoad, TransportModeComparison, transportWaitingLabel } from '../transport/TransportEconomics';
+import { TransportBusinessPanel } from '../transport/TransportBusinessPanel';
 import { TransportFleetExpansion } from '../transport/TransportFleetExpansion';
 import { TransportShipmentProgress } from '../transport/TransportShipmentProgress';
 import { transportRecovery } from '../transport/transportRecovery';
 import { useTransportForecastNow } from '../transport/useTransportForecastNow';
+import { formatCurrency } from '../utils/formatters';
 import {
   isTransportRouteClosed,
   TRANSPORT_DEFAULT_TRIP_TYPE,
@@ -59,6 +61,11 @@ function shipmentManifest(shipment: TransportShipmentView): ManifestEntry[] {
 function routeRuntimeLabel(shipment: TransportShipmentView | undefined, waitingLabel: string) {
   if (!shipment) return waitingLabel;
   return shipment.status === 'docked' ? '节点装卸' : '运输中';
+}
+
+function activeBusinessDispatch(route: TransportRoute) {
+  return route.transportBusiness?.tasks.some((task) => task.status === 'active' || task.status === 'cancelling')
+    ? route.transportBusiness.dispatch : null;
 }
 
 export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
@@ -227,7 +234,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           <li key={`${entry.productId}-${entry.destinationProvinceId}-${index}`}>
             <strong>{productById.get(entry.productId)?.name ?? entry.productId}</strong>
             <span>×<CompactNumber value={entry.quantity} /></span>
-            {shipment.status === 'arrived' && entry.destinationProvinceId ? <span><ChevronIcon direction="right" />{provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId}</span> : null}
+            {(shipment.status === 'arrived' || shipment.taskTrip) && entry.destinationProvinceId ? <span><ChevronIcon direction="right" />{provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId}</span> : null}
           </li>
         ))}
       </ul>
@@ -272,6 +279,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
             {shipmentFuel(shipment)}
             <span>{TRANSPORT_MODES[shipment.mode].vehicleName} ×<CompactNumber value={transportCyclePolicyForShipment(shipment).vehicleCount ?? 1} /></span>
             <span>交货 <CompactNumber value={Number(shipment.deliveredQuantity || 0)} /></span>
+            {shipment.taskTrip ? <span>已收委托运费 <CurrencyAmount>{formatCurrency(shipment.freightIncome ?? 0)}</CurrencyAmount></span> : null}
           </summary>
           {nodeRecords(shipment)}
         </details>
@@ -289,6 +297,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           <span><small>本趟已付运费</small><strong><CurrencyAmount>{Number(shipment.transportFee ?? shipment.cost)}</CurrencyAmount></strong></span>
           <span><small><GameConcept concept="transport-fuel">本趟已扣燃料</GameConcept></small><strong>{shipmentFuel(shipment)}</strong></span>
           <span><small>已交货数量</small><strong><CompactNumber value={Number(shipment.deliveredQuantity || 0)} /></strong></span>
+          {shipment.taskTrip ? <span><small>已收委托运费</small><strong><CurrencyAmount>{formatCurrency(shipment.freightIncome ?? 0)}</CurrencyAmount></strong></span> : null}
           <span><small>{shipment.status === 'docked' ? '停靠时间' : '预计到站'}</small><strong>{new Date(timestamp).toLocaleString()}</strong></span>
         </div>
         <div className="transport-shipment-cargo"><small>当前车载</small>{manifestList(shipment)}</div>
@@ -342,7 +351,8 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     const ownedVehicleCount = transportRouteVehicleCount(detailRoute);
     const cycleCost = cycleCostFor(detailRoute);
     const detailEstimate = routeEstimates.get(detailRoute.id) ?? estimateTransportRoute(game, detailRoute, now, provinceById);
-    const recovery = transportRecovery(detailEstimate.reason, detailRoute.sourceProvinceId);
+    const businessDispatch = activeBusinessDispatch(detailRoute);
+    const recovery = transportRecovery(businessDispatch?.reason === '燃料不足' ? 'insufficient-fuel' : detailEstimate.reason, detailRoute.sourceProvinceId);
 
     return (
       <PageLayout title={visibleRouteName(detailRoute)}>
@@ -350,7 +360,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           <section className="transport-page-section transport-route-detail-panel">
             <WidgetHeading
               title="路线概览"
-              action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{detailRoute.deletionPending ? '本趟完成后删除' : routeRuntimeLabel(activeShipment ?? undefined, transportWaitingLabel(detailEstimate))}</StatusTag>}
+              action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{detailRoute.deletionPending ? '本趟完成后删除' : routeRuntimeLabel(activeShipment ?? undefined, businessDispatch?.reason ?? transportWaitingLabel(detailEstimate))}</StatusTag>}
             />
             {editingName ? (
               <div className="transport-route-name-editor">
@@ -398,11 +408,18 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               <ul className="transport-shipment-list">{shipmentCard(activeShipment, true)}</ul>
             ) : (
               <>
-                <TransportForecast estimate={detailEstimate} />
+                {businessDispatch ? <div className="transport-task-metrics" data-transport-task-dispatch="true">
+                  <span>{businessDispatch.reason}</span>
+                  <span>计划交付 <CompactNumber value={businessDispatch.transportedQuantity} /></span>
+                  <span>本趟运费 <CurrencyAmount>{formatCurrency(businessDispatch.transportFee)}</CurrencyAmount></span>
+                  <TransportFuel quantity={businessDispatch.fuelRequired} />
+                </div> : <TransportForecast estimate={detailEstimate} />}
                 {recovery && pageNavigation ? <Button variant="text" onClick={() => pageNavigation.pushPage(recovery.location)}>{recovery.label}</Button> : null}
               </>
             )}
           </section>
+
+          <TransportBusinessPanel key={`${game.userId}:${game.saveEpoch}:${detailRoute.id}`} route={detailRoute} model={model} busy={Boolean(pendingAction)} />
 
           <section className="transport-page-section transport-route-history-panel">
             <WidgetHeading title="运输记录" />
@@ -443,6 +460,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                   const activeShipment = activeByRouteId.get(route.id);
                   const cycleCost = cycleCostFor(route);
                   const estimate = routeEstimates.get(route.id) ?? estimateTransportRoute(game, route, now, provinceById);
+                  const businessDispatch = activeBusinessDispatch(route);
                   return (
                     <button
                       type="button"
@@ -458,13 +476,14 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                     >
                       <div className="transport-route-card-heading">
                         <strong>{visibleRouteName(route)}</strong>
-                        <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{route.deletionPending ? '本趟完成后删除' : routeRuntimeLabel(activeShipment, transportWaitingLabel(estimate))}</StatusTag>
+                        <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{route.deletionPending ? '本趟完成后删除' : routeRuntimeLabel(activeShipment, businessDispatch?.reason ?? transportWaitingLabel(estimate))}</StatusTag>
                       </div>
                       <span className="transport-route-mode">{TRANSPORT_MODES[route.mode]?.name ?? route.mode} · {TRANSPORT_MODES[route.mode].vehicleName} ×<CompactNumber value={transportRouteVehicleCount(route)} /> · {routeTripLabel(route)}</span>
                       {routePath(route)}
                       <div className="transport-route-summary-grid">
                         <span><small>全线距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
-                        <span><small>下一趟预计增益</small><strong>{estimate.netGain === null ? '待条件满足' : <CurrencyAmount>{estimate.netGain}</CurrencyAmount>}</strong></span>
+                        {businessDispatch ? <span><small>下一趟计划交付</small><strong><CompactNumber value={businessDispatch.transportedQuantity} /></strong></span>
+                          : <span><small>下一趟预计增益</small><strong>{estimate.netGain === null ? '待条件满足' : <CurrencyAmount>{estimate.netGain}</CurrencyAmount>}</strong></span>}
                       </div>
                       {activeShipment ? <><span className="transport-route-next-stop"><TransportShipmentProgress shipment={activeShipment} provinceById={provinceById} referenceNow={game.lastProcessedAt} /></span><TransportLoad shipment={activeShipment} /></> : null}
                     </button>
