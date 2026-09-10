@@ -75,6 +75,7 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
   const provinceById = new Map(game.provinces.map((province) => [province.id, province]));
   const finalServices = [];
   const services = [];
+  const maintenance = [];
   const starts = [];
   for (const route of ordered) {
     const active = activeByRoute.get(route.id) ?? null;
@@ -83,10 +84,14 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
       if (active.status !== 'docked') continue;
       const finalVisit = Number(active.currentVisitIndex) >= traversal.length - 1;
       if (!finalVisit && !hasSlot) continue;
-      const plan = planTransportNode({
-        game, traversal, shipment: active,
-        capacity: transportCyclePolicyForShipment(active).capacity, now,
-      });
+      // Confirmed tasks have fixed destinations and separate escrow. Never pass
+      // their cargo through the speculative trade selector or trust client quantities.
+      const plan = active.taskTrip
+        ? { visitIndex: Number(active.currentVisitIndex), unload: [], load: [] }
+        : planTransportNode({
+          game, traversal, shipment: active,
+          capacity: transportCyclePolicyForShipment(active).capacity, now,
+        });
       const command = {
         kind: 'service', routeId: route.id,
         key: `service:${active.cycleId ?? active.id}:${plan.visitIndex}`,
@@ -95,7 +100,19 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
         ...plan,
       };
       (finalVisit ? finalServices : services).push(command);
-    } else if (hasSlot && !route.deletionPending) {
+    } else if (!route.deletionPending) {
+      const task = route.transportBusiness?.dispatch;
+      if (task?.maintenanceRequired) {
+        maintenance.push({ kind: 'task', operation: 'task-maintain', routeId: route.id,
+          key: `task-maintain:${route.id}`, fingerprint: task.fingerprint });
+        continue;
+      }
+      if (!hasSlot) continue;
+      if (task?.ready) {
+        starts.push({ kind: 'task', operation: 'task-cycle-start', routeId: route.id,
+          key: `task-start:${route.id}`, fingerprint: `${task.fingerprint}:${inTransitCount}` });
+        continue;
+      }
       const estimate = estimateTransportRoute(game, route, now, provinceById);
       if (estimate.reason !== 'ready') continue;
       starts.push({
@@ -105,5 +122,5 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
       });
     }
   }
-  return [...finalServices, ...services, ...starts];
+  return [...finalServices, ...services, ...maintenance, ...starts];
 }
