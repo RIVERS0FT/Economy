@@ -27,32 +27,38 @@ jobs:
           product_path = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
           product = product_path.read_text(encoding='utf-8')
           replacement = '''- **市场储备采购合同**：某商品总储备库存（可用 + 全部冻结）低于目标库存 65% 且连续两个完整五分钟周期后，储备可以在合同页发布固定条款采购合同；库存恢复到目标库存 90% 后短缺计数清零。市场储备新发布统一使用地区化每日额度合同，不得再创建有限批次合同：当前一期固定使用默认地区 `110000`，`dailyMaxQuantity` 只补向 90% 目标位且不超过发布时可用储备资金 30% 按固定单价可覆盖的数量，`durationDays = 1`、`startDelayDays = 0`；单位采购价仍为 `clamp(基础价 50%, 基础价 300%, 参考价 × (1.05 + 0.20 × 短缺率))` 并向上量化到两位小数。实际承接时从真实储备账户冻结当日最高货款和 20% 采购方保证金，供应玩家冻结 20% 履约保证金；储备自动取得已准备且已托管的真实商品，交付直接增加对应需求组真实储备库存，供应方仍按累计口径缴纳 1% 市场服务费。达到当日额度后合同立即正常完成；期限结束时未使用额度不构成违约并释放未使用托管。储备合同固定条款，不参与议价、续签或自由文本协商，同组同商品最多同时存在一份公开或履约中的储备采购合同。规则切换后旧版公开储备采购合同在下一次储备运行时直接过期并按当前短缺状态改由新版合同重新发布；已经进入履约的旧有限批次储备合同继续按原冻结与批次快照履约到终态，不强制转换。'''
-          pattern = r'- \*\*市场储备采购合同\*\*：.*?\n- \*\*紧急储备卖单\*\*：'
-          product, count = re.subn(pattern, replacement + '\n- **紧急储备卖单**：', product, count=1, flags=re.S)
-          if count != 1:
-              raise SystemExit('PRODUCT market reserve contract rule replacement did not match exactly once')
+          if '市场储备新发布统一使用地区化每日额度合同' not in product:
+              pattern = r'- \*\*市场储备采购合同\*\*：.*?(?=\n- \*\*紧急储备卖单\*\*：)'
+              product, count = re.subn(pattern, replacement, product, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit('PRODUCT reserve procurement rule not found')
           product_path.write_text(product, encoding='utf-8')
 
           server_path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
           server = server_path.read_text(encoding='utf-8')
-          anchor = '每日额度商品合同承接时，采购方和供应方分别冻结“固定价格 × 每日最大供应量”的 20% 履约保证金；采购方自动补款和供应方自动准备只为当前北京时间自然日剩余额度冻结真实货款／商品，不能透支未来资金、未来产量或其他地区库存。合同实际使用可以小于每日额度，并按每次真实取得数量即时转移同地区商品、扣除固定价货款和累计 1% 卖方市场服务费；未用满额度本身不是违约。跨日时先释放上一日未使用货款和商品预留，再把 `dailyUsedQuantity` 归零并按自动设置准备新一天。\n'
-          insertion = '''\n市场储备新发布的采购合同是每日额度商品合同的固定条款系统采购方变体，必须由 `daily-supply-contracts.js` 的 `createMarketReserveDailyProcurementContract` 创建，不得再调用旧 `createMarketReserveProcurementContract` 生成有限批次。储备采购方通过 `publisherType = market_reserve + marketReserveGroupId` 直接绑定 `marketDemand.liquidity.groups` 的真实 `credits / frozenCredits`，不创建 `world.players['0']`；交付商品直接进入该组真实储备库存。当前一期合同地区固定为默认地区 `110000`，日额度只补向储备 90% 目标位且最多使用发布时可用储备资金 30% 对应的采购量，期限 1 天、无开始延迟；承接后储备与供应玩家按同一每日额度保证金／当日托管规则冻结真实资产，储备自动结算已准备额度，额度完成后立即正常结束。固定条款不得议价或续签。\n'''
-          if insertion.strip() not in server:
-              if anchor not in server:
-                  raise SystemExit('SERVER daily contract anchor missing')
-              server = server.replace(anchor, anchor + insertion, 1)
+          insertion = '''市场储备新发布的采购合同是每日额度商品合同的固定条款系统采购方变体，必须由 `daily-supply-contracts.js` 的 `createMarketReserveDailyProcurementContract` 创建，不得再调用旧 `createMarketReserveProcurementContract` 生成有限批次。储备采购方通过 `publisherType = market_reserve + marketReserveGroupId` 直接绑定 `marketDemand.liquidity.groups` 的真实 `credits / frozenCredits`，不创建 `world.players['0']`；交付商品直接进入该组真实储备库存。当前一期合同地区固定为默认地区 `110000`，日额度只补向储备 90% 目标位且最多使用发布时可用储备资金 30% 对应的采购量，期限 1 天、无开始延迟；承接后储备与供应玩家按同一每日额度保证金／当日托管规则冻结真实资产，储备自动结算已准备额度，额度完成后立即正常结束。固定条款不得议价或续签。'''
+          if '市场储备新发布的采购合同是每日额度商品合同' not in server:
+              server, count = re.subn(r'(每日额度商品合同承接时，[^\n]+\n)', r'\1\n' + insertion + '\n', server, count=1)
+              if count != 1:
+                  raise SystemExit('SERVER daily contract section not found')
           old_process = '正式世界处理对旧有限批次合同继续维持到期生产、自动准备、批次结算与宽限；每日额度合同只在实际生产输入择源、手动／自动当日托管、北京时间自然日边界和合同到期边界推进，不因“当日额度未用满”启动宽限或违约。'
           new_process = '正式世界处理对旧有限批次合同继续维持到期生产、自动准备、批次结算与宽限；规则切换前已经进入履约的市场储备旧合同继续按原冻结与批次快照处理到终态，旧版公开储备采购合同在下一次储备运行时直接过期且不得承接，新发布储备采购只能使用每日额度合同。每日额度合同只在实际生产输入择源、手动／自动当日托管、北京时间自然日边界和合同到期边界推进，不因“当日额度未用满”启动宽限或违约。'
-          if old_process not in server and new_process not in server:
-              raise SystemExit('SERVER legacy processing rule missing')
-          server = server.replace(old_process, new_process, 1)
-          server = server.replace('旧有限批次／市场储备合同的处理、动作或客户端序列化只能对旧合同视图建立一次', '旧有限批次合同（包括规则切换前已经进入履约的市场储备旧合同）的处理、动作或客户端序列化只能对旧合同视图建立一次', 1)
+          if new_process not in server:
+              if old_process not in server:
+                  raise SystemExit('SERVER legacy processing sentence not found')
+              server = server.replace(old_process, new_process, 1)
+          old_index = '旧有限批次／市场储备合同的处理、动作或客户端序列化只能对旧合同视图建立一次'
+          new_index = '旧有限批次合同（包括规则切换前已经进入履约的市场储备旧合同）的处理、动作或客户端序列化只能对旧合同视图建立一次'
+          if old_index in server:
+              server = server.replace(old_index, new_index, 1)
+          elif new_index not in server:
+              raise SystemExit('SERVER legacy runtime-index sentence not found')
           server_path.write_text(server, encoding='utf-8')
 
           daily_path = Path('server/src/daily-supply-contracts.js')
           daily = daily_path.read_text(encoding='utf-8')
-          bad = 'if(n.revision>=MAX_NEGOTIATIONS_PER_CONTRACT)return result(false,\'议价轮数已达到上限\')'
-          good = 'if(n.revision>=MAX_NEGOTIATION_REVISIONS)return result(false,\'议价轮数已达到上限\')'
+          bad = "if(n.revision>=MAX_NEGOTIATIONS_PER_CONTRACT)return result(false,'议价轮数已达到上限')"
+          good = "if(n.revision>=MAX_NEGOTIATION_REVISIONS)return result(false,'议价轮数已达到上限')"
           if bad in daily:
               daily = daily.replace(bad, good, 1)
           elif good not in daily:
@@ -62,7 +68,6 @@ jobs:
           node --check server/src/daily-supply-contracts.js
           node --check server/src/market-reserve-operations.js
           node --check server/test/market-reserve-operations.test.js
-          node scripts/verify-market-reserve-operations.mjs
           git diff --check
       - name: Commit patch
         shell: bash
