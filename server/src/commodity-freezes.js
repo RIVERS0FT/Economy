@@ -1,5 +1,5 @@
 /** Commodity custody. The aggregate frozen balance is always backed by source entries. */
-const KINDS = new Set(['production', 'commercial', 'contract', 'auction', 'legacy']);
+const KINDS = new Set(['production', 'commercial', 'contract', 'auction', 'transport', 'legacy']);
 const LEGACY_KEY = 'legacy:unattributed';
 
 function quantity(value, label = '商品数量') {
