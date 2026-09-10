@@ -2,7 +2,7 @@ import type { EconomyState, TransportShipment } from '../types';
 
 export type TransportWaitingReason = 'ready' | 'no-inventory' | 'quotes-not-ready'
   | 'price-boundary' | 'insufficient-profit' | 'insufficient-funds' | 'insufficient-fuel'
-  | 'in-transit-limit' | 'invalid-route';
+  | 'in-transit-limit' | 'transport-tool-unavailable' | 'invalid-route';
 export const TRANSPORT_WAITING_LABELS: Readonly<Record<TransportWaitingReason, string>>;
 export interface TransportCargoEntry { productId: string; quantity: number }
 export interface TransportCycleEstimate {
@@ -47,4 +47,4 @@ export function selectTransportCargo(input: {
   future: Map<string, number | null>;
   capacity: number;
   finalVisit?: boolean;
-}): { unload: TransportCargoEntry[]; load: TransportCargoEntry[] };
+}): { visitIndex?: number; unload: TransportCargoEntry[]; load: TransportCargoEntry[] };
