@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import type { CommercialBuildingTypeDefinition } from '../types/commercial';
-import { COMMERCIAL_STATUS_LABELS, commercialProfitPerMinute, commercialStatusLabel } from '../utils/commercialPresentation';
+import { COMMERCIAL_STATUS_LABELS, commercialGroupStarRating, commercialProfitPerMinute, commercialStatusLabel } from '../utils/commercialPresentation';
 import { CommercePage } from './CommercePage';
 import { ChevronIcon } from '../components/icons/GameIcons';
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
@@ -21,7 +21,6 @@ export function GlobalCommercialBuildingPage({ model, type, activeProvinceId, on
 }) {
   const navigation = usePlayerPageNavigation();
   const [sort, setSort] = useState<EntityListSortState<SortKey>>({ key: 'catalog', direction: 'asc' });
-  const profit = commercialProfitPerMinute(type);
   const groups = model.game.commercialBuildingGroups ?? [];
   const rows = model.game.provinces.flatMap((province, index) => {
     const group = groups.find((candidate) => candidate.provinceId === province.id && candidate.commercialTypeId === type.id && candidate.count > 0);
@@ -55,19 +54,23 @@ export function GlobalCommercialBuildingPage({ model, type, activeProvinceId, on
           { key: 'chevron', label: '' },
         ]} sortState={sort} onSortChange={setSort} />
         <ul className="entity-list-rows global-facility-region-list" aria-label={`${type.name}地区商业建筑`}>
-          {rows.map(({ province: region, group }) => <li key={region.id}>
+          {rows.map(({ province: region, group }) => {
+            const starRating = commercialGroupStarRating(group);
+            const profit = commercialProfitPerMinute(type, 1, starRating);
+            return <li key={region.id}>
             <div className="entity-list-row global-facility-region-row" data-province-id={region.id} data-building-kind="commercial">
               <button type="button" className="global-facility-region-row__open" data-ui-interactive="surface"
-                aria-label={`打开${region.name}${type.name}建筑详情，拥有 ${group.count} 座，${commercialStatusLabel(group)}`}
+                aria-label={`打开${region.name}${type.name}建筑详情，拥有 ${group.count} 座，人气 ${group.popularity ?? 0}，${starRating} 星，${commercialStatusLabel(group)}`}
                 onClick={() => onOpenRegion(region.id)}>
                 <span className="global-facility-region-row__identity"><strong>{region.name}</strong></span>
-                <strong className="entity-list-value global-facility-region-row__profit is-positive" title="单座满员额定利润／分钟"><CompactCurrency value={profit} /></strong>
+                <strong className="entity-list-value global-facility-region-row__profit is-positive" title={`${starRating} 星单座满员利润／分钟`}><CompactCurrency value={profit} /></strong>
                 <strong className="global-facility-region-row__metric"><CompactNumber value={group.count} /></strong>
                 <strong className="global-facility-region-row__status" title={commercialStatusLabel(group)}>{COMMERCIAL_STATUS_LABELS[group.status]}</strong>
                 <span className="global-facility-region-row__chevron" aria-hidden="true"><ChevronIcon direction="right" /></span>
               </button>
             </div>
-          </li>)}
+          </li>;
+          })}
         </ul>
         {rows.length === 0 ? <div className="empty-state">当前已没有地区持有该商业建筑。</div> : null}
       </section>

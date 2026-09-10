@@ -3,7 +3,7 @@
 > 状态：当前设计文档入口与内容边界
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-09-04
-> 客户端状态版本：43
+> 客户端状态版本：44
 > 世界状态版本：33
 
 本文件只负责**文档索引、内容边界和规则路由**，不是业务规则正文。任何会改变玩家行为、业务参数、算法、页面几何、协议字段、存储结构或部署步骤的规则，都必须写入下表登记的唯一权威 DESIGN，而不是复制到本文件或任意 README。
@@ -55,7 +55,7 @@
 | `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、玩家可感知的总体经济与成长语义 | 具体产业配方与生产算法、页面布局、服务器协议与存储 |
 | `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` | 宝石加速与动态兑换的业务语义和审计边界 | 通用货币体系、银行、页面通用视觉、服务器部署 |
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 商品、工厂、配方、生产、统一科技及生产侧资产约束 | 商业建筑经营、页面信息架构、通用 UI、HTTP/SQLite/部署实现 |
-| `COMMERCIAL_BUILDINGS_DESIGN.md` | 商业建筑资产、地区商品消费、营业周期与固定商业利润 | 工业生产配方、商品市场交易算法、页面通用视觉、服务器部署 |
+| `COMMERCIAL_BUILDINGS_DESIGN.md` | 商业建筑资产、地区商品消费、客流、人气星级与营业利润 | 工业生产配方、商品市场交易算法、页面通用视觉、服务器部署 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 工厂目录与已拥有工厂的展示顺序 | 工厂经济规则、卡片通用视觉、服务器目录生成 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品即时交易、每日官方系统价、服务器内部消费／储备订单边界与历史玩家挂单迁移 | 商业建筑仓库消费、市场页面布局、人口需求预算细节、服务器容量与部署实现 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 仓库、地区库存、运输和工厂自动经营业务语义 | 商业营业结算、市场撮合、生产配方、通用页面 Chrome、服务器部署 |
@@ -64,7 +64,7 @@
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 页面模块归属、导航、页面内容与玩家信息架构 | 业务算法、通用视觉令牌、服务器事务和存储 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场行情图的布局、坐标、交互几何和浏览器回归 | 行情数据生成、撮合价格规则、通用 UI 设计系统 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 登录/注册/密码重置入口与邀请流程的玩家可见行为 | 通用表单视觉、账号服务安全与存储、部署路由实现 |
-| `UI_DESIGN_SYSTEM.md` | 通用设计令牌、共享组件、州级中文短名、商品与工厂场景插画主视觉、视觉语义、响应式与可访问性 | 战略地图 Camera／路线渲染、单页业务内容、玩法资格、服务器逻辑 |
+| `UI_DESIGN_SYSTEM.md` | 通用设计令牌、共享组件、州级中文短名、商品、工厂与商业建筑场景插画主视觉、视觉语义、响应式与可访问性 | 战略地图 Camera／路线渲染、单页业务内容、玩法资格、服务器逻辑 |
 | `AUTHORITATIVE_COUNTDOWN_DESIGN.md` | 客户端权威时间、倒计时确认、状态读取恢复与 ready 生命周期 | 各业务领域的结算结果、普通页面内容、服务器容量 |
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家一级表面的统一外层内边距与贴边例外 | 通用卡片视觉、页面业务结构、其他布局系统 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览页布局完整性、宽度断点与局部几何回归 | 概览业务数据含义、通用响应式系统、服务器数据来源 |
@@ -85,7 +85,7 @@
 |---|---|
 | 产品定位、总体玩法循环、玩家资产与总体经济语义 | `PRODUCT_AND_GAMEPLAY_DESIGN.md` |
 | 商品、工厂、生产、配方、产业科技 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` |
-| 商业建筑、地区商品消费、营业周期、固定商业利润 | `COMMERCIAL_BUILDINGS_DESIGN.md` |
+| 商业建筑、地区商品消费、客流、人气星级、营业利润 | `COMMERCIAL_BUILDINGS_DESIGN.md` |
 | 商品即时交易、每日官方系统价、内部人口／储备订单边界、历史挂单迁移 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` |
 | 仓库、地区库存、运输、工厂自动经营 | `WAREHOUSE_EXPANSION_DESIGN.md` |
 | 运输地图公路／铁路首府几何的数据源、离线生成及航空虚拟航路数据 | `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` |
@@ -93,7 +93,7 @@
 | 页面有哪些模块、导航到哪里、内容放在哪页 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | 通用颜色、字体、控件、列表、响应式、可访问性 | `UI_DESIGN_SYSTEM.md` |
 | 州级中文短名与跨页面州名视觉语义 | `UI_DESIGN_SYSTEM.md` |
-| 商品与工厂场景插画主视觉 | `UI_DESIGN_SYSTEM.md` |
+| 商品、工厂与商业建筑场景插画主视觉 | `UI_DESIGN_SYSTEM.md` |
 | 根外壳、通用毛玻璃材质、Chrome、工作区与浮层层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |
 | 市场行情图局部几何 | `MARKET_CHART_LAYOUT_DESIGN.md` |
 | 概览、一级表面 inset、生产胶囊等局部布局专项 | 对应布局专项 DESIGN |
@@ -105,7 +105,7 @@
 | 浏览器本地成交/活动历史 | `LOCAL_ACTIVITY_LOG_DESIGN.md` |
 | 礼品码与管理员专属运营能力 | `GIFT_CODE_AND_ADMIN_DESIGN.md` |
 
-工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`；工厂目录排序只归 `FACILITY_CATALOG_PRESENTATION_DESIGN.md`。这里仅声明 owner，不复制插画尺寸、资源路径、构图或生成规则。
+工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`；商品与商业建筑场景插画同样归属该文档，工厂目录排序只归 `FACILITY_CATALOG_PRESENTATION_DESIGN.md`。这里仅声明 owner，不复制插画尺寸、资源路径、构图或生成规则。
 
 一个改动可以影响多份 DESIGN，但每条语义规则仍只能有一个 owner。其他受影响文档只描述本领域的接口或结果，并引用 owner。
 

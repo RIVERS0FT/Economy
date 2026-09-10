@@ -45,6 +45,10 @@ for (const width of [320, 390, 720, 1440]) {
     await expect(page.locator('.commercial-cluster-detail-page')).toBeVisible();
     await expect(page.locator('.commercial-cluster-selector-region')).toHaveCount(0);
     await expect(page.locator('.regional-entity-title')).toContainText('便利店');
+    await expect(page.getByRole('region', { name: '人气与客流' })).toBeVisible();
+    await expect(page.getByLabel('人气 0，1 星')).toBeVisible();
+    await expect(page.getByText('当前星级利润／座／周期', { exact: true })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: '服务方案' })).toBeVisible();
     const summary = page.locator('.facility-information-summary');
     await expect(summary).toBeVisible();
     const control = summary.locator('.ui-switch');
@@ -67,6 +71,31 @@ for (const width of [320, 390, 720, 1440]) {
   });
 }
 
+test('commercial artwork resolves every catalog type to a 256px runtime scene', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await openCommerce(page);
+  const artwork = page.locator('.commercial-building-card [data-commercial-artwork]');
+  await expect(artwork).toHaveCount(6);
+  const resolved = await artwork.evaluateAll(async (elements) => Promise.all(elements.map(async (element) => {
+    const backgroundImage = getComputedStyle(element).backgroundImage;
+    const url = /url\(["']?(.*?)["']?\)/.exec(backgroundImage)?.[1] ?? '';
+    if (!url) return { backgroundImage, width: 0, height: 0 };
+    const image = new Image();
+    const loaded = new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error(`failed to load ${url}`));
+    });
+    image.src = url;
+    await loaded;
+    return { backgroundImage, width: image.naturalWidth, height: image.naturalHeight };
+  })));
+  for (const item of resolved) {
+    expect(item.backgroundImage).toContain('/commercial-icons/generated/256/');
+    expect(item.width).toBe(256);
+    expect(item.height).toBe(256);
+  }
+});
+
 test('commercial cards show per-building profit while running settlement keeps only the primary result', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await openCommerce(page);
@@ -75,7 +104,7 @@ test('commercial cards show per-building profit while running settlement keeps o
   await first.focus();
   await first.press('Enter');
   await expect(page.locator('.facility-average-profit')).toContainText('0.50');
-  await expect(page.getByText('集群额定利润／分钟', { exact: true }).locator('..')).toContainText('1.50');
+  await expect(page.getByText('当前星级集群额定利润／分钟', { exact: true }).locator('..')).toContainText('1.50');
   const settlement = page.locator('.commercial-settlement');
   const revenueCard = settlement.locator('.facility-formula-money-card');
   await expect(revenueCard).toContainText('101.25');
@@ -123,6 +152,23 @@ test('commercial cards show per-building profit while running settlement keeps o
   await expect(settlement.locator('.facility-formula-item-group').first()).toHaveAttribute('aria-label', /库存不足/);
   await expect(settlement.locator('button.facility-formula-item-group')).toHaveCount(2);
   await expect(page.getByText('满员率', { exact: true })).toHaveCount(0);
+});
+
+test('commercial service and promotion controls submit server-authoritative configuration actions', async ({ page }) => {
+  const payloads: Record<string, unknown>[] = [];
+  await page.route('**/economy-api/game/commercial-buildings', async (route) => {
+    payloads.push(route.request().postDataJSON());
+    await route.fulfill({ json: { result: { ok: true, message: '配置已保存' } } });
+  });
+  await openCommerce(page);
+  await page.locator('.commercial-building-card').first().click();
+  await page.getByRole('combobox', { name: '服务方案' }).click();
+  await page.getByRole('option', { name: '精品服务', exact: true }).click();
+  await expect.poll(() => payloads.length).toBe(1);
+  await page.getByRole('button', { name: /开展 3 周期推广/ }).click();
+  await expect.poll(() => payloads.length).toBe(2);
+  expect(payloads[0]).toMatchObject({ operation: 'service-level', commercialTypeId: 'convenience-store', serviceLevel: 'premium' });
+  expect(payloads[1]).toMatchObject({ operation: 'promote', commercialTypeId: 'convenience-store' });
 });
 
 test('commercial switch prevents repeated requests and preserves an invested cycle after stop', async ({ page }) => {

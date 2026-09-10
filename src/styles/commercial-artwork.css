@@ -1,0 +1,42 @@
+.commercial-building-artwork[data-commercial-artwork='convenience-store'] { --commercial-artwork-image: url('../assets/commercial-icons/generated/256/convenience-store.png'); }
+.commercial-building-artwork[data-commercial-artwork='fresh-market'] { --commercial-artwork-image: url('../assets/commercial-icons/generated/256/fresh-market.png'); }
+.commercial-building-artwork[data-commercial-artwork='restaurant'] { --commercial-artwork-image: url('../assets/commercial-icons/generated/256/restaurant.png'); }
+.commercial-building-artwork[data-commercial-artwork='clothing-store'] { --commercial-artwork-image: url('../assets/commercial-icons/generated/256/clothing-store.png'); }
+.commercial-building-artwork[data-commercial-artwork='furniture-showroom'] { --commercial-artwork-image: url('../assets/commercial-icons/generated/256/furniture-showroom.png'); }
+.commercial-building-artwork[data-commercial-artwork='appliance-store'] { --commercial-artwork-image: url('../assets/commercial-icons/generated/256/appliance-store.png'); }
+
+:is(
+  .facility-cluster-selector-card,
+  .global-facility-catalog-row,
+  .facility-detail-artwork,
+  .research-artwork-clip
+) .commercial-building-artwork {
+  display: block;
+  background-image: var(--commercial-artwork-image, none);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.commercial-building-artwork:is(
+  [data-commercial-artwork='convenience-store'],
+  [data-commercial-artwork='fresh-market'],
+  [data-commercial-artwork='restaurant'],
+  [data-commercial-artwork='clothing-store'],
+  [data-commercial-artwork='furniture-showroom'],
+  [data-commercial-artwork='appliance-store']
+) {
+  stroke: transparent;
+}
+
+@media (prefers-reduced-data: reduce) {
+  :is(
+    .facility-cluster-selector-card,
+    .global-facility-catalog-row,
+    .facility-detail-artwork,
+    .research-artwork-clip
+  ) .commercial-building-artwork {
+    background-image: none;
+    stroke: currentColor;
+  }
+}

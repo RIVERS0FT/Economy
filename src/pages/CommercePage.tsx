@@ -23,8 +23,8 @@ import { BuildingClusterCard } from '../components/buildings/BuildingClusterCard
 import { CommercialBuildingArtwork } from '../components/commercial/CommercialBuildingArtwork';
 import { CommercialBuildingDetail } from '../components/commercial/CommercialBuildingDetail';
 import { CompactCurrency } from '../components/ui/CompactNumber';
-import type { CommercialStateFields, CommercialAutoOperationPolicy } from '../types/commercial';
-import { commercialProfitPerMinute as profitPerMinute, commercialStatusLabel } from '../utils/commercialPresentation';
+import type { CommercialStateFields, CommercialAutoOperationPolicy, CommercialServiceLevel } from '../types/commercial';
+import { commercialGroupStarRating, commercialProfitPerMinute as profitPerMinute, commercialStatusLabel } from '../utils/commercialPresentation';
 import '../styles/commercial-buildings.css';
 
 export function CommercePage({
@@ -99,6 +99,7 @@ export function CommercePage({
     commercialTypeId: string,
     quantity?: number,
     policy?: CommercialAutoOperationPolicy,
+    serviceLevel?: CommercialServiceLevel,
   ) => {
     if (pendingActionRef.current) return;
     pendingActionRef.current = true;
@@ -110,6 +111,7 @@ export function CommercePage({
         commercialTypeId,
         quantity,
         policy,
+        serviceLevel,
       });
       if (result.code === 'ACTION_RESULT_UNCONFIRMED') {
         await reportActionException(model, null, operation === 'auto-operation' ? '自动经营设置' : '商业建筑操作');
@@ -155,11 +157,11 @@ export function CommercePage({
       <DataList>
         <DataRow label="建造资金" value={formatCurrency(selectedBuildType.buildCost * buildQuantity)} />
         <DataRow
-          label="单座满员额定利润"
+          label="单座一星满员利润"
           value={`${formatCurrency(selectedBuildType.profitPerCycle)} / ${formatNumber(selectedBuildType.cycleMs / 60_000)} 分钟`}
         />
         <DataRow
-          label="建成后稳定利润"
+          label="建成后一星利润"
           value={`${formatCurrency(profitPerMinute(selectedBuildType, buildQuantity))} / 分钟`}
         />
       </DataList>
@@ -187,15 +189,16 @@ export function CommercePage({
   const buildingCards = provinceGroups.map((group) => {
           const type = typeById.get(group.commercialTypeId);
           if (!type) return null;
-          const profit = profitPerMinute(type);
+          const starRating = commercialGroupStarRating(group);
+          const profit = profitPerMinute(type, 1, starRating);
           return (
             <BuildingClusterCard kind="commercial" key={group.commercialTypeId} className="commercial-building-card"
               name={type.name} status={group.status} count={group.count}
               artwork={<CommercialBuildingArtwork commercialTypeId={type.id} className="facility-cluster-icon" />}
               profitValue={<CompactCurrency value={profit} />}
               profitTone={profit > 0 ? 'positive' : 'neutral'}
-              profitTitle={`${type.name}单座满员额定利润／分钟；不含集群数量倍数`}
-              ariaLabel={`${type.name}，数量 ${formatNumber(group.count)}，${commercialStatusLabel(group)}，单座满员额定利润每分钟：${formatCurrency(profit)}`}
+              profitTitle={`${type.name}${starRating} 星单座满员利润／分钟；不含集群数量倍数`}
+              ariaLabel={`${type.name}，数量 ${formatNumber(group.count)}，人气 ${group.popularity ?? 0}，${starRating} 星，${commercialStatusLabel(group)}，当前星级单座满员利润每分钟：${formatCurrency(profit)}`}
               onSelect={() => selectDetail(type.id)}
             />
           );
@@ -237,6 +240,14 @@ export function CommercePage({
         pending={Boolean(pendingAction)} onOpenProductMarket={openProductDetail}
         researchLockedMessage={commercialResearchRequirement(game, selectedDetailType.id).unlocked ? undefined : commercialResearchRequirement(game, selectedDetailType.id).message}
         onAutoOperationChange={(policy) => operationConfiguration.update(selectedGroup, policy)}
+        onServiceLevelChange={(serviceLevel) => void execute(
+          `service-level:${selectedGroup.commercialTypeId}`,
+          'service-level', selectedGroup.commercialTypeId, undefined, undefined, serviceLevel,
+        )}
+        onPromote={() => void execute(
+          `promote:${selectedGroup.commercialTypeId}`,
+          'promote', selectedGroup.commercialTypeId,
+        )}
         onToggle={(enabled) => void execute(
           `${enabled ? 'start' : 'stop'}:${selectedGroup.commercialTypeId}`,
           enabled ? 'start' : 'stop', selectedGroup.commercialTypeId,

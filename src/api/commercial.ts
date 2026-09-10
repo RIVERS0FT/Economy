@@ -1,4 +1,4 @@
-import type { CommercialAutoOperationPolicy } from '../types/commercial';
+import type { CommercialAutoOperationPolicy, CommercialServiceLevel } from '../types/commercial';
 export interface CommercialBuildingActionResult {
   ok: boolean;
   message: string;
@@ -6,7 +6,7 @@ export interface CommercialBuildingActionResult {
   revision?: number;
 }
 
-export type CommercialBuildingOperation = 'build' | 'start' | 'stop' | 'auto-operation';
+export type CommercialBuildingOperation = 'build' | 'start' | 'stop' | 'auto-operation' | 'service-level' | 'promote';
 
 interface CommercialBuildingActionInput {
   operation: CommercialBuildingOperation;
@@ -14,6 +14,7 @@ interface CommercialBuildingActionInput {
   commercialTypeId: string;
   quantity?: number;
   policy?: CommercialAutoOperationPolicy;
+  serviceLevel?: CommercialServiceLevel;
 }
 
 function requestKey() {

@@ -107,7 +107,10 @@ function suppressInitialBootstrapForAction(action, payload) {
   if (action === 'pauseFacility' || action === 'setFacilityRecipe' || action === 'setFacilityRecipes') return true;
   if (action === 'placeOrder' && payload?.execution === 'factory-auto-operation-policy') return true;
   return action === 'commercialBuilding'
-    && (payload?.operation === 'stop' || payload?.operation === 'auto-operation');
+    && (payload?.operation === 'stop'
+      || payload?.operation === 'auto-operation'
+      || payload?.operation === 'service-level'
+      || payload?.operation === 'promote');
 }
 
 function cancelRuntimeCommodityOrder(world, user, orderId, now, { processWorld = true } = {}) {

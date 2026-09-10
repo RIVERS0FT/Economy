@@ -122,12 +122,8 @@ for (const viewportSize of [
         expect(detailGeometry.width).toBeCloseTo(detailGeometry.height, 0);
         await expect(detailFrame.locator('.research-artwork-clip')).toHaveCSS('border-radius', '50%');
       }
-      if (example.kind === 'commercial') {
-        await expect(detailFrame.locator(example.selector)).toHaveAttribute('preserveAspectRatio', 'xMidYMid slice');
-      } else {
-        await expect(detailFrame.locator(example.selector)).toHaveCSS('background-size', example.kind === 'product' ? 'contain' : 'cover');
-        await expect(detailFrame.locator(example.selector)).not.toHaveCSS('background-image', 'none');
-      }
+      await expect(detailFrame.locator(example.selector)).toHaveCSS('background-size', example.kind === 'product' ? 'contain' : 'cover');
+      await expect(detailFrame.locator(example.selector)).not.toHaveCSS('background-image', 'none');
 
       const unlockFrames = detail.locator('.research-unlock-artwork');
       expect(await unlockFrames.count()).toBeGreaterThan(0);

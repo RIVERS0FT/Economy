@@ -59,6 +59,7 @@ import '../../src/styles/contracts.css';
 import '../../src/styles/asset-auctions.css';
 import '../../src/styles/auction-card-layers.css';
 import '../../src/styles/facility-artwork.css';
+import '../../src/styles/commercial-artwork.css';
 import '../../src/styles/gem-shop.css';
 import '../../src/styles/overview.css';
 import '../../src/styles/market-funds.css';
@@ -1347,7 +1348,11 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
     { id: 'furniture-showroom', name: '家具商场', profitPerCycle: 6, consumptionInputs: [{ productId: 'furniture', quantity: 1 }] },
     { id: 'appliance-store', name: '家电卖场', profitPerCycle: 8, consumptionInputs: [{ productId: 'appliance', quantity: 1 }] },
   ].map((type) => ({ ...type, name: scenario === 'commercial-long' ? `${type.name}超长名称移动端边界验证` : type.name,
-    description: '', buildCost: 120, operatingCost: 1.5, cycleMs: 300_000, systemValue: 120 }));
+    description: '', buildCost: 120, operatingCost: 1.5, cycleMs: 300_000, systemValue: 120,
+    profitPerCycleByStar: [type.profitPerCycle, type.profitPerCycle * 1.1, type.profitPerCycle * 1.25,
+      type.profitPerCycle * 1.45, type.profitPerCycle * 1.7] as [number, number, number, number, number],
+    premiumServiceCostPerCycle: type.profitPerCycle * 0.1,
+    promotionCostPerBuilding: type.profitPerCycle * 1.5 }));
   const [groups, setGroups] = useState<CommercialBuildingGroup[]>(() => {
     if (scenario === 'empty') return [];
     const current: CommercialBuildingGroup[] = types.map((type, index) => ({
@@ -1362,11 +1367,24 @@ function CommerceHarness({ scope = 'commercial' }: { scope?: 'commercial' | 'reg
       pendingStaffingRateBps: index === 0 ? 10000 : undefined,
       pendingRevenue: index === 0 ? 101.25 : undefined,
       pendingProfit: index === 0 ? 5 : undefined,
+      popularity: index * 20,
+      popularityProtectionCycles: index === 0 ? 1 : 0,
+      serviceLevel: 'standard',
+      promotionCyclesRemaining: 0,
+      promotionCoveredCount: 0,
+      pendingPopularity: index === 0 ? 0 : undefined,
+      pendingStarRating: index === 0 ? 1 : undefined,
+      pendingFootfall: index === 0 ? 200 : undefined,
+      pendingTargetFootfall: index === 0 ? 300 : undefined,
+      pendingPopularityChange: index === 0 ? 0 : undefined,
+      pendingServiceLevel: index === 0 ? 'standard' : undefined,
+      pendingServiceCost: index === 0 ? 0 : undefined,
+      pendingPromotionActive: index === 0 ? false : undefined,
       pendingGoodsConsumed: index === 0 ? 4 : undefined,
       pendingOperatingCost: index === 0 ? 3 : undefined,
       pendingInputValue: index === 0 ? 93.25 : undefined,
       pendingInputs: index === 0 ? type.consumptionInputs.map((input) => ({ ...input, quantity: input.quantity * 2 })) : undefined,
-      lifetimeRevenue: 200, lifetimeProfit: 25, lifetimeGoodsConsumed: 40,
+      lifetimeRevenue: 200, lifetimeProfit: 25, lifetimeGoodsConsumed: 40, lifetimeFootfall: 400,
     }));
     return [...current, { ...current[0], provinceId: '120000', count: 7 }];
   });

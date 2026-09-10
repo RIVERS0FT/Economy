@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "style": "commercial-storefronts-2026-09-10",
+  "creationMode": "from-scratch-new-illustration",
+  "commercialTypeIds": [
+    "convenience-store",
+    "fresh-market",
+    "restaurant",
+    "clothing-store",
+    "furniture-showroom",
+    "appliance-store"
+  ],
+  "sha256": {
+    "convenience-store": "b667c1c8bbdc379875fe8a7f0282049be05b4e9a805de117e50bd190bfbfffa4",
+    "fresh-market": "89ae643a7b82d5bc470403445ec1e1143a74d90d10ec6cf7c8a12656a37fb313",
+    "restaurant": "9c96ef89aba24ca0f61297569d5293c283f01dc7a37baa3a03fe676842c8cd8a",
+    "clothing-store": "a4282f9274f2755eb7ebe38e800e03e40cf92eb606804c3e83a47cd55bb0d886",
+    "furniture-showroom": "b8097a87b9dc26705d6fee61266c8843266f790f22f30007a247ec4c1a49eb72",
+    "appliance-store": "cd341f57b5005df12e6b776da45fdf5ca58e3a3cced21b5601509cc86ac9cec4"
+  }
+}
