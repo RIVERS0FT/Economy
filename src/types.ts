@@ -1,4 +1,5 @@
 import type { CommercialStateFields } from './types/commercial';
+import type { TransportBusinessState, TransportTaskCargo } from './transport/transportTaskTypes';
 export interface AuthUser {
   id: number;
   email: string;
@@ -43,7 +44,7 @@ export interface ProductDefinition {
 }
 
 export interface CommodityFreezeDetail {
-  kind: 'production' | 'commercial' | 'contract' | 'auction' | 'legacy';
+  kind: 'production' | 'commercial' | 'contract' | 'auction' | 'transport' | 'legacy';
   sourceId: string;
   label: string;
   quantity: number;
@@ -249,8 +250,10 @@ export interface TransportStopPlanEntry {
 
 export interface TransportManifestItem {
   productId: string;
-  /** Only delivered history has a destination; active cargo is not preassigned. */
+  /** Task cargo and delivered history have fixed destinations; trade cargo is selected at stops. */
   destinationProvinceId?: string;
+  taskId?: string;
+  kind?: 'freight' | 'supply';
   quantity: number;
 }
 
@@ -263,6 +266,7 @@ export interface TransportLegPlanEntry {
 }
 
 export interface TransportRoute {
+  transportBusiness?: TransportBusinessState;
   /** Missing only in legacy snapshots; each saved route initially owns one vehicle. */
   vehicleCount?: number;
   id: string;
@@ -292,6 +296,9 @@ export interface TransportNodeHistoryEntry {
 }
 
 export interface TransportShipment {
+  taskTrip?: boolean;
+  taskCargo?: TransportTaskCargo[];
+  freightIncome?: number;
   nodeHistory?: TransportNodeHistoryEntry[];
   /** Server-owned parameters locked when this cycle starts. */
   policySnapshot?: import('../shared/transport-policy.js').TransportCyclePolicy;
@@ -599,6 +606,7 @@ export interface DailyCheckInState {
   weeklyBonusEarned: boolean;
   weeklyBonusEligible: boolean;
   dailyRewardGems: number;
+  weeklyFullAttendanceGemsIssued?: number;
   weeklyBonusGems: number;
 }
 
