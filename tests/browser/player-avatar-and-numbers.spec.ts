@@ -52,7 +52,8 @@ test('compact status values expose a full number tooltip while numeric inputs st
   await page.mouse.move(900, 450);
   await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
   await expect(page.getByRole('button', { name: '存入', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: '最大', exact: true }).click();
+  const transferShortcuts = page.getByLabel('快捷金额', { exact: true });
+  await transferShortcuts.getByRole('button', { name: '最大', exact: true }).click();
   const amount = page.getByRole('textbox', { name: '存入金额' });
   await expect(amount).toHaveValue(/^-?\d+(?:\.\d+)?$/);
   await expect(amount).not.toHaveValue(/[KMBT]/);
