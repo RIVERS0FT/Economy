@@ -20,8 +20,6 @@
 .bank-settlement-countdown,
 .bank-loan-decision > small,
 .bank-collateral-summary > small,
-.bank-collateral-identity small,
-.bank-collateral-entry small,
 .bank-section-heading p {
   color: var(--color-text-secondary);
   line-height: 1.55;
@@ -82,8 +80,12 @@
 }
 
 .bank-transfer-direction,
-.bank-transfer-quick-actions {
+.bank-transfer-quick-actions,
+.bank-loan-term-selector {
   display: grid;
+}
+
+.bank-transfer-direction {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -92,100 +94,20 @@
   gap: var(--space-2);
 }
 
+.bank-loan-decision .bank-transfer-quick-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.bank-loan-term-selector {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .bank-settlement-countdown {
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
 
-.bank-financing-workspace {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(320px, .7fr);
-  gap: var(--space-5);
-  align-items: start;
-}
-
-.bank-collateral-list {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-}
-
-.bank-collateral-list-header,
-.bank-collateral-row {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(220px, 1.6fr) minmax(76px, .5fr) minmax(112px, .72fr) minmax(116px, .72fr);
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.bank-collateral-list-header {
-  padding: 0 var(--space-2) var(--space-2);
-  text-align: right;
-}
-
-.bank-collateral-list-header > :first-child {
-  text-align: left;
-}
-
-.bank-collateral-row {
-  padding: var(--space-3) var(--space-2);
-  border-bottom: 1px solid var(--color-divider);
-}
-
-.bank-collateral-row:last-child {
-  border-bottom: 0;
-}
-
-.bank-collateral-identity {
-  min-width: 0;
-  display: grid;
-  gap: var(--space-1);
-}
-
-.bank-factory-name,
-.bank-collateral-chips span {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-}
-
-.bank-factory-name {
-  font-weight: 650;
-}
-
-.bank-factory-name .game-icon,
-.bank-collateral-chips .game-icon {
-  flex: 0 0 auto;
-  width: 1.2rem;
-  height: 1.2rem;
-}
-
-.bank-collateral-available,
-.bank-collateral-price,
-.bank-collateral-entry {
-  min-width: 0;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.bank-collateral-entry {
-  display: grid;
-  justify-items: end;
-  gap: var(--space-1);
-}
-
-.bank-collateral-input {
-  width: 6.5rem;
-  min-width: 6.5rem;
-  text-align: right;
-}
-
 .bank-loan-decision {
-  position: sticky;
-  top: 0;
   padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
@@ -279,10 +201,20 @@
 }
 
 .bank-collateral-chips span {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
   padding: .45rem .65rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface-subtle);
+}
+
+.bank-collateral-chips .game-icon {
+  flex: 0 0 auto;
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .bank-repayment-row {
@@ -334,8 +266,7 @@
 }
 
 @media (max-width: 1100px) {
-  .bank-cash-workspace,
-  .bank-financing-workspace {
+  .bank-cash-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -345,58 +276,12 @@
     border-inline-start: 0;
     border-top: 1px solid var(--color-divider);
   }
-
-  .bank-loan-decision {
-    position: static;
-  }
 }
 
 @media (max-width: 720px) {
   .bank-account-balance-strip {
     grid-template-columns: 1fr;
     margin-bottom: var(--space-4);
-  }
-
-  .bank-collateral-list-header {
-    display: none;
-  }
-
-  .bank-collateral-row {
-    grid-template-columns: minmax(0, 1fr) minmax(112px, auto);
-    gap: var(--space-2) var(--space-3);
-    padding-inline: 0;
-  }
-
-  .bank-collateral-identity {
-    grid-column: 1 / -1;
-  }
-
-  .bank-collateral-available,
-  .bank-collateral-price {
-    display: grid;
-    gap: .15rem;
-    text-align: left;
-  }
-
-  .bank-collateral-available::before,
-  .bank-collateral-price::before {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
-    font-weight: 400;
-  }
-
-  .bank-collateral-available::before {
-    content: '可冻结';
-  }
-
-  .bank-collateral-price::before {
-    content: '审慎单价';
-  }
-
-  .bank-collateral-entry {
-    grid-column: 2;
-    grid-row: 2 / span 2;
-    align-self: center;
   }
 
   .bank-loan-summary-grid {
@@ -429,10 +314,12 @@
 }
 
 @media (max-width: 420px) {
-  .bank-loan-summary-grid {
+  .bank-loan-summary-grid,
+  .bank-loan-term-selector {
     grid-template-columns: 1fr;
   }
 
+  .bank-loan-decision .bank-transfer-quick-actions,
   .bank-history-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
