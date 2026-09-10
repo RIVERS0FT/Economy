@@ -117,6 +117,10 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 
 部署 Job 不再重新生成美术／预览资源或执行 TypeScript、Vite、完整 build 或 Playwright；只消费已验证产物并保留原有服务器发布、生产安全边界与线上验收。短期产物不提交仓库。
 
+生产主体上传按 assets、website、shared、api 和按需 runtime 分阶段记录开始、成功、退出码和传输统计。每阶段保留 rsync 的 60 秒 I/O 超时与 300 秒命令上限；仅对连接、流中断或超时退出码最多尝试 3 次、间隔 5 秒，整个上传步骤最多 14 分钟，部署 Job 仍最多 20 分钟。权限、主机密钥、磁盘、配置错误、文件同步错误与外部取消必须直接失败；日志写入失败同样阻止发布。重试只重新执行失败的同步阶段，不重跑已成功阶段，不进入服务安装或入口发布，直至全部主体上传成功。
+
+中断文件使用独立 `.rsync-partial` 暂存目录恢复，不得以 `--inplace` 或裸 `--partial` 把半成品写入正式文件名；哈希静态资源额外按内容校验，避免重建时间戳导致重复传输，也不能用 `--size-only`／`--ignore-existing` 接受损坏的同名资源。旧资源保留、API 完整替换、runtime 排除及入口最后原子切换的存储语义仍归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，所有原有产物摘要、服务健康和公网验收保持不变。`tests/dt/deployment-upload.test.ts` 执行实际工作流上传 shell，覆盖瞬断恢复、重试耗尽、确定性错误立即退出、阶段顺序和发布文件保护。
+
 ## 7. 失败、运行时 Harness 与超时
 
 - 浏览器行为回归应根据证据修复根因；可以依据正常负载与运行数据调整合理超时，但不得用延时、吞错、降低断言或跳过必要测试来掩盖失败。同一失败且没有新证据时应报告阻塞，不盲目重跑。
@@ -145,7 +149,7 @@ Targeted 模式中，`dt`、`it`、`browser-test` 必须消费 `scripts/select-c
 - 在 IT 或 ST Job 中重新计算 changed files 或建立第二套领域选择规则；
 - 让主分支 required `build` 在所需 ST-browser 失败、取消或未完成时成功；
 - 删除 DT／IT 覆盖率阈值、降低阈值或把关键源码从范围中移除以绕过失败；
-- 在 IT 覆盖率中恢复 `--test-coverage-include`，把 targeted 模式没有加载的服务器源码按零覆盖计入分母；
+- 在 IT 覆盖率中恢复 `--test-coverage-include`，把 targeted 模式没有加载的服务器源码按零覆盖加入分母；
 - 让纯前端、设计文档、浏览器 spec 或静态 verifier 仅凭同名 gameplay 领域扩散到服务器 IT；Targeted IT 的领域来源必须保持在服务端源码／直接变更 server test，直接引用关系除外。
 - 把部署验收基础设施文件仅因名称含 `production` 重新归入 gameplay `facility` 域，进而无依据扩大到工厂 IT／ST-browser；选择器边界本身发生变化时不得取消 full fallback。
 - 把 selected/full 浏览器测试重新串行放回 DT 或 IT Job；
