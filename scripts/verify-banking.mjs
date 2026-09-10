@@ -67,7 +67,8 @@ for (const text of [
   'isPlayerWeeklyInterestEligible',
   'depositInterestSubsidyIssued',
   'normalizeCollateralWithValues',
-  'seizeCollateral',
+  'reduceGroupForSeizure',
+  'settleDefault',
 ]) requireText('server/src/banking-legacy.js', text);
 
 for (const text of [
@@ -94,9 +95,8 @@ for (const text of [
   '授信资产净值',
   '最高可贷额度',
   'aria-label="贷款周期"',
-  '24h ·',
-  '72h ·',
-  '168h ·',
+  'LOAN_TERM_OPTIONS.map((option)',
+  '>{option.hours}h · {formatRateBps(option.rateBps)}</Button>',
   '贷款快捷金额',
   '>75%</Button>',
   '授信利用率',
