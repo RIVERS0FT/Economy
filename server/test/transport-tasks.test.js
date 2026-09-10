@@ -19,9 +19,11 @@ function fixture() {
   world.transportShipments = [];
   player.credits = 1000000;
   for (const provinceId of ['110000', '130000']) {
-    const market = world.markets[provinceScopedKey(provinceId, 'industrial-fuel')];
-    market.officialPrice = 1;
-    market.nextPriceAt = now + 86400000;
+    // New worlds lazily initialize non-default regional markets. The scenario
+    // explicitly provides a committed daily quote rather than assuming one.
+    const key = provinceScopedKey(provinceId, 'industrial-fuel');
+    world.markets[key] = { ...world.markets[key], productId: 'industrial-fuel', provinceId,
+      officialPrice: 1, nextPriceAt: now + 86400000 };
     inventoryForProvince(player, 'industrial-fuel', provinceId).available = 100000;
   }
   assert.equal(applyCreateTransportRoute(world, user, {
