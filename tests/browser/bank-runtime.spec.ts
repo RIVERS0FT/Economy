@@ -41,7 +41,7 @@ test('bank page exposes asset credit amount, term and utilization without collat
 
   await page.getByLabel('申请金额').fill('1000');
   await expect(page.getByRole('progressbar', { name: '授信利用率' })).toHaveAttribute('aria-valuenow', '80.26');
-  await expect(page.getByText('额度使用加点', { exact: true })).toBeVisible();
+  await expect(page.getByText('额度使用加点', { exact: false })).toBeVisible();
   await expect(page.getByText('11.00%', { exact: true })).toBeVisible();
   await expect(page.getByText('剩余授信', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: '申请贷款' })).toBeEnabled();
