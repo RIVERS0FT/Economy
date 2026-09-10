@@ -24,9 +24,11 @@ test('supply controls are scoped to route consumers, validate quantities and res
   await open(page);
   await page.getByRole('button', { name: '新增产业补给', exact: true }).click();
   const form = page.getByRole('form', { name: '新增产业补给', exact: true });
-  await expect(form.getByLabel('供货地区')).toHaveValue('A');
-  await expect(form.getByLabel('收货地区')).toHaveValue('B');
-  await expect(form.getByLabel('补给商品')).toHaveValue('wheat');
+  // SelectInput exposes an accessible rich combobox; its native select is only
+  // a compatibility bridge, so assert the choices actually shown to the user.
+  await expect(form.getByRole('combobox', { name: '供货地区', exact: true })).toHaveText('加利福尼亚');
+  await expect(form.getByRole('combobox', { name: '收货地区', exact: true })).toHaveText('得克萨斯');
+  await expect(form.getByRole('combobox', { name: '补给商品', exact: true })).toHaveText('小麦');
   await expect(form.getByRole('button', { name: '建立补给' })).toBeEnabled();
   await form.getByLabel('保障数量上限').fill('0');
   await expect(form.getByRole('button', { name: '建立补给' })).toBeDisabled();
