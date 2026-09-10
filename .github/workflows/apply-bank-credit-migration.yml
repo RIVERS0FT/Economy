@@ -1,0 +1,44 @@
+name: One-shot bank credit migration
+
+on:
+  push:
+    branches:
+      - feat/asset-based-bank-loans
+    paths:
+      - .github/workflows/apply-bank-credit-migration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/asset-based-bank-loans
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Apply exact source and design replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed "s/'### 6.5'/'## 7. 容量与客户端交付'/" scripts/apply-bank-credit-migration.mjs | node --input-type=module
+          rm -f scripts/apply-bank-credit-migration.done
+          git diff --check
+      - name: Commit migration result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src server docs tests scripts
+          if git diff --cached --quiet; then
+            echo 'No changes produced.'
+            exit 1
+          fi
+          git commit -m 'refactor(bank): align asset credit contract and designs'
+          git push origin HEAD:feat/asset-based-bank-loans
