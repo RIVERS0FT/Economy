@@ -370,3 +370,24 @@
     grid-column: 1 / -1;
   }
 }
+
+.transport-fleet-expansion {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.transport-fleet-expansion .transport-route-editor-actions {
+  margin-top: 0;
+}
+
+.transport-fleet-forecast,
+.transport-delete-confirmation {
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.transport-delete-confirmation {
+  margin: var(--space-3) 0 0;
+}

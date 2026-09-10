@@ -142,7 +142,7 @@ test('new mode duration includes departure overhead and legacy durations stay un
   assert.equal(transportPolicyDurationMs(createTransportCyclePolicy('air'), 1000), 30000);
   assert.equal(transportPolicyDurationMs(legacyTransportCyclePolicy('air'), 1000), 15000);
   assert.equal(legacyTransportCyclePolicy('air').capacity, 500);
-  assert.equal(createTransportCyclePolicy('air').capacity, 300);
+  assert.equal(createTransportCyclePolicy('air').capacity, 500);
 });
 
 function route(id: string, source = 'A', destination = 'B') {
@@ -262,4 +262,81 @@ test('fuel rounds the full unrounded distance once across modes and distance ran
   assert.equal(transportFuelQuantity(41 + 41 + 41, 0.005), 1);
   assert.equal(transportFuelQuantity(1234, 0.005), 7);
   assert.equal(transportFuelQuantity(Number.NaN, 0.005), 0);
+});
+
+test('owned fleet selects only worthwhile vehicles from the full trip without changing inputs', () => {
+  const game = gameFixture({ A: 1, B: 10, C: 2 }, { A: 450 });
+  const fleet = { ...route('fleet'), vehicleCount: 5 };
+  const before = JSON.stringify(game);
+  const result = estimateTransportRoute(game, fleet, now);
+  assert.equal(result.reason, 'ready');
+  assert.equal(result.vehicleCount, 3);
+  assert.equal(result.ownedVehicleCount, 5);
+  assert.equal(result.capacity, 600);
+  assert.equal(result.firstLoad[0].quantity, 450);
+  assert.equal(JSON.stringify(game), before);
+  game.provinceInventories!.A.wheat.available = 150;
+  const partial = estimateTransportRoute(game, fleet, now);
+  assert.equal(partial.vehicleCount, 1);
+  assert.equal(partial.reason, 'ready');
+  assert.equal(partial.peakLoad, 150);
+});
+
+test('affordable smaller fleets beat higher-gain but unaffordable or unfueled fleets', () => {
+  const game = gameFixture({ A: 1, B: 10, C: 2 }, { A: 2000 });
+  const fleet = { ...route('fleet'), vehicleCount: 5 };
+  const single = estimateTransportRoute(game, { ...fleet, vehicleCount: 1 }, now);
+  game.credits = single.transportFee;
+  const cashLimited = estimateTransportRoute(game, fleet, now);
+  assert.equal(cashLimited.vehicleCount, 1);
+  assert.equal(cashLimited.reason, 'ready');
+  game.credits = 100000;
+  game.provinceInventories!.A['industrial-fuel'].available = single.fuelRequired;
+  const fuelLimited = estimateTransportRoute(game, fleet, now);
+  assert.equal(fuelLimited.vehicleCount, 1);
+  assert.equal(fuelLimited.reason, 'ready');
+  game.provinceInventories!.A['industrial-fuel'].available = 0;
+  assert.equal(estimateTransportRoute(game, fleet, now).reason, 'insufficient-fuel');
+});
+
+test('fleet may depart empty to collect original later-node cargo, never double counts a return visit', () => {
+  const game = gameFixture({ A: 10, B: 1, C: 20 }, { B: 450 });
+  const fleet = { ...route('fleet'), vehicleCount: 5, viaProvinceIds: ['B'], destinationProvinceId: 'C' };
+  const result = estimateTransportRoute(game, fleet, now);
+  assert.equal(result.reason, 'ready');
+  assert.equal(result.vehicleCount, 3);
+  assert.deepEqual(result.firstLoad, []);
+  assert.equal(result.transportedQuantity, 450);
+  assert.equal(result.peakLoad, 450);
+});
+
+test('a free zero-distance fixture ties net gains and retains the smaller fleet', () => {
+  const game = gameFixture({ A: 1, B: 10, C: 2 }, { A: 200 });
+  game.provinces.forEach((province) => { province.latitude = 30; province.longitude = -100; });
+  // Two successive full loads share one vehicle: extra capacity cannot add gain.
+  game.products.push({ id: 'ore', name: '矿石', category: 'raw', basePrice: 1 });
+  for (const id of ['A', 'B', 'C']) {
+    game.provinceInventories![id].ore = { available: id === 'B' ? 200 : 0, frozen: 0, inTransit: 0 };
+    game.provinceMarkets![id].ore = { officialPrice: id === 'B' ? 1 : 10, nextPriceAt: now + 86400000 } as EconomyState['markets'][string];
+  }
+  const result = estimateTransportRoute(game, { ...route('fleet'), vehicleCount: 5 }, now);
+  assert.equal(result.vehicleCount, 1);
+  assert.equal(result.transportedQuantity, 400);
+});
+
+test('fleet maintenance submits the chosen count, while active node capacity remains snapshotted', () => {
+  const game = gameFixture({ A: 1, B: 10, C: 2 }, { A: 450 });
+  game.transportRoutes = [{ ...route('route-1'), vehicleCount: 5 }];
+  const command = transportMaintenanceCandidates(game, now)[0];
+  assert.equal(command.kind, 'start');
+  if (command.kind !== 'start') throw new Error('start expected');
+  assert.equal(command.vehicleCount, 3);
+  const before = transportOperationFingerprint(game, ['A', 'B', 'A'], null, 0, 1);
+  assert.notEqual(transportOperationFingerprint(game, ['A', 'B', 'A'], null, 0, 3), before);
+  game.provinceMarkets!.B.wheat.officialPrice = 0.5;
+  game.provinceInventories!.B.wheat.available = 1000;
+  game.transportShipments = [{ ...shipment(1, 200), policySnapshot: createTransportCyclePolicy('road', 2) }];
+  const service = transportMaintenanceCandidates(game, now)[0];
+  assert.equal(service.kind, 'service');
+  assert.equal(service.load.reduce((sum, entry) => sum + entry.quantity, 0), 200);
 });

@@ -1,7 +1,7 @@
 import {
   TRANSPORT_BASE_SECONDS_PER_KM,
   TRANSPORT_FUEL_UNIT_PRICE,
-  transportFuelQuantity,
+  transportFleetCost,
   TRANSPORT_MODE_POLICY,
   createTransportCyclePolicy,
   transportPolicyDurationMs,
@@ -12,6 +12,9 @@ import type { ProvinceDefinition, TransportModeId, TransportTripType } from '../
 export const TRANSPORT_MODES: Record<TransportModeId, {
   id: TransportModeId;
   name: string;
+  vehicleName: string;
+  vehicleUnit: string;
+  vehiclePurchaseCost: number;
   setupFixedCost: number;
   setupCostPerKm: number;
   transportFeePerKm: number;
@@ -125,22 +128,14 @@ export function transportCycleCost(
   route: TransportRouteStopsInput,
   mode: TransportModeId,
   provinceById: Map<string, ProvinceDefinition>,
+  vehicleCount = 1,
 ): TransportCycleCostBreakdown {
   const definition = TRANSPORT_MODES[mode];
   const distanceKm = transportCycleDistanceKm(route, provinceById);
   if (!definition || distanceKm <= 0) {
     return { distanceKm: 0, transportFee: 0, fuelPurchased: 0, fuelCost: 0, totalCost: 0 };
   }
-  const transportFee = Math.round(distanceKm * definition.transportFeePerKm * 1_000_000) / 1_000_000;
-  const fuelPurchased = transportFuelQuantity(distanceKm, definition.fuelPerKm);
-  const fuelCost = 0;
-  return {
-    distanceKm,
-    transportFee,
-    fuelPurchased,
-    fuelCost,
-    totalCost: transportFee,
-  };
+  return transportFleetCost(mode, distanceKm, vehicleCount);
 }
 
 export function transportCost(mode: TransportModeId, distanceKm: number) {

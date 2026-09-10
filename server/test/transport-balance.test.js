@@ -35,7 +35,7 @@ function service(world, shipment, unload = [], load = []) {
 }
 
 for (const [mode, capacity, rate, seconds] of [
-  ['road', 200, 0.015, 70], ['rail', 2000, 0.02, 135], ['air', 300, 0.22, 30],
+  ['road', 200, 0.015, 70], ['rail', 2000, 0.02, 135], ['air', 500, 0.22, 30],
 ]) {
   test(`${mode} uses the approved capacity, distance-only fees and per-leg startup time`, () => {
     const { world, player, route } = fixture(mode);
@@ -82,7 +82,7 @@ test('client-supplied rates, capacity, distance and deadlines never override a n
   inventoryForProvince(player, 'wheat', route.sourceProvinceId).available = 500;
   const before = player.credits;
   const forged = {
-    routeId: route.id, load: [{ productId: 'wheat', quantity: 301 }],
+    routeId: route.id, load: [{ productId: 'wheat', quantity: 501 }],
     policySnapshot: { ...createTransportCyclePolicy('air'), capacity: 100000, secondsPerKm: 0, fuelPerKm: 0 },
     cost: 0, distanceKm: 0, arrivesAt: now,
   };
@@ -90,7 +90,7 @@ test('client-supplied rates, capacity, distance and deadlines never override a n
   assert.equal(player.credits, before);
   assert.equal(inventoryForProvince(player, 'wheat', route.sourceProvinceId).available, 500);
   assert.equal(world.transportShipments.length, 0);
-  forged.load[0].quantity = 300;
+  forged.load[0].quantity = 500;
   assert.equal(applyStartTransportCycle(world, user, forged, now + 1).ok, true);
   const shipment = world.transportShipments[0];
   assert.deepEqual(shipment.policySnapshot, createTransportCyclePolicy('air'));
@@ -147,7 +147,7 @@ test('legacy aircraft retain 500 cargo slots, paid fees and their existing arriv
   assert.equal(source.inTransit, 0);
   assert.equal(inventoryForProvince(player, 'ore', route.destinationProvinceId).inTransit, 0);
   assert.equal(applyStartTransportCycle(world, user, { routeId: route.id, load: [] }, shipment.arrivedAt + 1).ok, true);
-  assert.equal(world.transportShipments.at(-1).policySnapshot.capacity, 300);
+  assert.equal(world.transportShipments.at(-1).policySnapshot.capacity, 500);
 });
 
 test('paid policy survives serialization and does not reprice after a market change', () => {

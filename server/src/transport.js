@@ -3,7 +3,10 @@ import {
   TRANSPORT_BASE_SECONDS_PER_KM,
   TRANSPORT_FUEL_UNIT_PRICE,
   TRANSPORT_FUEL_PRODUCT_ID,
-  transportFuelQuantity,
+  transportFleetCost,
+  transportRouteVehicleCount,
+  isTransportVehicleCount,
+  TRANSPORT_MAX_VEHICLES_PER_ROUTE,
   TRANSPORT_MODE_POLICY,
   createTransportCyclePolicy,
   transportCyclePolicyForShipment,
@@ -105,21 +108,9 @@ export function transportCycleDistanceKm(route) {
   return distanceKm;
 }
 
-export function transportCycleCost(route, mode = route?.mode) {
-  const definition = TRANSPORT_MODES[mode];
-  if (!definition) return null;
-  const distanceKm = transportCycleDistanceKm(route);
-  const transportFee = roundInternalMoney(distanceKm * definition.transportFeePerKm) || 0;
-  const fuelPurchased = transportFuelQuantity(distanceKm, definition.fuelPerKm);
-  const fuelCost = 0;
-  return {
-    distanceKm,
-    transportFee,
-    fuelPurchased,
-    fuelCost,
-    fuelProductId: TRANSPORT_FUEL_PRODUCT_ID,
-    totalCost: transportFee,
-  };
+export function transportCycleCost(route, mode = route?.mode, vehicleCount = 1) {
+  if (!TRANSPORT_MODES[mode] || !isTransportVehicleCount(vehicleCount)) return null;
+  return transportFleetCost(mode, transportCycleDistanceKm(route), vehicleCount);
 }
 
 function playerTransportRoutes(player) {
@@ -160,7 +151,7 @@ function normalizedTransportRouteName(value) {
 function normalizedRouteInput(player, payload = {}) {
   const stops = normalizeTransportStops(payload);
   if (!stops.ok) return stops;
-  const mode = TRANSPORT_MODES[payload.mode] ? String(payload.mode) : null;
+  const mode = typeof payload.mode === 'string' && Object.hasOwn(TRANSPORT_MODES, payload.mode) ? payload.mode : null;
   if (!mode) return { ok: false, message: '运输方式无效' };
   if (!isProvinceUnlocked(player, stops.stops.sourceProvinceId)) return { ok: false, message: '起始州尚未解锁' };
   for (const provinceId of stops.stops.viaProvinceIds) {
@@ -306,12 +297,37 @@ export function applyCreateTransportRoute(world, user, payload = {}, now = Date.
     id: `transport-route-${randomUUID()}`,
     name: defaultTransportRouteName(normalized.route.sourceProvinceId, normalized.route.destinationProvinceId),
     ...normalized.route,
+    vehicleCount: 1,
     setupCost,
     createdAt: now,
     updatedAt: now,
   };
   player.transportRoutes = [...routes, route];
   return { ok: true, message: '运输路线已创建，在线时将自动规划节点装卸', routeId: route.id };
+}
+
+export function applyExpandTransportRoute(world, user, payload = {}, now = Date.now()) {
+  const player = world.players?.[String(user.id)];
+  if (!player) return { ok: false, message: '玩家状态无效' };
+  const route = findPlayerRoute(player, payload.routeId);
+  if (!route) return { ok: false, message: '运输路线不存在' };
+  if (route.deletionPending) return { ok: false, message: '该路线已预约删除，不能增加运力' };
+  const owned = transportRouteVehicleCount(route);
+  if (!isTransportVehicleCount(payload.quantity)) return { ok: false, message: '新增载具数量无效' };
+  if (payload.expectedVehicleCount !== owned) return { ok: false, message: '路线运力已变化，请同步后重试' };
+  const total = owned + payload.quantity;
+  if (!isTransportVehicleCount(total)) return { ok: false, message: `每条路线最多配置 ${TRANSPORT_MAX_VEHICLES_PER_ROUTE} 个载具` };
+  const definition = Object.hasOwn(TRANSPORT_MODES, route.mode) ? TRANSPORT_MODES[route.mode] : null;
+  if (!definition) return { ok: false, message: '运输方式无效' };
+  const cost = roundInternalMoney(definition.vehiclePurchaseCost * payload.quantity);
+  if (!Number.isFinite(player.credits) || player.credits < cost) return { ok: false, message: '资金不足，无法增加运力' };
+  // HTTP retries use the existing idempotency receipt; the count precondition
+  // also protects against a stale form submitted with a new request identity.
+  player.credits = roundInternalMoney(player.credits - cost);
+  route.vehicleCount = total;
+  route.updatedAt = now;
+  creditPopulationEmployment(world, cost, 'transportService');
+  return { ok: true, message: '路线运力已增加，新运力从下一趟开始可用' };
 }
 
 export function applyUpdateTransportRoute(world, user, payload = {}) {
@@ -362,10 +378,14 @@ export function applyStartTransportCycle(world, user, payload = {}, now = Date.n
   }
   const load = normalizeCargoRequest(payload.load);
   if (load === null) return { ok: false, message: '运输装货参数无效' };
-  const definition = TRANSPORT_MODES[route.mode];
+  const vehicleCount = payload.vehicleCount === undefined ? 1 : payload.vehicleCount;
+  if (!isTransportVehicleCount(vehicleCount) || vehicleCount > transportRouteVehicleCount(route)) {
+    return { ok: false, message: '出车数量超过路线拥有运力或参数无效' };
+  }
+  const policySnapshot = createTransportCyclePolicy(route.mode, vehicleCount);
   const totalLoad = load.reduce((total, entry) => total + entry.quantity, 0);
-  if (totalLoad > definition.capacity) return { ok: false, message: '装货数量超过运输方式容量' };
-  const cycleCost = transportCycleCost(route, route.mode);
+  if (!Number.isSafeInteger(totalLoad) || totalLoad > policySnapshot.capacity) return { ok: false, message: '装货数量超过运输方式容量' };
+  const cycleCost = transportCycleCost(route, route.mode, vehicleCount);
   if (!cycleCost) return { ok: false, message: '本趟运输费用无效' };
   const fuelInventory = inventoryForProvince(player, TRANSPORT_FUEL_PRODUCT_ID, route.sourceProvinceId);
   const fuelAvailable = Math.max(0, Math.floor(Number(fuelInventory.available) || 0));
@@ -393,7 +413,7 @@ export function applyStartTransportCycle(world, user, payload = {}, now = Date.n
 
   const shipment = {
     nodeCycleVersion: 1,
-    policySnapshot: createTransportCyclePolicy(route.mode),
+    policySnapshot,
     id: `transport-${randomUUID()}` ,
     ownerId: Number(user.id),
     routeId: route.id,
@@ -497,6 +517,7 @@ export function applyServiceTransportNode(world, user, payload = {}, now = Date.
 
 export function applyTransportShip(world, user, payload = {}, now = Date.now()) {
   if (payload.operation === 'route-create') return applyCreateTransportRoute(world, user, payload, now);
+  if (payload.operation === 'route-expand') return applyExpandTransportRoute(world, user, payload, now);
   if (payload.operation === 'route-update') return applyUpdateTransportRoute(world, user, payload, now);
   if (payload.operation === 'route-rename') return applyRenameTransportRoute(world, user, payload, now);
   if (payload.operation === 'route-delete') return applyDeleteTransportRoute(world, user, payload, now);
@@ -608,6 +629,7 @@ export function migrateTransportWorld(world) {
         ...(stops.stops.viaProvinceIds.length > 0 ? { viaProvinceIds: stops.stops.viaProvinceIds } : {}),
         tripType: stops.stops.tripType,
         mode: String(route.mode),
+        vehicleCount: transportRouteVehicleCount(route),
         setupCost,
         ...(route.deletionPending === true ? { deletionPending: true } : {}),
         createdAt: Number(route.createdAt || 0),
@@ -676,6 +698,7 @@ export function transportRouteClientState(world, userId) {
       ...(transportViaProvinceIds(route).length > 0 ? { viaProvinceIds: [...transportViaProvinceIds(route)] } : {}),
       tripType: transportRouteClosed(route) ? 'one-way' : 'round',
       mode: TRANSPORT_MODES[route.mode] ? route.mode : 'road',
+      vehicleCount: transportRouteVehicleCount(route),
       setupCost: Number.isFinite(Number(route.setupCost)) && Number(route.setupCost) >= 0 ? Number(route.setupCost) : 0,
       cycleDistanceKm: Number(cycle?.distanceKm || 0),
       cycleTransportFee: Number(cycle?.transportFee || 0),

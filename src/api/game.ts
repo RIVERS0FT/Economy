@@ -728,10 +728,14 @@ export const gameActions = {
     operation: 'route-delete',
     routeId,
   }),
-  startTransportCycle: (routeId: string, load: TransportCargoRequestItem[]) => postAction('/transport', {
+  expandTransportRoute: (routeId: string, quantity: number, expectedVehicleCount: number) => postAction('/transport', {
+    operation: 'route-expand', routeId, quantity, expectedVehicleCount,
+  }),
+  startTransportCycle: (routeId: string, load: TransportCargoRequestItem[], vehicleCount = 1) => postAction('/transport', {
     operation: 'cycle-start',
     routeId,
     load,
+    vehicleCount,
   }),
   serviceTransportNode: (
     routeId: string,

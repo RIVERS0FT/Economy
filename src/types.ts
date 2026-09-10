@@ -263,6 +263,8 @@ export interface TransportLegPlanEntry {
 }
 
 export interface TransportRoute {
+  /** Missing only in legacy snapshots; each saved route initially owns one vehicle. */
+  vehicleCount?: number;
   id: string;
   name: string;
   setupCost: number;
