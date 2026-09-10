@@ -162,7 +162,7 @@ function ensureTransportSlotState(world, player, now = Date.now()) {
   state = {
     version: TRANSPORT_SLOT_MODEL_VERSION,
     slots,
-    updatedAt: Math.max(Number(state.updatedAt || 0), Number(now) || 0),
+    updatedAt: Math.max(0, Number(state.updatedAt) || Number(now) || 0),
     ...(Number(state.migrationRefund || 0) > 0 ? { migrationRefund: Number(state.migrationRefund) } : {}),
   };
   player.transportSlotState = state;
