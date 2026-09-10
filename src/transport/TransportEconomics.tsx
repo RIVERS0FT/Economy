@@ -37,10 +37,20 @@ export function TransportFuel({ quantity }: { quantity: number }) {
 export function transportWaitingLabel(estimate: TransportRouteEstimate) {
   return estimate.reason === 'insufficient-fuel'
     ? `燃料不足：需要 ${estimate.fuelRequired}，可用 ${estimate.fuelAvailable}`
-    : TRANSPORT_WAITING_LABELS[estimate.reason];
+    : estimate.reason === 'in-transit-limit'
+      ? '运输槽位已满'
+      : estimate.reason === 'transport-tool-unavailable'
+        ? '缺少匹配运输工具的槽位'
+        : TRANSPORT_WAITING_LABELS[estimate.reason];
+}
+
+function transportSlotNumber(slotId: string | null) {
+  const value = Number(slotId?.split('-').at(-1));
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
 export function TransportForecast({ estimate }: { estimate: TransportRouteEstimate }) {
+  const slotIndex = transportSlotNumber(estimate.transportSlotId);
   return (
     <div className="transport-forecast" data-transport-waiting-reason={estimate.reason}>
       <div className="transport-route-summary-grid">
@@ -49,7 +59,7 @@ export function TransportForecast({ estimate }: { estimate: TransportRouteEstima
         <span><small>每趟运费</small><strong><CurrencyAmount>{estimate.transportFee}</CurrencyAmount></strong></span>
         <span><small><GameConcept concept="transport-fuel">每趟燃料</GameConcept></small><strong><TransportFuel quantity={estimate.fuelPurchased} /></strong></span>
       </div>
-      <span className="transport-fleet-forecast"><GameConcept concept="transport-fleet">预计出车</GameConcept> <CompactNumber value={estimate.vehicleCount} /> / <CompactNumber value={estimate.ownedVehicleCount} /> · 最大载荷 <CompactNumber value={estimate.capacity} /></span>
+      <span className="transport-fleet-forecast">{slotIndex ? <>预计使用槽位 <CompactNumber value={slotIndex} /> · 工具 Lv.<CompactNumber value={estimate.transportToolLevel} /> · </> : null}最大载荷 <CompactNumber value={estimate.capacity} /></span>
       <StatusTag tone={estimate.reason === 'ready' ? 'info' : 'neutral'}>{transportWaitingLabel(estimate)}</StatusTag>
     </div>
   );
