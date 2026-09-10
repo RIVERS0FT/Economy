@@ -14,7 +14,7 @@ requireText('src/pages/ContractWorkspacePage.tsx', [
   'label="贷款本金"', 'label="未履行额度"', 'label="银行代付到账"', 'label="银行代收总额"',
   'label="冻结工厂"', 'label="租赁工厂"', 'label="每期租金"',
 ]);
-requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['玩家冻结借贷', '银行作为清算担保方', '银行代支付未履行应收', '银行存款、可用资金']);
+requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['玩家冻结借贷', '银行作为清算担保方', '代支付未履行应收', '银行存款、可用资金']);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['三类合同领域', '玩家冻结借贷', '工厂使用权租赁', '银行担保清算', 'loan_bank_guarantee_settled', '宽限结束只确认违约']);
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['已违约待解除', '解除合同并领取违约金', '银行清算中', '银行代付到账', '银行代收总额']);
 if (failures.length) { console.error(failures.map((item) => `- ${item}`).join('\n')); process.exit(1); }
