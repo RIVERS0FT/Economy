@@ -1,0 +1,74 @@
+.transport-business-panel,
+.transport-freight-offers,
+.transport-supply-form {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.transport-task-list {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transport-task-row {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding-block: 8px;
+  overflow-wrap: anywhere;
+}
+
+.transport-task-heading,
+.transport-task-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.transport-task-heading {
+  justify-content: space-between;
+}
+
+.transport-task-heading > *,
+.transport-task-metrics > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.transport-task-help {
+  display: inline;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.transport-supply-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.transport-business-panel .transport-history-details > .transport-task-list {
+  margin-top: 12px;
+}
+
+@media (max-width: 600px) {
+  .transport-supply-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

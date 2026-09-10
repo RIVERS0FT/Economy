@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { gameActions } from '../api/game';
+import { gameActions, postTransportTask } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
   getStateAuthoritySnapshot,
@@ -32,11 +32,13 @@ export function useOnlineTransport(model: LoadedGameViewModel) {
           key: command.key,
           routeId: command.routeId,
           fingerprint: command.fingerprint,
-          run: () => command.kind === 'start'
-            ? gameActions.startTransportCycle(command.routeId, command.load, command.vehicleCount)
-            : gameActions.serviceTransportNode(
-              command.routeId, command.cycleId, command.visitIndex, command.unload, command.load,
-            ),
+          run: () => command.kind === 'task'
+            ? postTransportTask({ operation: command.operation, routeId: command.routeId })
+            : command.kind === 'start'
+              ? gameActions.startTransportCycle(command.routeId, command.load, command.vehicleCount)
+              : gameActions.serviceTransportNode(
+                command.routeId, command.cycleId, command.visitIndex, command.unload, command.load,
+              ),
         }));
       },
       refresh: () => currentGame()

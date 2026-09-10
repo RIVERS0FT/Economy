@@ -4,9 +4,9 @@ import { SafeTooltip } from '../ui/SafeTooltip';
 import '../../styles/commodity-freezes.css';
 
 const labels: Record<CommodityFreezeDetail['kind'], string> = {
-  production: '生产冻结', commercial: '经营冻结', contract: '合同冻结', auction: '拍卖冻结', legacy: '待核对冻结',
+  production: '生产冻结', commercial: '经营冻结', contract: '合同冻结', auction: '拍卖冻结', transport: '运输冻结', legacy: '待核对冻结',
 };
-const order: CommodityFreezeDetail['kind'][] = ['production', 'commercial', 'contract', 'auction', 'legacy'];
+const order: CommodityFreezeDetail['kind'][] = ['production', 'commercial', 'contract', 'auction', 'transport', 'legacy'];
 
 function FreezeDetails({ quantity, entries }: { quantity: number; entries?: CommodityFreezeDetail[] }) {
   const valid = Array.isArray(entries) && entries.every((entry) => entry && order.includes(entry.kind) && typeof entry.sourceId === 'string'
