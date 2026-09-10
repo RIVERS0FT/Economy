@@ -606,7 +606,6 @@ export interface DailyCheckInState {
   weeklyBonusEarned: boolean;
   weeklyBonusEligible: boolean;
   dailyRewardGems: number;
-  weeklyFullAttendanceGemsIssued?: number;
   weeklyBonusGems: number;
 }
 
