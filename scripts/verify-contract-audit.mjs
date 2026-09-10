@@ -31,6 +31,8 @@ includesAll(auditStore, [
   'store.listContractAuditHistory', 'store.getContractAuditDetail',
   'contractHistorySettlementSummaries', 'endSummary', 'compensationReceivedByMe', 'compensationPaidByMe',
   'contract_default_confirmed', 'contract_default_claimed', 'loan_default_confirmed', 'loan_default_claimed',
+  'loan_bank_guarantee_settled', 'player_loan_bank_guarantee', 'player_loan_bank_collection_deposit',
+  'player_loan_bank_collection_cash', 'player_loan_bank_collection_collateral', 'player_loan_bank_collateral_surplus',
 ], 'contract audit store');
 assert.ok(
   runtimeStore.indexOf('const nextRevision = applySegmentedWorldWrite(this, plan, world, now);')
@@ -45,11 +47,12 @@ assert.ok(!statePartitions.includes('contractAudit'));
 assert.ok(!statePartitions.includes('contractHistory'));
 
 includesAll(contractApi, ['productionContractAudit', "getJson<{ history: ContractAuditHistoryPage }>('/contracts/history'", 'lender', 'borrower', 'lessor', 'lessee'], 'contract audit client API');
-includesAll(contractTypes, ['ContractEndSummary', 'ContractEndSettlementSummary', 'ContractAuditHistoryItem', 'endSummary: ContractEndSummary'], 'contract history client types');
+includesAll(contractTypes, ['ContractEndSummary', 'ContractEndSettlementSummary', 'ContractAuditHistoryItem', 'endSummary: ContractEndSummary', 'bankGuaranteedCredits', 'bankCollectedCredits'], 'contract history client types');
 includesAll(contractPage, [
   "import '../styles/contract-audit.css';", 'contract-history-filters', '合同内容', '结束原因', '结束时间',
   '完成事实', '结束统计', '重新拟定', 'productionContractAudit.history', 'startRepublish',
   '我的履约档案', 'productionContractAudit.performance', '实际交付事件',
+  '未履行额度', '银行代付到账', '银行代收总额',
 ], 'contract history player UI');
 assert.ok(!contractPage.includes('productionContractAudit.detail'), 'player history must not load audit detail timelines');
 assert.ok(!contractPage.includes('合同完整审计'), 'player history must not expose the audit viewer');
@@ -70,8 +73,9 @@ assert.ok(serverDesign.includes('合同审计'), 'server design must define cont
 includesAll(docsIndex, ['`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`', '`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`'], 'contract audit design routing');
 includesAll(serverDesign, ['economy_contract_audit_contracts', 'economy_contract_audit_events', 'economy_contract_audit_transfers', '/api/game/contracts/history', '/api/game/contracts/:contractId/audit', '终态摘要'], 'server contract audit design');
 includesAll(serverDesign, ['合同实际参与者访问', '放贷、贷款、出租、租赁', '第三方不可见'], 'contract audit participant visibility design');
+includesAll(serverDesign, ['银行担保清算', 'loan_bank_guarantee_settled', '银行代收'], 'player loan bank settlement audit design');
 includesAll(pageDesign, ['单张一级', 'PagePanel', '合同内容、结束原因、结束时间、完成事实、结束统计', '重新拟定', '不加载审计事件时间线'], 'page contract history design');
 
 includesAll(auditStore, ["'$.lenderId'", "'$.borrowerId'", "'$.lessorId'", "'$.lesseeId'"], 'commercial contract audit participant visibility');
 
-console.log('Contract audit and compact history verification passed.');
+console.log('Contract audit, bank-guaranteed loan settlement, and compact history verification passed.');

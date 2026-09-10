@@ -144,6 +144,18 @@ function contractSnapshot(world, contract) {
     facilityTypeId: contract.facilityTypeId ? String(contract.facilityTypeId) : null,
     collateralQuantity: Math.max(0, safeInteger(contract.collateralQuantity, 0)), collateralTransferredQuantity: Math.max(0, safeInteger(contract.collateralTransferredQuantity, 0)),
     defaultCollateralQuantity: Math.max(0, safeInteger(contract.defaultCollateralQuantity, 0)), defaultCollateralUnitValue: safeMoney(contract.defaultCollateralUnitValue, 0),
+    bankGuaranteedCredits: safeMoney(contract.bankGuaranteedCredits, 0),
+    bankLenderPayoutCredits: safeMoney(contract.bankLenderPayoutCredits, 0),
+    bankCollectedCredits: safeMoney(contract.bankCollectedCredits, 0),
+    bankCollectedDepositCredits: safeMoney(contract.bankCollectedDepositCredits, 0),
+    bankCollectedCashCredits: safeMoney(contract.bankCollectedCashCredits, 0),
+    bankCollectedCollateralCredits: safeMoney(contract.bankCollectedCollateralCredits, 0),
+    bankCollateralProceedsCredits: safeMoney(contract.bankCollateralProceedsCredits, 0),
+    bankCollateralSeizedQuantity: Math.max(0, safeInteger(contract.bankCollateralSeizedQuantity, 0)),
+    bankCollateralSurplusCredits: safeMoney(contract.bankCollateralSurplusCredits, 0),
+    bankReserveAbsorbedCredits: safeMoney(contract.bankReserveAbsorbedCredits, 0),
+    bankGuaranteeIssuedCredits: safeMoney(contract.bankGuaranteeIssuedCredits, 0),
+    bankGuaranteeSettledAt: nullableInteger(contract.bankGuaranteeSettledAt),
     autoRepay: contract.autoRepay !== false,
     lessorId: nullableInteger(contract.lessorId), lessorName: optionalPlayerDisplayName(world, contract.lessorId),
     lesseeId: nullableInteger(contract.lesseeId), lesseeName: optionalPlayerDisplayName(world, contract.lesseeId),
@@ -554,6 +566,7 @@ const CONTRACT_HISTORY_CREDIT_REFUND_PURPOSES = new Set([
   'lease_unused_rent_release',
   'lease_lessee_bond_release',
   'lease_lessor_bond_release',
+  'player_loan_bank_collateral_surplus',
 ]);
 const CONTRACT_HISTORY_GOODS_REFUND_PURPOSES = new Set([
   'unused_goods_release',
@@ -735,6 +748,15 @@ function commercialTransfersForTransition(before, after, eventType) {
       transfer({ assetType: 'credits', quantity: after.lastPaymentFee, fromType: 'player', fromId: after.lenderId, fromAccount: 'loan_interest', toType: 'system', toAccount: 'bank_service_employment', purpose: 'market_service_fee' }),
       transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.collateralQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.borrowerId, toAccount: 'facility_owned', purpose: 'player_loan_collateral_release' }),
     ]);
+    if (eventType === 'loan_bank_guarantee_settled') return compactTransfers([
+      transfer({ assetType: 'credits', quantity: after.bankLenderPayoutCredits, fromType: 'system', fromAccount: 'player_loan_guarantee', toType: 'player', toId: after.lenderId, toAccount: 'available', purpose: 'player_loan_bank_guarantee' }),
+      transfer({ assetType: 'credits', quantity: after.lastPaymentFee, fromType: 'system', fromAccount: 'player_loan_guarantee', toType: 'system', toAccount: 'bank_service_employment', purpose: 'market_service_fee' }),
+      transfer({ assetType: 'credits', quantity: after.bankCollectedDepositCredits, fromType: 'player', fromId: after.borrowerId, fromAccount: 'bank_deposit', toType: 'system', toAccount: 'player_loan_collection', purpose: 'player_loan_bank_collection_deposit' }),
+      transfer({ assetType: 'credits', quantity: after.bankCollectedCashCredits, fromType: 'player', fromId: after.borrowerId, fromAccount: 'available', toType: 'system', toAccount: 'player_loan_collection', purpose: 'player_loan_bank_collection_cash' }),
+      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.bankCollateralSeizedQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'system', toAccount: 'bank_facility_reserve', purpose: 'player_loan_bank_collection_collateral' }),
+      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: Math.max(0, after.collateralQuantity - after.bankCollateralSeizedQuantity), fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.borrowerId, toAccount: 'facility_owned', purpose: 'player_loan_collateral_remainder_release' }),
+      transfer({ assetType: 'credits', quantity: after.bankCollateralSurplusCredits, fromType: 'system', fromAccount: 'player_loan_collection', toType: 'player', toId: after.borrowerId, toAccount: 'bank_deposit', purpose: 'player_loan_bank_collateral_surplus' }),
+    ]);
     if (eventType === 'loan_defaulted' || eventType === 'loan_default_claimed') return compactTransfers([
       transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.collateralTransferredQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.lenderId, toAccount: 'facility_owned', purpose: 'player_loan_default_collateral' }),
       transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: Math.max(0, after.collateralQuantity - after.collateralTransferredQuantity), fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.borrowerId, toAccount: 'facility_owned', purpose: 'player_loan_collateral_remainder_release' }),
@@ -803,10 +825,28 @@ function captureCommercialTransition(world, context, before, after) {
     queueTransitionEvent(world, context, after, eventType, { before, after, transfers: commercialTransfersForTransition(before, after, eventType) });
   }
   if (terminated) {
+    const bankSettledLoan = after.kind === 'loan' && Boolean(after.bankGuaranteeSettledAt);
     const eventType = after.kind === 'loan'
-      ? (before.breachedAt ? 'loan_default_claimed' : 'loan_defaulted')
+      ? (bankSettledLoan ? 'loan_bank_guarantee_settled' : before.breachedAt ? 'loan_default_claimed' : 'loan_defaulted')
       : (before.breachedAt && after.terminationReason === 'lessee_default' ? 'lease_default_claimed' : 'lease_terminated');
-    queueTransitionEvent(world, context, after, eventType, { before, after, reasonCode: after.terminationReason, transfers: commercialTransfersForTransition(before, after, eventType), metadata: before.breachedAt ? { breachedAt: before.breachedAt, claimedAt: after.endedAt } : {} });
+    queueTransitionEvent(world, context, after, eventType, {
+      before,
+      after,
+      reasonCode: after.terminationReason,
+      transfers: commercialTransfersForTransition(before, after, eventType),
+      metadata: bankSettledLoan ? {
+        breachedAt: after.breachedAt,
+        bankGuaranteedCredits: after.bankGuaranteedCredits,
+        bankCollectedCredits: after.bankCollectedCredits,
+        bankCollectedDepositCredits: after.bankCollectedDepositCredits,
+        bankCollectedCashCredits: after.bankCollectedCashCredits,
+        bankCollectedCollateralCredits: after.bankCollectedCollateralCredits,
+        bankCollateralSeizedQuantity: after.bankCollateralSeizedQuantity,
+        bankCollateralSurplusCredits: after.bankCollateralSurplusCredits,
+        bankReserveAbsorbedCredits: after.bankReserveAbsorbedCredits,
+        bankGuaranteeIssuedCredits: after.bankGuaranteeIssuedCredits,
+      } : before.breachedAt ? { breachedAt: before.breachedAt, claimedAt: after.endedAt } : {},
+    });
   }
   if (!before.terminationRequestedBy && after.terminationRequestedBy) queueTransitionEvent(world, context, after, 'termination_requested', { before, after, metadata: { requestedBy: after.terminationRequestedBy } });
   if (after.kind === 'loan' && before.autoRepay !== after.autoRepay) queueTransitionEvent(world, context, after, 'loan_auto_repay_changed', { before, after, metadata: { enabled: after.autoRepay } });

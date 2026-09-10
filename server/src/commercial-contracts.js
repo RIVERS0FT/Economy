@@ -4,7 +4,7 @@ import { calculateCumulativeMarketSellFee } from './market-sell-fee.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import { hasResearchAccessForFacility } from './research.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
-import { transferableFacilityQuantity } from './banking.js';
+import { ensureBankWorld, transferableFacilityQuantity } from './banking.js';
 import { DEFAULT_PROVINCE_ID, normalizeProvinceId, provinceScopedKey } from './provinces.js';
 import { optionalPlayerDisplayName, playerDisplayName } from './player-identity.js';
 
@@ -186,6 +186,18 @@ function normalizeLoan(contract) {
     collateralQuantity,
     collateralUnitValue: Math.max(0, Number(contract?.collateralUnitValue || 0)),
     collateralTransferredQuantity: Math.max(0, Math.floor(Number(contract?.collateralTransferredQuantity || 0))),
+    bankGuaranteedCredits: Math.max(0, Number(contract?.bankGuaranteedCredits || 0)),
+    bankLenderPayoutCredits: Math.max(0, Number(contract?.bankLenderPayoutCredits || 0)),
+    bankCollectedCredits: Math.max(0, Number(contract?.bankCollectedCredits || 0)),
+    bankCollectedDepositCredits: Math.max(0, Number(contract?.bankCollectedDepositCredits || 0)),
+    bankCollectedCashCredits: Math.max(0, Number(contract?.bankCollectedCashCredits || 0)),
+    bankCollectedCollateralCredits: Math.max(0, Number(contract?.bankCollectedCollateralCredits || 0)),
+    bankCollateralProceedsCredits: Math.max(0, Number(contract?.bankCollateralProceedsCredits || 0)),
+    bankCollateralSeizedQuantity: Math.max(0, Math.floor(Number(contract?.bankCollateralSeizedQuantity || 0))),
+    bankCollateralSurplusCredits: Math.max(0, Number(contract?.bankCollateralSurplusCredits || 0)),
+    bankReserveAbsorbedCredits: Math.max(0, Number(contract?.bankReserveAbsorbedCredits || 0)),
+    bankGuaranteeIssuedCredits: Math.max(0, Number(contract?.bankGuaranteeIssuedCredits || 0)),
+    bankGuaranteeSettledAt: contract?.bankGuaranteeSettledAt == null ? undefined : Math.max(0, Number(contract.bankGuaranteeSettledAt)),
     autoRepay: contract?.autoRepay !== false,
     status,
     createdAt,
@@ -422,52 +434,125 @@ function repayLoan(world, contract, borrower, now, runtimeIndex, automatic = fal
   return true;
 }
 
-function confirmLoanDefault(world, contract, now, runtimeIndex) {
-  const borrower = playerFor(world, contract.borrowerId);
-  const lender = playerFor(world, contract.lenderId);
-  const borrowerGroup = borrower && groupFor(borrower, contract.facilityTypeId, contract.provinceId);
-  if (!borrower || !lender || !borrowerGroup) {
-    transferLoanCollateral(world, contract, now, runtimeIndex);
-    return;
+function reduceGroupForBankCollection(group, quantity) {
+  const count = Math.max(0, Math.floor(Number(group?.count || 0)));
+  const removed = Math.min(count, Math.max(0, Math.floor(Number(quantity || 0))));
+  if (!group || removed <= 0) return 0;
+  group.count = count - removed;
+  const participatingCount = Math.max(0, Math.floor(Number(group.participatingCount || 0)));
+  group.participatingCount = Math.max(0, participatingCount - Math.min(participatingCount, removed));
+  if (group.count > 0 && group.status === 'running' && group.participatingCount < 1) {
+    group.status = 'error';
+    group.statusReason = 'no_available_facility';
+    delete group.cycleStartedAt;
+    delete group.cycleWageMultiplierBps;
   }
-  const unitValue = Math.max(0.01, prudentFacilityUnitValue(world, contract.facilityTypeId, contract.provinceId) * 0.8);
-  const due = addMoney(contract.principalOutstanding, contract.interestDue) || 0;
-  const required = Math.max(1, Math.ceil(due / unitValue));
-  const quantity = Math.min(contract.collateralQuantity, borrowerGroup.count, required);
-  runtimeIndex.transition(contract, () => {
-    contract.defaultCollateralQuantity = quantity;
-    contract.defaultCollateralUnitValue = unitValue;
-    contract.breachedAt = now;
-    contract.terminationReason = 'borrower_default';
-    contract.dueAt = null;
-    delete contract.graceEndsAt;
-    commercialAliases(contract);
-  });
+  return removed;
 }
 
-function transferLoanCollateral(world, contract, now, runtimeIndex) {
-  const borrower = playerFor(world, contract.borrowerId);
+function settleLoanDefaultWithBank(world, contract, now, runtimeIndex) {
   const lender = playerFor(world, contract.lenderId);
-  const borrowerGroup = borrower && groupFor(borrower, contract.facilityTypeId, contract.provinceId);
-  if (!borrower || !lender || !borrowerGroup) {
+  if (!lender) {
     runtimeIndex.transition(contract, () => {
-      contract.status = 'terminated'; contract.terminationReason = 'participant_missing'; contract.endedAt = now;
+      contract.status = 'terminated';
+      contract.terminationReason = 'participant_missing';
+      contract.endedAt = now;
+      contract.dueAt = null;
+      delete contract.graceEndsAt;
       commercialAliases(contract);
     });
     return;
   }
-  const unitValue = Math.max(0.01, Number(contract.defaultCollateralUnitValue || 0) || prudentFacilityUnitValue(world, contract.facilityTypeId, contract.provinceId) * 0.8);
+  const borrower = playerFor(world, contract.borrowerId);
+  const bank = ensureBankWorld(world, now);
+  const borrowerGroup = borrower && groupFor(borrower, contract.facilityTypeId, contract.provinceId);
+  const borrowerAccount = borrower?.bankAccount || null;
   const due = addMoney(contract.principalOutstanding, contract.interestDue) || 0;
-  const required = Math.max(1, Math.ceil(due / unitValue));
-  const plannedQuantity = Math.max(0, Math.floor(Number(contract.defaultCollateralQuantity || 0)));
-  const quantity = Math.min(contract.collateralQuantity, borrowerGroup.count, plannedQuantity || required);
+  const fee = calculateCumulativeMarketSellFee(contract.interestDue);
+  const lenderPayout = Math.max(0, roundInternalMoney(due - fee) || 0);
+  const unitValue = Math.max(
+    0.01,
+    Number(contract.defaultCollateralUnitValue || 0)
+      || roundInternalMoney(prudentFacilityUnitValue(world, contract.facilityTypeId, contract.provinceId) * 0.8)
+      || 0.01,
+  );
+
   runtimeIndex.transition(contract, () => {
-    borrowerGroup.count = Math.max(0, borrowerGroup.count - quantity);
-    if (borrowerGroup.count === 0) borrower.facilityGroups = borrower.facilityGroups.filter((candidate) => candidate !== borrowerGroup);
-    const lenderGroup = groupFor(lender, contract.facilityTypeId, contract.provinceId, true, now);
-    lenderGroup.count += quantity;
-    contract.collateralTransferredQuantity = quantity;
-    contract.lastCollateralUnitValue = unitValue;
+    let remaining = due;
+    let depositCollected = 0;
+    let cashCollected = 0;
+    let collateralApplied = 0;
+    let collateralProceeds = 0;
+    let collateralSurplus = 0;
+    let seizedQuantity = 0;
+
+    if (borrowerAccount && remaining > 0) {
+      depositCollected = Math.min(remaining, Math.max(0, roundInternalMoney(borrowerAccount.depositCredits || 0) || 0));
+      borrowerAccount.depositCredits = Math.max(0, roundInternalMoney(Number(borrowerAccount.depositCredits || 0) - depositCollected) || 0);
+      borrowerAccount.dayMinimumDepositCredits = Math.min(
+        Math.max(0, roundInternalMoney(borrowerAccount.dayMinimumDepositCredits || 0) || 0),
+        borrowerAccount.depositCredits,
+      );
+      remaining = Math.max(0, roundInternalMoney(remaining - depositCollected) || 0);
+    }
+
+    if (borrower && remaining > 0) {
+      cashCollected = Math.min(remaining, Math.max(0, roundInternalMoney(borrower.credits || 0) || 0));
+      borrower.credits = Math.max(0, roundInternalMoney(Number(borrower.credits || 0) - cashCollected) || 0);
+      remaining = Math.max(0, roundInternalMoney(remaining - cashCollected) || 0);
+    }
+
+    if (borrower && borrowerGroup && remaining > 0) {
+      const required = Math.max(1, Math.ceil(remaining / unitValue));
+      const availableCollateral = Math.min(
+        Math.max(0, Math.floor(Number(contract.collateralQuantity || 0))),
+        Math.max(0, Math.floor(Number(borrowerGroup.count || 0))),
+      );
+      seizedQuantity = reduceGroupForBankCollection(borrowerGroup, Math.min(required, availableCollateral));
+      if (seizedQuantity > 0) {
+        const reserveKey = provinceScopedKey(contract.provinceId, contract.facilityTypeId);
+        bank.facilityReserves[reserveKey] = Math.max(0, Math.floor(Number(bank.facilityReserves[reserveKey] || 0))) + seizedQuantity;
+        collateralProceeds = multiplyMoneyByInteger(unitValue, seizedQuantity) || 0;
+        collateralApplied = Math.min(remaining, collateralProceeds);
+        collateralSurplus = Math.max(0, roundInternalMoney(collateralProceeds - collateralApplied) || 0);
+        remaining = Math.max(0, roundInternalMoney(remaining - collateralApplied) || 0);
+        if (collateralSurplus > 0 && borrowerAccount) {
+          borrowerAccount.depositCredits = addMoney(borrowerAccount.depositCredits, collateralSurplus) || borrowerAccount.depositCredits;
+        } else if (collateralSurplus > 0) {
+          borrower.credits = addMoney(borrower.credits, collateralSurplus) || borrower.credits;
+        }
+      }
+      if (borrowerGroup.count === 0) borrower.facilityGroups = borrower.facilityGroups.filter((candidate) => candidate !== borrowerGroup);
+    }
+
+    const reserveAbsorbed = Math.min(Math.max(0, roundInternalMoney(bank.riskReserveCredits || 0) || 0), remaining);
+    bank.riskReserveCredits = Math.max(0, roundInternalMoney(Number(bank.riskReserveCredits || 0) - reserveAbsorbed) || 0);
+    const guaranteeIssued = Math.max(0, roundInternalMoney(remaining - reserveAbsorbed) || 0);
+    const collected = addMoney(depositCollected, cashCollected, collateralApplied) || 0;
+
+    lender.credits = addMoney(lender.credits, lenderPayout) || lender.credits;
+    if (fee > 0) creditPopulationEmployment(world, fee, 'banking');
+
+    contract.defaultCollateralQuantity = seizedQuantity;
+    contract.defaultCollateralUnitValue = unitValue;
+    contract.collateralTransferredQuantity = 0;
+    contract.bankGuaranteedCredits = due;
+    contract.bankLenderPayoutCredits = lenderPayout;
+    contract.bankCollectedCredits = collected;
+    contract.bankCollectedDepositCredits = depositCollected;
+    contract.bankCollectedCashCredits = cashCollected;
+    contract.bankCollectedCollateralCredits = collateralApplied;
+    contract.bankCollateralProceedsCredits = collateralProceeds;
+    contract.bankCollateralSeizedQuantity = seizedQuantity;
+    contract.bankCollateralSurplusCredits = collateralSurplus;
+    contract.bankReserveAbsorbedCredits = reserveAbsorbed;
+    contract.bankGuaranteeIssuedCredits = guaranteeIssued;
+    contract.bankGuaranteeSettledAt = now;
+    contract.lastPaymentGross = due;
+    contract.lastPaymentFee = fee;
+    contract.marketSellFeeGross = contract.interestDue;
+    contract.marketSellFeeCharged = fee;
+    contract.breachedAt ||= now;
     contract.status = 'terminated';
     contract.terminationReason = 'borrower_default';
     contract.endedAt = now;
@@ -537,7 +622,6 @@ function confirmLeaseDefault(contract, lessee, lessor, now, runtimeIndex) {
     commercialAliases(contract);
   });
 }
-
 function claimLeaseDefault(contract, lessee, lessor, now, runtimeIndex) {
   const compensation = Math.max(0, Number(contract.lesseeBondCredits || 0));
   runtimeIndex.transition(contract, () => {
@@ -553,11 +637,23 @@ function claimLeaseDefault(contract, lessee, lessor, now, runtimeIndex) {
 }
 
 export function processCommercialContract(world, contract, now, runtimeIndex) {
-  if (contract.status === 'active' && contract.breachedAt && String(contract.terminationReason || '').endsWith('_default')) return;
+  if (contract.status === 'active' && contract.breachedAt && String(contract.terminationReason || '').endsWith('_default')) {
+    if (contract.kind === 'loan') settleLoanDefaultWithBank(world, contract, now, runtimeIndex);
+    return;
+  }
   if (contract.kind === 'loan') {
     const borrower = playerFor(world, contract.borrowerId);
-    if (!borrower || !playerFor(world, contract.lenderId)) {
-      transferLoanCollateral(world, contract, now, runtimeIndex);
+    const lender = playerFor(world, contract.lenderId);
+    if (!lender) {
+      runtimeIndex.transition(contract, () => {
+        contract.status = 'terminated'; contract.terminationReason = 'participant_missing'; contract.endedAt = now; contract.dueAt = null;
+        delete contract.graceEndsAt;
+        commercialAliases(contract);
+      });
+      return;
+    }
+    if (!borrower) {
+      settleLoanDefaultWithBank(world, contract, now, runtimeIndex);
       return;
     }
     if (contract.autoRepay && now >= Number(contract.dueAt || Number.POSITIVE_INFINITY) && repayLoan(world, contract, borrower, now, runtimeIndex, true)) return;
@@ -568,7 +664,7 @@ export function processCommercialContract(world, contract, now, runtimeIndex) {
     }
     if (now < contract.graceEndsAt) return;
     if (repayLoan(world, contract, borrower, now, runtimeIndex, true)) return;
-    confirmLoanDefault(world, contract, now, runtimeIndex);
+    settleLoanDefaultWithBank(world, contract, now, runtimeIndex);
     return;
   }
   if (contract.kind === 'facility_lease') {
@@ -601,12 +697,8 @@ function ownCommercialContract(runtimeIndex, userId, contractId) {
 export function applyCommercialContractAction(world, user, action, payload, now, runtimeIndex) {
   const contract = ownCommercialContract(runtimeIndex, user.id, payload.contractId);
   if (contract?.breachedAt && String(contract.terminationReason || '').endsWith('_default')) {
+    if (contract.kind === 'loan') return result(false, '违约贷款由银行自动代付并代收，无需手动处置');
     if (action !== 'terminateProductionContractNow') return result(false, '合同已确认违约，不能再补救、还款或修改自动履约设置');
-    if (contract.kind === 'loan') {
-      if (Number(contract.lenderId) !== Number(user.id)) return result(false, '只有出借方可以解除违约贷款并处置冻结');
-      transferLoanCollateral(world, contract, now, runtimeIndex);
-      return result(true, '违约贷款已解除，冻结工厂已按违约确认时快照处置');
-    }
     if (contract.kind === 'facility_lease') {
       if (Number(contract.lessorId) !== Number(user.id)) return result(false, '只有出租方可以解除违约租赁并领取违约金');
       const lessee = playerFor(world, contract.lesseeId);
@@ -642,7 +734,7 @@ export function applyCommercialContractAction(world, user, action, payload, now,
   }
   if (action === 'terminateProductionContractNow') {
     if (!contract) return null;
-    if (contract.kind === 'loan') return result(false, '贷款合同必须通过还款或到期处置结束');
+    if (contract.kind === 'loan') return result(false, '贷款合同必须通过还款或银行到期清算结束');
     const lessee = playerFor(world, contract.lesseeId);
     const lessor = playerFor(world, contract.lessorId);
     if (!lessee || !lessor) return result(false, '合同参与者不存在');
@@ -673,12 +765,9 @@ export function applyCommercialContractAction(world, user, action, payload, now,
 export function commercialIssue(contract, userId = null) {
   if (contract.status !== 'active') return null;
   if (contract.breachedAt && String(contract.terminationReason || '').endsWith('_default')) {
-    const claimantId = contract.kind === 'loan' ? contract.lenderId : contract.lessorId;
-    if (Number(claimantId) === Number(userId)) {
-      return contract.kind === 'loan'
-        ? '借款方已违约，请主动解除贷款并处置冻结'
-        : '承租方已违约，请主动解除租赁并领取违约金';
-    }
+    if (contract.kind === 'loan') return '借款方已违约，等待银行自动代付并代收';
+    const claimantId = contract.lessorId;
+    if (Number(claimantId) === Number(userId)) return '承租方已违约，请主动解除租赁并领取违约金';
     return '合同已确认违约，等待受偿方解除合同';
   }
   if (contract.graceEndsAt) return contract.kind === 'loan' ? '贷款已进入还款宽限期' : '租金不足，租赁使用权已暂停';

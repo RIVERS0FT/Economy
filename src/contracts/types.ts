@@ -143,6 +143,18 @@ export interface ProductionContract {
   collateralTransferredQuantity?: number;
   defaultCollateralQuantity?: number;
   defaultCollateralUnitValue?: number;
+  bankGuaranteedCredits?: number;
+  bankLenderPayoutCredits?: number;
+  bankCollectedCredits?: number;
+  bankCollectedDepositCredits?: number;
+  bankCollectedCashCredits?: number;
+  bankCollectedCollateralCredits?: number;
+  bankCollateralProceedsCredits?: number;
+  bankCollateralSeizedQuantity?: number;
+  bankCollateralSurplusCredits?: number;
+  bankReserveAbsorbedCredits?: number;
+  bankGuaranteeIssuedCredits?: number;
+  bankGuaranteeSettledAt?: number;
   autoRepay?: boolean;
   isLender?: boolean;
   isBorrower?: boolean;

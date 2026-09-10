@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyProductionContractAction, createProductionContractClientState, migrateProductionContractWorld, processProductionContracts } from '../src/contracts.js';
 import { FACILITY_TYPE_CATALOG } from '../src/domain.js';
+import { ensureBankWorld } from '../src/banking.js';
 import { contractLockedFacilityQuantity, leasedInFacilityQuantity, leasedOutFacilityQuantity, playerLoanCollateralQuantity } from '../src/contract-asset-locks.js';
 
 function player(userId, name, credits = 100_000) {
@@ -85,33 +86,58 @@ test('lease grace suspends production usage without unlocking the lessor asset',
 });
 
 
-test('loan default transfers only enough collateral and releases the remainder', () => {
+test('loan default is paid by the bank and collected without transferring factories to the lender', () => {
   const state = world(); const facility = FACILITY_TYPE_CATALOG[0]; const now = 4_000_000;
   assert.equal(applyProductionContractAction(state, { id: 1 }, 'createProductionContract', { kind: 'loan', publisherSide: 'borrower', principal: 10, interestRateBps: 500, termMs: 12 * 60 * 60 * 1000, facilityTypeId: facility.id, collateralQuantity: 2 }, now).ok, true);
   const contractId = state.productionContracts[0].id;
   assert.equal(applyProductionContractAction(state, { id: 2 }, 'acceptProductionContract', { contractId }, now).ok, true);
-  state.players['1'].credits = 0;
+  const due = state.productionContracts[0].principalOutstanding + state.productionContracts[0].interestDue;
+  ensureBankWorld(state, now);
+  state.players['1'].bankAccount.depositCredits = 2;
+  state.players['1'].bankAccount.dayOpeningDepositCredits = 2;
+  state.players['1'].bankAccount.dayMinimumDepositCredits = 2;
+  state.players['1'].credits = 3;
+  const lenderCreditsBeforeDefault = state.players['2'].credits;
   processProductionContracts(state, now + 12 * 60 * 60 * 1000 + 1);
   const grace = state.productionContracts[0];
   assert.ok(grace.graceEndsAt);
   processProductionContracts(state, grace.graceEndsAt + 1);
-  let breached = state.productionContracts[0];
-  assert.equal(breached.status, 'active');
-  assert.equal(breached.terminationReason, 'borrower_default');
-  assert.ok(breached.breachedAt);
-  assert.equal(breached.defaultCollateralQuantity, 1);
-  assert.equal(breached.collateralTransferredQuantity, 0, '违约确认时不得自动转移冻结工厂');
-  assert.equal(playerLoanCollateralQuantity(state, 1, facility.id), 2, '等待出借方处置期间冻结仍保持锁定');
-  assert.equal(state.players['1'].facilityGroups[0].count, 10);
-  assert.equal(state.players['2'].facilityGroups[0].count, 10);
-  assert.equal(applyProductionContractAction(state, { id: 1 }, 'terminateProductionContractNow', { contractId }, breached.breachedAt + 1).ok, false);
-  assert.equal(applyProductionContractAction(state, { id: 2 }, 'terminateProductionContractNow', { contractId }, breached.breachedAt + 2).ok, true);
-  breached = state.productionContracts[0];
-  assert.equal(breached.status, 'terminated');
-  assert.equal(breached.collateralTransferredQuantity, 1);
+  const settled = state.productionContracts[0];
+  assert.equal(settled.status, 'terminated');
+  assert.equal(settled.terminationReason, 'borrower_default');
+  assert.ok(settled.breachedAt);
+  assert.ok(settled.bankGuaranteeSettledAt);
+  assert.equal(settled.bankGuaranteedCredits, due);
+  assert.equal(settled.bankCollectedDepositCredits, 2);
+  assert.equal(settled.bankCollectedCashCredits, 3);
+  assert.equal(settled.bankCollateralSeizedQuantity, 1);
+  assert.equal(settled.bankCollectedCollateralCredits, due - 5);
+  assert.equal(settled.collateralTransferredQuantity, 0, '银行清算不得把冻结工厂转给放贷方');
   assert.equal(playerLoanCollateralQuantity(state, 1, facility.id), 0);
   assert.equal(state.players['1'].facilityGroups[0].count, 9);
-  assert.equal(state.players['2'].facilityGroups[0].count, 11);
+  assert.equal(state.players['2'].facilityGroups[0].count, 10, '放贷方只收到现金，不获得借款方工厂');
+  assert.equal(state.bank.facilityReserves[`110000:${facility.id}`], 1);
+  assert.equal(Number((state.players['2'].credits - lenderCreditsBeforeDefault).toFixed(6)), settled.bankLenderPayoutCredits);
+  assert.ok(settled.bankCollateralSurplusCredits >= 0);
+});
+
+test('legacy confirmed player-loan default is settled by the bank on the next authoritative process', () => {
+  const state = world(); const facility = FACILITY_TYPE_CATALOG[0]; const now = 4_500_000;
+  assert.equal(applyProductionContractAction(state, { id: 1 }, 'createProductionContract', { kind: 'loan', publisherSide: 'borrower', principal: 10, interestRateBps: 500, termMs: 12 * 60 * 60 * 1000, facilityTypeId: facility.id, collateralQuantity: 2 }, now).ok, true);
+  const contractId = state.productionContracts[0].id;
+  assert.equal(applyProductionContractAction(state, { id: 2 }, 'acceptProductionContract', { contractId }, now).ok, true);
+  state.players['1'].credits = 0;
+  const legacy = state.productionContracts[0];
+  legacy.breachedAt = now + 1;
+  legacy.terminationReason = 'borrower_default';
+  legacy.defaultCollateralQuantity = 1;
+  legacy.defaultCollateralUnitValue = Math.max(0.01, facility.systemValue * 0.8);
+  processProductionContracts(state, now + 2);
+  const settled = state.productionContracts[0];
+  assert.equal(settled.status, 'terminated');
+  assert.ok(settled.bankGuaranteeSettledAt);
+  assert.equal(settled.collateralTransferredQuantity, 0);
+  assert.equal(state.players['2'].facilityGroups[0].count, 10);
 });
 
 test('schema 10 migrates legacy supply contracts to ID-only player relationships without changing roles', () => {

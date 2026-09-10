@@ -159,7 +159,9 @@ const commercialContracts = read('server/src/commercial-contracts.js');
 for (const text of [
   'const provinceId = normalizeProvinceId(payload.provinceId);',
   'groupFor(lessee, contract.facilityTypeId, contract.provinceId, true, now)',
-  'groupFor(lender, contract.facilityTypeId, contract.provinceId, true, now)',
+  'const reserveKey = provinceScopedKey(contract.provinceId, contract.facilityTypeId);',
+  'bank.facilityReserves[reserveKey]',
+  'reduceGroupForBankCollection(borrowerGroup',
 ]) assert.ok(commercialContracts.includes(text), `借贷或租赁州级边界缺少: ${text}`);
 const clientScope = read('src/utils/provinceScope.ts');
 for (const text of [
