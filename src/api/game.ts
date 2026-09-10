@@ -4,6 +4,7 @@ import { GameWriteUnconfirmedError, isUnconfirmedWriteStatus, WRITE_RESULT_UNCON
 import type { AssetKind, EconomyState, MarketDetail, OrderSide, TransportModeId, TransportTripType } from '../types';
 import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
 import type { FacilityBuildProcurementQuote } from '../utils/facilityBuildProcurement';
+import type { TransportTaskCommand } from '../transport/transportTaskTypes';
 import {
   createStateDeliveryCache,
   StateDeliveryIntegrityError,
@@ -416,6 +417,10 @@ async function postAction(path: string, body: Record<string, unknown> = {}) {
     }
     throw reason;
   }
+}
+
+export function postTransportTask(command: TransportTaskCommand) {
+  return postAction('/transport', { ...command });
 }
 
 async function fetchGameStateOnce(revision?: number | null, signal?: AbortSignal) {
