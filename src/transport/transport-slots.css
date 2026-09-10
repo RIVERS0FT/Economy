@@ -3,8 +3,8 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   margin-bottom: 14px;
-  color: var(--text-secondary);
-  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .transport-slot-grid {
@@ -17,8 +17,8 @@
   min-width: 0;
   padding: 14px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--surface-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
 }
 
 .transport-slot-heading,
@@ -41,23 +41,23 @@
 
 .transport-slot-training-heading span,
 .transport-slot-training small {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
 }
 
 .transport-slot-progress {
   position: relative;
   height: 6px;
   overflow: hidden;
-  border-radius: 999px;
-  background: var(--surface-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-inset);
 }
 
 .transport-slot-progress > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: currentColor;
+  background: var(--color-accent);
 }
 
 .transport-slot-card > .ui-helper-text {
