@@ -3,7 +3,14 @@ import type { TransportCycleCostBreakdown, TransportRouteStopsInput } from '../u
 import type { TransportCargoEntry, TransportCycleEstimate } from './transportPlanner.js';
 
 export type TransportPlanningRoute = TransportRouteStopsInput & { mode: TransportModeId; vehicleCount?: number };
-export type TransportRouteEstimate = TransportCycleEstimate & TransportCycleCostBreakdown & { capacity: number; durationMs: number; vehicleCount: number; ownedVehicleCount: number };
+export type TransportRouteEstimate = TransportCycleEstimate & TransportCycleCostBreakdown & {
+  capacity: number;
+  durationMs: number;
+  vehicleCount: number;
+  ownedVehicleCount: number;
+  transportSlotId: string | null;
+  transportToolLevel: number;
+};
 export function estimateTransportRoute(game: EconomyState, route: TransportPlanningRoute, now: number, provinceById?: Map<string, ProvinceDefinition>): TransportRouteEstimate;
 export type TransportMaintenanceCommand = {
   routeId: string;
