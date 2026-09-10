@@ -10,6 +10,7 @@ for (const path of [
   'server/src/weekly-cash-settlement.js',
   'server/test/weekly-cash-settlement.test.js',
   'server/src/banking.js',
+  'server/src/banking-legacy.js',
   'server/src/storage.js',
   'server/src/facility-groups.js',
   'server/src/leaderboards.js',
@@ -44,7 +45,9 @@ for (const text of [
   'depositInterestSubsidyIssued',
   'isPlayerWeeklyInterestEligible',
   'createWeeklyCashSettlementClientState',
-]) requireText('server/src/banking.js', text);
+]) requireText('server/src/banking-legacy.js', text);
+requireText('server/src/banking.js', "export * from './banking-legacy.js'");
+requireText('server/src/banking.js', 'BANKING_VERSION = 4');
 
 for (const text of [
   'settlePlayerWeeklyCashOnLogin',
@@ -76,7 +79,6 @@ for (const text of [
   '成功经济写操作',
   '回归结算',
   '冻结资金',
-  '3%／4%／6%',
   '同一自然周内的普通状态读取',
   '不属于经营增长',
   '实际收取部分按食品市场与社会消费市场的 `baseBudget` 权重',
@@ -89,11 +91,10 @@ for (const text of [
   '`weeklyCashSettlementReserveTransferred`',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 
-forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '固定存款日利率为每日 1%，固定存款日利率为每日 1%');
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '每周 10% 的资金扣除只适用于完整活跃周。每周 10% 的资金扣除只适用于完整活跃周。');
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '周资金扣除作为 `weeklyCashSettlementBurned` 直接销毁');
-forbidText('server/src/banking.js', 'BANK_DAILY_INTEREST_CAP_BPS = 25');
+forbidText('server/src/banking-legacy.js', 'BANK_DAILY_INTEREST_CAP_BPS = 25');
 forbidText('src/pages/BankPage.tsx', '动态收益');
 
 if (failures.length) {

@@ -1,8 +1,8 @@
-import { CompactNumber } from '../components/ui/CompactNumber';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { AssetOverviewPanel } from '../components/assets/AssetOverviewPanel';
 import { BankIcon, FactoryIcon } from '../components/icons/GameIcons';
+import { CompactNumber } from '../components/ui/CompactNumber';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { MoneyInput } from '../components/ui/FormControls';
 import {
@@ -20,7 +20,6 @@ import {
 import { LiveDurationUntil } from '../components/time/LiveServerTime';
 import { useNow } from '../hooks/useNow';
 import { formatCurrency, formatTime } from '../utils/formatters';
-import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
 
 const RECENT_DEFAULT_MS = 30 * 24 * 60 * 60 * 1000;
@@ -28,6 +27,7 @@ const RECENT_DEFAULT_MS = 30 * 24 * 60 * 60 * 1000;
 type PendingAction = 'deposit' | 'withdraw' | 'borrow' | 'repay' | 'auto-repay' | null;
 type TransferDirection = 'deposit' | 'withdraw';
 type HistoryFilter = 'all' | 'transfer' | 'interest' | 'loan' | 'settlement';
+type LoanTermHours = 24 | 72 | 168;
 
 const HISTORY_FILTERS: Array<{ id: HistoryFilter; label: string }> = [
   { id: 'all', label: '全部' },
@@ -37,20 +37,20 @@ const HISTORY_FILTERS: Array<{ id: HistoryFilter; label: string }> = [
   { id: 'settlement', label: '结算' },
 ];
 
+const LOAN_TERM_OPTIONS: Array<{ hours: LoanTermHours; rateBps: number }> = [
+  { hours: 24, rateBps: 200 },
+  { hours: 72, rateBps: 400 },
+  { hours: 168, rateBps: 900 },
+];
+
 function formatRateBps(rateBps: number) {
   return `${(Math.max(0, rateBps) / 100).toFixed(2)}%`;
 }
 
-function loanRateBps(actualLtvBps: number) {
-  if (actualLtvBps <= 3_000) return 300;
-  if (actualLtvBps <= 4_000) return 400;
-  return 600;
-}
-
 function transactionTone(type: string) {
-  if (['deposit', 'loan_disbursed', 'deposit_interest'].includes(type)) return 'success' as const;
-  if (['default', 'interest_paid', 'weekly_cash_settlement'].includes(type)) return 'danger' as const;
-  if (['grace_started'].includes(type)) return 'warning' as const;
+  if (['deposit', 'loan_disbursed', 'deposit_interest', 'collection_surplus'].includes(type)) return 'success' as const;
+  if (['default', 'interest_paid', 'weekly_cash_settlement', 'collection_repayment'].includes(type)) return 'danger' as const;
+  if (['grace_started', 'collection_pending'].includes(type)) return 'warning' as const;
   return 'neutral' as const;
 }
 
@@ -65,6 +65,16 @@ function floorMoney(value: number) {
   return Math.max(0, Math.floor((Math.max(0, value) + Number.EPSILON) * 100) / 100);
 }
 
+function ceilMoney(value: number) {
+  return Math.max(0, Math.ceil((Math.max(0, value) - Number.EPSILON) * 100) / 100);
+}
+
+function utilizationSurchargeBps(utilizationBps: number) {
+  if (utilizationBps <= 5_000) return 0;
+  if (utilizationBps <= 8_000) return 100;
+  return 200;
+}
+
 export function BankPage({ model }: { model: LoadedGameViewModel }) {
   const { bankAccount, bankSummary } = model.game;
   const provinces = model.game.provinces || [];
@@ -74,58 +84,42 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
   const [transferDirection, setTransferDirection] = useState<TransferDirection>('deposit');
   const [transferDraft, setTransferDraft] = useState('');
   const [loanDraft, setLoanDraft] = useState('');
+  const [loanTermHours, setLoanTermHours] = useState<LoanTermHours>(72);
   const [repayDraft, setRepayDraft] = useState('');
-  const [collateralDrafts, setCollateralDrafts] = useState<Record<string, string>>({});
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
   const [pending, setPending] = useState<PendingAction>(null);
 
   const activeLoan = bankAccount.activeLoan;
+  const legacyCollateralLoan = Boolean(activeLoan && activeLoan.collateral.length > 0);
   const transferSourceCredits = transferDirection === 'deposit' ? model.game.credits : bankAccount.depositCredits;
   const transferBlocked = transferSourceCredits < 0.01 || (transferDirection === 'withdraw' && activeLoan?.status === 'grace');
   const transferAmount = parseMoneyDraft(transferDraft, { min: 0.01, max: Math.max(0.01, transferSourceCredits) });
-  const collateralDraftState = useMemo(() => bankAccount.availableCollateral.map((item) => {
-    const key = `${item.provinceId}:${item.facilityTypeId}`;
-    const draft = collateralDrafts[key] || '';
-    const parsed = parseIntegerDraft(draft, {
-      min: 1,
-      max: Math.max(1, item.availableQuantity),
-    });
-    return { item, key, draft, parsed, invalid: draft.trim() !== '' && (parsed === null || parsed > item.availableQuantity) };
-  }), [bankAccount.availableCollateral, collateralDrafts]);
-  const selectedCollateral = collateralDraftState.flatMap(({ item, parsed }) => (parsed && parsed <= item.availableQuantity
-    ? [{ provinceId: item.provinceId, facilityTypeId: item.facilityTypeId, quantity: parsed, prudentUnitValue: item.prudentUnitValue }]
-    : []));
-  const hasInvalidCollateralDraft = collateralDraftState.some(({ invalid }) => invalid);
-  const collateralValue = selectedCollateral.reduce(
-    (sum, item) => sum + item.quantity * item.prudentUnitValue,
-    0,
-  );
-  const depositBufferEligible = collateralValue > 0 && bankAccount.depositCredits * 10 >= collateralValue;
+
   const recentDefault = bankAccount.recentDefaultAt !== null && riskNow - bankAccount.recentDefaultAt < RECENT_DEFAULT_MS;
   const goodRepayment = bankAccount.repaidLoanCount > 0 && !recentDefault;
-  const loanToValueBps = Math.min(
+  const creditRatioBps = Math.min(
     bankSummary.maximumLoanToValueBps,
     Math.max(
       bankSummary.minimumLoanToValueBps,
       bankSummary.baseLoanToValueBps
-        + (depositBufferEligible ? bankSummary.depositBufferBonusBps : 0)
         + (goodRepayment ? bankSummary.repaymentHistoryBonusBps : 0)
         - (recentDefault ? bankSummary.recentDefaultPenaltyBps : 0),
     ),
   );
-  const maximumLoan = Math.floor(collateralValue * loanToValueBps / 100) / 100;
+  const creditAssetValue = Math.max(0, model.game.assetSummary.netAssetValue ?? model.game.assetSummary.totalAssets);
+  const maximumLoan = floorMoney(creditAssetValue * creditRatioBps / 10_000);
   const requestedLoan = parseMoneyDraft(loanDraft, { min: 0.01, max: Math.max(0.01, maximumLoan) });
-  const actualLtvBps = requestedLoan && collateralValue > 0
-    ? Math.ceil(requestedLoan * 10_000 / collateralValue)
-    : 0;
-  const requestedInterestRateBps = loanRateBps(actualLtvBps);
-  const requestedInterest = requestedLoan
-    ? Math.ceil(requestedLoan * requestedInterestRateBps / 100) / 100
-    : 0;
   const creditUtilizationBps = requestedLoan && maximumLoan > 0
     ? Math.min(10_000, Math.ceil(requestedLoan * 10_000 / maximumLoan))
     : 0;
+  const selectedTerm = LOAN_TERM_OPTIONS.find((option) => option.hours === loanTermHours) || LOAN_TERM_OPTIONS[1];
+  const usageSurchargeBps = utilizationSurchargeBps(creditUtilizationBps);
+  const requestedInterestRateBps = selectedTerm.rateBps + usageSurchargeBps;
+  const requestedInterest = requestedLoan
+    ? ceilMoney(requestedLoan * requestedInterestRateBps / 10_000)
+    : 0;
   const remainingLoanCapacity = floorMoney(maximumLoan - (requestedLoan || 0));
+
   const activeLiability = activeLoan
     ? activeLoan.principalOutstanding + activeLoan.interestOutstanding
     : 0;
@@ -133,6 +127,9 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
     ? parseMoneyDraft(repayDraft, { min: 0.01, max: Math.max(0.01, activeLiability) })
     : null;
   const loanDeadline = activeLoan?.status === 'grace' ? activeLoan.graceEndsAt : activeLoan?.dueAt;
+  const activeTermHours = activeLoan
+    ? Math.max(1, Math.round((activeLoan.dueAt - activeLoan.borrowedAt) / (60 * 60 * 1000)))
+    : 0;
   const filteredTransactions = historyFilter === 'all'
     ? bankAccount.recentTransactions
     : bankAccount.recentTransactions.filter((transaction) => transactionFilter(transaction.type) === historyFilter);
@@ -140,6 +137,11 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
   function setTransferShare(share: number) {
     const amount = share >= 1 ? transferSourceCredits : floorMoney(transferSourceCredits * share);
     setTransferDraft(amount >= 0.01 ? String(amount) : '');
+  }
+
+  function setLoanShare(share: number) {
+    const amount = share >= 1 ? maximumLoan : floorMoney(maximumLoan * share);
+    setLoanDraft(amount >= 0.01 ? String(amount) : '');
   }
 
   function changeTransferDirection(direction: TransferDirection) {
@@ -189,24 +191,20 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                 aria-pressed={transferDirection === 'deposit'}
                 disabled={Boolean(pending)}
                 onClick={() => changeTransferDirection('deposit')}
-              >
-                存入
-              </Button>
+              >存入</Button>
               <Button
                 variant="text"
                 className={transferDirection === 'withdraw' ? 'ui-segmented__button active' : 'ui-segmented__button'}
                 aria-pressed={transferDirection === 'withdraw'}
                 disabled={activeLoan?.status === 'grace' || Boolean(pending)}
                 onClick={() => changeTransferDirection('withdraw')}
-              >
-                取出
-              </Button>
+              >取出</Button>
             </div>
             <MoneyInput
               label={transferDirection === 'deposit' ? '存入金额' : '取出金额'}
               description={transferDirection === 'deposit'
                 ? '本日新增存款从下一个北京时间自然日开始参与计息。'
-                : '当日取款会降低本日有效计息余额；贷款宽限期暂停取款。'}
+                : '当日取款会降低本日有效计息余额；贷款宽限期和追偿期暂停取款。'}
               value={transferDraft}
               fallbackValue={0.01}
               min={0.01}
@@ -270,8 +268,10 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
 
       <PagePanel className="bank-loan-panel">
         <WidgetHeading
-          title="工厂冻结融资"
-          action={activeLoan ? <StatusTag tone={activeLoan.status === 'grace' ? 'danger' : 'warning'}>{activeLoan.status === 'grace' ? '宽限期' : '还款中'}</StatusTag> : <StatusTag tone="info">额度评估</StatusTag>}
+          title="银行贷款"
+          action={activeLoan
+            ? <StatusTag tone={activeLoan.status === 'grace' ? 'danger' : 'warning'}>{legacyCollateralLoan ? '历史抵押贷款' : activeLoan.status === 'grace' ? '宽限／追偿期' : '还款中'}</StatusTag>
+            : <StatusTag tone="info">资产授信</StatusTag>}
         />
         {activeLoan ? (
           <div className="bank-active-loan">
@@ -279,27 +279,34 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
               <MetricCard label="总应还" value={<CurrencyAmount>{formatCurrency(activeLiability)}</CurrencyAmount>} tone={activeLoan.status === 'grace' ? 'danger' : 'warning'} />
               <MetricCard label="未偿本金" value={<CurrencyAmount>{formatCurrency(activeLoan.principalOutstanding)}</CurrencyAmount>} />
               <MetricCard label="未付利息" value={<CurrencyAmount>{formatCurrency(activeLoan.interestOutstanding)}</CurrencyAmount>} tone="warning" />
-              <MetricCard label="贷款价值比" value={formatRateBps(activeLoan.ltvBps)} />
-              <MetricCard label="72h 总利率" value={formatRateBps(activeLoan.interestRateBps)} />
+              <MetricCard label={legacyCollateralLoan ? '贷款价值比' : '授信利用率'} value={formatRateBps(activeLoan.ltvBps)} />
+              <MetricCard label="锁定总利率" value={formatRateBps(activeLoan.interestRateBps)} />
+              <MetricCard label="贷款周期" value={`${activeTermHours}h`} />
               <MetricCard label="剩余时间" value={loanDeadline ? <LiveDurationUntil deadline={loanDeadline} referenceNow={referenceNow} zeroText="等待服务器结算" /> : '—'} detail={formatTime(loanDeadline || 0)} tone={activeLoan.status === 'grace' ? 'danger' : 'neutral'} />
             </div>
             {activeLoan.status === 'grace' ? (
               <div className="bank-loan-risk-callout" role="status">
                 <strong>宽限期风险</strong>
-                <span>宽限结束仍未结清时，服务器会按届时审慎单价的 80% 处置足以覆盖欠款的最少冻结工厂；本页不会提前预测具体处置数量。</span>
+                <span>{legacyCollateralLoan
+                  ? '该历史贷款仍按原条款处理：宽限结束仍未结清时，服务器按原抵押规则处置冻结工厂。'
+                  : '宽限结束仍未结清时，服务器依次追偿银行存款、可用资金、可用商品、可用工厂和商业建筑；不足部分保留欠款并定期继续追偿。'}</span>
               </div>
             ) : null}
-            <div className="bank-collateral-summary">
-              <strong>冻结工厂</strong>
-              <div className="bank-collateral-chips">
-                {activeLoan.collateral.map((item) => {
-                  const type = model.game.facilityTypes.find((facility) => facility.id === item.facilityTypeId);
-                  const province = provinces.find((candidate) => candidate.id === item.provinceId);
-                  return <span key={`${item.provinceId}:${item.facilityTypeId}`}><FactoryIcon />{province?.name || item.provinceId} · {type?.name || item.facilityTypeId} × {<CompactNumber value={item.quantity} />}</span>;
-                })}
+            {legacyCollateralLoan ? (
+              <div className="bank-collateral-summary">
+                <strong>历史冻结工厂</strong>
+                <div className="bank-collateral-chips">
+                  {activeLoan.collateral.map((item) => {
+                    const type = model.game.facilityTypes.find((facility) => facility.id === item.facilityTypeId);
+                    const province = provinces.find((candidate) => candidate.id === item.provinceId);
+                    return <span key={`${item.provinceId}:${item.facilityTypeId}`}><FactoryIcon />{province?.name || item.provinceId} · {type?.name || item.facilityTypeId} × {<CompactNumber value={item.quantity} />}</span>;
+                  })}
+                </div>
+                <small>这是升级前已存在的贷款，冻结资产和违约条款保持不变直到贷款结束；新贷款不会再冻结资产。</small>
               </div>
-              <small>冻结工厂继续生产，但在贷款结清前不能出售、拍卖或重复冻结。</small>
-            </div>
+            ) : (
+              <p className="bank-panel-note">当前贷款没有抵押物。贷款期间工厂、商品与商业建筑保持正常经营和交易资格，只有发生违约追偿时服务器才处理可用资产。</p>
+            )}
             <ToggleField
               label="自动还款"
               description="到期时先使用银行存款，再使用可用资金。"
@@ -327,126 +334,97 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
             </div>
           </div>
         ) : (
-          <div className="bank-financing-workspace">
-            <div className="bank-collateral-list" role="table" aria-label="可冻结工厂">
-              <div className="entity-list-header bank-collateral-list-header" role="row">
-                <span role="columnheader">工厂</span>
-                <span role="columnheader">可冻结</span>
-                <span role="columnheader">审慎单价</span>
-                <span role="columnheader">本次冻结</span>
+          <section className="bank-loan-decision" aria-labelledby="bank-loan-decision-title">
+            <div className="bank-section-heading">
+              <div>
+                <h3 id="bank-loan-decision-title">贷款方案</h3>
+                <p>额度由服务器按当前净资产确定；不需要选择或冻结任何抵押物。</p>
               </div>
-              {bankAccount.availableCollateral.length === 0 ? (
-                <EmptyState>当前没有可用于冻结的工厂。已挂牌、拍卖或冻结的工厂不能重复使用。</EmptyState>
-              ) : collateralDraftState.map(({ item, key, draft, parsed, invalid }) => {
-                const type = model.game.facilityTypes.find((facility) => facility.id === item.facilityTypeId);
-                const province = provinces.find((candidate) => candidate.id === item.provinceId);
-                const transactionFrozen = Math.max(0, item.totalQuantity - item.mortgagedQuantity - item.availableQuantity);
-                return (
-                  <div className="bank-collateral-row" role="row" key={key}>
-                    <div className="bank-collateral-identity" role="cell">
-                      <span className="bank-factory-name"><FactoryIcon />{type?.name || item.facilityTypeId}</span>
-                      <small>{province?.name || item.provinceId} · 总持有 {<CompactNumber value={item.totalQuantity} />} · 交易冻结 {<CompactNumber value={transactionFrozen} />} · 已冻结 {<CompactNumber value={item.mortgagedQuantity} />}</small>
-                    </div>
-                    <strong className="bank-collateral-available" role="cell"><CompactNumber value={item.availableQuantity} /></strong>
-                    <span className="bank-collateral-price" role="cell"><CurrencyAmount>{formatCurrency(item.prudentUnitValue)}</CurrencyAmount></span>
-                    <div className="bank-collateral-entry" role="cell">
-                      <input
-                        className="ui-control bank-collateral-input"
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={item.availableQuantity}
-                        step={1}
-                        aria-label={`${type?.name || item.facilityTypeId}冻结数量`}
-                        aria-invalid={invalid || undefined}
-                        value={draft}
-                        placeholder="0"
-                        disabled={item.availableQuantity < 1}
-                        onChange={(event) => setCollateralDrafts((current) => ({ ...current, [key]: event.target.value }))}
-                        onBlur={() => {
-                          if (!invalid) return;
-                          setCollateralDrafts((current) => ({ ...current, [key]: '' }));
-                        }}
-                      />
-                      <small>{parsed ? <>贡献 <CurrencyAmount>{formatCurrency(parsed * item.prudentUnitValue)}</CurrencyAmount></> : '未选择'}</small>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
 
-            <section className="bank-loan-decision" aria-labelledby="bank-loan-decision-title">
-              <div className="bank-section-heading">
-                <div>
-                  <h3 id="bank-loan-decision-title">融资方案</h3>
-                  <p>先选择冻结工厂，再决定本次使用多少银行授信。</p>
-                </div>
+            <DataList>
+              <DataRow label="授信资产净值" value={<CurrencyAmount>{formatCurrency(creditAssetValue)}</CurrencyAmount>} />
+              <DataRow label="最高可贷额度" value={<CurrencyAmount>{formatCurrency(maximumLoan)}</CurrencyAmount>} tone="success" />
+            </DataList>
+
+            <div className="ui-segmented bank-loan-term-selector" role="group" aria-label="贷款周期">
+              {LOAN_TERM_OPTIONS.map((option) => (
+                <Button
+                  key={option.hours}
+                  variant="text"
+                  className={loanTermHours === option.hours ? 'ui-segmented__button active' : 'ui-segmented__button'}
+                  aria-pressed={loanTermHours === option.hours}
+                  disabled={Boolean(pending)}
+                  onClick={() => setLoanTermHours(option.hours)}
+                >{option.hours}h · {formatRateBps(option.rateBps)}</Button>
+              ))}
+            </div>
+
+            <MoneyInput
+              label="申请金额"
+              description="可在当前最高额度内自行决定具体金额；贷款成立时锁定周期与总利息。"
+              value={loanDraft}
+              fallbackValue={0.01}
+              min={0.01}
+              max={Math.max(0.01, maximumLoan)}
+              onValueChange={setLoanDraft}
+              disabled={maximumLoan < 0.01}
+              error={loanDraft && requestedLoan === null ? '申请金额必须为不超过当前最高额度的正数；超过两位小数无效。' : undefined}
+            />
+            <div className="bank-transfer-quick-actions" aria-label="贷款快捷金额">
+              <Button variant="secondary" disabled={maximumLoan < 0.01 || Boolean(pending)} onClick={() => setLoanShare(0.25)}>25%</Button>
+              <Button variant="secondary" disabled={maximumLoan < 0.01 || Boolean(pending)} onClick={() => setLoanShare(0.5)}>50%</Button>
+              <Button variant="secondary" disabled={maximumLoan < 0.01 || Boolean(pending)} onClick={() => setLoanShare(0.75)}>75%</Button>
+              <Button variant="secondary" disabled={maximumLoan < 0.01 || Boolean(pending)} onClick={() => setLoanShare(1)}>最大</Button>
+            </div>
+
+            <div className="bank-credit-utilization">
+              <div className="bank-credit-utilization-heading">
+                <span>授信利用率</span>
+                <strong>{(creditUtilizationBps / 100).toFixed(2)}%</strong>
               </div>
+              <div
+                className="bank-credit-utilization-track"
+                role="progressbar"
+                aria-label="授信利用率"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={creditUtilizationBps / 100}
+              >
+                <span style={{ width: `${creditUtilizationBps / 100}%` }} />
+              </div>
+              <div className="bank-credit-utilization-meta">
+                <span>剩余授信 <strong><CurrencyAmount>{formatCurrency(remainingLoanCapacity)}</CurrencyAmount></strong></span>
+                <span>额度使用加点 <strong>+{formatRateBps(usageSurchargeBps)}</strong></span>
+              </div>
+            </div>
+
+            <DataList>
+              <DataRow label="贷款周期" value={`${loanTermHours}h`} />
+              <DataRow label="锁定总利率" value={formatRateBps(requestedInterestRateBps)} />
+              <DataRow label="预计总利息" value={<CurrencyAmount>{formatCurrency(requestedInterest)}</CurrencyAmount>} />
+              <DataRow label="预计应还总额" value={<CurrencyAmount>{formatCurrency((requestedLoan || 0) + requestedInterest)}</CurrencyAmount>} tone="warning" />
+            </DataList>
+
+            <div className="bank-credit-basis">
+              <h4>授信依据</h4>
               <DataList>
-                <DataRow label="冻结资产审慎估值" value={<CurrencyAmount>{formatCurrency(collateralValue)}</CurrencyAmount>} />
-                <DataRow label="最高可贷额度" value={<CurrencyAmount>{formatCurrency(maximumLoan)}</CurrencyAmount>} tone="success" />
+                <DataRow label="基础授信比例" value={formatRateBps(bankSummary.baseLoanToValueBps)} />
+                <DataRow label="良好还款记录" value={goodRepayment ? `+${formatRateBps(bankSummary.repaymentHistoryBonusBps)}` : '+0.00%'} tone={goodRepayment ? 'success' : 'neutral'} />
+                <DataRow label="近期违约" value={recentDefault ? `-${formatRateBps(bankSummary.recentDefaultPenaltyBps)}` : '0.00%'} tone={recentDefault ? 'danger' : 'neutral'} />
+                <DataRow label="最终授信比例" value={formatRateBps(creditRatioBps)} tone="info" />
               </DataList>
-              <MoneyInput
-                label="申请金额"
-                description="贷款期限固定为 72h，贷款总利息随实际贷款价值比锁定。"
-                value={loanDraft}
-                fallbackValue={1}
-                min={1}
-                max={Math.max(0.01, maximumLoan)}
-                onValueChange={setLoanDraft}
-                disabled={maximumLoan < 1}
-                error={loanDraft && requestedLoan === null ? '申请金额必须为不超过当前最高额度的正数；超过两位小数无效。' : undefined}
-              />
-              <div className="bank-credit-utilization">
-                <div className="bank-credit-utilization-heading">
-                  <span>授信利用率</span>
-                  <strong>{(creditUtilizationBps / 100).toFixed(2)}%</strong>
-                </div>
-                <div
-                  className="bank-credit-utilization-track"
-                  role="progressbar"
-                  aria-label="授信利用率"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={creditUtilizationBps / 100}
-                >
-                  <span style={{ width: `${creditUtilizationBps / 100}%` }} />
-                </div>
-                <div className="bank-credit-utilization-meta">
-                  <span>剩余授信 <strong><CurrencyAmount>{formatCurrency(remainingLoanCapacity)}</CurrencyAmount></strong></span>
-                  <span>实际贷款价值比 <strong>{formatRateBps(actualLtvBps)}</strong></span>
-                </div>
-              </div>
-              <DataList>
-                <DataRow label="72h 总利率" value={formatRateBps(requestedInterestRateBps)} />
-                <DataRow label="预计总利息" value={<CurrencyAmount>{formatCurrency(requestedInterest)}</CurrencyAmount>} />
-                <DataRow label="预计应还总额" value={<CurrencyAmount>{formatCurrency((requestedLoan || 0) + requestedInterest)}</CurrencyAmount>} tone="warning" />
-              </DataList>
-              <div className="bank-credit-basis">
-                <h4>授信依据</h4>
-                <DataList>
-                  <DataRow label="基础可贷成数" value={formatRateBps(bankSummary.baseLoanToValueBps)} />
-                  <DataRow label="存款缓冲" value={depositBufferEligible ? `+${formatRateBps(bankSummary.depositBufferBonusBps)}` : '+0.00%'} tone={depositBufferEligible ? 'success' : 'neutral'} />
-                  <DataRow label="良好还款记录" value={goodRepayment ? `+${formatRateBps(bankSummary.repaymentHistoryBonusBps)}` : '+0.00%'} tone={goodRepayment ? 'success' : 'neutral'} />
-                  <DataRow label="近期违约" value={recentDefault ? `-${formatRateBps(bankSummary.recentDefaultPenaltyBps)}` : '0.00%'} tone={recentDefault ? 'danger' : 'neutral'} />
-                  <DataRow label="最终可贷成数" value={formatRateBps(loanToValueBps)} tone="info" />
-                </DataList>
-              </div>
-              {hasInvalidCollateralDraft ? <p className="form-error" role="alert">冻结数量必须是不超过可冻结数量的正整数。</p> : null}
-              <Button block disabled={!requestedLoan || selectedCollateral.length === 0 || hasInvalidCollateralDraft || Boolean(pending)} onClick={() => submit(
-                'borrow',
-                () => model.bankBorrow(
-                  requestedLoan || 0,
-                  selectedCollateral.map(({ provinceId, facilityTypeId, quantity }) => ({ provinceId, facilityTypeId, quantity })),
-                  true,
-                ),
-                () => { setLoanDraft(''); setCollateralDrafts({}); },
-              )}>
-                {pending === 'borrow' ? '评估并放款中…' : '申请贷款'}
-              </Button>
-              <small>贷款本金会同时增加等额负债，不会提高净资产或排行榜成绩。贷款最低总利率高于 72h 内最多可获得的固定存款利息，不能通过贷款后再存款获利。</small>
-            </section>
-          </div>
+            </div>
+
+            <Button block disabled={!requestedLoan || Boolean(pending)} onClick={() => submit(
+              'borrow',
+              () => model.bankBorrow(requestedLoan || 0, loanTermHours, true),
+              () => setLoanDraft(''),
+            )}>
+              {pending === 'borrow' ? '评估并放款中…' : '申请贷款'}
+            </Button>
+            <small>贷款不冻结工厂、商品或其他资产。贷款本金会同时增加等额负债，不会提高净资产或排行榜成绩；宽限结束仍未结清时，服务器才按全资产追偿规则处理可用资产。</small>
+          </section>
         )}
       </PagePanel>
 
@@ -460,9 +438,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
               className={historyFilter === filter.id ? 'ui-segmented__button active' : 'ui-segmented__button'}
               aria-pressed={historyFilter === filter.id}
               onClick={() => setHistoryFilter(filter.id)}
-            >
-              {filter.label}
-            </Button>
+            >{filter.label}</Button>
           ))}
         </div>
         {filteredTransactions.length === 0 ? <EmptyState>当前分类暂无银行记录。</EmptyState> : (
