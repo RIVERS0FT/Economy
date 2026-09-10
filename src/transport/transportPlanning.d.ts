@@ -12,5 +12,6 @@ export type TransportMaintenanceCommand = {
 } & (
   { kind: 'start'; load: TransportCargoEntry[]; vehicleCount: number }
   | { kind: 'service'; cycleId: string; visitIndex: number; unload: TransportCargoEntry[]; load: TransportCargoEntry[] }
+  | { kind: 'task'; operation: 'task-maintain' | 'task-cycle-start' }
 );
 export function transportMaintenanceCandidates(game: EconomyState, now: number, lastRouteId?: string | null): TransportMaintenanceCommand[];
