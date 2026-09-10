@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { transportCyclePolicyForShipment } from '../../shared/transport-policy.js';
+import { TRANSPORT_MAX_VEHICLES_PER_ROUTE, transportRouteVehicleCount, transportCyclePolicyForShipment } from '../../shared/transport-policy.js';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { ChevronIcon } from '../components/icons/GameIcons';
 import { useTransportRouteDraft } from '../components/shell/TransportRouteDraftContext';
@@ -12,6 +12,7 @@ import { Button, PageLayout, StatusTag, WidgetHeading } from '../components/ui/l
 import type { TransportModeId, TransportRoute, TransportShipment, TransportTripType } from '../types';
 import { estimateTransportRoute } from '../transport/transportPlanning.js';
 import { TransportForecast, TransportFuel, TransportLoad, TransportModeComparison, transportWaitingLabel } from '../transport/TransportEconomics';
+import { TransportFleetExpansion } from '../transport/TransportFleetExpansion';
 import { TransportShipmentProgress } from '../transport/TransportShipmentProgress';
 import { transportRecovery } from '../transport/transportRecovery';
 import { useTransportForecastNow } from '../transport/useTransportForecastNow';
@@ -77,6 +78,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   const [routeNameDraft, setRouteNameDraft] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [expandingFleet, setExpandingFleet] = useState(false);
 
   const provinceById = useMemo(() => new Map(game.provinces.map((province) => [province.id, province])), [game.provinces]);
   const productById = useMemo(() => new Map(game.products.map((product) => [product.id, product])), [game.products]);
@@ -123,7 +125,8 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     setRouteNameDraft(detailRoute ? visibleRouteName(detailRoute) : '');
     setEditingName(false);
     setConfirmingDelete(false);
-  }, [detailRoute?.destinationProvinceId, detailRoute?.id, detailRoute?.name, detailRoute?.sourceProvinceId]);
+    setExpandingFleet(false);
+  }, [game.userId, game.saveEpoch, detailRoute?.destinationProvinceId, detailRoute?.id, detailRoute?.name, detailRoute?.sourceProvinceId]);
 
   useEffect(() => {
     setHighlightedRouteId(detailRouteId);
@@ -267,6 +270,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
             <strong>{new Date(timestamp).toLocaleString()}</strong>
             <span>运费 <CurrencyAmount>{Number(shipment.transportFee ?? shipment.cost)}</CurrencyAmount></span>
             {shipmentFuel(shipment)}
+            <span>{TRANSPORT_MODES[shipment.mode].vehicleName} ×<CompactNumber value={transportCyclePolicyForShipment(shipment).vehicleCount ?? 1} /></span>
             <span>交货 <CompactNumber value={Number(shipment.deliveredQuantity || 0)} /></span>
           </summary>
           {nodeRecords(shipment)}
@@ -281,6 +285,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         </div>
         <TransportLoad shipment={shipment} />
         <div className="transport-shipment-meta">
+          <span><small>本趟出车数量</small><strong data-transport-dispatched-count={transportCyclePolicyForShipment(shipment).vehicleCount ?? 1}>{TRANSPORT_MODES[shipment.mode].vehicleName} ×<CompactNumber value={transportCyclePolicyForShipment(shipment).vehicleCount ?? 1} /></strong></span>
           <span><small>本趟已付运费</small><strong><CurrencyAmount>{Number(shipment.transportFee ?? shipment.cost)}</CurrencyAmount></strong></span>
           <span><small><GameConcept concept="transport-fuel">本趟已扣燃料</GameConcept></small><strong>{shipmentFuel(shipment)}</strong></span>
           <span><small>已交货数量</small><strong><CompactNumber value={Number(shipment.deliveredQuantity || 0)} /></strong></span>
@@ -334,6 +339,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
     const history = routeShipments.filter((shipment) => shipment.status === 'arrived');
     const routeMode = TRANSPORT_MODES[detailRoute.mode];
+    const ownedVehicleCount = transportRouteVehicleCount(detailRoute);
     const cycleCost = cycleCostFor(detailRoute);
     const detailEstimate = routeEstimates.get(detailRoute.id) ?? estimateTransportRoute(game, detailRoute, now, provinceById);
     const recovery = transportRecovery(detailEstimate.reason, detailRoute.sourceProvinceId);
@@ -357,7 +363,8 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
             <div className="transport-route-summary-grid">
               <span><small><GameConcept concept="transport-trip">行程</GameConcept></small><strong>{routeTripLabel(detailRoute)}</strong></span>
               <span><small>运输方式</small><strong>{routeMode?.name ?? detailRoute.mode}</strong></span>
-              <span><small>最大载荷</small><strong><CompactNumber value={activeShipment ? transportCyclePolicyForShipment(activeShipment).capacity : routeMode?.capacity ?? 0} /></strong></span>
+              <span><small>拥有数量</small><strong data-transport-owned-count={ownedVehicleCount}>{routeMode.vehicleName} ×<CompactNumber value={ownedVehicleCount} /></strong></span>
+              <span><small><GameConcept concept="transport-fleet">路线最大运力</GameConcept></small><strong data-transport-route-capacity={ownedVehicleCount * routeMode.capacity}><CompactNumber value={ownedVehicleCount * routeMode.capacity} /></strong></span>
               <span><small><GameConcept concept="transport-distance" /></small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
             </div>
             <div className="transport-route-rules">
@@ -365,12 +372,23 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               <GameConcept concept="transport-online" />
               <GameConcept concept="transport-route-maintenance" />
             </div>
+            {expandingFleet ? <TransportFleetExpansion
+              key={`${game.userId}:${game.saveEpoch}:${detailRoute.id}`}
+              route={detailRoute} credits={game.credits} busy={Boolean(pendingAction)}
+              onCancel={() => setExpandingFleet(false)}
+              onSubmit={async (quantity, expectedVehicleCount) => {
+                const ok = await runMutation(`route-expand:${detailRoute.id}`, () => model.expandTransportRoute(detailRoute.id, quantity, expectedVehicleCount));
+                if (ok) setExpandingFleet(false);
+              }}
+            /> : null}
+            {confirmingDelete ? <p className="transport-delete-confirmation">删除后该路线及全部 {ownedVehicleCount} {routeMode.vehicleUnit}{routeMode.vehicleName}一并移除，建线费与增购费用不退还。</p> : null}
             <div className="transport-route-editor-actions">
+              {!expandingFleet ? <Button variant="secondary" disabled={Boolean(pendingAction) || detailRoute.deletionPending || ownedVehicleCount >= TRANSPORT_MAX_VEHICLES_PER_ROUTE} onClick={() => { setConfirmingDelete(false); setExpandingFleet(true); }}>增加运力</Button> : null}
               {!editingName ? <Button variant="secondary" disabled={Boolean(pendingAction) || detailRoute.deletionPending} onClick={() => setEditingName(true)}>重命名</Button> : null}
               {confirmingDelete ? <>
                 <Button variant="danger" disabled={Boolean(pendingAction)} onClick={() => void deleteRoute(detailRoute)}>{activeShipment ? '确认本趟完成后删除' : '确认删除路线'}</Button>
                 <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={() => setConfirmingDelete(false)}>取消</Button>
-              </> : <Button variant="danger" disabled={Boolean(pendingAction) || detailRoute.deletionPending} onClick={() => setConfirmingDelete(true)}>{activeShipment ? '本趟完成后删除' : '删除路线'}</Button>}
+              </> : <Button variant="danger" disabled={Boolean(pendingAction) || detailRoute.deletionPending} onClick={() => { setExpandingFleet(false); setConfirmingDelete(true); }}>{activeShipment ? '本趟完成后删除' : '删除路线'}</Button>}
             </div>
           </section>
 
@@ -442,7 +460,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                         <strong>{visibleRouteName(route)}</strong>
                         <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{route.deletionPending ? '本趟完成后删除' : routeRuntimeLabel(activeShipment, transportWaitingLabel(estimate))}</StatusTag>
                       </div>
-                      <span className="transport-route-mode">{TRANSPORT_MODES[route.mode]?.name ?? route.mode} · {routeTripLabel(route)}</span>
+                      <span className="transport-route-mode">{TRANSPORT_MODES[route.mode]?.name ?? route.mode} · {TRANSPORT_MODES[route.mode].vehicleName} ×<CompactNumber value={transportRouteVehicleCount(route)} /> · {routeTripLabel(route)}</span>
                       {routePath(route)}
                       <div className="transport-route-summary-grid">
                         <span><small>全线距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>

@@ -37,7 +37,7 @@ export function planTransportNode(input: {
   capacity: number;
   now: number;
 }): { visitIndex: number; unload: TransportCargoEntry[]; load: TransportCargoEntry[] };
-export function transportOperationFingerprint(game: EconomyState, traversal: readonly string[], shipment: TransportShipment | null, inTransitCount: number): string;
+export function transportOperationFingerprint(game: EconomyState, traversal: readonly string[], shipment: TransportShipment | null, inTransitCount: number, vehicleCount?: number): string;
 
 export function selectTransportCargo(input: {
   productIds: readonly string[];

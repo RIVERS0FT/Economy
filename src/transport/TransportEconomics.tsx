@@ -49,6 +49,7 @@ export function TransportForecast({ estimate }: { estimate: TransportRouteEstima
         <span><small>每趟运费</small><strong><CurrencyAmount>{estimate.transportFee}</CurrencyAmount></strong></span>
         <span><small><GameConcept concept="transport-fuel">每趟燃料</GameConcept></small><strong><TransportFuel quantity={estimate.fuelPurchased} /></strong></span>
       </div>
+      <span className="transport-fleet-forecast"><GameConcept concept="transport-fleet">预计出车</GameConcept> <CompactNumber value={estimate.vehicleCount} /> / <CompactNumber value={estimate.ownedVehicleCount} /> · 最大载荷 <CompactNumber value={estimate.capacity} /></span>
       <StatusTag tone={estimate.reason === 'ready' ? 'info' : 'neutral'}>{transportWaitingLabel(estimate)}</StatusTag>
     </div>
   );

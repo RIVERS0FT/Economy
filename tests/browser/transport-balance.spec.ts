@@ -23,7 +23,7 @@ test('transport map completion preserves an unpaid draft with all three mode est
   await expect(draft.locator('[data-transport-mode-option]')).toHaveCount(3);
   await expect(draft.locator('[data-transport-mode-option="road"] [data-transport-mode-capacity]')).toHaveAttribute('data-transport-mode-capacity', '200');
   await expect(draft.locator('[data-transport-mode-option="rail"] [data-transport-mode-capacity]')).toHaveAttribute('data-transport-mode-capacity', '2000');
-  await expect(draft.locator('[data-transport-mode-option="air"] [data-transport-mode-capacity]')).toHaveAttribute('data-transport-mode-capacity', '300');
+  await expect(draft.locator('[data-transport-mode-option="air"] [data-transport-mode-capacity]')).toHaveAttribute('data-transport-mode-capacity', '500');
   await expect(draft.locator('[data-transport-mode-option="road"]').getByRole('button', { name: '公路运输', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await draft.locator('[data-transport-mode-option="air"]').getByRole('button', { name: '航空运输', exact: true }).click();
   await expect(draft.locator('[data-transport-mode-option="air"]').getByRole('button')).toHaveAttribute('aria-pressed', 'true');

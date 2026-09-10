@@ -72,7 +72,7 @@ for (const text of [
   '起始州与目的州不相同即固定为往返路线',
   '运输费和燃料仅按距离收取，一次性结算',
   '每趟运费 = 全线距离 × 运输方式 transportFeePerKm',
-  '每趟燃料数量 = ceil(全线距离 × 运输方式 fuelPerKm)',
+  '每趟燃料数量 = ceil(全线距离 × 运输方式 fuelPerKm × N)',
   '服务器不再遍历全部商品和全部交付节点寻找“最优货物”',
   '车辆每到一个节点都进入 `docked` 停靠态',
   '玩家离线 10 分钟或 10 天，单次恢复都最多完成当前一段',
@@ -139,10 +139,10 @@ for (const text of [
   'setupCostPerKm: 0.02', 'setupCostPerKm: 0.10', 'setupCostPerKm: 0.08',
   'transportFeePerKm: 0.015', 'transportFeePerKm: 0.02', 'transportFeePerKm: 0.22',
   'fuelPerKm: 0.005', 'fuelPerKm: 0.01', 'fuelPerKm: 0.08',
-  'capacity: 200', 'capacity: 2000', 'capacity: 300',
+  'capacity: 200', 'capacity: 2000', 'capacity: 500',
   'timeFactor: 1.0', 'timeFactor: 1.5', 'timeFactor: 0.25',
   'departureSeconds: 10', 'departureSeconds: 45', 'departureSeconds: 15',
-  'TRANSPORT_POLICY_VERSION = 3',
+  'TRANSPORT_POLICY_VERSION = 4',
 ]) requireText(transportPolicy, text, `共享运输策略缺少：${text}`);
 forbidText(transportPolicy, 'unitCostPerKm', '共享运输策略不得恢复按货量计费。');
 forbidText(transportPolicy, 'fixedCost:', '共享运输策略不得恢复每段固定运输费。');
@@ -300,7 +300,7 @@ for (const text of ['建线投入', 'transport-route-auto-note', 'useNow(game.la
 }
 requireText(transport, 'entry.quantity + propulsion', '动力燃料和装货燃料必须联合校验。');
 requireText(transport, 'deletionPending', '必须保留完成本趟后删除。');
-requireText(transportPolicy, 'Math.ceil(distanceKm * fuelPerKm)', '燃料必须整趟向上取整。');
+requireText(transportPolicy, 'Math.ceil(distanceKm * fuelPerKm * vehicleCount)', '燃料必须整趟向上取整。');
 requireText(provinceMap, 'entry.destinationName ?', '运输地图货物没有实际目的地时不能显示空箭头或猜测目的地。');
 
 if (failures.length) {

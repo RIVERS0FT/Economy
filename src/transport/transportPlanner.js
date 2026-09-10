@@ -214,10 +214,10 @@ export function planTransportNode({ game, traversal, shipment, capacity, now }) 
 }
 
 /** Fingerprint only inputs that can change the outcome of this route's operation. */
-export function transportOperationFingerprint(game, traversal, shipment, inTransitCount) {
+export function transportOperationFingerprint(game, traversal, shipment, inTransitCount, vehicleCount = 1) {
   const provinces = [...new Set(traversal)];
   return JSON.stringify([
-    game.userId, game.saveEpoch, game.credits, inTransitCount,
+    game.userId, game.saveEpoch, game.credits, inTransitCount, vehicleCount,
     provinces.map((provinceId) => [provinceId, game.products.map(({ id }) => [
       id, quantity(game.provinceInventories?.[provinceId]?.[id]?.available),
       marketFor(game, provinceId, id)?.officialPrice, marketFor(game, provinceId, id)?.nextPriceAt,

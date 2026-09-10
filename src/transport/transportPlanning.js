@@ -1,4 +1,4 @@
-import { transportCyclePolicyForShipment } from '../../shared/transport-policy.js';
+import { transportCyclePolicyForShipment, transportFleetCost, transportRouteVehicleCount } from '../../shared/transport-policy.js';
 import {
   TRANSPORT_MODES,
   TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER,
@@ -6,23 +6,60 @@ import {
   transportCycleDurationMs,
   transportTraversalStopIds,
 } from '../utils/provinceLogistics.ts';
-import { planTransportCycle, planTransportNode, transportOperationFingerprint } from './transportPlanner.js';
+import { planTransportCycle, planTransportNode, transportOperationFingerprint, transportOfficialQuote } from './transportPlanner.js';
+
+/** A loose capacity bound: only original stock that could gain value matters.
+ * Repeated visits share stock; future production and simulated deliveries do not
+ * justify extra vehicles. Missing prices keep a conservative upper bound.
+ */
+function fleetCandidateLimit(game, traversal, unitCapacity, owned, now) {
+  const provinces = [...new Set(traversal)];
+  const maximum = unitCapacity * owned;
+  let total = 0;
+  for (const { id } of game.products) {
+    const quotes = provinces.map((provinceId) => transportOfficialQuote(game, provinceId, id, now));
+    const highest = Math.max(0, ...quotes.map((quote) => quote?.price ?? 0));
+    for (let index = 0; index < provinces.length; index += 1) {
+      if (quotes[index] && quotes[index].price >= highest && quotes.every(Boolean)) continue;
+      const stock = Number(game.provinceInventories?.[provinces[index]]?.[id]?.available);
+      if (Number.isSafeInteger(stock) && stock > 0) total = Math.min(maximum, total + stock);
+      if (total >= maximum) return owned;
+    }
+  }
+  return Math.max(1, Math.ceil(total / unitCapacity));
+}
 
 export function estimateTransportRoute(game, route, now, provinceById = new Map(game.provinces.map((province) => [province.id, province]))) {
   const cycle = transportCycleCost(route, route.mode, provinceById);
   const durationMs = transportCycleDurationMs(route, route.mode, provinceById);
-  const capacity = TRANSPORT_MODES[route.mode]?.capacity ?? 0;
+  const unitCapacity = TRANSPORT_MODES[route.mode]?.capacity ?? 0;
+  const ownedVehicleCount = transportRouteVehicleCount(route);
+  const traversal = transportTraversalStopIds(route);
   const inTransitCount = (game.transportShipments ?? []).filter((shipment) => shipment.status === 'in-transit').length;
-  return {
-    ...cycle,
-    durationMs,
-    capacity,
-    ...planTransportCycle({
-      game, traversal: transportTraversalStopIds(route), capacity,
-      cycleCost: cycle.transportFee, fuelQuantity: cycle.fuelPurchased, durationMs, now,
-      atInTransitLimit: inTransitCount >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER,
-    }),
+  const candidate = (vehicleCount) => {
+    const cost = unitCapacity > 0 ? transportFleetCost(route.mode, cycle.distanceKm, vehicleCount) : cycle;
+    const capacity = unitCapacity * vehicleCount;
+    return {
+      ...cost, durationMs, capacity, vehicleCount, ownedVehicleCount,
+      ...planTransportCycle({
+        game, traversal, capacity,
+        cycleCost: cost.transportFee, fuelQuantity: cost.fuelPurchased, durationMs, now,
+        atInTransitLimit: inTransitCount >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER,
+      }),
+    };
   };
+  let best = candidate(1);
+  if (unitCapacity < 1 || ownedVehicleCount === 1) return best;
+  const limit = fleetCandidateLimit(game, traversal, unitCapacity, ownedVehicleCount, now);
+  for (let count = 2; count <= limit; count += 1) {
+    const estimate = candidate(count);
+    // Affordable, fueled and profitable smaller fleets win over blocked larger
+    // fleets. Equal gains keep the earlier (smaller) count. No full-load gate.
+    if (best.reason === 'ready' && estimate.reason !== 'ready') continue;
+    if ((estimate.reason === 'ready' && best.reason !== 'ready')
+      || (estimate.netGain !== null && (best.netGain === null || estimate.netGain > best.netGain))) best = estimate;
+  }
+  return best;
 }
 
 /** Final unloading, other docked vehicles, then new starts; each tier rotates. */
@@ -63,8 +100,8 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
       if (estimate.reason !== 'ready') continue;
       starts.push({
         kind: 'start', routeId: route.id, key: `start:${route.id}`,
-        fingerprint: transportOperationFingerprint(game, traversal, null, inTransitCount),
-        load: estimate.firstLoad,
+        fingerprint: transportOperationFingerprint(game, traversal, null, inTransitCount, estimate.vehicleCount),
+        load: estimate.firstLoad, vehicleCount: estimate.vehicleCount,
       });
     }
   }

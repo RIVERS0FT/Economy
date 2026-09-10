@@ -33,7 +33,7 @@ export function useOnlineTransport(model: LoadedGameViewModel) {
           routeId: command.routeId,
           fingerprint: command.fingerprint,
           run: () => command.kind === 'start'
-            ? gameActions.startTransportCycle(command.routeId, command.load)
+            ? gameActions.startTransportCycle(command.routeId, command.load, command.vehicleCount)
             : gameActions.serviceTransportNode(
               command.routeId, command.cycleId, command.visitIndex, command.unload, command.load,
             ),

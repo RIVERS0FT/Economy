@@ -279,6 +279,7 @@ export function LocalGamePreviewApp() {
     work: localOnlyAction,
     checkIn: localOnlyAction,
     createTransportRoute: localOnlyAction,
+    expandTransportRoute: localOnlyAction,
     updateTransportRoute: localOnlyAction,
     renameTransportRoute: localOnlyAction,
     deleteTransportRoute: localOnlyAction,

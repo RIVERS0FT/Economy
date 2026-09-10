@@ -148,6 +148,7 @@ export interface LoadedGameViewModel {
   signOut: () => Promise<void>;
   checkIn: () => Promise<ActionResult>;
   createTransportRoute: (input: TransportRouteInput) => Promise<ActionResult>;
+  expandTransportRoute: (routeId: string, quantity: number, expectedVehicleCount: number) => Promise<ActionResult>;
   updateTransportRoute: (routeId: string, input: TransportRouteInput) => Promise<ActionResult>;
   renameTransportRoute: (routeId: string, name: string) => Promise<ActionResult>;
   deleteTransportRoute: (routeId: string) => Promise<ActionResult>;
@@ -586,6 +587,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     signOut,
     checkIn: () => runAction('checkIn', gameActions.checkIn),
     createTransportRoute: (input) => runAction('transportShip', () => gameActions.createTransportRoute(input)),
+    expandTransportRoute: (routeId, quantity, expectedVehicleCount) => runAction('transportShip', () => gameActions.expandTransportRoute(routeId, quantity, expectedVehicleCount)),
     updateTransportRoute: (routeId, input) => runAction('transportShip', () => gameActions.updateTransportRoute(routeId, input)),
     renameTransportRoute: (routeId, name) => runAction('transportShip', () => gameActions.renameTransportRoute(routeId, name)),
     deleteTransportRoute: (routeId) => runAction('transportShip', () => gameActions.deleteTransportRoute(routeId)),

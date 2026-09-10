@@ -3,12 +3,16 @@ export const TRANSPORT_FUEL_UNIT_PRICE: number;
 export const TRANSPORT_FUEL_PRODUCT_ID: 'industrial-fuel';
 export const TRANSPORT_BASE_SECONDS_PER_KM: number;
 export const TRANSPORT_POLICY_VERSION: number;
+export const TRANSPORT_MAX_VEHICLES_PER_ROUTE: number;
 export const TRANSPORT_MIN_NET_GAIN: number;
 export const TRANSPORT_COST_MARGIN: number;
 
 export interface TransportModePolicyDefinition {
   readonly id: 'road' | 'rail' | 'air';
   readonly name: string;
+  readonly vehicleName: string;
+  readonly vehicleUnit: string;
+  readonly vehiclePurchaseCost: number;
   readonly setupFixedCost: number;
   readonly setupCostPerKm: number;
   readonly transportFeePerKm: number;
@@ -20,6 +24,8 @@ export interface TransportModePolicyDefinition {
 
 export interface TransportCyclePolicy {
   readonly version: number;
+  readonly vehicleCount?: number;
+  readonly unitCapacity?: number;
   readonly capacity: number;
   readonly transportFeePerKm: number;
   readonly fuelPerKm: number;
@@ -30,10 +36,20 @@ export interface TransportCyclePolicy {
 }
 
 export const TRANSPORT_MODE_POLICY: Readonly<Record<'road' | 'rail' | 'air', TransportModePolicyDefinition>>;
-export function createTransportCyclePolicy(mode: 'road' | 'rail' | 'air'): TransportCyclePolicy;
+export function isTransportVehicleCount(value: unknown): value is number;
+export function transportRouteVehicleCount(route?: { vehicleCount?: number } | null): number;
+export function createTransportCyclePolicy(mode: 'road' | 'rail' | 'air', vehicleCount?: number): TransportCyclePolicy;
 export function legacyTransportCyclePolicy(mode: 'road' | 'rail' | 'air'): TransportCyclePolicy;
 export function isTransportCyclePolicy(policy: unknown): policy is TransportCyclePolicy;
 export function transportCyclePolicyForShipment(shipment: { mode: 'road' | 'rail' | 'air'; policySnapshot?: TransportCyclePolicy }): TransportCyclePolicy;
 export function transportPolicyDurationMs(policy: TransportCyclePolicy, distanceKm: number): number;
 
-export function transportFuelQuantity(distanceKm: number, fuelPerKm: number): number;
+export function transportFuelQuantity(distanceKm: number, fuelPerKm: number, vehicleCount?: number): number;
+export function transportFleetCost(mode: 'road' | 'rail' | 'air', distanceKm: number, vehicleCount?: number): {
+  distanceKm: number;
+  transportFee: number;
+  fuelPurchased: number;
+  fuelCost: number;
+  fuelProductId: 'industrial-fuel';
+  totalCost: number;
+};
