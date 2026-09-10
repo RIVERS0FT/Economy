@@ -49,11 +49,18 @@ export function migrateCommodityFreezeSources(world) {
   return world;
 }
 
-function sourceLabel(entry) {
+function sourceLabel(entry, player) {
   if (entry.kind === 'production') return facilityNames.get(splitProvinceScopedKey(entry.sourceId).assetId) || entry.sourceId;
   if (entry.kind === 'commercial') return commercialNames.get(splitProvinceScopedKey(entry.sourceId).assetId) || entry.sourceId;
   if (entry.kind === 'contract') return `供货合同 ${entry.sourceId}`;
   if (entry.kind === 'auction') return `拍卖 ${entry.sourceId}`;
+  if (entry.kind === 'transport') {
+    const fuel = entry.sourceId.startsWith('fuel:');
+    const task = (player?.transportTaskState?.tasks ?? []).find((item) => `task:${item.id}` === entry.sourceId);
+    const routeId = fuel ? entry.sourceId.slice(5) : task?.routeId;
+    const route = (player?.transportRoutes ?? []).find((item) => item.id === routeId);
+    return `${route?.name || '运输路线'} · ${fuel ? '下一趟燃料' : '产业补给'}`;
+  }
   return '历史冻结（待核对来源）';
 }
 
@@ -66,7 +73,7 @@ export function createCommodityFreezeClientState(player) {
     const entries = inventory.freezes ? Object.values(inventory.freezes)
       : [{ kind: 'legacy', sourceId: 'unattributed', quantity: inventory.frozen }];
     inventoryFreezeDetails[key] = entries.filter((entry) => entry.quantity > 0)
-      .map((entry) => ({ kind: entry.kind, sourceId: entry.sourceId, quantity: entry.quantity, label: sourceLabel(entry) }))
+      .map((entry) => ({ kind: entry.kind, sourceId: entry.sourceId, quantity: entry.quantity, label: sourceLabel(entry, player) }))
       .sort((a, b) => a.kind.localeCompare(b.kind) || a.sourceId.localeCompare(b.sourceId));
   }
   return { inventoryFreezeDetails };
