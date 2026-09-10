@@ -2,11 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applyAction, createWorld, ensurePlayer, processWorld } from '../src/domain.js';
 import { applyAssetAuctionAction, processAssetAuctions } from '../src/asset-auctions.js';
-import { applyProductionContractAction, processProductionContracts } from '../src/contracts.js';
+import { applyProductionContractAction, processProductionContracts } from '../src/unified-contracts.js';
 import { processMarketReserveOperations } from '../src/market-reserve-operations.js';
 
 const now = 1_800_000_000_000;
 const cycleMs = 5 * 60 * 1000;
+const dayMs = 24 * 60 * 60 * 1000;
+const beijingOffsetMs = 8 * 60 * 60 * 1000;
+const nextBeijingDayAt = (timestamp) => (Math.floor((timestamp + beijingOffsetMs) / dayMs) + 1) * dayMs - beijingOffsetMs;
 const supplierUser = { id: 701, email: 'reserve-supplier@example.com', name: 'Reserve Supplier' };
 const bidderUser = { id: 702, email: 'reserve-bidder@example.com', name: 'Reserve Bidder' };
 
@@ -62,11 +65,11 @@ test('emergency reserve ask remains internal while player buying uses the daily 
   assert.equal(latest.signalWeight, 1);
 });
 
-test('two shortage cycles publish a fixed-term market reserve procurement contract and settle into reserve inventory', () => {
+test('two shortage cycles publish a fixed-term daily market reserve procurement contract and settle into reserve inventory', () => {
   const world = createWorld(now);
   const supplier = ensurePlayer(world, supplierUser, now);
   supplier.credits = 10_000;
-  supplier.inventories.wheat.available = 100;
+  supplier.inventories.wheat.available = 0;
   const reserve = reserveFor(world);
   reserve.inventory = 1;
   reserve.frozenInventory = 0;
@@ -83,7 +86,13 @@ test('two shortage cycles publish a fixed-term market reserve procurement contra
   const contract = world.productionContracts.find((item) => item.publisherType === 'market_reserve' && item.productId === 'wheat');
   assert.ok(contract);
   assert.equal(contract.fixedTerms, true);
+  assert.equal(contract.supplyMode, 'daily');
+  assert.equal(contract.contractSchemaVersion, 11);
+  assert.equal(contract.durationDays, 1);
+  assert.equal(contract.startDelayDays, 0);
+  assert.equal(contract.provinceId, '110000');
   assert.equal(contract.publisherId, 0);
+  assert.equal(contract.buyerId, null);
   assert.equal(world.players['0'], undefined);
   const fundsBefore = reserveGroup(world).credits + reserveGroup(world).frozenCredits;
   const inventoryBefore = reserve.inventory + reserve.frozenInventory;
@@ -92,21 +101,59 @@ test('two shortage cycles publish a fixed-term market reserve procurement contra
     contractId: contract.id,
   }, now + cycleMs + 1);
   assert.equal(accepted.ok, true);
-  const activeContract = world.productionContracts.find((item) => item.id === contract.id);
+  let activeContract = world.productionContracts.find((item) => item.id === contract.id);
   assert.ok(activeContract);
   assert.equal(activeContract.status, 'active');
+  assert.equal(activeContract.endsAt, nextBeijingDayAt(activeContract.startsAt));
   assert.ok(activeContract.buyerEscrowCredits > 0);
   assert.ok(activeContract.buyerBondCredits > 0);
   assert.ok(reserveGroup(world).frozenCredits >= activeContract.buyerEscrowCredits + activeContract.buyerBondCredits);
   assert.equal(activeContract.negotiations.length, 0);
 
-  processProductionContracts(world, Number(activeContract.nextDueAt) + 1);
-  const settledContract = world.productionContracts.find((item) => item.id === contract.id);
-  assert.ok(settledContract);
-  assert.equal(settledContract.completedDeliveries, 1);
-  assert.equal(reserve.inventory + reserve.frozenInventory, inventoryBefore + settledContract.quantityPerDelivery);
+  supplier.inventories.wheat.available = 100;
+  processProductionContracts(world, now + cycleMs + 2);
+  activeContract = world.productionContracts.find((item) => item.id === contract.id);
+  assert.ok(activeContract);
+  assert.equal(activeContract.status, 'completed');
+  assert.equal(activeContract.totalDeliveredQuantity, contract.dailyMaxQuantity);
+  assert.equal(activeContract.completedDeliveryEvents, 1);
+  assert.equal(reserve.inventory + reserve.frozenInventory, inventoryBefore + contract.dailyMaxQuantity);
   assert.ok(reserveGroup(world).credits + reserveGroup(world).frozenCredits < fundsBefore);
-  assert.ok(supplier.stats.contractGoodsSupplied >= settledContract.quantityPerDelivery);
+  assert.ok(supplier.stats.contractGoodsSupplied >= contract.dailyMaxQuantity);
+  assert.equal(world.players['0'], undefined);
+});
+
+test('legacy open reserve offers retire and are replaced by daily quota offers without touching active legacy contracts', () => {
+  const world = createWorld(now);
+  const reserve = reserveFor(world);
+  reserve.inventory = 1;
+  reserve.frozenInventory = 0;
+  reserve.targetInventory = 20;
+  reserve.shortageCycles = 2;
+  reserveGroup(world).credits = 20_000;
+  reserveGroup(world).frozenCredits = 0;
+  forceDemandCycle(world, 'food', 300);
+  world.marketDemand.reserveOperations = { ruleVersion: 1, groupCycles: { food: 300 } };
+  const legacyOpen = {
+    id: 'legacy-reserve-open', kind: 'supply', publisherType: 'market_reserve', marketReserveGroupId: 'food',
+    productId: 'wheat', status: 'open', publisherId: 0, publisherRole: 'buyer',
+  };
+  const legacyActive = {
+    id: 'legacy-reserve-active', kind: 'supply', publisherType: 'market_reserve', marketReserveGroupId: 'household',
+    productId: 'furniture', status: 'active', publisherId: 0, publisherRole: 'buyer',
+  };
+  world.productionContracts = [legacyOpen, legacyActive];
+
+  const changed = processMarketReserveOperations(world, now + 1);
+  assert.equal(changed, true);
+  assert.equal(legacyOpen.status, 'expired');
+  assert.equal(legacyOpen.terminationReason, 'legacy_reserve_offer_retired');
+  assert.equal(legacyActive.status, 'active');
+  const replacement = world.productionContracts.find((item) => item.id !== legacyOpen.id && item.publisherType === 'market_reserve' && item.marketReserveGroupId === 'food' && item.productId === 'wheat');
+  assert.ok(replacement);
+  assert.equal(replacement.supplyMode, 'daily');
+  assert.equal(replacement.status, 'open');
+  assert.equal(world.marketDemand.reserveOperations.ruleVersion, 2);
 });
 
 test('three surplus cycles publish a real-inventory reserve auction and return net proceeds to reserve credits', () => {

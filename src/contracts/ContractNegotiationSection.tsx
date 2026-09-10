@@ -96,7 +96,7 @@ function TermsEditor({ initial, busy, submitLabel, onSubmit, onCancel }: {
 }
 
 export function ContractNegotiationSection({ contract, busy, run }: { contract: ProductionContract; busy: boolean; run: RunContractAction }) {
-  if (contract.supplyMode !== 'daily') return null;
+  if (contract.supplyMode !== 'daily' || contract.fixedTerms) return null;
   const baseTerms: ProductionContractNegotiationTerms = {
     dailyMaxQuantity: contract.dailyMaxQuantity ?? contract.quantityPerDelivery,
     unitPrice: contract.unitPrice,
