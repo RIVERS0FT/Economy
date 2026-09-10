@@ -2,7 +2,7 @@ import { useFacilityRecipeConfiguration } from '../hooks/useFacilityRecipeConfig
 import { useBuildingTypeFilter } from '../hooks/useBuildingTypeFilter';
 import { BuildingTypeFilter } from '../components/buildings/BuildingTypeFilter';
 import { CommercialBuildingArtwork } from '../components/commercial/CommercialBuildingArtwork';
-import { commercialProfitPerMinute } from '../utils/commercialPresentation';
+import { commercialGroupStarRating, commercialProfitPerMinute } from '../utils/commercialPresentation';
 import { GlobalCommercialBuildingPage } from './GlobalCommercialBuildingPage';
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
@@ -307,14 +307,18 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
 
   const commercialRows = useMemo(() => (game.commercialBuildingTypes ?? []).flatMap((type, index) => {
     const validProvinces = new Set(provinces.map((province) => province.id));
-    const totalCount = (game.commercialBuildingGroups ?? []).filter((group) => group.commercialTypeId === type.id && validProvinces.has(group.provinceId) && group.count > 0)
-      .reduce((sum, group) => sum + group.count, 0);
+    const typeGroups = (game.commercialBuildingGroups ?? []).filter((group) => (
+      group.commercialTypeId === type.id && validProvinces.has(group.provinceId) && group.count > 0
+    ));
+    const totalCount = typeGroups.reduce((sum, group) => sum + group.count, 0);
     if (totalCount < 1) return [];
-    const averageProfit = commercialProfitPerMinute(type);
+    const averageProfit = typeGroups.reduce((sum, group) => (
+      sum + commercialProfitPerMinute(type, group.count, commercialGroupStarRating(group))
+    ), 0) / totalCount;
     return [{ kind: 'commercial' as const, buildingTypeId: type.id, catalogIndex: game.facilityTypes.length + index,
       name: type.name, totalCount, averageProfit, profitTone: globalProfitTone(averageProfit),
       profitValue: formatCurrency(averageProfit), profitAccessibleValue: accessibleProfit(averageProfit),
-      profitDetail: '单座满员额定利润／分钟；不含集群数量倍数', quickProduction: null }];
+      profitDetail: '按各地区当前星级与店铺数量加权的单座满员利润／分钟', quickProduction: null }];
   }), [game.commercialBuildingTypes, game.commercialBuildingGroups, game.facilityTypes.length, provinces]);
   const allBuildingRows = useMemo(() => [...facilityRows, ...commercialRows], [facilityRows, commercialRows]);
   const selectedCommercialType = game.commercialBuildingTypes?.find((type) => type.id === selectedCommercialTypeId);

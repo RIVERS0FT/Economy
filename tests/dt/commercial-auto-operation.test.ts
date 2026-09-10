@@ -7,11 +7,14 @@ import type { CommercialBuildingGroup, CommercialBuildingTypeDefinition } from '
 
 const type: CommercialBuildingTypeDefinition = { id: 'convenience-store', name: '便利店', description: '', buildCost: 120,
   cycleMs: 300_000, operatingCost: 1.5, profitPerCycle: 2.5, systemValue: 120,
+  profitPerCycleByStar: [2.5, 2.75, 3.125, 3.625, 4.25], premiumServiceCostPerCycle: 0.25, promotionCostPerBuilding: 3.75,
   consumptionInputs: [{ productId: 'food', quantity: 1 }, { productId: 'beverage', quantity: 1 }] };
 const group: CommercialBuildingGroup = { commercialTypeId: type.id, provinceId: '110000', count: 3, participatingCount: 2,
   enabled: true, status: 'running', staffingRateBps: 10000, staffingUpdatedAt: 0, staffingBatchCarryBps: 0, pendingRevenue: 101.25, pendingProfit: 5, pendingOperatingCost: 3,
+  popularity: 0, serviceLevel: 'standard', pendingPopularity: 0, pendingStarRating: 1, pendingFootfall: 200, pendingTargetFootfall: 300,
+  pendingPopularityChange: 0, pendingServiceLevel: 'standard', pendingServiceCost: 0, pendingPromotionActive: false,
   pendingInputValue: 93.25, pendingInputs: [{ productId: 'food', quantity: 2 }, { productId: 'beverage', quantity: 2 }],
-  lifetimeRevenue: 200, lifetimeProfit: 25, lifetimeGoodsConsumed: 40 };
+  lifetimeRevenue: 200, lifetimeProfit: 25, lifetimeGoodsConsumed: 40, lifetimeFootfall: 400 };
 
 test('commercial policies reject coercion and invalid coverage', () => {
   for (const inputCoverageCycles of [1, 2, 3, 5]) assert.deepEqual(normalizeCommercialAutoOperationPolicy({ enabled: true, inputCoverageCycles }), { enabled: true, inputCoverageCycles });
@@ -33,6 +36,7 @@ test('running settlement ignores current price, count and catalog changes', () =
   const result = commercialSettlementPresentation({ ...group, count: 100 }, { ...type, operatingCost: 999 }, { food: { officialPrice: 999 }, beverage: { officialPrice: 999 } });
   assert.equal(result.revenue, 101.25); assert.equal(result.profit, 5);
   assert.equal(result.inputValue, 93.25); assert.equal(result.operatingCost, 3); assert.equal(result.count, 2);
+  assert.equal(result.starRating, 1); assert.equal(result.footfall, 200); assert.equal(result.targetFootfall, 300);
   assert.deepEqual(result.inputs, group.pendingInputs);
   assert.deepEqual(group, before);
 });
@@ -48,6 +52,7 @@ test('stopped preview uses full count and only real official prices', () => {
   const result = commercialSettlementPresentation({ ...group, status: 'stopped' }, type, { food: { officialPrice: 15 }, beverage: { officialPrice: 18 } });
   assert.equal(result.locked, false); assert.equal(result.count, 3); assert.equal(result.profit, 7.5);
   assert.equal(result.revenue, 111);
+  assert.equal(result.footfall, 300); assert.equal(result.targetFootfall, 300); assert.equal(result.popularityChange, 2);
   assert.equal(commercialSettlementPresentation({ ...group, status: 'error' }, type, {}).revenue, null);
 });
 

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { COMMERCIAL_BUILDING_TYPE_CATALOG } from '../server/src/commercial-catalog.js';
 
 const read = (path) => readFileSync(path, 'utf8');
 const server = read('server/src/commercial-buildings.js');
+const popularity = read('shared/commercial-popularity.js');
 const domain = read('server/src/domain.js');
 const runtime = read('server/src/runtime-action-executor.js');
 const routes = read('server/src/game-routes.js');
@@ -16,6 +18,8 @@ const overview = read('src/pages/OverviewPage.tsx');
 const province = read('src/pages/ProvincePage.tsx');
 const provinceCss = read('src/styles/province-page.css');
 const commerce = read('src/pages/CommercePage.tsx') + read('src/components/buildings/BuildingDetailPage.tsx');
+const commercialDetail = read('src/components/commercial/CommercialBuildingDetail.tsx');
+const popularityPanel = read('src/components/commercial/CommercialPopularityPanel.tsx');
 const navigation = read('src/navigation/playerPageStack.ts');
 const design = read('docs/COMMERCIAL_BUILDINGS_DESIGN.md');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
@@ -31,7 +35,26 @@ for (const token of [
   'applyCommercialBuildingAction',
   'inventoryForProvince',
   'officialPriceFor',
+  'commercialCycleFootfall',
+  'commercialPopularityAfterCycle',
+  "'service-level': setCommercialServiceLevel",
+  'promote: startCommercialPromotion',
 ]) assert.ok(server.includes(token), `商业服务器实现缺少: ${token}`);
+
+for (const type of COMMERCIAL_BUILDING_TYPE_CATALOG) {
+  assert.equal(type.profitPerCycleByStar.length, 5, `${type.id} 必须声明五档星级利润`);
+  assert.equal(type.profitPerCycleByStar[0], type.profitPerCycle, `${type.id} 一星利润必须兼容原固定利润`);
+  assert.ok(type.profitPerCycleByStar.every((value, index, values) => value > 0 && (index === 0 || value >= values[index - 1])), `${type.id} 星级利润必须正数且不下降`);
+  assert.ok(type.premiumServiceCostPerCycle > 0, `${type.id} 缺少精品服务费`);
+  assert.ok(type.promotionCostPerBuilding > 0, `${type.id} 缺少单店推广费`);
+}
+for (const token of [
+  'Math.ceil(normalized / 20)',
+  'COMMERCIAL_BASE_FOOTFALL_PER_BUILDING = 100',
+  'SERVICE_FOOTFALL_BONUS_BPS',
+  'COMMERCIAL_PROMOTION_FOOTFALL_BONUS_BPS',
+  'if (footfall === 0) return -2',
+]) assert.ok(popularity.includes(token), `共享人气规则缺少: ${token}`);
 
 for (const token of [
   'migrateCommercialWorld',
@@ -51,7 +74,7 @@ assert.ok(deadlinePlanner.includes('commercialDeadline'));
 assert.ok(statePartitions.includes("'commercialBuildingTypes'"), '商业目录必须归入 catalog 分区');
 assert.ok(
   statePartitions.includes("['products', 'facilityTypes', 'commercialBuildingTypes', 'researchLevels', 'provinces']"),
-  '客户端状态版本 40 必须把商业目录设为 catalog 结构硬门槛',
+  '客户端状态版本必须把商业目录设为 catalog 结构硬门槛',
 );
 for (const token of ['commercialValue', '+ commercialValue', 'COMMERCIAL_BUILDING_TYPE_CATALOG']) {
   assert.ok(assetRuntime.includes(token), `净资产口径缺少商业建筑价值: ${token}`);
@@ -79,13 +102,21 @@ for (const token of [
   'facility-cluster-selector-region',
   'facility-cluster-detail-card',
   '建设新商业建筑',
-  '稳定利润',
+  '一星利润',
 ]) assert.ok(commerce.includes(token), `商业页面缺少: ${token}`);
+for (const token of ['CommercialPopularityPanel', 'commercialGroupStarRating', '星单座满员利润／分钟']) {
+  assert.ok(commercialDetail.includes(token), `商业详情缺少: ${token}`);
+}
+for (const token of ['人气与客流', '当前星级利润／座／周期', '精品服务', '推广进行中']) {
+  assert.ok(popularityPanel.includes(token), `商业人气面板缺少: ${token}`);
+}
 
 for (const token of [
   '商业建筑不是工厂的另一种配方',
   '不得跨州寻找库存',
-  '固定商业利润是服务器目录声明的**绝对金额**',
+  '一至五星利润是服务器目录分别声明的五档**绝对金额**',
+  '`0–20` 为一星',
+  '扩建本身始终不改变人气',
   '不是市场成交',
 ]) assert.ok(design.includes(token), `商业权威设计缺少: ${token}`);
 for (const token of [
@@ -98,6 +129,7 @@ assert.ok(
   '生产布局专项不得复制地区导航顺序规则',
 );
 assert.ok(docsIndex.includes('`COMMERCIAL_BUILDINGS_DESIGN.md`'), '设计索引必须登记商业建筑权威文档');
+assert.ok(docsIndex.includes('客流、人气星级'), '设计索引必须把客流与人气路由到商业权威文档');
 
 console.log('commercial buildings verification passed');
 

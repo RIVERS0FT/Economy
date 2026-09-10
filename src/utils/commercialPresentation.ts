@@ -1,4 +1,9 @@
 import type { CommercialBuildingGroup, CommercialBuildingTypeDefinition, CommercialStatus, CommercialStatusReason } from '../types/commercial';
+import { commercialProfitPerCycle as sharedCommercialProfitPerCycle, commercialStarRating } from '../../shared/commercial-popularity.js';
+
+type CommercialProfitType = Pick<CommercialBuildingTypeDefinition, 'profitPerCycle'>
+  & Partial<Pick<CommercialBuildingTypeDefinition, 'profitPerCycleByStar'>>;
+type TimedCommercialProfitType = CommercialProfitType & Pick<CommercialBuildingTypeDefinition, 'cycleMs'>;
 
 export const COMMERCIAL_STATUS_LABELS: Record<CommercialStatus, string> = {
   running: '营业中', stopped: '已停止', error: '经营异常',
@@ -12,9 +17,24 @@ export function commercialStatusLabel(group: CommercialBuildingGroup) {
   return `${COMMERCIAL_STATUS_LABELS[group.status]}${reason ? `：${reason}` : ''}`;
 }
 
-export function commercialProfitPerMinute(type: Pick<CommercialBuildingTypeDefinition, 'cycleMs' | 'profitPerCycle'>, count = 1) {
+export function commercialProfitPerCycle(
+  type: CommercialProfitType,
+  starRating = 1,
+) {
+  return sharedCommercialProfitPerCycle(type, starRating);
+}
+
+export function commercialProfitPerMinute(
+  type: TimedCommercialProfitType,
+  count = 1,
+  starRating = 1,
+) {
   if (!Number.isFinite(type.cycleMs) || type.cycleMs <= 0) return 0;
-  return type.profitPerCycle * count * 60_000 / type.cycleMs;
+  return commercialProfitPerCycle(type, starRating) * count * 60_000 / type.cycleMs;
+}
+
+export function commercialGroupStarRating(group: Pick<CommercialBuildingGroup, 'popularity'>) {
+  return commercialStarRating(group.popularity ?? 0);
 }
 
 /** Never repeat a completed cycle locally or infer its settlement. */

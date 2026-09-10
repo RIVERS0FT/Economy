@@ -2,11 +2,11 @@ import { CommercialStaffingSummary } from './CommercialStaffingSummary';
 import { projectCommercialStaffingRate } from '../../../shared/commercial-staffing.js';
 import type { CommodityFreezeDetail, ProductDefinition, ProductInventory } from '../../types';
 import { commercialNextCycleAvailability } from '../../utils/commercialInputAvailability';
-import type { CommercialAutoOperationPolicy, CommercialBuildingGroup, CommercialBuildingTypeDefinition } from '../../types/commercial';
+import type { CommercialAutoOperationPolicy, CommercialBuildingGroup, CommercialBuildingTypeDefinition, CommercialServiceLevel } from '../../types/commercial';
 import { commercialAutoOperationPolicyFor } from '../../../shared/commercial-auto-operation.js';
 import { useNow } from '../../hooks/useNow';
-import { formatCurrency, formatDuration } from '../../utils/formatters';
-import { COMMERCIAL_REASON_LABELS, COMMERCIAL_STATUS_LABELS, commercialCycleProgress, commercialProfitPerMinute, commercialStatusLabel } from '../../utils/commercialPresentation';
+import { formatCurrency, formatDuration, formatNumber } from '../../utils/formatters';
+import { COMMERCIAL_REASON_LABELS, COMMERCIAL_STATUS_LABELS, commercialCycleProgress, commercialGroupStarRating, commercialProfitPerMinute, commercialStatusLabel } from '../../utils/commercialPresentation';
 import { commercialSettlementPresentation } from '../../utils/commercialSettlement';
 import { BuildingAutoOperationSection } from '../buildings/BuildingAutoOperationSection';
 import { BuildingSettlementPanel } from '../buildings/BuildingSettlementPanel';
@@ -18,6 +18,7 @@ import { GameConcept } from '../ui/GameConcept';
 import { MobileDetailSummary } from '../ui/MobileDetailSummary';
 import { DataList, DataRow, StatusTag, SwitchControl, WidgetHeading } from '../ui/layout';
 import { CommercialBuildingArtwork } from './CommercialBuildingArtwork';
+import { CommercialPopularityPanel } from './CommercialPopularityPanel';
 import '../../styles/facility-recipe-profit-analysis.css';
 
 function CommercialCycleProgress({ group, now }: { group: CommercialBuildingGroup; now: number }) {
@@ -39,7 +40,7 @@ function CommercialCycleProgress({ group, now }: { group: CommercialBuildingGrou
 }
 
 export function CommercialBuildingDetail({ group, type, products, inventories, inventoryFreezeDetails, markets, now, pending, onToggle,
-  onAutoOperationChange, onOpenProductMarket, researchLockedMessage }: {
+  onAutoOperationChange, onServiceLevelChange, onPromote, onOpenProductMarket, researchLockedMessage }: {
   group: CommercialBuildingGroup;
   type: CommercialBuildingTypeDefinition;
   products: ProductDefinition[];
@@ -51,11 +52,14 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
   researchLockedMessage?: string;
   onToggle: (enabled: boolean) => void;
   onAutoOperationChange: (policy: Partial<CommercialAutoOperationPolicy>) => void;
+  onServiceLevelChange: (serviceLevel: CommercialServiceLevel) => void;
+  onPromote: () => void;
   onOpenProductMarket: (productId: string) => void;
 }) {
   const liveNow = useNow(now);
   const staffingRate = projectCommercialStaffingRate(group, liveNow);
-  const profit = commercialProfitPerMinute(type);
+  const starRating = commercialGroupStarRating(group);
+  const profit = commercialProfitPerMinute(type, 1, starRating);
   const tone = group.status === 'running' ? 'success' : group.status === 'error' ? 'danger' : 'neutral';
   const policy = commercialAutoOperationPolicyFor(group);
   const settlement = commercialSettlementPresentation(group, type, markets, liveNow);
@@ -78,8 +82,8 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
             <div className="facility-count-summary" aria-label={`${type.name}营业数量`}>
               <span>本周期营业 <strong><CompactNumber value={group.participatingCount} /></strong></span>
             </div>
-            <section className={`facility-average-profit${profit > 0 ? ' is-positive' : ''}`} aria-label={`${type.name}单座稳定利润每分钟`}>
-              <div className="facility-average-profit__copy"><strong>单座满员额定利润／分钟</strong></div>
+            <section className={`facility-average-profit${profit > 0 ? ' is-positive' : ''}`} aria-label={`${type.name}${starRating} 星单座利润每分钟`}>
+              <div className="facility-average-profit__copy"><strong>{starRating} 星单座满员利润／分钟</strong></div>
               <div className="facility-average-profit__value"><CurrencyAmount sign={profit > 0 ? '+' : undefined}>{formatCurrency(profit)}</CurrencyAmount></div>
             </section>
             <CommercialStaffingSummary group={group} name={type.name} now={now} />
@@ -88,6 +92,8 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
           </div>}
         />
       </section>
+      <CommercialPopularityPanel group={group} type={type} pending={pending}
+        onServiceLevelChange={onServiceLevelChange} onPromote={onPromote} />
       <BuildingAutoOperationSection label={<GameConcept concept="commercial-auto-operation">自动经营</GameConcept>}
         enabled={policy.enabled} disabled={pending || group.count < 1}
         onChange={(enabled) => onAutoOperationChange({ enabled })}>
@@ -117,24 +123,29 @@ export function CommercialBuildingDetail({ group, type, products, inventories, i
             <DataRow label={settlement.label} value={money(settlement.revenue)} />
             <DataRow label="预计商品价值" value={money(settlement.inputValue)} />
             <DataRow label="预计运营成本" value={money(settlement.operatingCost)} />
-            <DataRow label="预计稳定利润" value={money(settlement.profit)} />
+            <DataRow label="预计服务投入" value={money(settlement.serviceCost)} />
+            <DataRow label="预计星级利润" value={money(settlement.profit)} />
+            <DataRow label="预计有效客流"
+              value={settlement.footfall === null || settlement.targetFootfall === null ? '—' : `${formatNumber(settlement.footfall)} / 目标 ${formatNumber(settlement.targetFootfall)}`} />
+            <DataRow label="预计人气变化"
+              value={settlement.popularityChange === null ? '—' : settlement.popularityChange > 0 ? `+${settlement.popularityChange}` : String(settlement.popularityChange)} />
           </DataList>
-          <small className="ui-helper-text">下一周期按当前满员率、整数等效经营量和当前州官方价预估，实际投入与收入由服务器开始营业时确定。</small>
+          <small className="ui-helper-text">下一周期按当前满员率、星级、服务方案、推广状态和当前州官方价预估，实际投入、客流与收入由服务器开始营业时确定。</small>
         </> : null}
       </BuildingSettlementPanel>
       <section className="mobile-detail-section commercial-earnings" aria-label="经营收益">
         <WidgetHeading title="经营收益" />
         <DataList>
-          <DataRow label="当前满员率预计利润／分钟" value={money(staffingRate === null ? null : profit * group.count * staffingRate / 10_000)} />
-          <DataRow label="集群额定利润／分钟" value={money(commercialProfitPerMinute(type, group.count))} />
-          <DataRow label="集群额定利润／周期" value={money(type.profitPerCycle * group.count)} />
+          <DataRow label="当前满员率预计星级利润／分钟" value={money(staffingRate === null ? null : profit * group.count * staffingRate / 10_000)} />
+          <DataRow label="当前星级集群额定利润／分钟" value={money(commercialProfitPerMinute(type, group.count, starRating))} />
+          <DataRow label="当前星级集群额定利润／周期" value={money(type.profitPerCycleByStar[starRating - 1] * group.count)} />
         </DataList>
       </section>
       <section className="mobile-detail-section" aria-label="累计经营">
         <WidgetHeading title="累计经营" />
         <DataList>
           <DataRow label="累计营业收入" value={money(group.lifetimeRevenue)} />
-          <DataRow label="累计稳定利润" value={money(group.lifetimeProfit)} />
+          <DataRow label="累计星级利润" value={money(group.lifetimeProfit)} />
           <DataRow label="累计消费商品" value={<CompactNumber value={group.lifetimeGoodsConsumed} suffix=" 件" />} />
         </DataList>
       </section>

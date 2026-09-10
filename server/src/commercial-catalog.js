@@ -9,6 +9,9 @@ const rawCommercialTypes = [
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 1.5,
     profitPerCycle: 4,
+    profitPerCycleByStar: [4, 4.4, 5, 5.8, 6.8],
+    premiumServiceCostPerCycle: 0.4,
+    promotionCostPerBuilding: 6,
     consumptionInputs: [
       { productId: 'food', quantity: 1 },
       { productId: 'beverage', quantity: 1 },
@@ -23,6 +26,9 @@ const rawCommercialTypes = [
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 2,
     profitPerCycle: 4.2,
+    profitPerCycleByStar: [4.2, 4.62, 5.25, 6.09, 7.14],
+    premiumServiceCostPerCycle: 0.42,
+    promotionCostPerBuilding: 6.3,
     consumptionInputs: [
       { productId: 'fruit', quantity: 2 },
       { productId: 'meat', quantity: 1 },
@@ -38,6 +44,9 @@ const rawCommercialTypes = [
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 3,
     profitPerCycle: 7.5,
+    profitPerCycleByStar: [7.5, 8.25, 9.375, 10.875, 12.75],
+    premiumServiceCostPerCycle: 0.75,
+    promotionCostPerBuilding: 11.25,
     consumptionInputs: [
       { productId: 'prepared-meal', quantity: 2 },
       { productId: 'beverage', quantity: 1 },
@@ -52,6 +61,9 @@ const rawCommercialTypes = [
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 3.5,
     profitPerCycle: 9,
+    profitPerCycleByStar: [9, 9.9, 11.25, 13.05, 15.3],
+    premiumServiceCostPerCycle: 0.9,
+    promotionCostPerBuilding: 13.5,
     consumptionInputs: [{ productId: 'clothing', quantity: 1 }],
     systemValue: 320,
   },
@@ -63,6 +75,9 @@ const rawCommercialTypes = [
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 4,
     profitPerCycle: 10,
+    profitPerCycleByStar: [10, 11, 12.5, 14.5, 17],
+    premiumServiceCostPerCycle: 1,
+    promotionCostPerBuilding: 15,
     consumptionInputs: [{ productId: 'furniture', quantity: 1 }],
     systemValue: 420,
   },
@@ -74,6 +89,9 @@ const rawCommercialTypes = [
     cycleMs: COMMERCIAL_CYCLE_MS,
     operatingCost: 5,
     profitPerCycle: 19.2,
+    profitPerCycleByStar: [19.2, 21.12, 24, 27.84, 32.64],
+    premiumServiceCostPerCycle: 1.92,
+    promotionCostPerBuilding: 28.8,
     consumptionInputs: [
       { productId: 'appliance', quantity: 1 },
       { productId: 'electronics', quantity: 1 },
@@ -84,5 +102,6 @@ const rawCommercialTypes = [
 
 export const COMMERCIAL_BUILDING_TYPE_CATALOG = Object.freeze(rawCommercialTypes.map((type) => Object.freeze({
   ...type,
+  profitPerCycleByStar: Object.freeze([...type.profitPerCycleByStar]),
   consumptionInputs: Object.freeze(type.consumptionInputs.map((item) => Object.freeze({ ...item }))),
 })));

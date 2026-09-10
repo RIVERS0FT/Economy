@@ -34,7 +34,9 @@ test('commercial economics, inventory intent and page owners remain documented i
   const page = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
   const ui = read('docs/UI_DESIGN_SYSTEM.md');
   assert.match(design, /商业建筑不是工厂的另一种配方/);
-  assert.match(design, /固定商业利润是服务器目录声明的\*\*绝对金额\*\*/);
+  assert.match(design, /一至五星利润是服务器目录分别声明的五档\*\*绝对金额\*\*/);
+  assert.match(design, /`0–20` 为一星/);
+  assert.match(design, /扩建本身始终不改变人气/);
   assert.match(design, /不得跨州寻找库存/);
   assert.match(design, /不是市场成交/);
   assert.match(design, /旧存档/);
@@ -44,6 +46,7 @@ test('commercial economics, inventory intent and page owners remain documented i
   assert.match(ui, /BuildingDetailPage/);
   assert.match(ui, /BuildingSettlementPanel/);
   assert.match(ui, /BuildingTypeFilter/);
+  assert.match(ui, /src\/assets\/commercial-icons\//);
 });
 
 test('commercial settlement keeps one revenue money icon and one combined cycle-cost card geometry', () => {

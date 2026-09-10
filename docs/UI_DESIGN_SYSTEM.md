@@ -33,7 +33,7 @@
 
 ## 3. 共享 React 组件
 
-页面、表单、列表、金额、图表、Tooltip、商品／工厂插画和移动 Workspace Sheet 必须优先复用现有共享组件，不为单页复制第二套基础组件。核心结构包括 `PageLayout`、`PagePanel`、`MobileWorkspaceSheetHost`、共享 FormControls、实体列表、金额格式化、`SafeTooltip` / `GameConcept` 与 `EconomyChart`；具体组件清单属于代码事实。
+页面、表单、列表、金额、图表、Tooltip、商品／工厂／商业建筑插画和移动 Workspace Sheet 必须优先复用现有共享组件，不为单页复制第二套基础组件。核心结构包括 `PageLayout`、`PagePanel`、`MobileWorkspaceSheetHost`、共享 FormControls、实体列表、金额格式化、`SafeTooltip` / `GameConcept` 与 `EconomyChart`；具体组件清单属于代码事实。
 
 `PagePanel` 只是兼容结构语义，不自动决定可见圆角。页面章节与同构比较列表保持平面分区；具有独立身份、状态、属性和操作的复杂业务对象可以使用 `.ui-entity-card` 或已登记兼容入口，即使随 `.page-card-scroll` 滚动。正文对象卡只使用实体背景、边框和圆角，不使用毛玻璃或高层阴影。
 
@@ -200,7 +200,9 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 5.5 商业建筑场景插画与共享卡片
 
-商业建筑按 `commercialTypeId` 映射本地内联 SVG 店面场景，正式商业类型具有对应零售商品／服务的可辨识窗陈；未知类型使用通用商业店面，不得借用工业 ID 或工厂图片。场景无文字、人物、品牌或水印，按与工业相同的卡片和详情插画槽居中铺满；图像本身不包含状态、数量或利润。场景是装饰，建筑名称和业务状态由真实文字及可访问名称提供。
+商业建筑正式源图位于 `src/assets/commercial-icons/`，运行时只加载由统一生成脚本产生的 `src/assets/commercial-icons/generated/256/` 缩略图；生成目录不提交。已知商业类型必须由 `CommercialBuildingArtwork` 按正式商业目录 ID 映射到独立场景，未知类型或 `prefers-reduced-data: reduce` 使用同一组件内的通用店面 SVG 回退。资源枚举、尺寸、SHA-256 基线、组件与样式映射由专项 verifier 检查，不在 DESIGN 复制类型清单。
+
+全部商业建筑采用从空白新绘的高质量写实数字插画／商业级写实 CG：明亮自然日间光、轻微俯视的三分之四街景视角、完整店面主体居中，建筑约占画面 `65%–75%`，核心店面位于中央约 `80%` 安全区。源图为 `1024 × 1024` PNG RGBA，正式卡片以 `background-size: cover` 居中裁切；全部图片都必须在实际 `4:5` 居中裁切后保持核心店面完整。画面不得包含文字、数字、人物、品牌标志、商标或水印。`scripts/commercial-artwork-baseline.json` 保存批准源图哈希，替换插画时必须同步更新可审查基线与运行时缩略图。场景是装饰，建筑名称和业务状态由真实文字及可访问名称提供。
 
 `BuildingClusterCard` 只接收名称、状态、数量、利润呈现、插画与点击回调，不接收商业或工业业务模型，不计算经济收益。两领域必须共用真实按钮与三处文字槽，不复制第二套卡片 DOM；局部几何归 `PRODUCTION_PILL_ALIGNMENT_DESIGN.md`。
 

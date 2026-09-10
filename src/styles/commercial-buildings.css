@@ -23,3 +23,38 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.commercial-popularity__rating {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block: var(--space-2) var(--space-3);
+}
+
+.commercial-popularity__stars {
+  display: inline-flex;
+  gap: .2rem;
+  color: var(--color-text-muted);
+  font-size: 1.35rem;
+  letter-spacing: .02em;
+  line-height: 1;
+}
+
+.commercial-popularity__stars .is-earned {
+  color: var(--color-warning);
+}
+
+.commercial-popularity__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 560px) {
+  .commercial-popularity__controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

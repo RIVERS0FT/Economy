@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { commercialCycleProgress, commercialProfitPerMinute } from '../../src/utils/commercialPresentation.ts';
+import { commercialCycleProgress, commercialProfitPerCycle, commercialProfitPerMinute } from '../../src/utils/commercialPresentation.ts';
 
 test('commercial per-building profit does not accidentally use group count', () => {
   const type = { cycleMs: 300_000, profitPerCycle: 2.5 };
@@ -9,6 +9,14 @@ test('commercial per-building profit does not accidentally use group count', () 
   for (const cycleMs of [0, -1, NaN, Infinity]) {
     assert.equal(commercialProfitPerMinute({ ...type, cycleMs }), 0);
   }
+});
+
+test('commercial profit uses the current star tier and preserves legacy fallback', () => {
+  const type = { cycleMs: 300_000, profitPerCycle: 4, profitPerCycleByStar: [4, 4.4, 5, 5.8, 6.8] as const };
+  assert.equal(commercialProfitPerCycle(type, 1), 4);
+  assert.equal(commercialProfitPerCycle(type, 5), 6.8);
+  assert.equal(commercialProfitPerMinute(type, 2, 3), 2);
+  assert.equal(commercialProfitPerCycle({ profitPerCycle: 2.5 }, 5), 2.5);
 });
 
 test('commercial progress uses locked server timestamps and waits at completion', () => {
