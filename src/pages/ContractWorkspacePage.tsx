@@ -54,7 +54,7 @@ const END_REASON_LABELS: Record<string, string> = {
   completed: '正常完成', publisher_cancelled: '发布者取消', offer_expired: '等待承接超时',
   termination_requested: '按申请正常结束', immediate_by_participant: '参与方主动违约终止',
   buyer_default: '采购方违约', supplier_default: '供应方违约', both_default: '双方违约',
-  borrower_default: '借款方违约', lessee_default: '承租方违约', participant_missing: '参与者状态异常',
+  borrower_default: '借款方违约 · 银行清算', lessee_default: '承租方违约', participant_missing: '参与者状态异常',
   missing_from_world: '合同数据异常结束', unknown: '结束原因待核查',
 };
 const PUBLISH_TYPES: Array<[PublishType, string, string]> = [
@@ -93,12 +93,11 @@ function canClaimConfirmedDefault(contract: ProductionContract) {
   if (contract.terminationReason === 'buyer_default') return Boolean(contract.isSupplier);
   if (contract.terminationReason === 'supplier_default') return Boolean(contract.isBuyer);
   if (contract.terminationReason === 'both_default') return Boolean(contract.isParticipant || contract.isBuyer || contract.isSupplier);
-  if (contract.terminationReason === 'borrower_default') return Boolean(contract.isLender);
+  if (contract.terminationReason === 'borrower_default') return false;
   if (contract.terminationReason === 'lessee_default') return Boolean(contract.isLessor);
   return false;
 }
 function defaultClaimLabel(contract: ProductionContract) {
-  if (contract.kind === 'loan') return '解除合同并处置冻结';
   if (contract.terminationReason === 'both_default') return '解除合同';
   return '解除合同并领取违约金';
 }
@@ -206,7 +205,7 @@ function SupplyPriorityEditor({ contract, busy, run }: { contract: ProductionCon
 
 function CommercialContractActions({ contract, busy, run }: { contract: ProductionContract; busy: boolean; run: RunAction }) {
   if (contract.kind === 'loan' && contract.isBorrower) {
-    return <div className="contract-card-actions"><Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:repay`, () => productionContractActions.repayLoan(contract.id))}>立即还款</Button><ToggleField checked={contract.autoRepay !== false} onChange={(event) => void run(`${contract.id}:auto-repay`, () => productionContractActions.setLoanAutoRepay(contract.id, event.target.checked))} label="自动还款" description="到期时自动使用当前可用资金偿还，不透支未来收入。" /></div>;
+    return <div className="contract-card-actions"><Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:repay`, () => productionContractActions.repayLoan(contract.id))}>立即还款</Button><ToggleField checked={contract.autoRepay !== false} onChange={(event) => void run(`${contract.id}:auto-repay`, () => productionContractActions.setLoanAutoRepay(contract.id, event.target.checked))} label="自动还款" description="到期时先用当前可用资金正常还款；宽限结束仍不足时由银行代支付给放贷方，并从银行存款、可用资金和冻结工厂自动代收未履行额度。" /></div>;
   }
   if (contract.kind === 'facility_lease' && contract.isLessee) {
     return <div className="contract-card-actions"><Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:lease-fund`, () => productionContractActions.fundLease(contract.id))}>补充租金</Button><ToggleField checked={contract.autoFund !== false} onChange={(event) => void run(`${contract.id}:lease-auto-fund`, () => productionContractActions.setLeaseAutoFund(contract.id, event.target.checked))} label="自动补充租金" description="每期只使用当前可用资金补充租金，不透支未来收入。" /></div>;
@@ -253,13 +252,14 @@ function ActiveContractCard({ contract, label, busy, run }: { contract: Producti
   const needsAttention = contractNeedsAttention(contract);
   const confirmedDefault = isConfirmedDefault(contract);
   const canClaimDefault = canClaimConfirmedDefault(contract);
+  const bankSettlingLoan = confirmedDefault && contract.kind === 'loan';
   const className = `contract-card contract-active-card contract-card--${confirmedDefault || contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'}`;
   const dailyMax = contract.dailyMaxQuantity ?? contract.quantityPerDelivery;
   const dailyUsed = contract.dailyUsedQuantity ?? 0;
   const remaining = contract.dailyRemainingQuantity ?? Math.max(0, dailyMax - dailyUsed);
   return (
     <PagePanel className={className}>
-      <header className="contract-card-heading"><div><div className="contract-card-tags"><StatusTag tone={statusTone(contract)}>{confirmedDefault ? '已违约待解除' : STATUS_LABELS[contract.status]}</StatusTag><StatusTag>{roleTag(contract)}</StatusTag>{needsAttention && !confirmedDefault ? <StatusTag tone="warning">待处理</StatusTag> : null}</div><h2>{label}</h2><p>{confirmedDefault ? '违约已经服务器确认，合同不会通过事后补货、补款或还款恢复。' : contract.issue || `下一状态边界：${dateTimeLabel(contract.nextDueAt)}`}</p></div></header>
+      <header className="contract-card-heading"><div><div className="contract-card-tags"><StatusTag tone={statusTone(contract)}>{bankSettlingLoan ? '银行清算中' : confirmedDefault ? '已违约待解除' : STATUS_LABELS[contract.status]}</StatusTag><StatusTag>{roleTag(contract)}</StatusTag>{needsAttention && !confirmedDefault ? <StatusTag tone="warning">待处理</StatusTag> : null}</div><h2>{label}</h2><p>{bankSettlingLoan ? '借款方违约已经服务器确认，银行将自动代支付未履行额度并完成代收，无需放贷方手动追偿。' : confirmedDefault ? '违约已经服务器确认，合同不会通过事后补货、补款或还款恢复。' : contract.issue || `下一状态边界：${dateTimeLabel(contract.nextDueAt)}`}</p></div></header>
       {contract.kind === 'supply' && contract.supplyMode === 'daily' ? <>
         <div className="contract-summary-grid">
           <MetricCard label="今日已使用" value={<CompactNumber value={dailyUsed} />} detail={`每日上限 ${formatNumber(dailyMax)}`} />
@@ -275,15 +275,23 @@ function ActiveContractCard({ contract, label, busy, run }: { contract: Producti
       </> : contract.kind === 'supply' ? <LegacySupplyTerms contract={contract} /> : (
         <DataList className="compact">
           <DataRow label={contract.kind === 'loan' ? '本金' : '每期租金'} value={<CurrencyAmount>{formatCurrency(contract.kind === 'loan' ? contract.principal || 0 : contract.rentPerPeriod || 0)}</CurrencyAmount>} />
+          {contract.kind === 'loan' ? <>
+            <DataRow label="未偿本金" value={<CurrencyAmount>{formatCurrency(contract.principalOutstanding || 0)}</CurrencyAmount>} />
+            <DataRow label="待付利息" value={<CurrencyAmount>{formatCurrency(contract.interestDue || 0)}</CurrencyAmount>} />
+            <DataRow label="总应还" value={<CurrencyAmount>{formatCurrency(Number(contract.principalOutstanding || 0) + Number(contract.interestDue || 0))}</CurrencyAmount>} />
+            <DataRow label="冻结数量" value={<CompactNumber value={contract.collateralQuantity || 0} />} />
+          </> : null}
           <DataRow label="地区" value={contract.provinceId || '—'} />
           <DataRow label="期限" value={dayLabel(contract.kind === 'loan' ? (contract.termDays ?? msAsDays(contract.termMs)) : (contract.periodDays ?? msAsDays(contract.periodMs)))} />
         </DataList>
       )}
       {confirmedDefault ? (
         <div className="contract-card-actions contract-default-claim-actions">
-          {canClaimDefault
-            ? <Button variant="danger" disabled={busy} onClick={() => void run(`${contract.id}:default-claim`, () => productionContractActions.terminateNow(contract.id))}>{defaultClaimLabel(contract)}</Button>
-            : <StatusTag tone="danger">等待受偿方处理</StatusTag>}
+          {bankSettlingLoan
+            ? <StatusTag tone="warning">等待银行清算</StatusTag>
+            : canClaimDefault
+              ? <Button variant="danger" disabled={busy} onClick={() => void run(`${contract.id}:default-claim`, () => productionContractActions.terminateNow(contract.id))}>{defaultClaimLabel(contract)}</Button>
+              : <StatusTag tone="danger">等待受偿方处理</StatusTag>}
         </div>
       ) : contract.kind === 'supply' ? <>
         {contract.isSupplier ? <ToggleField checked={contract.supplierAutoReserve} onChange={(event) => void run(`${contract.id}:auto-reserve`, () => productionContractActions.setAutoReserve(contract.id, event.target.checked, contract.prioritySupply))} label="自动准备商品" description="只从当前可用库存准备当日或当前批次商品，不透支未来产量。" /> : null}
@@ -390,7 +398,7 @@ function PublishPanel({ model, busy, close, run, initial }: { model: TutorialAwa
           <SelectInput label="首次生效（天）" value={firstPeriodDays} onChange={(event) => setFirstPeriodDays(Number.parseFloat(event.target.value))}>{FIRST_DAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectInput>
         </> : null}
       </div><div className="contract-card-actions"><Button disabled={busy || !canSubmit} onClick={submit}>发布合同</Button></div></div>
-      <aside className="contract-publish-preview" aria-label="合同预览"><h3>{PUBLISH_TYPES.find(([value]) => value === type)?.[1]}</h3>{isSupply ? <><p>固定价供应，不随市场变化；每日最多使用 {quantity ?? 0} 件。</p><p>{durationDays === null ? '长期合同' : `合同 ${durationDays ?? 0} 天`} · 延迟 {startDelayDays ?? 0} 天</p></> : <p>所有时间参数统一以天表达。</p>}</aside></div>
+      <aside className="contract-publish-preview" aria-label="合同预览"><h3>{PUBLISH_TYPES.find(([value]) => value === type)?.[1]}</h3>{isSupply ? <><p>固定价供应，不随市场变化；每日最多使用 {quantity ?? 0} 件。</p><p>{durationDays === null ? '长期合同' : `合同 ${durationDays ?? 0} 天`} · 延迟 {startDelayDays ?? 0} 天</p></> : isLoan ? <><p>贷款本金仍由放贷方实际出资，借款方以冻结工厂提供担保。</p><p>宽限结束仍未结清时，银行自动代支付未履行额度并向借款方代收。</p></> : <p>所有时间参数统一以天表达。</p>}</aside></div>
     </PagePanel>
   );
 }
@@ -488,6 +496,18 @@ function HistoryRow({
             {contract.kind === 'loan' ? <>
               <DataRow label="实际发放本金" value={<CurrencyAmount>{formatCurrency(settlement.loanPrincipalDisbursed || contract.principal || 0)}</CurrencyAmount>} />
               <DataRow label="实际偿还" value={<CurrencyAmount>{formatCurrency(settlement.loanRepaid)}</CurrencyAmount>} />
+              {contract.bankGuaranteeSettledAt ? <>
+                <DataRow label="未履行额度" value={<CurrencyAmount>{formatCurrency(contract.bankGuaranteedCredits || 0)}</CurrencyAmount>} />
+                {contract.isLender ? <DataRow label="银行代付到账" value={<CurrencyAmount>{formatCurrency(contract.bankLenderPayoutCredits || 0)}</CurrencyAmount>} /> : null}
+                {contract.isBorrower ? <>
+                  <DataRow label="银行代收总额" value={<CurrencyAmount>{formatCurrency(contract.bankCollectedCredits || 0)}</CurrencyAmount>} />
+                  {Number(contract.bankCollectedDepositCredits || 0) > 0 ? <DataRow label="银行存款代收" value={<CurrencyAmount>{formatCurrency(contract.bankCollectedDepositCredits || 0)}</CurrencyAmount>} /> : null}
+                  {Number(contract.bankCollectedCashCredits || 0) > 0 ? <DataRow label="可用资金代收" value={<CurrencyAmount>{formatCurrency(contract.bankCollectedCashCredits || 0)}</CurrencyAmount>} /> : null}
+                  {Number(contract.bankCollectedCollateralCredits || 0) > 0 ? <DataRow label="冻结工厂折抵" value={<CurrencyAmount>{formatCurrency(contract.bankCollectedCollateralCredits || 0)}</CurrencyAmount>} /> : null}
+                  {Number(contract.bankCollateralSeizedQuantity || 0) > 0 ? <DataRow label="银行处置冻结工厂" value={`${formatNumber(contract.bankCollateralSeizedQuantity || 0)} 个`} /> : null}
+                  {Number(contract.bankCollateralSurplusCredits || 0) > 0 ? <DataRow label="处置找零" value={<CurrencyAmount>{formatCurrency(contract.bankCollateralSurplusCredits || 0)}</CurrencyAmount>} /> : null}
+                </> : null}
+              </> : null}
               {settlement.collateralReceivedByMe > 0 ? <DataRow label="我获得冻结工厂" value={`${formatNumber(settlement.collateralReceivedByMe)} 个`} /> : null}
               {settlement.collateralReturnedToMe > 0 ? <DataRow label="退回我的冻结工厂" value={`${formatNumber(settlement.collateralReturnedToMe)} 个`} /> : null}
             </> : null}
