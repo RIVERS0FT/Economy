@@ -47,4 +47,4 @@ export function selectTransportCargo(input: {
   future: Map<string, number | null>;
   capacity: number;
   finalVisit?: boolean;
-}): { visitIndex?: number; unload: TransportCargoEntry[]; load: TransportCargoEntry[] };
+}): { unload: TransportCargoEntry[]; load: TransportCargoEntry[] };
