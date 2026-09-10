@@ -23,7 +23,6 @@ import { formatCurrency, formatTime } from '../utils/formatters';
 import { parseMoneyDraft } from '../utils/moneyDraft';
 
 const RECENT_DEFAULT_MS = 30 * 24 * 60 * 60 * 1000;
-const CREDIT_TERM_CARRIER_PROVINCE_ID = '__bank_credit_term__';
 
 type PendingAction = 'deposit' | 'withdraw' | 'borrow' | 'repay' | 'auto-repay' | null;
 type TransferDirection = 'deposit' | 'withdraw';
@@ -419,15 +418,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
 
             <Button block disabled={!requestedLoan || Boolean(pending)} onClick={() => submit(
               'borrow',
-              () => model.bankBorrow(
-                requestedLoan || 0,
-                [{
-                  provinceId: CREDIT_TERM_CARRIER_PROVINCE_ID,
-                  facilityTypeId: `bank-credit-term-${loanTermHours}`,
-                  quantity: 1,
-                }],
-                true,
-              ),
+              () => model.bankBorrow(requestedLoan || 0, loanTermHours, true),
               () => setLoanDraft(''),
             )}>
               {pending === 'borrow' ? '评估并放款中…' : '申请贷款'}

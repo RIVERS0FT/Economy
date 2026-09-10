@@ -753,8 +753,8 @@ export const gameActions = {
   }),
   bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),
   bankWithdraw: (amount: number) => postAction('/bank/withdrawals', { amount }),
-  bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay = true) => (
-    postAction('/bank/loans', { amount, collateral, autoRepay })
+  bankBorrow: (amount: number, termHours: number, autoRepay = true) => (
+    postAction('/bank/loans', { amount, termHours, autoRepay })
   ),
   bankRepay: (loanId: string, amount: number | 'all') => (
     postAction(`/bank/loans/${encodeURIComponent(loanId)}/repay`, { amount })

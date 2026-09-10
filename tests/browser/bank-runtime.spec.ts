@@ -47,7 +47,7 @@ test('bank page exposes asset credit amount, term and utilization without collat
   await expect(page.getByRole('button', { name: '申请贷款' })).toBeEnabled();
   await page.getByRole('button', { name: '申请贷款' }).click();
   await expect.poll(() => page.locator('body').getAttribute('data-borrow-amount')).toBe('1000');
-  await expect.poll(() => page.locator('body').getAttribute('data-borrow-term')).toBe('bank-credit-term-168');
+  await expect.poll(() => page.locator('body').getAttribute('data-borrow-term')).toBe('168');
   await expect.poll(() => page.locator('body').getAttribute('data-notice')).toBe('贷款成功');
 
   expect(await page.locator('.page-content').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);

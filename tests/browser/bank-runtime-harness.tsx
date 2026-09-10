@@ -117,12 +117,9 @@ const model = {
   notify: (message: string) => { document.body.dataset.notice = message; },
   bankDeposit: async () => ({ ok: true, message: '存款成功' }),
   bankWithdraw: async () => ({ ok: true, message: '取款成功' }),
-  bankBorrow: async (
-    amount: number,
-    carrier: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>,
-  ) => {
+  bankBorrow: async (amount: number, termHours: number) => {
     document.body.dataset.borrowAmount = String(amount);
-    document.body.dataset.borrowTerm = carrier[0]?.facilityTypeId || '';
+    document.body.dataset.borrowTerm = String(termHours);
     return { ok: true, message: '贷款成功' };
   },
   bankRepay: async () => ({ ok: true, message: '还款成功' }),

@@ -122,6 +122,10 @@ for (const text of ['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'b
   requireText('src/api/game.ts', text);
   requireText('src/app/gameViewModel.ts', text);
 }
+requireText('src/api/game.ts', "bankBorrow: (amount: number, termHours: number, autoRepay = true)");
+requireText('src/api/game.ts', "postAction('/bank/loans', { amount, termHours, autoRepay })");
+requireText('src/app/gameViewModel.ts', 'bankBorrow: (amount: number, termHours: number, autoRepay?: boolean)');
+forbidText('src/pages/BankPage.tsx', 'CREDIT_TERM_CARRIER_PROVINCE_ID');
 
 for (const text of [
   '资产授信贷款',
@@ -168,7 +172,7 @@ for (const text of [
 for (const text of [
   'asset credit amount, term and utilization without collateral selection',
   "getByRole('group', { name: '贷款周期' })",
-  'bank-credit-term-168',
+  "toBe('168')",
   "page.locator('.bank-collateral-list')).toHaveCount(0)",
 ]) requireText('tests/browser/bank-runtime.spec.ts', text);
 

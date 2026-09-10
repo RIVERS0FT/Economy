@@ -149,7 +149,7 @@ for (const text of [
   'addPurchasedGroup(world, buyer, typeId, quantity, createdAt, incoming.provinceId)',
   'provinceFacilityGroups', 'provinceFacilityMarkets',
 ]) assert.ok(facilities.includes(text), `工厂州级边界缺少: ${text}`);
-const banking = read('server/src/banking.js');
+const banking = read('server/src/banking-legacy.js');
 for (const text of [
   'const provinceId = normalizeProvinceId(item?.provinceId);',
   'transferableFacilityQuantity(world, player, item.facilityTypeId, item.provinceId)',
