@@ -1,44 +1,51 @@
 import { randomUUID } from 'node:crypto';
-import { FACILITY_TYPE_CATALOG } from './domain.js';
-import { facilitySellQuantityForOwner } from './order-book-runtime.js';
+import * as legacy from './banking-legacy.js';
+import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';
+import { COMMERCIAL_BUILDING_TYPE_CATALOG } from './commercial-catalog.js';
 import { creditPopulationEmployment } from './population-economy.js';
-import { calculateRateMoney, floorInternalMoney, internalMoneyToMicros, microsToInternalMoney, multiplyMoneyRatio, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
-import { contractLockedFacilityQuantity } from './contract-asset-locks.js';
+import { playerLoanFinancialPosition } from './contract-asset-locks.js';
+import { weeklySettlementLiability } from './weekly-cash-settlement.js';
+import { normalizeProvinceId, provinceScopedKey, splitProvinceScopedKey } from './provinces.js';
 import {
-  createWeeklyCashSettlementClientState,
-  isPlayerWeeklyInterestEligible,
-} from './weekly-cash-settlement.js';
-import {
-  DEFAULT_PROVINCE_ID,
-  normalizeProvinceId,
-  provinceScopedKey,
-  splitProvinceScopedKey,
-} from './provinces.js';
+  calculateRateMoney,
+  floorInternalMoney,
+  internalMoneyToMicros,
+  microsToInternalMoney,
+  normalizePlayerMoneyInput,
+  roundInternalMoney,
+} from './money.js';
 
-export const BANKING_VERSION = 3;
-export const BANK_TIME_ZONE = 'Asia/Shanghai';
-export const BANK_LOAN_TERM_MS = 72 * 60 * 60 * 1000;
+export * from './banking-legacy.js';
+
+export const BANKING_VERSION = 4;
+export const BANK_LOAN_TERM_OPTIONS_HOURS = Object.freeze([24, 72, 168]);
 export const BANK_LOAN_GRACE_MS = 12 * 60 * 60 * 1000;
-export const BANK_DAILY_INTEREST_RATE_BPS = 100; // 1.00%
-export const BANK_INTEREST_POOL_RETENTION_DAYS = 7;
-export const BANK_INTEREST_POOL_SHARE_PERCENT = 70;
-export const BANK_EMPLOYMENT_SHARE_PERCENT = 20;
-export const BANK_RISK_RESERVE_SHARE_PERCENT = 10;
+export const BANK_COLLECTION_RETRY_MS = 6 * 60 * 60 * 1000;
+export const BANK_BASE_CREDIT_RATIO_BPS = 3_000;
+export const BANK_REPAYMENT_HISTORY_BONUS_BPS = 500;
+export const BANK_RECENT_DEFAULT_PENALTY_BPS = 1_500;
+export const BANK_MINIMUM_CREDIT_RATIO_BPS = 1_500;
+export const BANK_MAXIMUM_CREDIT_RATIO_BPS = 3_500;
 
-const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_LOOKBACK_MS = 30 * DAY_MS;
-const MAX_TRANSACTION_HISTORY = 100;
+const RECENT_DEFAULT_MS = 30 * DAY_MS;
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
-const INTEGER_BANK_TOTAL_KEYS = new Set(['defaults', 'facilitiesSeized']);
+const TERM_BASE_RATE_BPS = new Map([
+  [24, 200],
+  [72, 400],
+  [168, 900],
+]);
+const TERM_CARRIER_PROVINCE_ID = '__bank_credit_term__';
 const FACILITY_BY_ID = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
+const COMMERCIAL_BY_ID = new Map(COMMERCIAL_BUILDING_TYPE_CATALOG.map((building) => [building.id, building]));
 
-function safeNonNegativeInteger(value, fallback = 0) {
+function safeInteger(value, fallback = 0) {
   const normalized = Math.floor(Number(value));
   return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : fallback;
 }
 
-function safeNonNegativeMoney(value, fallback = 0) {
+function safeMoney(value, fallback = 0) {
   const normalized = roundInternalMoney(value);
   return normalized !== null && normalized >= 0 ? normalized : fallback;
 }
@@ -47,475 +54,350 @@ function safePositiveMoney(value, max = MAX_SAFE) {
   return normalizePlayerMoneyInput(value, { min: 0.01, max });
 }
 
-function safePositiveInteger(value, max = MAX_SAFE) {
-  const normalized = Math.floor(Number(value));
-  return Number.isSafeInteger(normalized) && normalized >= 1 && normalized <= max ? normalized : null;
-}
-
 function addSafe(left, right, message = '银行金额超出系统可表示范围') {
   const total = roundInternalMoney(Number(left || 0) + Number(right || 0));
   if (total === null || internalMoneyToMicros(total) === null) throw new Error(message);
   return total;
 }
 
-function addSafeMicros(left, right, message = '银行微单位超出系统可表示范围') {
-  const leftMicros = Number(left || 0);
-  if (!Number.isSafeInteger(leftMicros) || leftMicros < 0) throw new Error(message);
-  let rightMicros;
-  try {
-    rightMicros = typeof right === 'bigint' ? right : BigInt(right);
-  } catch {
-    throw new Error(message);
-  }
-  if (rightMicros < 0n) throw new Error(message);
-  const totalMicros = BigInt(leftMicros) + rightMicros;
-  if (totalMicros > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(message);
-  return Number(totalMicros);
-}
-
-function multiplyFloor(left, right, divisor, message = '银行计算结果超出系统可表示范围') {
-  const result = multiplyMoneyRatio(left, right, divisor, 'floor');
-  if (result === null) throw new Error(message);
-  return result;
-}
-
-function multiplyCeil(left, right, divisor, message = '银行计算结果超出系统可表示范围') {
-  const result = multiplyMoneyRatio(left, right, divisor, 'ceil');
-  if (result === null) throw new Error(message);
-  return result;
-}
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-export function bankPeriodFor(now = Date.now()) {
-  const timestamp = Math.max(0, Number(now) || 0);
-  const local = new Date(timestamp + SHANGHAI_OFFSET_MS);
-  const localStart = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
-  const startsAt = localStart - SHANGHAI_OFFSET_MS;
-  return {
-    dayKey: new Date(startsAt + SHANGHAI_OFFSET_MS).toISOString().slice(0, 10),
-    startsAt,
-    nextSettlementAt: startsAt + DAY_MS,
-  };
+function floorCents(value) {
+  const normalized = floorInternalMoney(value);
+  if (normalized === null) return 0;
+  return Math.max(0, Math.floor((normalized + Number.EPSILON) * 100) / 100);
 }
 
-function defaultBankWorld(now) {
-  const period = bankPeriodFor(now);
-  return {
-    version: BANKING_VERSION,
-    currentDayKey: period.dayKey,
-    nextInterestSettlementAt: period.nextSettlementAt,
-    interestPoolMicros: 0,
-    riskReserveCredits: 0,
-    facilityReserves: {},
-    lastDailyInterestCredits: 0,
-    lastDailyRatePpm: 0,
-    recentDailyRatesPpm: [],
-    totals: {
-      creditIssued: 0,
-      principalRepaid: 0,
-      borrowerInterestReceived: 0,
-      depositorInterestPaid: 0,
-      depositorInterestFundedByPool: 0,
-      depositInterestSubsidyIssued: 0,
-      interestTransferredToEmployment: 0,
-      interestTransferredToReserve: 0,
-      defaults: 0,
-      facilitiesSeized: 0,
-    },
-  };
+function ceilCents(value) {
+  const normalized = safeMoney(value);
+  return Math.max(0, Math.ceil((normalized - Number.EPSILON) * 100) / 100);
 }
 
-function defaultPlayerBankAccount(player, now) {
-  const period = bankPeriodFor(now);
-  const deposit = safeNonNegativeMoney(player?.bankAccount?.depositCredits);
-  return {
-    version: BANKING_VERSION,
-    depositCredits: deposit,
-    dayKey: period.dayKey,
-    dayOpeningDepositCredits: deposit,
-    dayMinimumDepositCredits: deposit,
-    depositInterestCarryMicros: 0,
-    totalDepositInterestEarned: 0,
-    lastDepositInterestEarned: 0,
-    repaidLoanCount: 0,
-    lastDefaultAt: null,
-    activeLoan: null,
-    recentTransactions: [],
-  };
+function addInterestPoolMicros(bank, amount) {
+  const micros = internalMoneyToMicros(amount);
+  if (micros === null) throw new Error('银行存款利息池超出系统可表示范围');
+  const next = BigInt(safeInteger(bank.interestPoolMicros)) + micros;
+  if (next > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('银行存款利息池超出系统可表示范围');
+  bank.interestPoolMicros = Number(next);
 }
 
-function normalizeCollateral(items) {
-  const quantities = new Map();
-  for (const item of Array.isArray(items) ? items : []) {
-    const facilityTypeId = String(item?.facilityTypeId || item?.assetId || '');
-    const provinceId = normalizeProvinceId(item?.provinceId);
-    const quantity = safePositiveInteger(item?.quantity, 1_000_000);
-    if (!FACILITY_BY_ID.has(facilityTypeId) || !quantity) continue;
-    const key = provinceScopedKey(provinceId, facilityTypeId);
-    const existing = quantities.get(key);
-    quantities.set(key, {
-      provinceId,
-      facilityTypeId,
-      quantity: addSafe(existing?.quantity || 0, quantity),
-    });
-  }
-  return [...quantities.values()];
-}
-
-function normalizeLoan(loan) {
+function normalizeCreditLoan(loan) {
   if (!loan || typeof loan !== 'object') return null;
-  const collateral = normalizeCollateral(loan.collateral).map((item) => ({
-    ...item,
-    prudentUnitValue: safeNonNegativeMoney(
-      loan.collateral?.find?.((candidate) => (
-        String(candidate?.facilityTypeId) === item.facilityTypeId
-        && normalizeProvinceId(candidate?.provinceId) === item.provinceId
-      ))?.prudentUnitValue,
-      FACILITY_BY_ID.get(item.facilityTypeId)?.systemValue || 0,
-    ),
-  }));
-  const status = loan.status === 'grace' ? 'grace' : 'active';
-  const principalOutstanding = safeNonNegativeMoney(loan.principalOutstanding ?? loan.principalOriginal);
-  const interestOutstanding = safeNonNegativeMoney(loan.interestOutstanding ?? loan.interestOriginal);
-  if ((principalOutstanding + interestOutstanding) <= 0 || collateral.length === 0) return null;
+  const principalOutstanding = safeMoney(loan.principalOutstanding ?? loan.principalOriginal);
+  const interestOutstanding = safeMoney(loan.interestOutstanding ?? loan.interestOriginal);
+  if (principalOutstanding + interestOutstanding <= 0) return null;
+  const termMs = safeInteger(loan.termMs, Math.max(0, safeInteger(loan.dueAt) - safeInteger(loan.borrowedAt)));
+  const borrowedAt = safeInteger(loan.borrowedAt);
+  const dueAt = safeInteger(loan.dueAt, borrowedAt + termMs);
   return {
-    id: String(loan.id || `bank-loan-${randomUUID()}`),
-    status,
-    borrowedAt: safeNonNegativeInteger(loan.borrowedAt),
-    dueAt: safeNonNegativeInteger(loan.dueAt),
-    graceEndsAt: safeNonNegativeInteger(loan.graceEndsAt),
-    principalOriginal: safeNonNegativeMoney(loan.principalOriginal, principalOutstanding),
+    id: String(loan.id || `bank-credit-loan-${randomUUID()}`),
+    status: loan.status === 'grace' ? 'grace' : 'active',
+    borrowedAt,
+    dueAt,
+    graceEndsAt: safeInteger(loan.graceEndsAt, dueAt + BANK_LOAN_GRACE_MS),
+    termMs,
+    principalOriginal: safeMoney(loan.principalOriginal, principalOutstanding),
     principalOutstanding,
-    interestOriginal: safeNonNegativeMoney(loan.interestOriginal, interestOutstanding),
+    interestOriginal: safeMoney(loan.interestOriginal, interestOutstanding),
     interestOutstanding,
-    interestRateBps: safeNonNegativeInteger(loan.interestRateBps),
-    collateral,
-    collateralValueAtOrigination: safeNonNegativeMoney(loan.collateralValueAtOrigination),
-    ltvBps: safeNonNegativeInteger(loan.ltvBps),
-    autoRepay: loan.autoRepay === true,
+    interestRateBps: safeInteger(loan.interestRateBps),
+    assetValueAtOrigination: safeMoney(loan.assetValueAtOrigination),
+    creditLimitAtOrigination: safeMoney(loan.creditLimitAtOrigination),
+    creditUtilizationBps: safeInteger(loan.creditUtilizationBps),
+    autoRepay: loan.autoRepay !== false,
+    defaultedAt: Number.isFinite(Number(loan.defaultedAt)) ? Math.max(0, Number(loan.defaultedAt)) : null,
   };
+}
+
+export function ensurePlayerBankAccount(player, now = Date.now()) {
+  const account = legacy.ensurePlayerBankAccount(player, now);
+  account.version = BANKING_VERSION;
+  account.creditLoan = normalizeCreditLoan(account.creditLoan);
+  return account;
 }
 
 export function ensureBankWorld(world, now = Date.now(), { normalizePlayers = true } = {}) {
-  const fallback = defaultBankWorld(now);
-  const bank = world.bank && typeof world.bank === 'object' ? world.bank : fallback;
+  const bank = legacy.ensureBankWorld(world, now, { normalizePlayers: false });
   bank.version = BANKING_VERSION;
-  bank.currentDayKey = typeof bank.currentDayKey === 'string' ? bank.currentDayKey : fallback.currentDayKey;
-  bank.nextInterestSettlementAt = safeNonNegativeInteger(bank.nextInterestSettlementAt, fallback.nextInterestSettlementAt);
-  bank.interestPoolMicros = safeNonNegativeInteger(bank.interestPoolMicros);
-  bank.riskReserveCredits = safeNonNegativeMoney(bank.riskReserveCredits);
-  const facilityReserves = {};
-  for (const [rawKey, rawQuantity] of Object.entries(
-    bank.facilityReserves && typeof bank.facilityReserves === 'object' ? bank.facilityReserves : {},
-  )) {
-    const { provinceId, assetId } = splitProvinceScopedKey(rawKey);
-    if (!FACILITY_BY_ID.has(assetId)) continue;
-    const key = provinceScopedKey(provinceId, assetId);
-    facilityReserves[key] = safeNonNegativeInteger(facilityReserves[key]) + safeNonNegativeInteger(rawQuantity);
-  }
-  bank.facilityReserves = facilityReserves;
-  bank.lastDailyInterestCredits = safeNonNegativeMoney(bank.lastDailyInterestCredits);
-  bank.lastDailyRatePpm = safeNonNegativeInteger(bank.lastDailyRatePpm);
-  bank.recentDailyRatesPpm = (Array.isArray(bank.recentDailyRatesPpm) ? bank.recentDailyRatesPpm : [])
-    .map((value) => safeNonNegativeInteger(value))
-    .slice(-7);
-  bank.totals = { ...fallback.totals, ...(bank.totals || {}) };
-  for (const key of Object.keys(fallback.totals)) {
-    bank.totals[key] = INTEGER_BANK_TOTAL_KEYS.has(key)
-      ? safeNonNegativeInteger(bank.totals[key])
-      : safeNonNegativeMoney(bank.totals[key]);
-  }
-  world.bank = bank;
   if (normalizePlayers) {
     for (const player of Object.values(world.players || {})) ensurePlayerBankAccount(player, now);
   }
   return bank;
 }
 
-export function ensurePlayerBankAccount(player, now = Date.now()) {
-  const fallback = defaultPlayerBankAccount(player, now);
-  const account = player.bankAccount && typeof player.bankAccount === 'object' ? player.bankAccount : fallback;
-  account.version = BANKING_VERSION;
-  account.depositCredits = safeNonNegativeMoney(account.depositCredits);
-  account.dayKey = typeof account.dayKey === 'string' ? account.dayKey : fallback.dayKey;
-  account.dayOpeningDepositCredits = safeNonNegativeMoney(account.dayOpeningDepositCredits, account.depositCredits);
-  account.dayMinimumDepositCredits = Math.min(
-    safeNonNegativeMoney(account.dayMinimumDepositCredits, account.depositCredits),
-    account.dayOpeningDepositCredits,
-    account.depositCredits,
-  );
-  account.depositInterestCarryMicros = safeNonNegativeInteger(account.depositInterestCarryMicros);
-  account.totalDepositInterestEarned = safeNonNegativeMoney(account.totalDepositInterestEarned);
-  account.lastDepositInterestEarned = safeNonNegativeMoney(account.lastDepositInterestEarned);
-  account.repaidLoanCount = safeNonNegativeInteger(account.repaidLoanCount);
-  account.lastDefaultAt = Number.isFinite(Number(account.lastDefaultAt)) ? Math.max(0, Number(account.lastDefaultAt)) : null;
-  account.activeLoan = normalizeLoan(account.activeLoan);
-  account.recentTransactions = (Array.isArray(account.recentTransactions) ? account.recentTransactions : [])
-    .filter((entry) => entry && typeof entry === 'object')
-    .slice(-MAX_TRANSACTION_HISTORY);
-  player.bankAccount = account;
-  return account;
-}
-
 export function migrateBankWorld(world, now = Date.now()) {
+  legacy.migrateBankWorld(world, now);
   ensureBankWorld(world, now);
-  world.version = Math.max(20, safeNonNegativeInteger(world.version));
   return world;
 }
 
-function recordTransaction(account, type, amount, createdAt, description, metadata = {}) {
-  account.recentTransactions.push({
-    id: `bank-transaction-${randomUUID()}`,
-    type,
-    amount: Math.max(0, roundInternalMoney(amount) || 0),
-    createdAt: safeNonNegativeInteger(createdAt),
-    description: String(description || ''),
-    ...metadata,
-  });
-  account.recentTransactions = account.recentTransactions.slice(-MAX_TRANSACTION_HISTORY);
-}
-
-function groupFor(player, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
-  const selectedProvinceId = normalizeProvinceId(provinceId);
-  return (player.facilityGroups || []).find((group) => (
-    String(group.facilityTypeId) === String(facilityTypeId)
-    && normalizeProvinceId(group.provinceId) === selectedProvinceId
-  ));
-}
-
-function auctionItems(auction) {
-  if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
-  const assetKind = auction?.assetKind;
-  const assetId = String(auction?.assetId || auction?.facilityTypeId || auction?.productId || '');
-  return assetKind && assetId ? [{
-    assetKind,
-    assetId,
-    provinceId: normalizeProvinceId(auction?.provinceId),
-    quantity: safeNonNegativeInteger(auction.quantity, 1),
-  }] : [];
-}
-
-function auctionedFacilityQuantity(world, userId, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
-  const selectedProvinceId = normalizeProvinceId(provinceId);
-  return (world.assetAuctions || []).reduce((sum, auction) => {
-    if (
-      Number(auction?.sellerId) !== Number(userId)
-      || auction?.status !== 'open'
-      || ['released', 'transferred'].includes(auction?.escrowStatus)
-    ) return sum;
-    return sum + auctionItems(auction).reduce((itemSum, item) => (
-      item?.assetKind === 'facility'
-        && String(item.assetId) === String(facilityTypeId)
-        && normalizeProvinceId(item.provinceId) === selectedProvinceId
-        ? itemSum + safeNonNegativeInteger(item.quantity)
-        : itemSum
-    ), 0);
-  }, 0);
-}
-
-export function mortgagedFacilityQuantity(player, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
-  const selectedProvinceId = normalizeProvinceId(provinceId);
-  const loan = player?.bankAccount?.activeLoan || null;
-  if (!loan) return 0;
-  return loan.collateral.reduce((sum, item) => (
-    String(item.facilityTypeId) === String(facilityTypeId)
-    && normalizeProvinceId(item.provinceId) === selectedProvinceId
-      ? sum + safeNonNegativeInteger(item.quantity)
-      : sum
-  ), 0);
-}
-
-export function activeLoanLiability(player) {
-  const loan = player?.bankAccount?.activeLoan || null;
+function creditLoanLiability(player) {
+  const loan = player?.bankAccount?.creditLoan;
   return loan ? addSafe(loan.principalOutstanding, loan.interestOutstanding) : 0;
 }
 
-export function transferableFacilityQuantity(world, player, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
-  const selectedProvinceId = normalizeProvinceId(provinceId);
-  const group = groupFor(player, facilityTypeId, selectedProvinceId);
-  if (!group) return 0;
-  const listed = facilitySellQuantityForOwner(world, player.userId, facilityTypeId, selectedProvinceId);
-  const auctioned = auctionedFacilityQuantity(world, player.userId, facilityTypeId, selectedProvinceId);
-  return Math.max(0, safeNonNegativeInteger(group.count) - listed - auctioned
-    - mortgagedFacilityQuantity(player, facilityTypeId, selectedProvinceId)
-    - contractLockedFacilityQuantity(world, player.userId, facilityTypeId, selectedProvinceId));
+export function activeLoanLiability(player) {
+  return addSafe(legacy.activeLoanLiability(player), creditLoanLiability(player));
 }
 
-function prudentFacilityValue(world, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
-  const facility = FACILITY_BY_ID.get(String(facilityTypeId));
+export function mortgagedFacilityQuantity(player, facilityTypeId, provinceId) {
+  return legacy.mortgagedFacilityQuantity(player, facilityTypeId, provinceId);
+}
+
+export function transferableFacilityQuantity(world, player, facilityTypeId, provinceId) {
+  return legacy.transferableFacilityQuantity(world, player, facilityTypeId, provinceId);
+}
+
+function commodityUnitValue(world, productId, provinceId) {
+  const market = world.markets?.[provinceScopedKey(provinceId, productId)];
+  const official = safeMoney(market?.officialPrice);
+  if (official > 0) return official;
+  const lastTrade = safeMoney(market?.lastTradePrice);
+  if (lastTrade > 0) return lastTrade;
+  return safeMoney(PRODUCT_BY_ID.get(productId)?.basePrice);
+}
+
+function facilityUnitValue(world, facilityTypeId, provinceId) {
+  const facility = FACILITY_BY_ID.get(facilityTypeId);
   if (!facility) return 0;
-  const lastTradePrice = roundInternalMoney(
-    world.facilityMarkets?.[provinceScopedKey(provinceId, facility.id)]?.lastTradePrice,
+  const systemValue = safeMoney(facility.systemValue);
+  const lastTrade = safeMoney(world.facilityMarkets?.[provinceScopedKey(provinceId, facilityTypeId)]?.lastTradePrice);
+  return lastTrade > 0 ? lastTrade : systemValue;
+}
+
+function prudentFacilityUnitValue(world, facilityTypeId, provinceId) {
+  const facility = FACILITY_BY_ID.get(facilityTypeId);
+  if (!facility) return 0;
+  const systemValue = safeMoney(facility.systemValue);
+  const marketValue = facilityUnitValue(world, facilityTypeId, provinceId);
+  return Math.max(0, Math.min(systemValue || marketValue, marketValue || systemValue));
+}
+
+export function bankCreditAssetValue(world, player) {
+  const financialPosition = playerLoanFinancialPosition(world, player.userId);
+  const cash = safeMoney(player.credits)
+    + safeMoney(player.frozenCredits)
+    + safeMoney(player?.bankAccount?.depositCredits)
+    + safeMoney(financialPosition.receivable);
+  const commodity = Object.entries(player.inventories || {}).reduce((sum, [rawKey, inventory]) => {
+    const { provinceId, assetId } = splitProvinceScopedKey(rawKey);
+    const quantity = Math.max(0,
+      Number(inventory?.available || 0)
+      + Number(inventory?.frozen || 0)
+      + Number(inventory?.inTransit || 0));
+    return sum + quantity * commodityUnitValue(world, assetId, provinceId);
+  }, 0);
+  const facilities = (player.facilityGroups || []).reduce((sum, group) => (
+    sum + Math.max(0, Number(group?.count || 0))
+      * facilityUnitValue(world, String(group?.facilityTypeId || ''), normalizeProvinceId(group?.provinceId))
+  ), 0);
+  const commercial = (player.commercialBuildingGroups || []).reduce((sum, group) => {
+    const type = COMMERCIAL_BY_ID.get(String(group?.commercialTypeId || ''));
+    return sum + Math.max(0, Number(group?.count || 0)) * safeMoney(type?.systemValue);
+  }, 0);
+  const grossAssets = safeMoney(cash + commodity + facilities + commercial);
+  const liabilities = safeMoney(
+    activeLoanLiability(player)
+    + weeklySettlementLiability(player)
+    + safeMoney(financialPosition.liability),
   );
-  const marketPrice = lastTradePrice !== null && lastTradePrice > 0 ? lastTradePrice : facility.systemValue;
-  return Math.max(0.01, Math.min(safeNonNegativeMoney(facility.systemValue), safeNonNegativeMoney(marketPrice)));
+  return floorCents(Math.max(0, grossAssets - liabilities));
 }
 
-function normalizeCollateralWithValues(world, player, collateral) {
-  return normalizeCollateral(collateral).map((item) => ({
-    ...item,
-    availableQuantity: transferableFacilityQuantity(world, player, item.facilityTypeId, item.provinceId),
-    prudentUnitValue: prudentFacilityValue(world, item.facilityTypeId, item.provinceId),
-  }));
+function recentDefault(account, now) {
+  return account.lastDefaultAt !== null
+    && Number.isFinite(Number(account.lastDefaultAt))
+    && now - Number(account.lastDefaultAt) < RECENT_DEFAULT_MS;
 }
 
-function loanRateBpsForRatio(actualLtvBps) {
-  if (actualLtvBps <= 3_000) return 300;
-  if (actualLtvBps <= 4_000) return 400;
-  return 600;
+function creditRatioFor(account, now) {
+  const defaultedRecently = recentDefault(account, now);
+  const goodRepayment = safeInteger(account.repaidLoanCount) > 0 && !defaultedRecently;
+  return {
+    goodRepayment,
+    recentDefault: defaultedRecently,
+    ratioBps: clamp(
+      BANK_BASE_CREDIT_RATIO_BPS
+        + (goodRepayment ? BANK_REPAYMENT_HISTORY_BONUS_BPS : 0)
+        - (defaultedRecently ? BANK_RECENT_DEFAULT_PENALTY_BPS : 0),
+      BANK_MINIMUM_CREDIT_RATIO_BPS,
+      BANK_MAXIMUM_CREDIT_RATIO_BPS,
+    ),
+  };
 }
 
-export function calculateLoanAssessment(world, player, collateral, requestedAmount = undefined, now = Date.now()) {
+function utilizationSurchargeBps(utilizationBps) {
+  if (utilizationBps <= 5_000) return 0;
+  if (utilizationBps <= 8_000) return 100;
+  return 200;
+}
+
+function normalizeTermHours(value) {
+  const hours = Math.floor(Number(value));
+  return BANK_LOAN_TERM_OPTIONS_HOURS.includes(hours) ? hours : null;
+}
+
+function termHoursFromPayload(payload) {
+  const direct = normalizeTermHours(payload?.termHours);
+  if (direct) return direct;
+  for (const item of Array.isArray(payload?.collateral) ? payload.collateral : []) {
+    if (String(item?.provinceId || '') !== TERM_CARRIER_PROVINCE_ID) continue;
+    const match = /^bank-credit-term-(24|72|168)$/.exec(String(item?.facilityTypeId || ''));
+    const carried = normalizeTermHours(match?.[1]);
+    if (carried) return carried;
+  }
+  return null;
+}
+
+export function calculateAssetCreditAssessment(world, player, requestedAmount = undefined, termHours = 72, now = Date.now()) {
   ensureBankWorld(world, now);
   const account = ensurePlayerBankAccount(player, now);
-  const normalized = normalizeCollateralWithValues(world, player, collateral);
-  const invalidCollateral = normalized.some((item) => item.quantity > item.availableQuantity);
-  const collateralValue = normalized.reduce((sum, item) => addSafe(
-    sum,
-    multiplyFloor(item.quantity, item.prudentUnitValue, 1),
-  ), 0);
-  const depositBufferEligible = collateralValue > 0 && account.depositCredits * 10 >= collateralValue;
-  const recentDefault = account.lastDefaultAt !== null && now - account.lastDefaultAt < DEFAULT_LOOKBACK_MS;
-  const goodRepayment = account.repaidLoanCount > 0 && !recentDefault;
-  const modifiers = {
-    baseBps: 4_000,
-    depositBufferBps: depositBufferEligible ? 500 : 0,
-    repaymentHistoryBps: goodRepayment ? 500 : 0,
-    recentDefaultBps: recentDefault ? -1_500 : 0,
-  };
-  const loanToValueBps = clamp(
-    modifiers.baseBps + modifiers.depositBufferBps + modifiers.repaymentHistoryBps + modifiers.recentDefaultBps,
-    2_500,
-    5_000,
-  );
-  const maximumLoanCredits = Math.max(0, floorInternalMoney(multiplyFloor(collateralValue, loanToValueBps, 10_000)) || 0);
-  const amount = requestedAmount === undefined ? maximumLoanCredits : safePositiveMoney(requestedAmount, maximumLoanCredits || MAX_SAFE);
-  const actualLtvBps = amount && collateralValue > 0
-    ? Math.ceil(amount * 10_000 / collateralValue)
+  const selectedTermHours = normalizeTermHours(termHours);
+  const assetValue = bankCreditAssetValue(world, player);
+  const credit = creditRatioFor(account, now);
+  const maximumLoanCredits = floorCents(assetValue * credit.ratioBps / 10_000);
+  const requested = requestedAmount === undefined
+    ? maximumLoanCredits
+    : safePositiveMoney(requestedAmount, Math.max(0.01, maximumLoanCredits));
+  const amount = requested && requested <= maximumLoanCredits ? requested : 0;
+  const creditUtilizationBps = amount > 0 && maximumLoanCredits > 0
+    ? Math.min(10_000, Math.ceil(amount * 10_000 / maximumLoanCredits))
     : 0;
-  const interestRateBps = loanRateBpsForRatio(actualLtvBps);
-  const totalInterestCredits = amount ? multiplyCeil(amount, interestRateBps, 10_000) : 0;
+  const surchargeBps = utilizationSurchargeBps(creditUtilizationBps);
+  const baseInterestRateBps = selectedTermHours ? TERM_BASE_RATE_BPS.get(selectedTermHours) : 0;
+  const interestRateBps = selectedTermHours ? baseInterestRateBps + surchargeBps : 0;
+  const totalInterestCredits = amount > 0 ? ceilCents(amount * interestRateBps / 10_000) : 0;
   return {
-    collateral: normalized,
-    collateralValue,
-    invalidCollateral,
-    depositBufferEligible,
-    goodRepayment,
-    recentDefault,
-    modifiers,
-    loanToValueBps,
+    assetValue,
+    goodRepayment: credit.goodRepayment,
+    recentDefault: credit.recentDefault,
+    creditRatioBps: credit.ratioBps,
     maximumLoanCredits,
-    requestedAmount: amount || 0,
-    actualLtvBps,
+    requestedAmount: amount,
+    creditUtilizationBps,
+    termHours: selectedTermHours,
+    termMs: selectedTermHours ? selectedTermHours * 60 * 60 * 1000 : 0,
+    baseInterestRateBps,
+    utilizationSurchargeBps: surchargeBps,
     interestRateBps,
     totalInterestCredits,
-    totalRepaymentCredits: amount ? addSafe(amount, totalInterestCredits) : 0,
-    termMs: BANK_LOAN_TERM_MS,
+    totalRepaymentCredits: amount > 0 ? addSafe(amount, totalInterestCredits) : 0,
     graceMs: BANK_LOAN_GRACE_MS,
   };
 }
 
-function completeLoan(account, loan, now) {
-  account.repaidLoanCount += 1;
-  recordTransaction(account, 'loan_repaid', loan.principalOriginal, now, '冻结贷款已全部结清', { loanId: loan.id });
-  account.activeLoan = null;
+function recordTransaction(account, type, amount, createdAt, description, metadata = {}) {
+  account.recentTransactions ||= [];
+  account.recentTransactions.push({
+    id: `bank-transaction-${randomUUID()}`,
+    type,
+    amount: Math.max(0, safeMoney(amount)),
+    createdAt: safeInteger(createdAt),
+    description: String(description || ''),
+    ...metadata,
+  });
+  account.recentTransactions = account.recentTransactions.slice(-100);
 }
 
-function splitRealizedInterest(amount) {
-  const total = Math.max(0, roundInternalMoney(amount) || 0);
-  const poolCredits = calculateRateMoney(total, BANK_INTEREST_POOL_SHARE_PERCENT, 100, 'half-up') || 0;
-  const employmentCredits = calculateRateMoney(total, BANK_EMPLOYMENT_SHARE_PERCENT, 100, 'half-up') || 0;
-  const reserveCredits = Math.max(0, roundInternalMoney(total - poolCredits - employmentCredits) || 0);
-  return { poolCredits, employmentCredits, reserveCredits };
-}
-
-function allocatePaidInterest(world, player, amount, now, loanId) {
-  const paid = Math.max(0, roundInternalMoney(amount) || 0);
+function allocateCreditLoanInterest(world, player, amount, now, loanId) {
+  const paid = safeMoney(amount);
   if (paid <= 0) return;
-  const bank = ensureBankWorld(world, now);
+  const bank = ensureBankWorld(world, now, { normalizePlayers: false });
   const account = ensurePlayerBankAccount(player, now);
-  const { poolCredits, employmentCredits, reserveCredits } = splitRealizedInterest(paid);
-  const poolMicros = internalMoneyToMicros(poolCredits);
-  if (poolMicros === null) throw new Error('银行存款利息池超出系统可表示范围');
-  bank.interestPoolMicros = addSafeMicros(
-    bank.interestPoolMicros,
-    poolMicros,
-    '银行存款利息池超出系统可表示范围',
-  );
+  const poolCredits = calculateRateMoney(paid, legacy.BANK_INTEREST_POOL_SHARE_PERCENT, 100, 'half-up') || 0;
+  const employmentCredits = calculateRateMoney(paid, legacy.BANK_EMPLOYMENT_SHARE_PERCENT, 100, 'half-up') || 0;
+  const reserveCredits = safeMoney(paid - poolCredits - employmentCredits);
+  addInterestPoolMicros(bank, poolCredits);
   if (employmentCredits > 0) creditPopulationEmployment(world, employmentCredits, 'banking');
   bank.riskReserveCredits = addSafe(bank.riskReserveCredits, reserveCredits);
   bank.totals.borrowerInterestReceived = addSafe(bank.totals.borrowerInterestReceived, paid);
-  player.stats ||= {};
-  player.stats.bankInterestPaid = addSafe(player.stats.bankInterestPaid, paid);
   bank.totals.interestTransferredToEmployment = addSafe(bank.totals.interestTransferredToEmployment, employmentCredits);
   bank.totals.interestTransferredToReserve = addSafe(bank.totals.interestTransferredToReserve, reserveCredits);
+  player.stats ||= {};
+  player.stats.bankInterestPaid = addSafe(player.stats.bankInterestPaid, paid);
   recordTransaction(account, 'interest_paid', paid, now, '支付贷款利息', { loanId });
 }
 
-function applyRepayment(world, player, amount, now, { fromDeposit = false, automatic = false } = {}) {
+function finishCreditLoan(account, loan, now, { collected = false } = {}) {
+  if (!collected) account.repaidLoanCount = safeInteger(account.repaidLoanCount) + 1;
+  recordTransaction(
+    account,
+    collected ? 'loan_collected' : 'loan_repaid',
+    loan.principalOriginal,
+    now,
+    collected ? '资产授信贷款已完成追偿' : '资产授信贷款已全部结清',
+    { loanId: loan.id },
+  );
+  account.creditLoan = null;
+}
+
+function applyCreditLoanPayment(world, player, amount, now, metadata = {}) {
   const account = ensurePlayerBankAccount(player, now);
-  const loan = account.activeLoan;
+  const loan = account.creditLoan;
   if (!loan) return { ok: false, message: '当前没有进行中的贷款', paid: 0 };
-  const liability = addSafe(loan.principalOutstanding, loan.interestOutstanding);
-  const requested = safePositiveMoney(amount, liability);
-  if (!requested) return { ok: false, message: '还款金额无效', paid: 0 };
-  const available = fromDeposit ? account.depositCredits : safeNonNegativeMoney(player.credits);
-  const paid = Math.max(0, floorInternalMoney(Math.min(requested, liability, available)) || 0);
-  if (paid <= 0) return { ok: false, message: fromDeposit ? '银行存款不足' : '可用资金不足', paid: 0 };
-  if (fromDeposit) {
-    account.depositCredits -= paid;
-    account.dayMinimumDepositCredits = Math.min(account.dayMinimumDepositCredits, account.depositCredits);
-  } else {
-    player.credits -= paid;
-  }
+  const liability = creditLoanLiability(player);
+  const requested = safePositiveMoney(amount, Math.max(0.01, liability));
+  if (!requested || requested > liability) return { ok: false, message: '还款金额无效', paid: 0 };
+  const paid = floorCents(Math.min(requested, liability));
+  if (paid <= 0) return { ok: false, message: '还款金额无效', paid: 0 };
   const interestPaid = Math.min(loan.interestOutstanding, paid);
-  loan.interestOutstanding = Math.max(0, roundInternalMoney(loan.interestOutstanding - interestPaid) || 0);
-  const principalPaid = paid - interestPaid;
-  loan.principalOutstanding = Math.max(0, roundInternalMoney(loan.principalOutstanding - principalPaid) || 0);
-  allocatePaidInterest(world, player, interestPaid, now, loan.id);
-  const bank = ensureBankWorld(world, now);
+  loan.interestOutstanding = safeMoney(loan.interestOutstanding - interestPaid);
+  const principalPaid = safeMoney(paid - interestPaid);
+  loan.principalOutstanding = safeMoney(loan.principalOutstanding - principalPaid);
+  allocateCreditLoanInterest(world, player, interestPaid, now, loan.id);
+  const bank = ensureBankWorld(world, now, { normalizePlayers: false });
   bank.totals.principalRepaid = addSafe(bank.totals.principalRepaid, principalPaid);
   player.stats ||= {};
   player.stats.bankPrincipalRepaid = addSafe(player.stats.bankPrincipalRepaid, principalPaid);
-  recordTransaction(account, automatic ? 'automatic_repayment' : 'repayment', paid, now, automatic ? '自动偿还贷款' : '偿还贷款', {
-    loanId: loan.id,
-    principalPaid,
-    interestPaid,
-    source: fromDeposit ? 'deposit' : 'cash',
-  });
-  if (loan.principalOutstanding === 0 && loan.interestOutstanding === 0) completeLoan(account, loan, now);
-  return { ok: true, paid, principalPaid, interestPaid, message: account.activeLoan ? `已还款 ${paid}` : '贷款已全部结清' };
+  recordTransaction(
+    account,
+    metadata.automatic ? 'automatic_repayment' : metadata.collection ? 'collection_repayment' : 'repayment',
+    paid,
+    now,
+    metadata.collection ? '银行追偿贷款' : metadata.automatic ? '自动偿还贷款' : '偿还贷款',
+    { loanId: loan.id, principalPaid, interestPaid, source: metadata.source || 'cash' },
+  );
+  if (loan.principalOutstanding === 0 && loan.interestOutstanding === 0) {
+    finishCreditLoan(account, loan, now, { collected: Boolean(loan.defaultedAt) });
+  }
+  return { ok: true, paid, principalPaid, interestPaid, message: account.creditLoan ? `已还款 ${paid}` : '贷款已全部结清' };
 }
 
-function autoRepayLoan(world, player, now) {
+function repayCreditLoanFromBalance(world, player, source, now, { automatic = false, collection = false } = {}) {
   const account = ensurePlayerBankAccount(player, now);
-  let loan = account.activeLoan;
-  if (!loan || !loan.autoRepay) return 0;
-  let totalPaid = 0;
-  let liability = activeLoanLiability(player);
-  if (liability > 0 && account.depositCredits > 0) {
-    const result = applyRepayment(world, player, Math.min(liability, account.depositCredits), now, { fromDeposit: true, automatic: true });
-    totalPaid += result.paid || 0;
+  const liability = creditLoanLiability(player);
+  if (liability <= 0) return 0;
+  const available = source === 'deposit' ? safeMoney(account.depositCredits) : safeMoney(player.credits);
+  const amount = floorCents(Math.min(liability, available));
+  if (amount <= 0) return 0;
+  if (source === 'deposit') {
+    account.depositCredits = safeMoney(account.depositCredits - amount);
+    account.dayMinimumDepositCredits = Math.min(account.dayMinimumDepositCredits, account.depositCredits);
+  } else {
+    player.credits = safeMoney(player.credits - amount);
   }
-  loan = account.activeLoan;
-  liability = activeLoanLiability(player);
-  if (loan && liability > 0 && player.credits > 0) {
-    const result = applyRepayment(world, player, Math.min(liability, player.credits), now, { automatic: true });
-    totalPaid += result.paid || 0;
-  }
-  return totalPaid;
+  const result = applyCreditLoanPayment(world, player, amount, now, { source, automatic, collection });
+  return result.paid || 0;
 }
 
-function reduceGroupForSeizure(group, quantity) {
-  const removed = Math.min(safeNonNegativeInteger(group.count), safeNonNegativeInteger(quantity));
+function autoRepayCreditLoan(world, player, now) {
+  const loan = ensurePlayerBankAccount(player, now).creditLoan;
+  if (!loan || !loan.autoRepay) return 0;
+  let paid = repayCreditLoanFromBalance(world, player, 'deposit', now, { automatic: true });
+  if (ensurePlayerBankAccount(player, now).creditLoan) {
+    paid += repayCreditLoanFromBalance(world, player, 'cash', now, { automatic: true });
+  }
+  return paid;
+}
+
+function reduceFacilityGroup(group, quantity) {
+  const removed = Math.min(safeInteger(group?.count), safeInteger(quantity));
+  if (removed <= 0) return 0;
   group.count -= removed;
-  const participatingReduction = Math.min(safeNonNegativeInteger(group.participatingCount), removed);
-  group.participatingCount -= participatingReduction;
-  if (group.count <= 0) return removed;
-  if (group.status === 'running' && group.participatingCount < 1) {
+  group.participatingCount = Math.max(0, safeInteger(group.participatingCount) - removed);
+  if (group.count <= 0 || (group.status === 'running' && group.participatingCount < 1)) {
     group.status = 'error';
     group.statusReason = 'no_available_facility';
     delete group.cycleStartedAt;
@@ -524,189 +406,156 @@ function reduceGroupForSeizure(group, quantity) {
   return removed;
 }
 
-function settleDefault(world, player, now) {
+function reduceCommercialGroup(group, quantity) {
+  const removed = Math.min(safeInteger(group?.count), safeInteger(quantity));
+  if (removed <= 0) return 0;
+  group.count -= removed;
+  if ('participatingCount' in group) group.participatingCount = Math.max(0, safeInteger(group.participatingCount) - removed);
+  if (group.count <= 0 || (group.status === 'running' && safeInteger(group.participatingCount) < 1)) {
+    group.status = 'error';
+    group.statusReason = 'no_available_building';
+    delete group.cycleStartedAt;
+  }
+  return removed;
+}
+
+function applyLiquidationValue(world, player, proceeds, now, metadata) {
   const account = ensurePlayerBankAccount(player, now);
-  const loan = account.activeLoan;
-  if (!loan) return false;
-  let liability = activeLoanLiability(player);
-  const collateral = loan.collateral.map((item) => ({
-    ...item,
-    disposalUnitValue: Math.max(1, multiplyFloor(prudentFacilityValue(world, item.facilityTypeId, item.provinceId), 80, 100)),
-  })).sort((left, right) => right.disposalUnitValue - left.disposalUnitValue
+  if (!account.creditLoan || proceeds <= 0) return 0;
+  const liability = creditLoanLiability(player);
+  const applied = floorCents(Math.min(liability, proceeds));
+  if (applied > 0) applyCreditLoanPayment(world, player, applied, now, { collection: true, source: metadata.kind });
+  const surplus = floorCents(proceeds - applied);
+  if (surplus > 0) {
+    account.depositCredits = addSafe(account.depositCredits, surplus);
+    recordTransaction(account, 'collection_surplus', surplus, now, '追偿资产剩余价值返还银行存款', metadata);
+  }
+  return applied;
+}
+
+function collectAvailableCommodities(world, player, now) {
+  const candidates = Object.entries(player.inventories || {}).flatMap(([rawKey, inventory]) => {
+    const { provinceId, assetId } = splitProvinceScopedKey(rawKey);
+    const quantity = Math.max(0, Math.floor(Number(inventory?.available || 0)));
+    const unitValue = floorCents(commodityUnitValue(world, assetId, provinceId) * 0.8);
+    return quantity > 0 && unitValue > 0 ? [{ rawKey, provinceId, assetId, inventory, quantity, unitValue }] : [];
+  }).sort((left, right) => right.unitValue - left.unitValue || left.rawKey.localeCompare(right.rawKey));
+  for (const item of candidates) {
+    if (!ensurePlayerBankAccount(player, now).creditLoan) break;
+    const liability = creditLoanLiability(player);
+    const needed = Math.max(1, Math.ceil(liability / item.unitValue));
+    const quantity = Math.min(item.quantity, needed);
+    item.inventory.available = Math.max(0, Number(item.inventory.available || 0) - quantity);
+    const proceeds = floorCents(quantity * item.unitValue);
+    applyLiquidationValue(world, player, proceeds, now, {
+      kind: 'commodity', provinceId: item.provinceId, assetId: item.assetId, quantity,
+    });
+  }
+}
+
+function collectAvailableFacilities(world, player, now) {
+  const candidates = (player.facilityGroups || []).flatMap((group) => {
+    const provinceId = normalizeProvinceId(group?.provinceId);
+    const facilityTypeId = String(group?.facilityTypeId || '');
+    const quantity = legacy.transferableFacilityQuantity(world, player, facilityTypeId, provinceId);
+    const unitValue = floorCents(prudentFacilityUnitValue(world, facilityTypeId, provinceId) * 0.8);
+    return quantity > 0 && unitValue > 0 ? [{ group, provinceId, facilityTypeId, quantity, unitValue }] : [];
+  }).sort((left, right) => right.unitValue - left.unitValue
     || left.provinceId.localeCompare(right.provinceId)
     || left.facilityTypeId.localeCompare(right.facilityTypeId));
-  let proceeds = 0;
-  let seizedCount = 0;
-  const seized = [];
-  for (const item of collateral) {
-    if (liability <= proceeds) break;
-    const needed = Math.max(1, Math.ceil((liability - proceeds) / item.disposalUnitValue));
+  for (const item of candidates) {
+    if (!ensurePlayerBankAccount(player, now).creditLoan) break;
+    const liability = creditLoanLiability(player);
+    const needed = Math.max(1, Math.ceil(liability / item.unitValue));
     const quantity = Math.min(item.quantity, needed);
-    const group = groupFor(player, item.facilityTypeId, item.provinceId);
-    if (!group || quantity <= 0) continue;
-    const removed = reduceGroupForSeizure(group, quantity);
+    const removed = reduceFacilityGroup(item.group, quantity);
     if (removed <= 0) continue;
-    const value = multiplyFloor(removed, item.disposalUnitValue, 1);
-    proceeds = addSafe(proceeds, value);
-    seizedCount += removed;
-    seized.push({
-      provinceId: item.provinceId,
-      facilityTypeId: item.facilityTypeId,
-      quantity: removed,
-      disposalUnitValue: item.disposalUnitValue,
+    const key = provinceScopedKey(item.provinceId, item.facilityTypeId);
+    const bank = ensureBankWorld(world, now, { normalizePlayers: false });
+    bank.facilityReserves ||= {};
+    bank.facilityReserves[key] = safeInteger(bank.facilityReserves[key]) + removed;
+    const proceeds = floorCents(removed * item.unitValue);
+    applyLiquidationValue(world, player, proceeds, now, {
+      kind: 'facility', provinceId: item.provinceId, assetId: item.facilityTypeId, quantity: removed,
     });
-    const bank = ensureBankWorld(world, now);
-    const reserveKey = provinceScopedKey(item.provinceId, item.facilityTypeId);
-    bank.facilityReserves[reserveKey] = addSafe(bank.facilityReserves[reserveKey], removed);
   }
-  player.facilityGroups = (player.facilityGroups || []).filter((group) => safeNonNegativeInteger(group.count) > 0);
-  const applied = Math.min(proceeds, liability);
-  const interestPaid = Math.min(loan.interestOutstanding, applied);
-  loan.interestOutstanding = Math.max(0, roundInternalMoney(loan.interestOutstanding - interestPaid) || 0);
-  const principalPaid = applied - interestPaid;
-  loan.principalOutstanding = Math.max(0, roundInternalMoney(loan.principalOutstanding - principalPaid) || 0);
-  allocatePaidInterest(world, player, interestPaid, now, loan.id);
-  const bank = ensureBankWorld(world, now);
-  bank.totals.principalRepaid = addSafe(bank.totals.principalRepaid, principalPaid);
-  player.stats.bankPrincipalRepaid = addSafe(player.stats.bankPrincipalRepaid, principalPaid);
-  bank.totals.defaults = addSafe(bank.totals.defaults, 1);
-  player.stats ||= {};
-  player.stats.bankDefaults = addSafe(player.stats.bankDefaults, 1);
-  player.stats.bankFacilitiesSeized = addSafe(player.stats.bankFacilitiesSeized, seizedCount);
-  bank.totals.facilitiesSeized = addSafe(bank.totals.facilitiesSeized, seizedCount);
-  const surplus = Math.max(0, proceeds - liability);
-  if (surplus > 0) account.depositCredits = addSafe(account.depositCredits, surplus);
-  const shortfall = activeLoanLiability(player);
-  if (shortfall > 0) {
-    const absorbed = Math.min(bank.riskReserveCredits, shortfall);
-    bank.riskReserveCredits -= absorbed;
+}
+
+function collectAvailableCommercialBuildings(world, player, now) {
+  const candidates = (player.commercialBuildingGroups || []).flatMap((group) => {
+    const commercialTypeId = String(group?.commercialTypeId || '');
+    const type = COMMERCIAL_BY_ID.get(commercialTypeId);
+    const quantity = safeInteger(group?.count);
+    const unitValue = floorCents(safeMoney(type?.systemValue) * 0.8);
+    return quantity > 0 && unitValue > 0 ? [{ group, commercialTypeId, quantity, unitValue }] : [];
+  }).sort((left, right) => right.unitValue - left.unitValue || left.commercialTypeId.localeCompare(right.commercialTypeId));
+  for (const item of candidates) {
+    if (!ensurePlayerBankAccount(player, now).creditLoan) break;
+    const liability = creditLoanLiability(player);
+    const needed = Math.max(1, Math.ceil(liability / item.unitValue));
+    const quantity = Math.min(item.quantity, needed);
+    const removed = reduceCommercialGroup(item.group, quantity);
+    if (removed <= 0) continue;
+    const proceeds = floorCents(removed * item.unitValue);
+    applyLiquidationValue(world, player, proceeds, now, {
+      kind: 'commercial', assetId: item.commercialTypeId, quantity: removed,
+    });
   }
+}
+
+function beginCreditDefault(world, player, now) {
+  const account = ensurePlayerBankAccount(player, now);
+  const loan = account.creditLoan;
+  if (!loan || loan.defaultedAt) return;
+  loan.defaultedAt = now;
   account.lastDefaultAt = now;
-  recordTransaction(account, 'default', liability, now, '贷款逾期，银行处置冻结工厂', {
-    loanId: loan.id,
-    seized,
-    proceeds,
-    surplus,
-    writtenOff: shortfall,
-  });
-  account.activeLoan = null;
-  return true;
+  const bank = ensureBankWorld(world, now, { normalizePlayers: false });
+  bank.totals.defaults = safeInteger(bank.totals.defaults) + 1;
+  player.stats ||= {};
+  player.stats.bankDefaults = safeInteger(player.stats.bankDefaults) + 1;
+  recordTransaction(account, 'default', creditLoanLiability(player), now, '资产授信贷款进入违约追偿', { loanId: loan.id });
 }
 
-function processLoanDeadlines(world, timestamp) {
+function collectCreditDefault(world, player, now) {
+  const account = ensurePlayerBankAccount(player, now);
+  if (!account.creditLoan) return;
+  beginCreditDefault(world, player, now);
+  repayCreditLoanFromBalance(world, player, 'deposit', now, { collection: true });
+  if (ensurePlayerBankAccount(player, now).creditLoan) repayCreditLoanFromBalance(world, player, 'cash', now, { collection: true });
+  if (ensurePlayerBankAccount(player, now).creditLoan) collectAvailableCommodities(world, player, now);
+  if (ensurePlayerBankAccount(player, now).creditLoan) collectAvailableFacilities(world, player, now);
+  if (ensurePlayerBankAccount(player, now).creditLoan) collectAvailableCommercialBuildings(world, player, now);
+  const remaining = ensurePlayerBankAccount(player, now).creditLoan;
+  if (remaining) {
+    remaining.status = 'grace';
+    remaining.graceEndsAt = now + BANK_COLLECTION_RETRY_MS;
+    recordTransaction(account, 'collection_pending', creditLoanLiability(player), now, '违约欠款尚未结清，将继续追偿', { loanId: remaining.id });
+  }
+}
+
+function processCreditLoanDeadlines(world, now) {
   for (const player of Object.values(world.players || {})) {
-    const account = ensurePlayerBankAccount(player, timestamp);
-    const loan = account.activeLoan;
+    const account = ensurePlayerBankAccount(player, now);
+    let loan = account.creditLoan;
     if (!loan) continue;
-    if (loan.status === 'active' && timestamp >= loan.dueAt) {
-      autoRepayLoan(world, player, timestamp);
-      if (!account.activeLoan) continue;
-      account.activeLoan.status = 'grace';
-      account.activeLoan.graceEndsAt = Math.max(account.activeLoan.graceEndsAt, account.activeLoan.dueAt + BANK_LOAN_GRACE_MS);
-      recordTransaction(account, 'grace_started', activeLoanLiability(player), timestamp, '贷款到期，已进入宽限期', { loanId: loan.id });
+    if (loan.status === 'active' && loan.dueAt <= now) {
+      autoRepayCreditLoan(world, player, now);
+      loan = ensurePlayerBankAccount(player, now).creditLoan;
+      if (!loan) continue;
+      loan.status = 'grace';
+      loan.graceEndsAt = Math.max(loan.graceEndsAt, loan.dueAt + BANK_LOAN_GRACE_MS);
+      recordTransaction(account, 'grace_started', creditLoanLiability(player), now, '贷款进入 12h 宽限期', { loanId: loan.id });
     }
-    if (account.activeLoan?.status === 'grace' && timestamp >= account.activeLoan.graceEndsAt) {
-      autoRepayLoan(world, player, timestamp);
-      if (account.activeLoan) settleDefault(world, player, timestamp);
-    }
+    loan = ensurePlayerBankAccount(player, now).creditLoan;
+    if (loan?.status === 'grace' && loan.graceEndsAt <= now) collectCreditDefault(world, player, now);
   }
 }
 
-function settleDepositInterest(world, settlementAt) {
-  const bank = ensureBankWorld(world, settlementAt);
-  let totalEligible = 0;
-  let paidCredits = 0;
-  let fundedByPoolMicros = 0;
-  let subsidyMicros = 0;
-  for (const player of Object.values(world.players || {})) {
-    const account = ensurePlayerBankAccount(player, settlementAt);
-    account.lastDepositInterestEarned = 0;
-    if (!isPlayerWeeklyInterestEligible(player, settlementAt)) continue;
-    const eligible = Math.min(account.dayOpeningDepositCredits, account.dayMinimumDepositCredits);
-    totalEligible = addSafe(totalEligible, eligible);
-    const interestCredits = calculateRateMoney(eligible, BANK_DAILY_INTEREST_RATE_BPS, 10_000, 'floor') || 0;
-    const payableMicrosBig = internalMoneyToMicros(interestCredits) || 0n;
-    const payableMicros = payableMicrosBig > BigInt(Number.MAX_SAFE_INTEGER)
-      ? Number.MAX_SAFE_INTEGER
-      : Number(payableMicrosBig);
-    account.depositInterestCarryMicros = 0;
-    if (payableMicros <= 0 || interestCredits <= 0) continue;
-
-    const poolMicros = Math.min(bank.interestPoolMicros, payableMicros);
-    const issuedMicros = payableMicros - poolMicros;
-    bank.interestPoolMicros -= poolMicros;
-    fundedByPoolMicros += poolMicros;
-    subsidyMicros += issuedMicros;
-    account.lastDepositInterestEarned = interestCredits;
-    account.depositCredits = addSafe(account.depositCredits, interestCredits);
-    account.totalDepositInterestEarned = addSafe(account.totalDepositInterestEarned, interestCredits);
-    player.stats ||= {};
-    player.stats.bankDepositInterestEarned = addSafe(player.stats.bankDepositInterestEarned, interestCredits);
-    player.stats.bankDepositInterestSubsidyIssued = addSafe(
-      player.stats.bankDepositInterestSubsidyIssued,
-      microsToInternalMoney(issuedMicros) || 0,
-    );
-    paidCredits = addSafe(paidCredits, interestCredits);
-    recordTransaction(account, 'deposit_interest', interestCredits, settlementAt, '银行存款每日固定结息');
-  }
-
-  const fundedByPoolCredits = microsToInternalMoney(fundedByPoolMicros) || 0;
-  const subsidyCredits = microsToInternalMoney(subsidyMicros) || 0;
-  bank.lastDailyInterestCredits = paidCredits;
-  bank.lastDailyRatePpm = totalEligible > 0 ? BANK_DAILY_INTEREST_RATE_BPS * 100 : 0;
-  bank.recentDailyRatesPpm.push(bank.lastDailyRatePpm);
-  bank.recentDailyRatesPpm = bank.recentDailyRatesPpm.slice(-7);
-  bank.totals.depositorInterestPaid = addSafe(bank.totals.depositorInterestPaid, paidCredits);
-  bank.totals.depositorInterestFundedByPool = addSafe(
-    bank.totals.depositorInterestFundedByPool,
-    fundedByPoolCredits,
-  );
-  bank.totals.depositInterestSubsidyIssued = addSafe(
-    bank.totals.depositInterestSubsidyIssued,
-    subsidyCredits,
-  );
-  world.stats ||= {};
-  world.stats.bankDepositInterestSubsidyIssued = addSafe(
-    world.stats.bankDepositInterestSubsidyIssued,
-    subsidyCredits,
-  );
-
-  const depositsAfter = Object.values(world.players || {}).reduce((sum, player) => (
-    addSafe(sum, ensurePlayerBankAccount(player, settlementAt).depositCredits)
-  ), 0);
-  const retainedCredits = calculateRateMoney(
-    depositsAfter,
-    BANK_DAILY_INTEREST_RATE_BPS * BANK_INTEREST_POOL_RETENTION_DAYS,
-    10_000,
-    'floor',
-  ) || 0;
-  const poolCapMicros = Number(internalMoneyToMicros(retainedCredits) || 0n);
-  if (bank.interestPoolMicros > poolCapMicros) {
-    const excessMicros = bank.interestPoolMicros - poolCapMicros;
-    const reserveCredits = microsToInternalMoney(excessMicros) || 0;
-    if (reserveCredits > 0) {
-      bank.interestPoolMicros -= excessMicros;
-      bank.riskReserveCredits = addSafe(bank.riskReserveCredits, reserveCredits);
-      bank.totals.interestTransferredToReserve = addSafe(bank.totals.interestTransferredToReserve, reserveCredits);
-    }
-  }
-
-  const nextPeriod = bankPeriodFor(settlementAt + 1);
-  bank.currentDayKey = nextPeriod.dayKey;
-  bank.nextInterestSettlementAt = nextPeriod.nextSettlementAt;
-  for (const player of Object.values(world.players || {})) {
-    const account = ensurePlayerBankAccount(player, settlementAt);
-    account.dayKey = nextPeriod.dayKey;
-    account.dayOpeningDepositCredits = account.depositCredits;
-    account.dayMinimumDepositCredits = account.depositCredits;
-  }
-}
-
-function earliestLoanDeadline(world) {
+function earliestCreditLoanDeadline(world) {
   let deadline = null;
   for (const player of Object.values(world.players || {})) {
-    const loan = player?.bankAccount?.activeLoan;
-    if (!loan || typeof loan !== 'object') continue;
+    const loan = player?.bankAccount?.creditLoan;
+    if (!loan) continue;
     const candidate = loan.status === 'grace' ? Number(loan.graceEndsAt) : Number(loan.dueAt);
     if (Number.isFinite(candidate) && candidate >= 0) deadline = deadline === null ? candidate : Math.min(deadline, candidate);
   }
@@ -714,112 +563,108 @@ function earliestLoanDeadline(world) {
 }
 
 export function nextBankDeadlineAt(world, now = Date.now()) {
-  const fallbackSettlement = bankPeriodFor(now).nextSettlementAt;
-  const bankSettlement = Number(world?.bank?.nextInterestSettlementAt);
-  const interestDeadline = Number.isFinite(bankSettlement) && bankSettlement >= 0 ? bankSettlement : fallbackSettlement;
-  const loanDeadline = earliestLoanDeadline(world);
-  return loanDeadline === null ? interestDeadline : Math.min(interestDeadline, loanDeadline);
+  const legacyDeadline = legacy.nextBankDeadlineAt(world, now);
+  const creditDeadline = earliestCreditLoanDeadline(world);
+  return creditDeadline === null ? legacyDeadline : Math.min(legacyDeadline, creditDeadline);
 }
 
 export function processBankWorld(world, now = Date.now()) {
-  const bank = ensureBankWorld(world, now);
+  ensureBankWorld(world, now);
   let changed = false;
   let iterations = 0;
   while (iterations < 4_000) {
-    const loanDeadline = earliestLoanDeadline(world);
-    const nextAt = loanDeadline === null
-      ? bank.nextInterestSettlementAt
-      : Math.min(bank.nextInterestSettlementAt, loanDeadline);
+    const legacyDeadline = legacy.nextBankDeadlineAt(world, now);
+    const creditDeadline = earliestCreditLoanDeadline(world);
+    const nextAt = creditDeadline === null ? legacyDeadline : Math.min(legacyDeadline, creditDeadline);
     if (!Number.isFinite(nextAt) || nextAt > now) break;
-    processLoanDeadlines(world, nextAt);
-    if (bank.nextInterestSettlementAt <= nextAt) settleDepositInterest(world, bank.nextInterestSettlementAt);
-    changed = true;
+    if (legacyDeadline <= nextAt) {
+      legacy.processBankWorld(world, nextAt);
+      changed = true;
+    }
+    if (creditDeadline !== null && creditDeadline <= nextAt) {
+      processCreditLoanDeadlines(world, nextAt);
+      changed = true;
+    }
     iterations += 1;
   }
   if (iterations >= 4_000) throw new Error('银行截止时间处理超过安全上限');
+  ensureBankWorld(world, now);
   return changed;
 }
 
-function applyDeposit(world, player, payload, now) {
-  const amount = safePositiveMoney(payload.amount, safeNonNegativeMoney(player.credits));
-  if (!amount) return { ok: false, message: '存款金额无效或可用资金不足' };
+function applyCreditBorrow(world, player, payload, now) {
   const account = ensurePlayerBankAccount(player, now);
-  player.credits -= amount;
-  account.depositCredits = addSafe(account.depositCredits, amount);
-  recordTransaction(account, 'deposit', amount, now, '存入银行');
-  return { ok: true, message: `已存入 ${amount}` };
-}
-
-function applyWithdrawal(world, player, payload, now) {
-  const account = ensurePlayerBankAccount(player, now);
-  if (account.activeLoan?.status === 'grace') return { ok: false, message: '贷款处于宽限期，暂时不能取款' };
-  const amount = safePositiveMoney(payload.amount, account.depositCredits);
-  if (!amount) return { ok: false, message: '取款金额无效或银行存款不足' };
-  account.depositCredits -= amount;
-  account.dayMinimumDepositCredits = Math.min(account.dayMinimumDepositCredits, account.depositCredits);
-  player.credits = addSafe(player.credits, amount);
-  recordTransaction(account, 'withdrawal', amount, now, '从银行取出资金');
-  return { ok: true, message: `已取出 ${amount}` };
-}
-
-function applyBorrow(world, player, payload, now) {
-  const account = ensurePlayerBankAccount(player, now);
-  if (account.activeLoan) return { ok: false, message: '每名玩家同时只能有一笔进行中的贷款' };
-  const amount = safePositiveMoney(payload.amount);
-  const assessment = calculateLoanAssessment(world, player, payload.collateral, amount, now);
-  if (!amount || assessment.collateral.length === 0) return { ok: false, message: '贷款金额或冻结工厂无效' };
-  if (assessment.invalidCollateral) return { ok: false, message: '可冻结工厂数量不足' };
-  if (amount > assessment.maximumLoanCredits) return { ok: false, message: '申请金额超过当前贷款额度' };
+  if (account.activeLoan || account.creditLoan) return { ok: false, message: '每名玩家同时只能有一笔进行中的贷款' };
+  const termHours = termHoursFromPayload(payload);
+  if (!termHours) return { ok: false, message: '请选择有效的贷款周期' };
+  const assessment = calculateAssetCreditAssessment(world, player, payload.amount, termHours, now);
+  if (!assessment.requestedAmount || assessment.requestedAmount > assessment.maximumLoanCredits) {
+    return { ok: false, message: '申请金额无效或超过当前最高贷款额度' };
+  }
+  const amount = assessment.requestedAmount;
   const loan = {
-    id: `bank-loan-${randomUUID()}`,
+    id: `bank-credit-loan-${randomUUID()}`,
     status: 'active',
     borrowedAt: now,
-    dueAt: now + BANK_LOAN_TERM_MS,
-    graceEndsAt: now + BANK_LOAN_TERM_MS + BANK_LOAN_GRACE_MS,
+    dueAt: now + assessment.termMs,
+    graceEndsAt: now + assessment.termMs + BANK_LOAN_GRACE_MS,
+    termMs: assessment.termMs,
     principalOriginal: amount,
     principalOutstanding: amount,
     interestOriginal: assessment.totalInterestCredits,
     interestOutstanding: assessment.totalInterestCredits,
     interestRateBps: assessment.interestRateBps,
-    collateral: assessment.collateral.map(({ provinceId, facilityTypeId, quantity, prudentUnitValue }) => ({
-      provinceId,
-      facilityTypeId,
-      quantity,
-      prudentUnitValue,
-    })),
-    collateralValueAtOrigination: assessment.collateralValue,
-    ltvBps: assessment.actualLtvBps,
+    assetValueAtOrigination: assessment.assetValue,
+    creditLimitAtOrigination: assessment.maximumLoanCredits,
+    creditUtilizationBps: assessment.creditUtilizationBps,
     autoRepay: payload.autoRepay !== false,
+    defaultedAt: null,
   };
-  account.activeLoan = loan;
+  account.creditLoan = loan;
   player.credits = addSafe(player.credits, amount);
-  const bank = ensureBankWorld(world, now);
+  const bank = ensureBankWorld(world, now, { normalizePlayers: false });
   bank.totals.creditIssued = addSafe(bank.totals.creditIssued, amount);
   player.stats ||= {};
   player.stats.bankCreditIssued = addSafe(player.stats.bankCreditIssued, amount);
-  recordTransaction(account, 'loan_disbursed', amount, now, '银行发放工厂冻结贷款', { loanId: loan.id });
-  return { ok: true, message: `贷款已发放，到期应还 ${amount + assessment.totalInterestCredits}` };
+  recordTransaction(account, 'loan_disbursed', amount, now, '银行发放资产授信贷款', {
+    loanId: loan.id,
+    termHours,
+    creditUtilizationBps: assessment.creditUtilizationBps,
+  });
+  return { ok: true, message: `贷款已发放，到期应还 ${assessment.totalRepaymentCredits}` };
 }
 
-function applyRepayAction(world, player, payload, now) {
-  const activeLoan = ensurePlayerBankAccount(player, now).activeLoan;
-  if (!activeLoan || (payload.loanId && String(payload.loanId) !== activeLoan.id)) return { ok: false, message: '贷款记录不存在' };
-  const liability = activeLoanLiability(player);
-  const amount = payload.amount === 'all' ? liability : safePositiveMoney(payload.amount, liability);
-  if (!amount) return { ok: false, message: '还款金额无效' };
-  return applyRepayment(world, player, amount, now);
-}
-
-function applyAutoRepaySetting(player, payload, now) {
+function applyCreditRepay(world, player, payload, now) {
   const account = ensurePlayerBankAccount(player, now);
-  if (!account.activeLoan || (payload.loanId && String(payload.loanId) !== account.activeLoan.id)) return { ok: false, message: '贷款记录不存在' };
-  account.activeLoan.autoRepay = payload.enabled === true;
-  recordTransaction(account, 'auto_repay_updated', 0, now, account.activeLoan.autoRepay ? '已开启自动还款' : '已关闭自动还款', { loanId: account.activeLoan.id });
-  return { ok: true, message: account.activeLoan.autoRepay ? '已开启自动还款' : '已关闭自动还款' };
+  const loan = account.creditLoan;
+  if (!loan || (payload.loanId && String(payload.loanId) !== loan.id)) return { ok: false, message: '贷款记录不存在' };
+  const liability = creditLoanLiability(player);
+  const amount = payload.amount === 'all' ? liability : safePositiveMoney(payload.amount, Math.max(0.01, liability));
+  if (!amount || amount > liability) return { ok: false, message: '还款金额无效' };
+  if (safeMoney(player.credits) < amount) return { ok: false, message: '可用资金不足' };
+  player.credits = safeMoney(player.credits - amount);
+  return applyCreditLoanPayment(world, player, amount, now, { source: 'cash' });
 }
 
-export function applyBankAction(world, user, action, payload = {}, now = Date.now(), { processWorld = true } = {}) {
-  if (processWorld) {
+function applyCreditAutoRepaySetting(player, payload, now) {
+  const account = ensurePlayerBankAccount(player, now);
+  if (!account.creditLoan || (payload.loanId && String(payload.loanId) !== account.creditLoan.id)) {
+    return { ok: false, message: '贷款记录不存在' };
+  }
+  account.creditLoan.autoRepay = payload.enabled === true;
+  recordTransaction(
+    account,
+    'auto_repay_updated',
+    0,
+    now,
+    account.creditLoan.autoRepay ? '已开启自动还款' : '已关闭自动还款',
+    { loanId: account.creditLoan.id },
+  );
+  return { ok: true, message: account.creditLoan.autoRepay ? '已开启自动还款' : '已关闭自动还款' };
+}
+
+export function applyBankAction(world, user, action, payload = {}, now = Date.now(), { processWorld: shouldProcessWorld = true } = {}) {
+  if (shouldProcessWorld) {
     migrateBankWorld(world, now);
     processBankWorld(world, now);
   } else {
@@ -827,69 +672,69 @@ export function applyBankAction(world, user, action, payload = {}, now = Date.no
   }
   const player = world.players?.[String(user.id)];
   if (!player) return { ok: false, message: '玩家不存在' };
-  if (action === 'bankDeposit') return applyDeposit(world, player, payload, now);
-  if (action === 'bankWithdraw') return applyWithdrawal(world, player, payload, now);
-  if (action === 'bankBorrow') return applyBorrow(world, player, payload, now);
-  if (action === 'bankRepay') return applyRepayAction(world, player, payload, now);
-  if (action === 'bankSetAutoRepay') return applyAutoRepaySetting(player, payload, now);
-  return { ok: false, message: '银行操作不存在' };
+  const account = ensurePlayerBankAccount(player, now);
+  if (action === 'bankBorrow') return applyCreditBorrow(world, player, payload, now);
+  if (action === 'bankWithdraw' && account.creditLoan?.status === 'grace') {
+    return { ok: false, message: '贷款处于宽限期或追偿期，暂时不能取款' };
+  }
+  if (action === 'bankRepay' && account.creditLoan && (!payload.loanId || String(payload.loanId) === account.creditLoan.id)) {
+    return applyCreditRepay(world, player, payload, now);
+  }
+  if (action === 'bankSetAutoRepay' && account.creditLoan && (!payload.loanId || String(payload.loanId) === account.creditLoan.id)) {
+    return applyCreditAutoRepaySetting(player, payload, now);
+  }
+  return legacy.applyBankAction(world, user, action, payload, now, { processWorld: false });
+}
+
+function publicCreditLoan(loan) {
+  if (!loan) return null;
+  return {
+    id: loan.id,
+    status: loan.status,
+    borrowedAt: loan.borrowedAt,
+    dueAt: loan.dueAt,
+    graceEndsAt: loan.graceEndsAt,
+    principalOriginal: loan.principalOriginal,
+    principalOutstanding: loan.principalOutstanding,
+    interestOriginal: loan.interestOriginal,
+    interestOutstanding: loan.interestOutstanding,
+    interestRateBps: loan.interestRateBps,
+    collateral: [],
+    collateralValueAtOrigination: loan.assetValueAtOrigination,
+    ltvBps: loan.creditUtilizationBps,
+    autoRepay: loan.autoRepay,
+  };
 }
 
 export function createBankClientState(world, player, now = Date.now()) {
-  const bank = {
-    ...defaultBankWorld(now),
-    ...(world?.bank && typeof world.bank === 'object' ? world.bank : {}),
-  };
-  const account = {
-    ...defaultPlayerBankAccount(player, now),
-    ...(player?.bankAccount && typeof player.bankAccount === 'object' ? player.bankAccount : {}),
-  };
-  const eligibleDepositCredits = Math.min(account.dayOpeningDepositCredits, account.dayMinimumDepositCredits);
-  const availableCollateral = (player?.facilityGroups || []).map((group) => {
-    const facilityTypeId = String(group?.facilityTypeId || '');
-    const provinceId = normalizeProvinceId(group?.provinceId);
-    return {
-      provinceId,
-      facilityTypeId,
-      totalQuantity: safeNonNegativeInteger(group?.count),
-      mortgagedQuantity: mortgagedFacilityQuantity(player, facilityTypeId, provinceId),
-      availableQuantity: transferableFacilityQuantity(world, player, facilityTypeId, provinceId),
-      prudentUnitValue: prudentFacilityValue(world, facilityTypeId, provinceId),
-    };
-  }).filter((item) => FACILITY_BY_ID.has(item.facilityTypeId) && item.totalQuantity > 0);
-  const sevenDayAverageRatePpm = bank.recentDailyRatesPpm.length > 0
-    ? Math.floor(bank.recentDailyRatesPpm.reduce((sum, rate) => sum + rate, 0) / bank.recentDailyRatesPpm.length)
-    : 0;
+  const legacyState = legacy.createBankClientState(world, player, now);
+  const account = ensurePlayerBankAccount(player, now);
+  const currentLoan = legacyState.bankAccount.activeLoan || publicCreditLoan(account.creditLoan);
+  const assetAssessment = calculateAssetCreditAssessment(world, player, undefined, 72, now);
   return {
+    ...legacyState,
     bankAccount: {
-      depositCredits: account.depositCredits,
-      eligibleDepositCredits,
-      depositInterestCarryMicros: account.depositInterestCarryMicros,
-      totalDepositInterestEarned: account.totalDepositInterestEarned,
-      lastDepositInterestEarned: account.lastDepositInterestEarned,
-      repaidLoanCount: account.repaidLoanCount,
-      recentDefaultAt: account.lastDefaultAt,
-      activeLoan: account.activeLoan ? structuredClone(account.activeLoan) : null,
-      recentTransactions: structuredClone(account.recentTransactions.slice(-50).reverse()),
-      availableCollateral,
+      ...legacyState.bankAccount,
+      activeLoan: currentLoan,
+      recentTransactions: structuredClone((account.recentTransactions || []).slice(-50).reverse()),
+      availableCollateral: legacyState.bankAccount.activeLoan ? legacyState.bankAccount.availableCollateral : [],
     },
     bankSummary: {
-      nextInterestSettlementAt: bank.nextInterestSettlementAt,
-      lastDailyInterestCredits: bank.lastDailyInterestCredits,
-      lastDailyRatePpm: bank.lastDailyRatePpm,
-      sevenDayAverageRatePpm,
-      dailyInterestCapBps: BANK_DAILY_INTEREST_RATE_BPS,
-      dailyInterestRateBps: BANK_DAILY_INTEREST_RATE_BPS,
-      interestPoolCredits: microsToInternalMoney(bank.interestPoolMicros) || 0,
-      weeklyCashSettlement: createWeeklyCashSettlementClientState(world, player, now),
-      loanTermMs: BANK_LOAN_TERM_MS,
+      ...legacyState.bankSummary,
       loanGraceMs: BANK_LOAN_GRACE_MS,
-      baseLoanToValueBps: 4_000,
-      depositBufferBonusBps: 500,
-      repaymentHistoryBonusBps: 500,
-      recentDefaultPenaltyBps: 1_500,
-      minimumLoanToValueBps: 2_500,
-      maximumLoanToValueBps: 5_000,
+      baseLoanToValueBps: BANK_BASE_CREDIT_RATIO_BPS,
+      depositBufferBonusBps: 0,
+      repaymentHistoryBonusBps: BANK_REPAYMENT_HISTORY_BONUS_BPS,
+      recentDefaultPenaltyBps: BANK_RECENT_DEFAULT_PENALTY_BPS,
+      minimumLoanToValueBps: BANK_MINIMUM_CREDIT_RATIO_BPS,
+      maximumLoanToValueBps: BANK_MAXIMUM_CREDIT_RATIO_BPS,
+      assetCreditValue: assetAssessment.assetValue,
+      maximumLoanCredits: assetAssessment.maximumLoanCredits,
+      loanTermOptionsHours: BANK_LOAN_TERM_OPTIONS_HOURS,
     },
   };
 }
+
+// Historical collateral remains province-scoped inside banking-legacy.js. New
+// credit loans never create or consume collateral; this adapter only delegates
+// the old mortgaged-factory boundary while a legacy activeLoan still exists.
