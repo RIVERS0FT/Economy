@@ -209,17 +209,18 @@ test('default does not write off missing assets and schedules continuing collect
   ensureBankWorld(world, now);
   assert.equal(borrow(world, alice, 300, 72, false).ok, true);
   const loan = player.bankAccount.creditLoan;
+  const originalGraceEndsAt = loan.graceEndsAt;
   player.credits = 0;
 
-  processBankWorld(world, loan.graceEndsAt);
+  processBankWorld(world, originalGraceEndsAt);
   assert.ok(player.bankAccount.creditLoan);
   assert.equal(player.bankAccount.creditLoan.status, 'grace');
-  assert.equal(player.bankAccount.lastDefaultAt, loan.graceEndsAt);
+  assert.equal(player.bankAccount.lastDefaultAt, originalGraceEndsAt);
   assert.equal(player.stats.bankDefaults, 1);
   assert.ok(activeLoanLiability(player) > 0);
-  assert.equal(player.bankAccount.creditLoan.graceEndsAt, loan.graceEndsAt + 6 * HOUR);
+  assert.equal(player.bankAccount.creditLoan.graceEndsAt, originalGraceEndsAt + 6 * HOUR);
 
-  const assessment = calculateAssetCreditAssessment(world, player, undefined, 72, loan.graceEndsAt + 1);
+  const assessment = calculateAssetCreditAssessment(world, player, undefined, 72, originalGraceEndsAt + 1);
   assert.equal(assessment.recentDefault, true);
   assert.equal(assessment.creditRatioBps, 1_500);
 });
