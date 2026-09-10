@@ -86,12 +86,19 @@ assert.match(facilityAutoProcure, /applyImmediateCommodityBuy/);
 assert.doesNotMatch(facilityAutoProcure, /applyAction\(world, user, 'cancelOrder'/);
 
 const banking = read('server/src/banking.js');
-assert.match(banking, /BANKING_VERSION = 3/);
-assert.match(banking, /BANK_DAILY_INTEREST_RATE_BPS = 100/);
-assert.match(banking, /safePositiveMoney\(payload\.amount, safeNonNegativeMoney\(player\.credits\)\)/);
-assert.match(banking, /calculateRateMoney\(eligible, BANK_DAILY_INTEREST_RATE_BPS/);
-assert.match(banking, /microsToInternalMoney\(fundedByPoolMicros\)/);
-assert.doesNotMatch(banking, /Math\.floor\(shareMicros \/ 10_000\) \* 10_000/);
+const legacyBanking = read('server/src/banking-legacy.js');
+assert.match(banking, /BANKING_VERSION = 4/);
+assert.match(banking, /BANK_BASE_CREDIT_RATIO_BPS = 3_000/);
+assert.match(banking, /floorCents/);
+assert.match(banking, /ceilCents/);
+assert.match(banking, /calculateAssetCreditAssessment/);
+assert.match(banking, /internalMoneyToMicros\(amount\)/);
+assert.match(legacyBanking, /BANKING_VERSION = 3/);
+assert.match(legacyBanking, /BANK_DAILY_INTEREST_RATE_BPS = 100/);
+assert.match(legacyBanking, /safePositiveMoney\(payload\.amount, safeNonNegativeMoney\(player\.credits\)\)/);
+assert.match(legacyBanking, /calculateRateMoney\(eligible, BANK_DAILY_INTEREST_RATE_BPS/);
+assert.match(legacyBanking, /microsToInternalMoney\(fundedByPoolMicros\)/);
+assert.doesNotMatch(legacyBanking, /Math\.floor\(shareMicros \/ 10_000\) \* 10_000/);
 
 const contracts = read('server/src/contracts.js');
 assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 10/);

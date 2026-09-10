@@ -154,7 +154,7 @@ export interface LoadedGameViewModel {
   deleteTransportRoute: (routeId: string) => Promise<ActionResult>;
   bankDeposit: (amount: number) => Promise<ActionResult>;
   bankWithdraw: (amount: number) => Promise<ActionResult>;
-  bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay?: boolean) => Promise<ActionResult>;
+  bankBorrow: (amount: number, termHours: number, autoRepay?: boolean) => Promise<ActionResult>;
   bankRepay: (loanId: string, amount: number | 'all') => Promise<ActionResult>;
   bankSetAutoRepay: (loanId: string, enabled: boolean) => Promise<ActionResult>;
   buildFacility: (facilityTypeId: string, quantity?: number, procurement?: FacilityBuildProcurementOptions) => Promise<ActionResult>;
@@ -593,7 +593,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     deleteTransportRoute: (routeId) => runAction('transportShip', () => gameActions.deleteTransportRoute(routeId)),
     bankDeposit: (amount) => runAction('bankDeposit', () => gameActions.bankDeposit(amount)),
     bankWithdraw: (amount) => runAction('bankWithdraw', () => gameActions.bankWithdraw(amount)),
-    bankBorrow: (amount, collateral, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, collateral, autoRepay)),
+    bankBorrow: (amount, termHours, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, termHours, autoRepay)),
     bankRepay: (loanId, amount) => runAction('bankRepay', () => gameActions.bankRepay(loanId, amount)),
     bankSetAutoRepay: (loanId, enabled) => runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled)),
     buildFacility: (facilityTypeId, quantity = 1, procurement) => runAction('buildFacility', () => gameActions.buildFacility(selectedProvinceId, facilityTypeId, quantity, procurement)),

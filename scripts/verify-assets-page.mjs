@@ -69,9 +69,10 @@ for (const text of [
   'className="bank-account-balance-strip"',
   'title="资金管理"',
   '本周资金计划',
-  'title="工厂冻结融资"',
-  'bank-collateral-list',
+  'title="银行贷款"',
+  '授信资产净值',
   '授信利用率',
+  'aria-label="贷款周期"',
   'title="银行记录"',
 ]) requireText(bankPath, text);
 for (const text of [
@@ -81,6 +82,8 @@ for (const text of [
   'title="存款账户"',
   'title="存款利息与周结算"',
   '<table className="bank-collateral-table">',
+  'title="工厂冻结融资"',
+  'aria-label="可冻结工厂"',
 ]) forbidText(bankPath, text);
 
 for (const text of [
@@ -96,10 +99,10 @@ forbidText(navigationPath, "{ id: 'assets', label: '资产' }");
 requireText(navigationPath, "{ id: 'bank', label: '银行' }");
 for (const text of [
   '独立资产页面已经永久删除，资产总览唯一归属银行页',
-  '页面顺序固定为“资产总览／资金管理／工厂冻结融资／银行记录”',
+  '页面顺序固定为“资产总览／资金管理／银行贷款／银行记录”',
   '不得恢复独立资产页',
-  '商业建筑按服务器目录 `systemValue` 估值',
-  '第一版全部计入可用建筑资产，不进入冻结或产权交易',
+  '资产估值唯一读取服务器权威结果',
+  '页面不得建立银行专用估值算法',
 ]) requireText(designPath, text);
 
 for (const text of [
@@ -120,14 +123,12 @@ for (const text of [
   "getByText('冻结资产', { exact: true })).toHaveCount(1)",
   'compositionColumns).toBe(2)',
   'cashWorkspaceColumns).toBe(1)',
+  "page.locator('.bank-collateral-list')).toHaveCount(0)",
   'scrollWidth <= element.clientWidth + 1',
 ]) requireText(runtimeSpecPath, text);
 
 requireText(componentPath, '商品按当日官方价、工厂按最近产权成交价、商业建筑按目录系统价值估值');
 forbidText(componentPath, '商品和工厂按最近一次订单簿真实成交价估值');
-requireText(designPath, '商品按各州当日官方系统价估值；工厂按最近一次真实产权成交价估值');
-requireText(designPath, '商业建筑按服务器目录 `systemValue` 估值');
-
 requireText(componentPath, 'Number(group.frozenCount || 0) + Number(group.mortgagedCount || 0) + Number(group.contractCollateralCount || 0)');
 
 if (failures.length) {
@@ -135,4 +136,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('银行资产总览、商业建筑资产估值、资金管理与冻结融资布局、十二个正式页面与十一项可见导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。');
+console.log('银行资产总览、商业建筑资产估值、资金管理与资产授信贷款布局、十二个正式页面与十一项可见导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。');
