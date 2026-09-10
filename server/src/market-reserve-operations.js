@@ -1,5 +1,5 @@
 import { createMarketReserveAuction } from './asset-auctions.js';
-import { createMarketReserveProcurementContract } from './contracts.js';
+import { createMarketReserveDailyProcurementContract } from './daily-supply-contracts.js';
 import { PRODUCT_CATALOG } from './industry-catalog.js';
 import { DEFAULT_PROVINCE_ID, provinceScopedKey } from './provinces.js';
 import {
@@ -9,7 +9,7 @@ import {
 } from './market-demand/catalog.js';
 import { ceilPlayerMoney } from './money.js';
 
-export const MARKET_RESERVE_OPERATION_RULE_VERSION = 1;
+export const MARKET_RESERVE_OPERATION_RULE_VERSION = 2;
 export const RESERVE_CONTRACT_ENTRY_RATIO = 0.65;
 export const RESERVE_CONTRACT_EXIT_RATIO = 0.90;
 export const RESERVE_CONTRACT_ENTRY_CYCLES = 2;
@@ -19,8 +19,6 @@ export const RESERVE_AUCTION_ENTRY_CYCLES = 3;
 export const RESERVE_AUCTION_COOLDOWN_MS = 10 * 60 * 1000;
 
 const PRODUCTS = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
-const CONTRACT_DELIVERY_INTERVAL_MS = 30 * 60 * 1000;
-const CONTRACT_FIRST_DELIVERY_DELAY_MS = 10 * 60 * 1000;
 const CONTRACT_OFFER_TTL_MS = 60 * 60 * 1000;
 const AUCTION_DURATION_HOURS = 3;
 
@@ -39,6 +37,23 @@ function referencePriceFor(world, product) {
       || world.markets?.[provinceScopedKey(DEFAULT_PROVINCE_ID, product.id)]?.demand?.referencePrice
       || product.basePrice,
   ));
+}
+
+function retireOpenLegacyReserveContracts(world, now) {
+  const groups = new Set();
+  for (const contract of world.productionContracts || []) {
+    if (contract?.publisherType !== 'market_reserve'
+      || contract?.kind !== 'supply'
+      || contract?.supplyMode === 'daily'
+      || contract?.status !== 'open') continue;
+    contract.status = 'expired';
+    contract.terminationReason = 'legacy_reserve_offer_retired';
+    contract.endedAt = now;
+    contract.nextDueAt = null;
+    contract.negotiations = [];
+    if (contract.marketReserveGroupId) groups.add(String(contract.marketReserveGroupId));
+  }
+  return groups;
 }
 
 function activeReserveContracts(world) {
@@ -99,22 +114,20 @@ function publishProcurementContract(world, group, groupState, product, reserve, 
   ));
   if (!unitPrice) return null;
 
-  const totalDeliveries = Math.min(4, Math.max(2, deficit));
-  const plannedQuantity = Math.max(1, Math.ceil(deficit / totalDeliveries));
-  const maxBatchBudget = Math.max(0, Number(groupState.credits || 0)) * 0.30;
-  const maxQuantityByBudget = Math.floor(maxBatchBudget / unitPrice);
-  const quantityPerDelivery = Math.min(plannedQuantity, maxQuantityByBudget);
-  if (quantityPerDelivery < 1) return null;
+  const maxDailyBudget = Math.max(0, Number(groupState.credits || 0)) * 0.30;
+  const maxQuantityByBudget = Math.floor(maxDailyBudget / unitPrice);
+  const dailyMaxQuantity = Math.min(deficit, maxQuantityByBudget);
+  if (dailyMaxQuantity < 1) return null;
 
-  return createMarketReserveProcurementContract(world, {
+  return createMarketReserveDailyProcurementContract(world, {
     groupId: group.id,
     groupName: group.name,
+    provinceId: DEFAULT_PROVINCE_ID,
     productId: product.id,
-    quantityPerDelivery,
+    dailyMaxQuantity,
     unitPrice,
-    deliveryIntervalMs: CONTRACT_DELIVERY_INTERVAL_MS,
-    totalDeliveries,
-    firstDeliveryDelayMs: CONTRACT_FIRST_DELIVERY_DELAY_MS,
+    durationDays: 1,
+    startDelayDays: 0,
     offerTtlMs: CONTRACT_OFFER_TTL_MS,
   }, now);
 }
@@ -158,9 +171,11 @@ export function processMarketReserveOperations(world, now = Date.now()) {
   world.marketDemand.reserveOperations.ruleVersion = MARKET_RESERVE_OPERATION_RULE_VERSION;
   world.marketDemand.reserveOperations.groupCycles ||= {};
 
+  const retiredGroups = retireOpenLegacyReserveContracts(world, now);
+  for (const groupId of retiredGroups) delete world.marketDemand.reserveOperations.groupCycles[groupId];
   const contracts = activeReserveContracts(world);
   const auctions = activeReserveAuctions(world);
-  let changed = false;
+  let changed = retiredGroups.size > 0;
 
   for (const group of MARKET_DEMAND_GROUP_CATALOG) {
     const demandCycleId = Number(world.marketDemand?.groups?.[group.id]?.lastCycleId);
