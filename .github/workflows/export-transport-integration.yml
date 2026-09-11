@@ -1,0 +1,23 @@
+name: Export Upstream Transport Diff
+on:
+  push:
+    branches: [work/cash-production-investment]
+    paths: [.github/workflows/export-transport-integration.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e2a479441cf4aa51027069f1d441b591434fa2bc
+          fetch-depth: 0
+      - name: Export only the public upstream source changes
+        run: git diff --binary 0d8fe864e4d7f8e1b1fd22cb70bb694c0c66478c HEAD > /tmp/upstream-transport.patch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: upstream-transport-source-diff
+          path: /tmp/upstream-transport.patch
+          retention-days: 1
