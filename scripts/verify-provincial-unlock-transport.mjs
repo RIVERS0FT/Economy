@@ -92,7 +92,7 @@ for (const text of [
 ]) requireText(warehouseDesign, text, `仓库设计缺少运输槽位／工具培养规则：${text}`);
 
 for (const text of [
-  '运输页只显示运输路线目录',
+  '运输页正文先显示全局运输槽位区，再显示运输路线目录',
   '`transport-route`',
   '运输记录唯一显示在对应路线页面',
   '路线名称允许单独修改',
