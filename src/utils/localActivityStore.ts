@@ -31,6 +31,7 @@ export type LocalActivityAction =
   | 'renamePlayer'
   | 'redeemGift'
   | 'exchangeGems'
+  | 'tradeCommodityInvestment'
   | 'bankDeposit'
   | 'bankWithdraw'
   | 'bankBorrow'

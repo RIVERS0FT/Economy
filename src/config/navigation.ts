@@ -6,7 +6,7 @@ export const navigationItems = [
   { id: 'research', label: '研发' },
   { id: 'auction', label: '拍卖' },
   { id: 'contracts', label: '合同' },
-  { id: 'bank', label: '银行' },
+  { id: 'bank', label: '投资' },
   { id: 'leaderboard', label: '排行' },
   { id: 'gem-shop', label: '商店' },
   { id: 'settings', label: '设置' },

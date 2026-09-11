@@ -228,7 +228,7 @@ export function LocalGamePreviewApp() {
   }), [game.inventories, game.markets, localOnlyAction]);
 
   if (!derived) return null;
-  const totalAssets = Math.max(1, derived.totalAssets);
+  const totalAssets = Math.max(1, derived.totalAssets ?? 0);
   const cashShare = Math.round(derived.cashValue / totalAssets * 100);
   const commodityShare = Math.round(derived.commodityValue / totalAssets * 100);
   const facilityShare = Math.max(0, 100 - cashShare - commodityShare);
@@ -283,6 +283,7 @@ export function LocalGamePreviewApp() {
     updateTransportRoute: localOnlyAction,
     renameTransportRoute: localOnlyAction,
     deleteTransportRoute: localOnlyAction,
+    tradeCommodityInvestment: localOnlyAction,
     bankDeposit: localOnlyAction,
     bankWithdraw: localOnlyAction,
     bankBorrow: localOnlyAction,

@@ -10,6 +10,7 @@ import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { CompactNumber, CompactRank } from '../ui/CompactNumber';
 import { MobileWorkspacePageSheet, type MobileWorkspaceSheetRequestClose } from '../ui/MobileWorkspacePageSheet';
 import { formatCompactCurrency, formatCompactNumber, formatCurrency, formatRank } from '../../utils/formatters';
+import { formatAssetCurrency, formatCompactAssetCurrency } from '../../utils/formatters';
 import { AuctionNewIdsContext, useNavigationBadges } from '../../hooks/useNavigationBadges';
 import { useNotificationCenter } from '../../hooks/useNotificationCenter';
 import {
@@ -113,8 +114,8 @@ export function GameShell({ model, children, offline = false }: {
       compactValue: formatCompactCurrency(game.credits), detail: <>冻结 <CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></>,
     },
     {
-      id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,
-      compactValue: formatCompactCurrency(derived.totalAssets),
+      id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatAssetCurrency(derived.totalAssets)}</CurrencyAmount>,
+      compactValue: formatCompactAssetCurrency(derived.totalAssets),
       detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}><span className="status-weekly-trend"><ChevronIcon direction={weeklyTrendDirection} /> 本周</span> <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',
       onClick: openBank,
@@ -131,7 +132,7 @@ export function GameShell({ model, children, offline = false }: {
         ? <>暂无排名数据</>
         : derived.currentRank.rank === 1
           ? <>当前位于榜首</>
-          : derived.previousRank
+          : derived.previousRank && derived.totalAssets !== null
             ? <>距上一名 <CurrencyAmount>{formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}</CurrencyAmount></>
             : <>暂无上一名数据</>,
     },

@@ -1,3 +1,6 @@
+import { flushCommodityInvestmentAudit } from './commodity-investment-audit-store.js';
+import { processCashProductionWorld } from './cash-production-runtime.js';
+import { processCommodityInvestmentWorld } from './commodity-investment-runtime.js';
 import { isDeepStrictEqual } from 'node:util';
 import { processBankWorld } from './banking.js';
 import {
@@ -264,6 +267,7 @@ export class EconomyStore extends PersistentEconomyStore {
     }
 
     const nextRevision = applySegmentedWorldWrite(this, plan, world, now);
+    flushCommodityInvestmentAudit(this, world, mutationScope, revision, nextRevision);
     this.flushContractAuditEvents(world, revision, nextRevision);
     flushAuctionAuditEvents(this, world, revision, nextRevision);
     this.cacheWorld(nextRevision, null, world, false, plan.snapshot);
@@ -285,6 +289,8 @@ export class EconomyStore extends PersistentEconomyStore {
       const beforeContracts = contractSnapshot(world);
       const processed = super.processWorldIfDue(world, now, currentUserId, options);
       if (processed) {
+        processCashProductionWorld(world, now);
+        processCommodityInvestmentWorld(world, now);
         processMarketReserveOperations(world, now);
         processProductionContracts(world, now);
         this.captureContractAuditTransition(beforeContracts, world, {
@@ -324,6 +330,12 @@ export class EconomyStore extends PersistentEconomyStore {
           triggerType: options.auditTrigger || (currentUserId === undefined ? 'scheduler' : 'request_world_process'),
           now,
         });
+      }
+      if (dueDomains.has('cashProduction') || dueDomains.has('market') || dueDomains.has('weeklyCashSettlement')) {
+        processed = processCashProductionWorld(world, now) || processed;
+      }
+      if (dueDomains.has('investment') || dueDomains.has('market') || dueDomains.has('weeklyCashSettlement')) {
+        processed = processCommodityInvestmentWorld(world, now) || processed;
       }
       if (dueDomains.has('bank')) {
         processBankWorld(world, now);

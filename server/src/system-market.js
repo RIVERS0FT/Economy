@@ -1,3 +1,4 @@
+import { archiveOfficialCashMarket, archiveOfficialCashMarkets, pruneCashPriceArchive } from './commodity-investment-prices.js';
 import { adoptLegacyCommodityFreeze, consumeCommodityFreeze, freezeCommodity, releaseLegacyOrderFreeze } from './commodity-freezes.js';
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
@@ -313,10 +314,11 @@ export function createSystemMarketRuntime({
     return quantity;
   }
 
-  function advancePriceCycle(world, market, product, now) {
+  function advancePriceCycle(world, market, product, now, { archive = true } = {}) {
     ensureSystemPrice(market, product, now);
     const period = dailyCheckInPeriodFor(now);
     if (market.priceDateKey === period.todayKey) return false;
+    if (archive) archiveOfficialCashMarket(world, market);
     const yesterdayKey = checkInDateKey(period.todayStartsAt - 1);
     const isYesterday = market.priceDateKey === yesterdayKey;
     // Archive the original day independently from the eligible pricing input.
@@ -352,6 +354,7 @@ export function createSystemMarketRuntime({
       createdAt: now,
     });
     market.priceHistory = market.priceHistory.slice(-constants.maxPricePoints);
+    if (archive) archiveOfficialCashMarket(world, market);
     return true;
   }
 
@@ -365,13 +368,17 @@ export function createSystemMarketRuntime({
 
   function processPriceCycles(world, now = Date.now()) {
     const period = dailyCheckInPeriodFor(now);
+    const due = [];
     for (const market of Object.values(world.markets || {})) {
       if (!market?.productId) continue;
       const product = productFor(market.productId);
       ensureSystemPrice(market, product, now);
-      if (market.priceDateKey === period.todayKey) continue;
-      advancePriceCycle(world, market, product, now);
+      if (market.priceDateKey !== period.todayKey) due.push({ market, product });
     }
+    archiveOfficialCashMarkets(world, due.map(({ market }) => market));
+    for (const { market, product } of due) advancePriceCycle(world, market, product, now, { archive: false });
+    archiveOfficialCashMarkets(world, due.map(({ market }) => market));
+    if (due.length && world.cashEconomy?.version === 1) pruneCashPriceArchive(world, now);
     return world;
   }
 

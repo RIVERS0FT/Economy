@@ -20,6 +20,8 @@ const CORE_LOCAL_SEGMENTS = Object.freeze([
   'moneyPrecision',
   'auctionFeeEscrowCredits',
   'systemMarketAudit',
+  'commodityInvestmentAudit',
+  'cashPriceArchive',
   'transportShipments',
   'version',
 ]);

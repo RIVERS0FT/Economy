@@ -89,6 +89,7 @@ export function planInputTotals(plan, through = plan.batches.length) {
 
 /** Reassign only building custody. Existing contract/auction custody is never available to borrow. */
 export function reconcileBuildingInputFreezes(world, player, now, provinceId) {
+  if (world.cashEconomy?.version === 1) return [];
   const plans = buildingInputPlans(world, player, now, provinceId);
   const bySource = new Map(plans.map((plan) => [`${plan.kind}:${plan.sourceId}`, planInputTotals(plan)]));
   const selected = provinceId === undefined ? null : normalizeProvinceId(provinceId);

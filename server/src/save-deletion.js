@@ -205,6 +205,14 @@ function analyzeDeletion(store, world, player, userId, now) {
     contracts: 0,
   };
 
+  if (Object.keys(player.commodityInvestmentAccount?.positions ?? {}).length > 0) {
+    blockers.push(blocker('commodity_investment_open', '仍有商品期货持仓，请先平仓或完成到期结算', 'bank'));
+  }
+  if ((player?.facilityGroups ?? []).some((group) => group.cashCycle)
+    || (player?.commercialBuildingGroups ?? []).some((group) => group.cashOperatingCycle)) {
+    blockers.push(blocker('cash_operating_cycle_open', '仍有已投入经营周期，请停止续营并等待结算', 'buildings'));
+  }
+
   if (activeLoanLiability(player) > 0) {
     blockers.push(blocker(
       'active_bank_loan',

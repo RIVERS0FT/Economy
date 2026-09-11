@@ -73,6 +73,7 @@ export const PLAYER_ACTION_REGISTRY = Object.freeze({
   exchangeGems: defineAction({ mutationScope: 'local-player', economicActivity: true }),
   rejectGemShopQuote: defineAction({ mutationScope: 'local-player' }),
   retiredFacilityConstructionAcceleration: defineAction({ mutationScope: 'none', domain: 'retired', lifecycle: 'retired', acknowledgement: 'retired' }),
+  tradeCommodityInvestment: defineAction({ rateLimitCategory: 'orders', mutationScope: 'local-player', domain: 'investment', latencyClass: 'market', economicActivity: true }),
   bankDeposit: defineAction({ mutationScope: 'local-player', domain: 'bank', economicActivity: true }),
   bankWithdraw: defineAction({ mutationScope: 'local-player', domain: 'bank', economicActivity: true }),
   bankBorrow: defineAction({ mutationScope: 'local-player', domain: 'bank', economicActivity: true }),

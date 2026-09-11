@@ -57,8 +57,8 @@
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 商品、工厂、配方、生产、统一科技及生产侧资产约束 | 商业建筑经营、页面信息架构、通用 UI、HTTP/SQLite/部署实现 |
 | `COMMERCIAL_BUILDINGS_DESIGN.md` | 商业建筑资产、地区商品消费、客流、人气星级与营业利润 | 工业生产配方、商品市场交易算法、页面通用视觉、服务器部署 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 工厂目录与已拥有工厂的展示顺序 | 工厂经济规则、卡片通用视觉、服务器目录生成 |
-| `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品即时交易、每日官方系统价、服务器内部消费／储备订单边界与历史玩家挂单迁移 | 商业建筑仓库消费、市场页面布局、人口需求预算细节、服务器容量与部署实现 |
-| `WAREHOUSE_EXPANSION_DESIGN.md` | 仓库、地区库存、运输和工厂自动经营业务语义 | 商业营业结算、市场撮合、生产配方、通用页面 Chrome、服务器部署 |
+| `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品即时交易、每日官方系统价、独立商品投资合约／指数／账本、服务器内部消费／储备订单边界与历史玩家挂单迁移 | 商业建筑仓库消费、市场页面布局、人口需求预算细节、服务器容量与部署实现 |
+| `WAREHOUSE_EXPANSION_DESIGN.md` | 仓库、地区库存、退役资产迁移门禁、运输和工厂自动经营业务语义 | 商业营业结算、市场撮合、生产配方、通用页面 Chrome、服务器部署 |
 | `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` | 运输地图公路／铁路首府物理中心线的数据源、离线派生、压缩及航空虚拟航路的数据边界 | 运输经济结算、战略地图 Camera／路线渲染、服务器协议与存储 |
 | `STRATEGIC_MAP_RENDERING_DESIGN.md` | 战略地图 SVG Camera、固定视场边界、州名清晰度、路线显示／运动／高亮与地图专属表面材质 | 运输经济结算、原始 GIS 数据、全应用通用视觉与根 Chrome |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 页面模块归属、导航、页面内容与玩家信息架构 | 业务算法、通用视觉令牌、服务器事务和存储 |

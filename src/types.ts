@@ -556,19 +556,87 @@ export interface EconomyStats {
   contractDefaults?: number;
 }
 
+export interface CommodityInvestmentTradeInput {
+  productId: string;
+  contractId: string;
+  priceDateKey: string;
+  side: 'buy' | 'sell';
+  quantity: number;
+}
+
+export interface CommodityInvestmentQuote {
+  productId: string;
+  available: boolean;
+  message?: string;
+  contractId?: string;
+  periodKey?: string;
+  startsAt?: number;
+  expiresAt?: number;
+  priceDateKey?: string;
+  price?: number;
+  indexPolicyId?: string;
+  feeBps?: number;
+}
+
+export interface CommodityInvestmentPosition {
+  contractId: string;
+  productId: string;
+  quantity: number;
+  cost: number;
+  averageCost: number;
+  price: number | null;
+  value: number | null;
+  unrealizedProfit: number | null;
+  openedAt: number;
+  expiresAt: number;
+  status: 'open' | 'expiry-pending';
+}
+
+export interface CommodityInvestmentTransaction {
+  id: string;
+  productId: string;
+  contractId: string;
+  type: 'buy' | 'sell' | 'expiry' | 'collection';
+  quantity: number;
+  price: number;
+  gross: number;
+  fee: number;
+  principalReleased: number;
+  cashChange: number;
+  realizedProfit: number;
+  createdAt: number;
+  processedAt: number;
+}
+
+export interface CommodityInvestmentState {
+  valuationAvailable: boolean;
+  equity: number | null;
+  principal: number;
+  unrealizedProfit: number | null;
+  realizedProfit: number;
+  feesPaid: number;
+  closeGross: number;
+  positions: CommodityInvestmentPosition[];
+  recentTransactions: CommodityInvestmentTransaction[];
+  expiryMessage: string;
+}
+
 export interface AssetSummary {
+  valuationAvailable?: boolean;
   cashValue: number;
   commodityValue: number;
   facilityValue: number;
   commercialValue?: number;
+  investmentValue?: number | null;
+  workInProgressValue?: number;
   bankDepositValue: number;
   contractReceivableValue?: number;
   contractLiabilityValue?: number;
   contractLockedFacilityValue?: number;
-  grossAssetValue: number;
+  grossAssetValue: number | null;
   liabilityValue: number;
-  netAssetValue: number;
-  totalAssets: number;
+  netAssetValue: number | null;
+  totalAssets: number | null;
   availableCashValue?: number;
   frozenCashValue?: number;
   availableCommodityValue?: number;
@@ -576,7 +644,7 @@ export interface AssetSummary {
   availableFacilityValue?: number;
   mortgagedFacilityValue?: number;
   frozenFacilityValue?: number;
-  availableAssetValue?: number;
+  availableAssetValue?: number | null;
   frozenAssetValue?: number;
 }
 
@@ -696,14 +764,18 @@ export interface WeeklyCashSettlementState {
   interestActive: boolean;
   activatedAt: number | null;
   interestEligibleFrom: number | null;
-  estimatedTaxBase: number;
-  estimatedAssessment: number;
+  valuationAvailable?: boolean;
+  estimatedTaxBase: number | null;
+  estimatedAssessment: number | null;
   outstandingCredits: number;
   pendingSettlement: WeeklyCashSettlementRecord | null;
   lastSettlement: WeeklyCashSettlementRecord | null;
 }
 
 export interface BankSummaryState {
+  valuationAvailable?: boolean;
+  assetCreditValue?: number | null;
+  maximumLoanCredits?: number | null;
   nextInterestSettlementAt: number;
   lastDailyInterestCredits: number;
   lastDailyRatePpm: number;
@@ -743,6 +815,9 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState extends CommercialStateFields {
+  economyMode?: 'cash' | 'legacy';
+  commodityInvestment?: CommodityInvestmentState;
+  commodityInvestmentQuotes?: CommodityInvestmentQuote[];
   version: 44;
   userId: number;
   playerName: string;

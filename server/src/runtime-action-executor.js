@@ -1,3 +1,4 @@
+import { executeCommodityInvestmentTrade, settlePlayerCommodityInvestments } from './commodity-investment-runtime.js';
 import { reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { isDeepStrictEqual } from 'node:util';
 import { applyAssetAuctionAction } from './asset-auctions.js';
@@ -82,7 +83,7 @@ const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'collectFacility', 'placeOrder', 'cancelOrder', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
-  'contributePublicProject',
+  'contributePublicProject', 'tradeCommodityInvestment',
 ]);
 
 function normalizeJson(value) {
@@ -153,6 +154,9 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
         gameResult = researchAccess;
       } else if (action === 'startResearch' || action === 'accelerateResearch') {
         gameResult = applyResearchAction(world, user, action, payload, now);
+      } else if (action === 'tradeCommodityInvestment') {
+        settlePlayerCommodityInvestments(world, world.players[String(user.id)], now);
+        gameResult = executeCommodityInvestmentTrade(world, world.players[String(user.id)], payload, now);
       } else if (action === 'commercialBuilding') {
         gameResult = applyCommercialBuildingAction(world, user, payload, now);
       } else if (action === 'contributePublicProject' || action === 'claimPublicProjectReward') {

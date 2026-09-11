@@ -1,0 +1,81 @@
+.investment-content {
+  display: grid;
+  gap: var(--layout-gutter);
+  min-width: 0;
+}
+
+.investment-tabs {
+  align-self: start;
+  max-width: 100%;
+}
+
+.investment-catalog-header,
+.investment-catalog-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(5rem, 0.6fr) minmax(3rem, 0.4fr);
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+}
+
+.investment-catalog-row {
+  min-height: 3.5rem;
+  padding: 0.5rem 0;
+}
+
+.investment-catalog-header > :not(:first-child),
+.investment-catalog-row > :not(:first-child) {
+  text-align: right;
+}
+
+.investment-product {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.investment-product strong {
+  overflow-wrap: anywhere;
+}
+
+.investment-artwork {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  overflow: hidden;
+}
+
+.investment-trade-panel,
+.investment-position {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+}
+
+.investment-position {
+  padding-block: 1rem;
+}
+
+.investment-quantity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.investment-history-row small {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .investment-catalog-header,
+  .investment-catalog-row {
+    grid-template-columns: minmax(0, 1fr) minmax(4.25rem, 0.55fr) minmax(2rem, 0.35fr);
+    gap: 0.375rem;
+  }
+}
+
+.investment-back {
+  justify-self: start;
+}

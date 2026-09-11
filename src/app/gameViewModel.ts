@@ -26,6 +26,7 @@ import { resetGameSession } from '../api/game';
 import { type TabId } from '../config/navigation';
 import type {
   AssetKind,
+  CommodityInvestmentTradeInput,
   AssetOrder,
   AuthUser,
   EconomyState,
@@ -81,7 +82,7 @@ export interface DerivedGameData {
   facilityValue: number;
   commodityValue: number;
   cashValue: number;
-  totalAssets: number;
+  totalAssets: number | null;
   currentRank?: LeaderboardEntry;
   previousRank: LeaderboardEntry | null;
   runningFacilities: number;
@@ -152,6 +153,7 @@ export interface LoadedGameViewModel {
   updateTransportRoute: (routeId: string, input: TransportRouteInput) => Promise<ActionResult>;
   renameTransportRoute: (routeId: string, name: string) => Promise<ActionResult>;
   deleteTransportRoute: (routeId: string) => Promise<ActionResult>;
+  tradeCommodityInvestment: (input: CommodityInvestmentTradeInput) => Promise<ActionResult>;
   bankDeposit: (amount: number) => Promise<ActionResult>;
   bankWithdraw: (amount: number) => Promise<ActionResult>;
   bankBorrow: (amount: number, termHours: number, autoRepay?: boolean) => Promise<ActionResult>;
@@ -591,6 +593,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     updateTransportRoute: (routeId, input) => runAction('transportShip', () => gameActions.updateTransportRoute(routeId, input)),
     renameTransportRoute: (routeId, name) => runAction('transportShip', () => gameActions.renameTransportRoute(routeId, name)),
     deleteTransportRoute: (routeId) => runAction('transportShip', () => gameActions.deleteTransportRoute(routeId)),
+    tradeCommodityInvestment: (input) => runAction('tradeCommodityInvestment', () => gameActions.tradeCommodityInvestment(input)),
     bankDeposit: (amount) => runAction('bankDeposit', () => gameActions.bankDeposit(amount)),
     bankWithdraw: (amount) => runAction('bankWithdraw', () => gameActions.bankWithdraw(amount)),
     bankBorrow: (amount, termHours, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, termHours, autoRepay)),

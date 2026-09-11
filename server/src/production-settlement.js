@@ -1,3 +1,4 @@
+import { processCashProductionForPlayer } from './cash-production-runtime.js';
 import { productionCostBoundary } from './production-balance.js';
 import { consumeCommodityFreeze, frozenForSource } from './commodity-freezes.js';
 import { reconcileBuildingInputFreezes } from './building-input-freezes.js';
@@ -464,6 +465,7 @@ function validateClaimedMaximum(groupBasisEntry, claimedCycles, resources, settl
 }
 
 export function applyProductionSettlementClaim(world, userId, claim, now = Date.now()) {
+  if (world.cashEconomy?.version === 1) return processCashProductionForPlayer(world, world.players?.[String(userId)], now);
   const settleThrough = Math.max(0, Number(claim?.settleThrough) || 0);
   if (settleThrough > Number(now) + 1_000) invalid('生产结算时间不能晚于服务器时间');
   const player = world?.players?.[String(userId)];
@@ -533,6 +535,7 @@ export function applyProductionSettlementClaim(world, userId, claim, now = Date.
 }
 
 export function settleProductionForPlayerServerSide(world, userId, now = Date.now()) {
+  if (world.cashEconomy?.version === 1) return processCashProductionForPlayer(world, world.players?.[String(userId)], now);
   const basis = createProductionSettlementBasis(world, userId, now);
   const claim = createProductionSettlementClaim(basis);
   if (!claim) return { ok: true, message: '没有待结算生产', settledThrough: Number(now) };

@@ -1,3 +1,4 @@
+import { createCommodityInvestmentClientState } from './commodity-investment-runtime.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -183,6 +184,8 @@ export function createVersionedClientState(world, userId, now, checkIn) {
     ...createWarehouseSummaryReadOnly(player),
     ...createAssetAuctionClientState(world, userId, now),
     ...createBankClientState(world, player, now),
+    ...createCommodityInvestmentClientState(world, player, now),
+    economyMode: world.cashEconomy?.version === 1 ? 'cash' : 'legacy',
     ...createResearchClientState(world, player, now),
     version: CURRENT_CLIENT_STATE_VERSION,
   };

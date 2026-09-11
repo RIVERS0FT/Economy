@@ -9,19 +9,21 @@ export function AssetAllocationChart({
   cash,
   commodities,
   facilities,
+  commodityLabel = '商品',
 }: {
   cash: number;
   commodities: number;
   facilities: number;
+  commodityLabel?: string;
 }) {
   const rows = [
     { name: '现金', value: Math.max(0, cash), color: chartColor.success },
-    { name: '商品', value: Math.max(0, commodities), color: chartColor.warning },
+    { name: commodityLabel, value: Math.max(0, commodities), color: chartColor.warning },
     { name: '建筑', value: Math.max(0, facilities), color: chartColor.info },
   ];
   const option = useMemo<EChartsCoreOption>(() => ({
     animation: false,
-    aria: { enabled: true, description: '按资产毛值计算的现金、商品与建筑配置比例；建筑包含工业工厂和商业建筑。' },
+    aria: { enabled: true, description: `按资产毛值计算的现金、${commodityLabel}与建筑配置比例；建筑包含工业、商业和已投入经营成本。` },
     tooltip: {
       ...commonTooltip,
       trigger: 'item',
@@ -42,7 +44,7 @@ export function AssetAllocationChart({
       itemStyle: { borderColor: 'rgba(7,20,15,.9)', borderWidth: 2 },
       data: rows.map((row) => ({ name: row.name, value: row.value, itemStyle: { color: row.color } })),
     }],
-  }), [cash, commodities, facilities]);
+  }), [cash, commodities, facilities, commodityLabel]);
 
   return (
     <div className="asset-allocation-chart-shell">
