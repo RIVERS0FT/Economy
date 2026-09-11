@@ -345,8 +345,10 @@ test('maintenance submits one slot for new trips while legacy active capacity re
   assert.notEqual(transportOperationFingerprint(game, ['A', 'B', 'A'], null, 0, 3), before);
   game.provinceMarkets!.B.wheat.officialPrice = 0.5;
   game.provinceInventories!.B.wheat.available = 1000;
-  game.transportShipments = [{ ...shipment(1, 200), policySnapshot: createTransportCyclePolicy('road', 2) }];
+  const legacyPaidPolicy = createTransportCyclePolicy('road', 2);
+  assert.equal(legacyPaidPolicy.capacity, 400);
+  game.transportShipments = [{ ...shipment(1, 200), policySnapshot: legacyPaidPolicy }];
   const service = transportMaintenanceCandidates(game, now)[0];
   assert.equal(service.kind, 'service');
-  assert.equal(service.load.reduce((sum, entry) => sum + entry.quantity, 0), 400);
+  assert.equal(service.load.reduce((sum, entry) => sum + entry.quantity, 0), 200);
 });
