@@ -149,17 +149,27 @@ function route(id: string, source = 'A', destination = 'B') {
   return { id, sourceProvinceId: source, destinationProvinceId: destination, mode: 'road', createdAt: now, updatedAt: now } as EconomyState['transportRoutes'][number];
 }
 
-test('maintenance prioritizes final unloading, then docked service, then new starts and rotates peers', () => {
+test('maintenance prioritizes paid docked service and blocks only new starts when all technology slots are occupied', () => {
   const game = gameFixture({ A: 1, B: 3, C: 2 }, { A: 1000 });
   game.transportRoutes = [route('new'), route('service'), route('final'), route('new-2')];
   game.transportShipments = [
-    { ...shipment(1), routeId: 'service', id: 'service-cycle' },
-    { ...shipment(2), routeId: 'final', id: 'final-cycle' },
+    { ...shipment(1), routeId: 'service', id: 'service-cycle', slotId: 'slot-1' },
+    { ...shipment(2), routeId: 'final', id: 'final-cycle', slotId: 'slot-2' },
   ];
   assert.deepEqual(transportMaintenanceCandidates(game, now).map((candidate) => candidate.routeId), ['final', 'service', 'new', 'new-2']);
   assert.deepEqual(transportMaintenanceCandidates(game, now, 'new').map((candidate) => candidate.routeId), ['final', 'service', 'new-2', 'new']);
-  for (let index = 0; index < 20; index += 1) game.transportShipments.push({ ...shipment(0), routeId: `busy-${index}`, id: `busy-${index}`, status: 'in-transit' });
-  assert.deepEqual(transportMaintenanceCandidates(game, now).map((candidate) => candidate.routeId), ['final']);
+  game.research = {
+    ...(game.research ?? {}),
+    transportSlots: {
+      limit: 2,
+      used: 2,
+      slots: [
+        { id: 'slot-1', mode: 'road', level: 1, experience: 0, speedBonusBps: 0, occupied: true },
+        { id: 'slot-2', mode: 'road', level: 1, experience: 0, speedBonusBps: 0, occupied: true },
+      ],
+    },
+  } as EconomyState['research'];
+  assert.deepEqual(transportMaintenanceCandidates(game, now).map((candidate) => candidate.routeId), ['final', 'service']);
   assert.equal(estimateTransportRoute(game, game.transportRoutes[0], now).reason, 'in-transit-limit');
 });
 
@@ -264,50 +274,50 @@ test('fuel rounds the full unrounded distance once across modes and distance ran
   assert.equal(transportFuelQuantity(Number.NaN, 0.005), 0);
 });
 
-test('owned fleet selects only worthwhile vehicles from the full trip without changing inputs', () => {
+test('legacy route vehicle count cannot expand a new single-slot trip', () => {
   const game = gameFixture({ A: 1, B: 10, C: 2 }, { A: 450 });
-  const fleet = { ...route('fleet'), vehicleCount: 5 };
+  const legacyFleetRoute = { ...route('fleet'), vehicleCount: 5 };
   const before = JSON.stringify(game);
-  const result = estimateTransportRoute(game, fleet, now);
+  const result = estimateTransportRoute(game, legacyFleetRoute, now);
   assert.equal(result.reason, 'ready');
-  assert.equal(result.vehicleCount, 3);
-  assert.equal(result.ownedVehicleCount, 5);
-  assert.equal(result.capacity, 600);
-  assert.equal(result.firstLoad[0].quantity, 450);
+  assert.equal(result.vehicleCount, 1);
+  assert.equal(result.ownedVehicleCount, 1);
+  assert.equal(result.capacity, 200);
+  assert.equal(result.firstLoad[0].quantity, 200);
   assert.equal(JSON.stringify(game), before);
   game.provinceInventories!.A.wheat.available = 150;
-  const partial = estimateTransportRoute(game, fleet, now);
+  const partial = estimateTransportRoute(game, legacyFleetRoute, now);
   assert.equal(partial.vehicleCount, 1);
   assert.equal(partial.reason, 'ready');
   assert.equal(partial.peakLoad, 150);
 });
 
-test('affordable smaller fleets beat higher-gain but unaffordable or unfueled fleets', () => {
+test('single-slot planning still rejects unaffordable or unfueled trips', () => {
   const game = gameFixture({ A: 1, B: 10, C: 2 }, { A: 2000 });
-  const fleet = { ...route('fleet'), vehicleCount: 5 };
-  const single = estimateTransportRoute(game, { ...fleet, vehicleCount: 1 }, now);
+  const legacyFleetRoute = { ...route('fleet'), vehicleCount: 5 };
+  const single = estimateTransportRoute(game, legacyFleetRoute, now);
   game.credits = single.transportFee;
-  const cashLimited = estimateTransportRoute(game, fleet, now);
+  const cashLimited = estimateTransportRoute(game, legacyFleetRoute, now);
   assert.equal(cashLimited.vehicleCount, 1);
   assert.equal(cashLimited.reason, 'ready');
   game.credits = 100000;
   game.provinceInventories!.A['industrial-fuel'].available = single.fuelRequired;
-  const fuelLimited = estimateTransportRoute(game, fleet, now);
+  const fuelLimited = estimateTransportRoute(game, legacyFleetRoute, now);
   assert.equal(fuelLimited.vehicleCount, 1);
   assert.equal(fuelLimited.reason, 'ready');
   game.provinceInventories!.A['industrial-fuel'].available = 0;
-  assert.equal(estimateTransportRoute(game, fleet, now).reason, 'insufficient-fuel');
+  assert.equal(estimateTransportRoute(game, legacyFleetRoute, now).reason, 'insufficient-fuel');
 });
 
-test('fleet may depart empty to collect original later-node cargo, never double counts a return visit', () => {
+test('single slot may depart empty and reuse its capacity on later visits without duplicating original stock', () => {
   const game = gameFixture({ A: 10, B: 1, C: 20 }, { B: 450 });
-  const fleet = { ...route('fleet'), vehicleCount: 5, viaProvinceIds: ['B'], destinationProvinceId: 'C' };
-  const result = estimateTransportRoute(game, fleet, now);
+  const legacyFleetRoute = { ...route('fleet'), vehicleCount: 5, viaProvinceIds: ['B'], destinationProvinceId: 'C' };
+  const result = estimateTransportRoute(game, legacyFleetRoute, now);
   assert.equal(result.reason, 'ready');
-  assert.equal(result.vehicleCount, 3);
+  assert.equal(result.vehicleCount, 1);
   assert.deepEqual(result.firstLoad, []);
-  assert.equal(result.transportedQuantity, 450);
-  assert.equal(result.peakLoad, 450);
+  assert.equal(result.transportedQuantity, 400);
+  assert.equal(result.peakLoad, 200);
 });
 
 test('a free zero-distance fixture ties net gains and retains the smaller fleet', () => {
@@ -324,13 +334,13 @@ test('a free zero-distance fixture ties net gains and retains the smaller fleet'
   assert.equal(result.transportedQuantity, 400);
 });
 
-test('fleet maintenance submits the chosen count, while active node capacity remains snapshotted', () => {
+test('maintenance submits one slot for new trips while legacy active capacity remains snapshotted', () => {
   const game = gameFixture({ A: 1, B: 10, C: 2 }, { A: 450 });
   game.transportRoutes = [{ ...route('route-1'), vehicleCount: 5 }];
   const command = transportMaintenanceCandidates(game, now)[0];
   assert.equal(command.kind, 'start');
   if (command.kind !== 'start') throw new Error('start expected');
-  assert.equal(command.vehicleCount, 3);
+  assert.equal(command.vehicleCount, 1);
   const before = transportOperationFingerprint(game, ['A', 'B', 'A'], null, 0, 1);
   assert.notEqual(transportOperationFingerprint(game, ['A', 'B', 'A'], null, 0, 3), before);
   game.provinceMarkets!.B.wheat.officialPrice = 0.5;
@@ -338,5 +348,5 @@ test('fleet maintenance submits the chosen count, while active node capacity rem
   game.transportShipments = [{ ...shipment(1, 200), policySnapshot: createTransportCyclePolicy('road', 2) }];
   const service = transportMaintenanceCandidates(game, now)[0];
   assert.equal(service.kind, 'service');
-  assert.equal(service.load.reduce((sum, entry) => sum + entry.quantity, 0), 200);
+  assert.equal(service.load.reduce((sum, entry) => sum + entry.quantity, 0), 400);
 });
