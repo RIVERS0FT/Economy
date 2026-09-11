@@ -74,7 +74,8 @@ function activeBusinessDispatch(route: TransportRoute) {
 
 function slotNumber(slotId?: string) {
   if (!slotId) return null;
-  const value = Number(slotId.split('-').at(-1));
+  const parts = slotId.split('-');
+  const value = Number(parts[parts.length - 1]);
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
