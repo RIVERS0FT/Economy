@@ -1,0 +1,42 @@
+name: Integrate Upstream Transport Rules
+on:
+  push:
+    branches: [work/cash-production-investment]
+    paths: [.github/workflows/integrate-transport-main.yml]
+permissions:
+  contents: write
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/cash-production-investment
+          fetch-depth: 0
+      - name: Merge pinned main and retain both reviewed domain rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-ff --no-commit e2a479441cf4aa51027069f1d441b591434fa2bc || test "$(git diff --name-only --diff-filter=U)" = 'docs/WAREHOUSE_EXPANSION_DESIGN.md'
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path('docs/WAREHOUSE_EXPANSION_DESIGN.md')
+          s = p.read_text()
+          before, conflict = s.split('<<<<<<< HEAD\n', 1)
+          ours, rest = conflict.split('=======\n', 1)
+          incoming, after = rest.split('>>>>>>> e2a479441cf4aa51027069f1d441b591434fa2bc\n', 1)
+          heading = '## 仓库退役的资产迁移门禁'
+          assert heading in ours and 'C1–C7 槽位上限' in incoming
+          migration = heading + ours.split(heading, 1)[1]
+          p.write_text(before + incoming.rstrip() + '\n\n' + migration + after)
+          PY
+          git add docs/WAREHOUSE_EXPANSION_DESIGN.md
+          test -z "$(git diff --name-only --diff-filter=U)"
+          rm .github/workflows/export-transport-integration.yml .github/workflows/integrate-transport-main.yml
+          git add -A
+          git diff --check --cached
+          git commit -m 'merge: retain upstream transport slots and tool progression with cash-economy integration'
+          git push origin HEAD:work/cash-production-investment
