@@ -9,16 +9,19 @@ export function NavigationItems({
   badges,
   excludedTabs = [],
   showBadges = true,
+  investmentEnabled = false,
 }: {
   activeTab: TabId;
   onSelect: (tab: TabId) => void;
   badges: NavigationBadgeMap;
   excludedTabs?: readonly TabId[];
   showBadges?: boolean;
+  investmentEnabled?: boolean;
 }) {
   return (
     <>
-      {navigationItems.filter(({ id }) => !excludedTabs.includes(id)).map(({ id, label }) => {
+      {navigationItems.filter(({ id }) => !excludedTabs.includes(id)).map(({ id, label: originalLabel }) => {
+        const label = id === 'bank' && investmentEnabled ? '投资' : originalLabel;
         const navigationBadge = showBadges ? badges[id] : undefined;
         const accessibleBadge = badges[id];
         const accessibleLabel = accessibleBadge

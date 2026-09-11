@@ -10,6 +10,7 @@ import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
  */
 export function MobileBottomNavigation({
   activeTab,
+  investmentEnabled = false,
   badges,
   onSelect,
   workspaceSheetOpen,
@@ -17,6 +18,7 @@ export function MobileBottomNavigation({
   onReturnAnimationEnd,
 }: {
   activeTab: TabId;
+  investmentEnabled?: boolean;
   badges: NavigationBadgeMap;
   onSelect: (tab: TabId) => void;
   workspaceSheetOpen: boolean;
@@ -32,7 +34,7 @@ export function MobileBottomNavigation({
       navigationReturning={returning}
       onReturnAnimationEnd={onReturnAnimationEnd}
     >
-      <NavigationItems activeTab={activeTab} onSelect={onSelect} badges={badges} />
+      <NavigationItems investmentEnabled={investmentEnabled} activeTab={activeTab} onSelect={onSelect} badges={badges} />
     </MobileBottomNavigationFrame>
   );
 }

@@ -141,7 +141,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
                 <span>服务器权威结果</span>
               </div>
               <DataList className="compact overview-core-data overview-asset-status">
-                <DataRow label="可支配资产" value={<CurrencyAmount>{formatCurrency(game.assetSummary.availableAssetValue ?? (derived.totalAssets - (game.assetSummary.frozenAssetValue ?? 0)))}</CurrencyAmount>} />
+                <DataRow label="可支配资产" value={<CurrencyAmount>{formatCurrency(game.assetSummary.availableAssetValue ?? (derived.totalAssets === null ? null : derived.totalAssets - (game.assetSummary.frozenAssetValue ?? 0)))}</CurrencyAmount>} />
                 <DataRow label="冻结资产" value={<CurrencyAmount>{formatCurrency(game.assetSummary.frozenAssetValue ?? 0)}</CurrencyAmount>} tone={(game.assetSummary.frozenAssetValue ?? 0) > 0 ? 'warning' : 'neutral'} />
                 <DataRow label="贷款负债" value={<CurrencyAmount>{formatCurrency(game.assetSummary.liabilityValue ?? 0)}</CurrencyAmount>} tone={(game.assetSummary.liabilityValue ?? 0) > 0 ? 'warning' : 'neutral'} />
               </DataList>

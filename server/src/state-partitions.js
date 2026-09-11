@@ -25,6 +25,7 @@ const CATALOG_KEYS = new Set([
   'defaultProvinceId',
 ]);
 const MARKET_KEYS = new Set([
+  'commodityInvestmentQuotes',
   'markets',
   'provinceMarkets',
   'facilityMarkets',

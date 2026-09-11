@@ -1,3 +1,5 @@
+import { investmentFinancialPosition, isInvestmentPriceUnavailable } from './commodity-investment-runtime.js';
+import { captureInvestmentAssessmentBasis, quoteInvestmentAssessmentBasis } from './commodity-investment-assessment.js';
 import { randomUUID } from 'node:crypto';
 import { MARKET_DEMAND_GROUP_CATALOG } from './market-demand/catalog.js';
 import { allocateMoneyBudget } from './market-demand/math.js';
@@ -227,9 +229,9 @@ export function ensurePlayerWeeklyCashSettlement(player, now = Date.now()) {
 }
 
 function loanLiability(player) {
-  const loan = player?.bankAccount?.activeLoan;
-  if (!loan) return 0;
-  return addMoney(safeMoney(loan.principalOutstanding), safeMoney(loan.interestOutstanding));
+  return [player?.bankAccount?.activeLoan, player?.bankAccount?.creditLoan].reduce((sum, loan) => (
+    loan ? addMoney(sum, addMoney(safeMoney(loan.principalOutstanding), safeMoney(loan.interestOutstanding))) : sum
+  ), 0);
 }
 
 export function weeklySettlementLiability(player) {
@@ -243,8 +245,8 @@ function currencyAssets(player) {
   );
 }
 
-function settlementBaseFor(player) {
-  const cash = currencyAssets(player);
+function settlementBaseFor(world, player, now) {
+  const cash = addMoney(currencyAssets(player), investmentFinancialPosition(world, player, now).equity);
   const loan = loanLiability(player);
   const priorSettlement = weeklySettlementLiability(player);
   return {
@@ -270,11 +272,23 @@ function addBankTransaction(player, type, amount, now, description, metadata = {
   account.recentTransactions = account.recentTransactions.slice(-MAX_TRANSACTION_HISTORY);
 }
 
-function createAssessment(world, player, type, weekKey, assessedAt) {
+function createAssessment(world, player, type, weekKey, assessedAt, confirmedBase = null) {
   const state = ensureWeeklyCashSettlementWorld(world, assessedAt, { normalizePlayers: false });
   const playerState = ensurePlayerWeeklyCashSettlement(player, assessedAt);
   if (playerState.pendingSettlement) return playerState.pendingSettlement;
-  const base = settlementBaseFor(player);
+  let base = confirmedBase;
+  if (!base) {
+    if (playerState.pendingInvestmentAssessment) return null;
+    try { base = settlementBaseFor(world, player, assessedAt); }
+    catch (error) {
+      if (!isInvestmentPriceUnavailable(error)) throw error;
+      playerState.pendingInvestmentAssessment = captureInvestmentAssessmentBasis(player, {
+        type, weekKey, assessedAt, cash: currencyAssets(player), loan: loanLiability(player),
+        prior: weeklySettlementLiability(player),
+      });
+      return null;
+    }
+  }
   const amountDue = floorRate(base.taxBase, WEEKLY_CASH_SETTLEMENT_RATE_BPS);
   const settlement = {
     id: `weekly-cash-settlement-${player.userId}-${weekKey}-${type}`,
@@ -309,12 +323,26 @@ function createAssessment(world, player, type, weekKey, assessedAt) {
   return settlement;
 }
 
+export function resolvePendingInvestmentAssessment(world, player) {
+  const basis = player.weeklyCashSettlement?.pendingInvestmentAssessment;
+  if (!basis) return false;
+  let base;
+  try { base = quoteInvestmentAssessmentBasis(world, basis); }
+  catch (error) { if (isInvestmentPriceUnavailable(error)) return false; throw error; }
+  if (player.weeklyCashSettlement.pendingSettlement) {
+    throw new Error('待估值结算与已确认周资金结算不能重叠');
+  }
+  createAssessment(world, player, basis.type, basis.weekKey, basis.assessedAt, base);
+  delete player.weeklyCashSettlement.pendingInvestmentAssessment;
+  return true;
+}
+
 function closeWeek(world, state, closedAt) {
   const weekKey = state.currentWeekKey;
   if (!state.partial) {
     for (const player of Object.values(world.players || {})) {
       const playerState = ensurePlayerWeeklyCashSettlement(player, closedAt);
-      if (playerState.activeWeekKey !== weekKey || playerState.pendingSettlement) continue;
+      if (playerState.activeWeekKey !== weekKey || playerState.pendingSettlement || playerState.pendingInvestmentAssessment) continue;
       createAssessment(world, player, 'active_week', weekKey, closedAt);
     }
   }
@@ -328,6 +356,9 @@ function closeWeek(world, state, closedAt) {
 export function processWeeklyCashSettlementWorld(world, now = Date.now()) {
   const state = ensureWeeklyCashSettlementWorld(world, now);
   let changed = false;
+  for (const player of Object.values(world.players || {})) {
+    changed = resolvePendingInvestmentAssessment(world, player) || changed;
+  }
   let iterations = 0;
   while (state.nextCloseAt <= now && iterations < 520) {
     closeWeek(world, state, state.nextCloseAt);
@@ -342,7 +373,7 @@ export function activateWeeklyCashSettlement(world, player, now = Date.now(), { 
   if (processWorld) processWeeklyCashSettlementWorld(world, now);
   else ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: false });
   const state = ensurePlayerWeeklyCashSettlement(player, now);
-  if (weeklySettlementLiability(player) > 0) return false;
+  if (weeklySettlementLiability(player) > 0 || state.pendingInvestmentAssessment) return false;
   const period = weeklyCashPeriodFor(now);
   if (state.activeWeekKey === period.key) return false;
   state.activeWeekKey = period.key;
@@ -441,6 +472,7 @@ export function settlePlayerWeeklyCashOnLogin(world, player, now = Date.now(), {
   let result = collectPlayerWeeklyCashSettlement(world, player, now);
   if (!hadPending
     && !playerState.pendingSettlement
+    && !playerState.pendingInvestmentAssessment
     && enteredNewLoginPeriod) {
     createAssessment(world, player, 'returning_player', currentPeriod.key, now);
     result = collectPlayerWeeklyCashSettlement(world, player, now);
@@ -463,7 +495,13 @@ export function playerNeedsWeeklyLoginSettlement(player, now = Date.now()) {
 
 export function nextWeeklyCashSettlementDeadlineAt(world, now = Date.now()) {
   const state = ensureWeeklyCashSettlementWorld(world, now);
-  return state.nextCloseAt;
+  const pending = Object.values(world.players || {}).filter((player) => player.weeklyCashSettlement?.pendingInvestmentAssessment);
+  if (pending.length === 0) return state.nextCloseAt;
+  for (const player of pending) {
+    try { quoteInvestmentAssessmentBasis(world, player.weeklyCashSettlement.pendingInvestmentAssessment); return Math.min(state.nextCloseAt, now); }
+    catch (error) { if (!isInvestmentPriceUnavailable(error)) throw error; }
+  }
+  return Math.min(state.nextCloseAt, now + 60_000);
 }
 
 export function createWeeklyCashSettlementClientState(world, player, now = Date.now()) {
@@ -474,7 +512,9 @@ export function createWeeklyCashSettlementClientState(world, player, now = Date.
     ? player.weeklyCashSettlement
     : defaultPlayerState(now);
   const period = weeklyCashPeriodFor(now);
-  const base = settlementBaseFor(player);
+  let base;
+  try { base = playerState.pendingInvestmentAssessment ? { taxBase: null } : settlementBaseFor(world, player, now); }
+  catch (error) { if (!isInvestmentPriceUnavailable(error)) throw error; base = { taxBase: null }; }
   return {
     version: WEEKLY_CASH_SETTLEMENT_VERSION,
     timeZone: WEEKLY_CASH_TIME_ZONE,
@@ -486,8 +526,9 @@ export function createWeeklyCashSettlementClientState(world, player, now = Date.
     interestActive: playerState.activeWeekKey === period.key,
     activatedAt: playerState.activeWeekKey === period.key ? playerState.activatedAt : null,
     interestEligibleFrom: playerState.activeWeekKey === period.key ? playerState.interestEligibleFrom : null,
+    pendingValuation: Boolean(playerState.pendingInvestmentAssessment),
     estimatedTaxBase: base.taxBase,
-    estimatedAssessment: floorRate(base.taxBase, WEEKLY_CASH_SETTLEMENT_RATE_BPS),
+    estimatedAssessment: base.taxBase === null ? null : floorRate(base.taxBase, WEEKLY_CASH_SETTLEMENT_RATE_BPS),
     outstandingCredits: weeklySettlementLiability(player),
     pendingSettlement: playerState.pendingSettlement ? structuredClone(playerState.pendingSettlement) : null,
     lastSettlement: playerState.lastSettlement ? structuredClone(playerState.lastSettlement) : null,

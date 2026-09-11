@@ -1,3 +1,4 @@
+import { nextCommodityInvestmentDeadline } from './commodity-investment-runtime.js';
 import { createContractRuntimeIndex } from './contract-runtime-index.js';
 import { nextDailyCheckInResetAt } from './daily-check-in.js';
 import { nextBankDeadlineAt } from './banking.js';
@@ -103,6 +104,7 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
     contract: createContractRuntimeIndex(world).nextDeadlineAt(),
     leaderboard: leaderboardDeadline(world, normalizedNow),
     checkIn: nextDailyCheckInResetAt(normalizedNow),
+    investment: nextCommodityInvestmentDeadline(world, normalizedNow),
     bank: nextBankDeadlineAt(world, normalizedNow),
     weeklyCashSettlement: nextWeeklyCashSettlementDeadlineAt(world, normalizedNow),
     research: nextResearchDeadlineAt(world),

@@ -1,3 +1,4 @@
+import { applyCommodityInvestmentAction, settlePlayerCommodityInvestments, isInvestmentPriceUnavailable } from './commodity-investment-runtime.js';
 import { reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { isDeepStrictEqual } from 'node:util';
 import { applyAssetAuctionAction } from './asset-auctions.js';
@@ -36,6 +37,7 @@ import {
   settleProductionForPlayerServerSide,
 } from './production-settlement.js';
 import {
+  resolvePendingInvestmentAssessment,
   activateWeeklyCashSettlement,
   collectPlayerWeeklyCashSettlement,
   ensurePlayerWeeklyCashSettlement,
@@ -78,7 +80,7 @@ const CONTRACT_ACTIONS = new Set([
 ]);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe', 'setFacilityRecipes',
-  'commercialBuilding',
+  'commercialBuilding', 'tradeCommodityInvestment',
   'collectFacility', 'placeOrder', 'cancelOrder', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
@@ -153,6 +155,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
         gameResult = researchAccess;
       } else if (action === 'startResearch' || action === 'accelerateResearch') {
         gameResult = applyResearchAction(world, user, action, payload, now);
+      } else if (action === 'tradeCommodityInvestment') {
+        gameResult = applyCommodityInvestmentAction(world, world.players[String(user.id)], payload, now);
       } else if (action === 'commercialBuilding') {
         gameResult = applyCommercialBuildingAction(world, user, payload, now);
       } else if (action === 'contributePublicProject' || action === 'claimPublicProjectReward') {
@@ -324,6 +328,9 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
           auditTrigger: 'action_preprocess',
         });
       }
+      try { settlePlayerCommodityInvestments(world, world.players[String(user.id)], now); }
+      catch (error) { if (!isInvestmentPriceUnavailable(error)) throw error; }
+      resolvePendingInvestmentAssessment(world, world.players[String(user.id)]);
       settlePlayerWeeklyCashOnLogin(world, world.players[String(user.id)], now, {
         processWorld: !store.scheduledProcessing,
       });

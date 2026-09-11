@@ -42,7 +42,8 @@ export function formatNumber(value: number) {
   return formatAbbreviatedNumber(value);
 }
 
-export function formatCurrency(value: number) {
+export function formatCurrency(value: number | null) {
+  if (value === null) return '待确认';
   if (Number.isFinite(value) && value !== 0 && Math.abs(value) < 0.01) {
     return value < 0 ? '-<0.01' : '<0.01';
   }
@@ -53,7 +54,8 @@ export function formatCurrency(value: number) {
   }).format(roundCurrencyForDisplay(value));
 }
 
-export function formatCompactCurrency(value: number) {
+export function formatCompactCurrency(value: number | null) {
+  if (value === null) return '待确认';
   if (Number.isFinite(value) && value !== 0 && Math.abs(value) < 0.01) {
     return value < 0 ? '-<0.01' : '<0.01';
   }

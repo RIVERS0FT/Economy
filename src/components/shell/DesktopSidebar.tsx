@@ -7,6 +7,7 @@ import { SidebarFrame } from './SidebarFrame';
 
 export function DesktopSidebar({
   activeTab,
+  investmentEnabled = false,
   badges,
   collapsed,
   qqGroupUrl,
@@ -14,6 +15,7 @@ export function DesktopSidebar({
   onSelect,
 }: {
   activeTab: TabId;
+  investmentEnabled?: boolean;
   badges: NavigationBadgeMap;
   collapsed: boolean;
   qqGroupUrl: string;
@@ -53,7 +55,7 @@ export function DesktopSidebar({
         </>
       )}
     >
-      <NavigationItems
+      <NavigationItems investmentEnabled={investmentEnabled}
         activeTab={activeTab}
         onSelect={onSelect}
         badges={badges}

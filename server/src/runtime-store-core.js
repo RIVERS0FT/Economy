@@ -1,3 +1,5 @@
+import { flushCommodityInvestmentAudit, configureCommodityInvestmentAuditStore } from './commodity-investment-audit.js';
+import { processCommodityInvestmentWorld } from './commodity-investment-runtime.js';
 import { isDeepStrictEqual } from 'node:util';
 import { processBankWorld } from './banking.js';
 import {
@@ -191,6 +193,7 @@ export class EconomyStore extends PersistentEconomyStore {
   constructor(...args) {
     super(...args);
     configureContractAuditStore(this);
+    configureCommodityInvestmentAuditStore(this);
     configurePlayerAdminStatistics(this);
   }
 
@@ -260,12 +263,14 @@ export class EconomyStore extends PersistentEconomyStore {
     if (!plan.changed) {
       this.flushContractAuditEvents(world, revision, revision);
       flushAuctionAuditEvents(this, world, revision, revision);
+      flushCommodityInvestmentAudit(this, world, revision, revision);
       return revision;
     }
 
     const nextRevision = applySegmentedWorldWrite(this, plan, world, now);
     this.flushContractAuditEvents(world, revision, nextRevision);
     flushAuctionAuditEvents(this, world, revision, nextRevision);
+    flushCommodityInvestmentAudit(this, world, revision, nextRevision);
     this.cacheWorld(nextRevision, null, world, false, plan.snapshot);
     if (!this.scheduledProcessing) this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
     return nextRevision;
@@ -285,6 +290,7 @@ export class EconomyStore extends PersistentEconomyStore {
       const beforeContracts = contractSnapshot(world);
       const processed = super.processWorldIfDue(world, now, currentUserId, options);
       if (processed) {
+        processCommodityInvestmentWorld(world, now);
         processMarketReserveOperations(world, now);
         processProductionContracts(world, now);
         this.captureContractAuditTransition(beforeContracts, world, {
@@ -309,7 +315,7 @@ export class EconomyStore extends PersistentEconomyStore {
 
     let processed = false;
     measureRequestPhase('worldProcessMs', () => {
-      if (anyDueDomain(dueDomains, ECONOMY_DEADLINE_DOMAINS)) {
+      if (world.cashEconomy?.version !== 1 && anyDueDomain(dueDomains, ECONOMY_DEADLINE_DOMAINS)) {
         processLeaderboardWorld(world, now, {
           migrate: false,
           onGemReward: (reward) => this.recordGemLedgerEvent(reward),
@@ -325,12 +331,20 @@ export class EconomyStore extends PersistentEconomyStore {
           now,
         });
       }
+      if (dueDomains.has('investment') || dueDomains.has('market')) {
+        processCommodityInvestmentWorld(world, now);
+        processed = true;
+      }
       if (dueDomains.has('bank')) {
         processBankWorld(world, now);
         processed = true;
       }
       if (dueDomains.has('weeklyCashSettlement')) {
         processWeeklyCashSettlementWorld(world, now);
+        processed = true;
+      }
+      if (world.cashEconomy?.version === 1 && anyDueDomain(dueDomains, ECONOMY_DEADLINE_DOMAINS)) {
+        processLeaderboardWorld(world, now, { migrate: false, onGemReward: (reward) => this.recordGemLedgerEvent(reward) });
         processed = true;
       }
       if (dueDomains.has('research')) {

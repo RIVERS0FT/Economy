@@ -44,7 +44,7 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
   }),
   'player.bank': Object.freeze({
     partition: 'player',
-    keys: Object.freeze(['bankAccount', 'bankSummary']),
+    keys: Object.freeze(['bankAccount', 'bankSummary', 'commodityInvestment']),
   }),
   'player.stats': Object.freeze({
     partition: 'player',
@@ -69,6 +69,7 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
       'valuationPrices',
       'marketPrice',
       'marketPriceHistory',
+      'commodityInvestmentQuotes',
       'demand',
     ]),
   }),

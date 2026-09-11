@@ -132,7 +132,7 @@ export function GameShell({ model, children, offline = false }: {
         : derived.currentRank.rank === 1
           ? <>当前位于榜首</>
           : derived.previousRank
-            ? <>距上一名 <CurrencyAmount>{formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}</CurrencyAmount></>
+            ? <>距上一名 <CurrencyAmount>{formatCurrency(derived.totalAssets === null ? null : derived.previousRank.totalAssets - derived.totalAssets)}</CurrencyAmount></>
             : <>暂无上一名数据</>,
     },
     {
@@ -458,6 +458,7 @@ export function GameShell({ model, children, offline = false }: {
         sidebarCollapsed={sidebarCollapsed}
         sidebar={(
           <DesktopSidebar
+            investmentEnabled={model.game.commodityInvestment?.enabled}
             activeTab={model.tab}
             badges={badges}
             collapsed={sidebarCollapsed}
@@ -509,6 +510,7 @@ export function GameShell({ model, children, offline = false }: {
               }}
             />
             <MobileBottomNavigation
+              investmentEnabled={model.game.commodityInvestment?.enabled}
               activeTab={model.tab}
               badges={badges}
               onSelect={selectPlayerTab}

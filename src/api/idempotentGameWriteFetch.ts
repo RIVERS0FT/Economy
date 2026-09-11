@@ -91,7 +91,8 @@ function persistPendingWrites() {
 function prunePendingWrites(now: number) {
   let changed = false;
   for (const [fingerprint, reservation] of pendingWrites) {
-    if (now - reservation.createdAt >= PENDING_WRITE_TTL_MS) {
+    if (now - reservation.createdAt >= PENDING_WRITE_TTL_MS
+      && !reservation.queueKey?.endsWith(':commodity-investment')) {
       pendingWrites.delete(fingerprint);
       changed = true;
     }
@@ -186,6 +187,16 @@ function isSessionBootstrapWrite(input: RequestInfo | URL) {
   return canonicalRequestPath(input) === SESSION_BOOTSTRAP_PATH;
 }
 
+function isCommodityInvestmentWrite(input: RequestInfo | URL, body: string) {
+  if (parsedRequestUrl(input).pathname !== `${GAME_API_PATH_PREFIX}/investments/commodities`) return false;
+  try {
+    const value = JSON.parse(body);
+    return value && typeof value.productId === 'string' && typeof value.contractId === 'string'
+      && typeof value.priceDateKey === 'string' && (value.side === 'buy' || value.side === 'sell')
+      && Number.isSafeInteger(value.quantity) && value.quantity > 0;
+  } catch { return false; }
+}
+
 function isManualCommodityWrite(input: RequestInfo | URL, body: string) {
   if (parsedRequestUrl(input).pathname !== `${GAME_API_PATH_PREFIX}/orders`) return false;
   try {
@@ -205,10 +216,13 @@ function stableConfigurationBody(input: RequestInfo | URL, body: string): string
       && value.execution === 'factory-auto-operation-policy';
     const commercialPolicy = path === `${GAME_API_PATH_PREFIX}/commercial-buildings`
       && value.operation === 'auto-operation';
-    if (!recipe && !factoryPolicy && !commercialPolicy) return null;
+    const investment = isCommodityInvestmentWrite(input, body);
+    if (!recipe && !factoryPolicy && !commercialPolicy && !investment) return null;
     // Configuration identity must survive a poll or a production proposal changing.
     // The server still settles completed cycles before applying the configuration.
     delete value.productionSettlement;
+    if (investment) return JSON.stringify({ productId: value.productId, contractId: value.contractId,
+      priceDateKey: value.priceDateKey, side: value.side, quantity: value.quantity });
     return JSON.stringify(value);
   } catch { return null; }
 }
@@ -308,6 +322,9 @@ export function createIdempotentGameWriteFetch(nativeFetch: typeof fetch): typeo
     const preceding = [...pendingWrites.entries()].find(([key, entry]) => key !== fingerprint && entry.queueKey === queueKey);
     if (!preceding) return;
     const [previousFingerprint, reservation] = preceding;
+    if (queueKey.endsWith(':commodity-investment') && Date.now() - reservation.createdAt >= PENDING_WRITE_TTL_MS) {
+      throw new GameOperationUnconfirmedError();
+    }
     const original = reservation.controlRequest;
     if (!original || original.method !== 'POST') throw new GameOperationUnconfirmedError();
     const owner = String(session.userId ?? 'unbound');
@@ -316,8 +333,10 @@ export function createIdempotentGameWriteFetch(nativeFetch: typeof fetch): typeo
     try {
       const match = original.path.match(/^\/economy-api\/game\/facilities\/([^/?#]+)\/(start|stop|pause)(?:\?[^#]*)?$/);
       const provinceId = JSON.parse(original.body)?.provinceId;
-      valid = Boolean(match && typeof provinceId === 'string'
-        && queueKey === owner + ':' + original.saveEpoch + ':' + provinceId + ':' + decodeURIComponent(match[1])
+      const investment = isCommodityInvestmentWrite(original.path, original.body);
+      valid = Boolean(((investment && queueKey === owner + ':' + original.saveEpoch + ':commodity-investment')
+        || (match && typeof provinceId === 'string'
+        && queueKey === owner + ':' + original.saveEpoch + ':' + provinceId + ':' + decodeURIComponent(match[1])))
         && previousFingerprint === owner + ':' + stableFingerprint([original.method, original.path, original.saveEpoch, original.body].join('\n')));
     } catch { /* Corrupt reservations must not become a different command. */ }
     if (!valid) throw new GameOperationUnconfirmedError();
@@ -343,6 +362,7 @@ export function createIdempotentGameWriteFetch(nativeFetch: typeof fetch): typeo
     if (isUnconfirmedWriteStatus(response.status)) throw new GameOperationUnconfirmedError();
     reconcileActionDelivery(response, payload);
     releaseWriteKey(previousFingerprint, reservation.key);
+    return true;
   }
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -361,7 +381,8 @@ export function createIdempotentGameWriteFetch(nativeFetch: typeof fetch): typeo
     const owner = String(session.userId ?? 'unbound');
     const fingerprint = owner + ':' + legacyFingerprint;
     const flightKey = String(session.generation) + ':' + fingerprint;
-    const deduplicate = isManualCommodityWrite(input, body);
+    const investment = isCommodityInvestmentWrite(input, body);
+    const deduplicate = isManualCommodityWrite(input, body) || investment;
     const existing = deduplicate ? inFlightWrites.get(flightKey) : undefined;
     if (existing) {
       const response = await existing;
@@ -369,7 +390,8 @@ export function createIdempotentGameWriteFetch(nativeFetch: typeof fetch): typeo
       return response.clone();
     }
     const immediateIntent = facilityToggleIntent(input, init);
-    const queueKey = immediateIntent ? owner + ':' + (headers.get('X-Economy-Save-Epoch') || '') + ':' + immediateIntent.queueKey : undefined;
+    const queueKey = immediateIntent || investment ? owner + ':' + (headers.get('X-Economy-Save-Epoch') || '')
+      + ':' + (investment ? 'commodity-investment' : immediateIntent!.queueKey) : undefined;
     const isOrder = parsedRequestUrl(input).pathname === GAME_API_PATH_PREFIX + '/orders';
     const notify = (phase: Parameters<typeof publishCommodityWriteProgress>[1]) => {
       if (isOrder && isCurrentGameWriteSession(session)) publishCommodityWriteProgress(init.body as string, phase);
@@ -381,12 +403,21 @@ export function createIdempotentGameWriteFetch(nativeFetch: typeof fetch): typeo
         prunePendingWrites(Date.now());
         // Old unowned reservations cannot safely be assigned to whichever account logs in next.
         if (pendingWrites.has(legacyFingerprint)) throw deduplicate ? new GameWriteUnconfirmedError() : new GameOperationUnconfirmedError();
-        if (queueKey) await confirmPrecedingControl(queueKey, fingerprint, session);
+        const confirmedPrevious = queueKey ? await confirmPrecedingControl(queueKey, fingerprint, session) : false;
+        if (investment && confirmedPrevious) {
+          // Unlike a desired-state switch, repeating an economic trade spends money twice.
+          // Confirm the old intent but require a fresh, explicit click for a different new trade.
+          throw Object.assign(new Error('上一笔投资交易已确认，请核对持仓后重新提交当前交易'), {
+            code: 'INVESTMENT_PREVIOUS_CONFIRMED', status: 409,
+          });
+        }
         assertGameWriteSession(session);
         const wasPending = pendingWrites.has(fingerprint);
+        const oldInvestment = investment ? pendingWrites.get(fingerprint) : undefined;
+        if (oldInvestment && Date.now() - oldInvestment.createdAt >= PENDING_WRITE_TTL_MS) throw new GameOperationUnconfirmedError();
         // Reserve after the preceding control has confirmed and released its key.
         // An unresolved different control blocks this queue rather than silently reordering commands.
-        const controlRequest: PendingControlRequest | undefined = immediateIntent && method === 'POST'
+        const controlRequest: PendingControlRequest | undefined = (immediateIntent || investment) && method === 'POST'
           ? { method: 'POST', path: canonicalRequestPath(input), body: init.body as string, saveEpoch: headers.get('X-Economy-Save-Epoch') || '' } : undefined;
         const reservation = reserveWriteKey(fingerprint, proposedKey, queueKey, controlRequest);
         headers.set('Idempotency-Key', reservation.key);

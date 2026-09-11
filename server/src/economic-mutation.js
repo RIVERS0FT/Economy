@@ -1,3 +1,6 @@
+import { assertCommodityInvestmentLedger } from './commodity-investment-ledger.js';
+import { assertCommodityInvestmentAccount } from './commodity-investments.js';
+import { assertCashProductionCycle } from './cash-production-cycles.js';
 import { assertCommodityFreezeInvariant } from './commodity-freezes.js';
 function cloneValue(value) {
   try {
@@ -39,6 +42,8 @@ function assertSafeQuantity(value, label) {
 }
 
 function assertPlayerEconomicState(userId, player) {
+  assertCommodityInvestmentAccount(player);
+  for (const group of player?.facilityGroups || []) assertCashProductionCycle(group);
   assertFiniteNonNegative(player?.credits, `玩家 ${userId} 可用资金`);
   assertFiniteNonNegative(player?.frozenCredits, `玩家 ${userId} 冻结资金`);
   assertSafeQuantity(player?.gems, `玩家 ${userId} 宝石`);
@@ -75,6 +80,7 @@ export function assertEconomicStateInvariantsScoped(world, scope = {}) {
     assertFiniteNonNegative(world.auctionFeeEscrowCredits, '拍卖发布费托管');
   }
   const allPlayers = Boolean(scope.allPlayers || scope.playerIds === null);
+  assertCommodityInvestmentLedger(world, { allPlayers });
   if (allPlayers) {
     for (const [userId, player] of Object.entries(world.players || {})) assertPlayerEconomicState(userId, player);
   } else {
