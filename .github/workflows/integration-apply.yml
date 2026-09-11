@@ -1,0 +1,40 @@
+name: Apply Cash Investment Integration Patch
+on:
+  push:
+    branches: [work/cash-investment-integration]
+    paths: [.github/workflows/integration-apply.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Verify and apply source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor e2a479441cf4aa51027069f1d441b591434fa2bc HEAD
+          python3 - <<'PY'
+          import base64, hashlib, lzma, os
+          from pathlib import Path
+          encoded = ''.join(Path(f'.github/integration-transfer/part-{n}.txt').read_text() for n in range(1, 7))
+          patch = lzma.decompress(base64.b64decode(encoded, validate=True))
+          expected = 'bcb57e070d3b8399f17f3fa9e6247d14de83eeccedc356a6cdcc5d6b8fa4533b'
+          if hashlib.sha256(patch).hexdigest() != expected:
+              raise SystemExit('Integration patch integrity mismatch')
+          Path(os.environ['RUNNER_TEMP'], 'investment-integration.patch').write_bytes(patch)
+          PY
+          git apply --check --index --unidiff-zero "$RUNNER_TEMP/investment-integration.patch"
+          git apply --index --unidiff-zero "$RUNNER_TEMP/investment-integration.patch"
+          git diff --cached --check
+          git rm -r .github/integration-transfer .github/workflows/integration-workspace.yml .github/workflows/integration-apply.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(investment): integrate isolated commodity positions, financial accounting and investment UI'
+          git push origin HEAD:refs/heads/work/cash-investment-integration
+          git rev-parse HEAD
