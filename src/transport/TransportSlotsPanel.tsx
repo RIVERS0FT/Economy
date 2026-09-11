@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { postTransportTask } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
-import { SelectInput } from '../components/ui/FormControls';
+import { RichSelectInput } from '../components/ui/RichSelectInput';
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { StatusTag, WidgetHeading } from '../components/ui/layout';
 import type { TransportModeId } from '../types';
@@ -54,6 +54,11 @@ function slotStateFor(model: LoadedGameViewModel): TransportSlotState {
   };
 }
 
+const transportToolOptions = (Object.keys(TRANSPORT_MODES) as TransportModeId[]).map((mode) => ({
+  value: mode,
+  label: TRANSPORT_MODES[mode].vehicleName,
+}));
+
 export function TransportSlotsPanel({ model }: { model: LoadedGameViewModel }) {
   const delivered = useMemo(() => slotStateFor(model), [model.game]);
   const [localState, setLocalState] = useState<TransportSlotState | null>(null);
@@ -95,16 +100,13 @@ export function TransportSlotsPanel({ model }: { model: LoadedGameViewModel }) {
                 <strong>槽位 {slot.index}</strong>
                 <StatusTag tone={slot.occupied ? 'info' : 'neutral'}>{slot.occupied ? '运输中' : '空闲'}</StatusTag>
               </div>
-              <SelectInput
+              <RichSelectInput
                 label="运输工具"
                 value={slot.mode}
+                options={transportToolOptions}
                 disabled={slot.occupied || Boolean(pendingSlotId)}
-                onChange={(event) => void configure(slot, event.target.value as TransportModeId)}
-              >
-                {(Object.keys(TRANSPORT_MODES) as TransportModeId[]).map((mode) => (
-                  <option key={mode} value={mode}>{TRANSPORT_MODES[mode].vehicleName}</option>
-                ))}
-              </SelectInput>
+                onValueChange={(value) => void configure(slot, value as TransportModeId)}
+              />
               <div className="transport-slot-training">
                 <div className="transport-slot-training-heading">
                   <strong>{TRANSPORT_MODES[slot.mode].vehicleName} Lv.<CompactNumber value={slot.level} /></strong>
