@@ -16,6 +16,7 @@ export const STATE_PARTITION_NAMES = Object.freeze([
 
 const CATALOG_KEYS = new Set([
   'version',
+  'economyMode',
   'products',
   'facilityTypes',
   'commercialBuildingTypes',
@@ -36,6 +37,7 @@ const MARKET_KEYS = new Set([
   'marketPriceHistory',
   'demand',
   'economicCalendar',
+  'commodityInvestmentQuotes',
 ]);
 const AUCTION_KEYS = new Set(['assetAuctions']);
 const CONTRACT_KEYS = new Set(['productionContracts', 'productionContractSummary']);

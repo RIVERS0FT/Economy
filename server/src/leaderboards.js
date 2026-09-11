@@ -1,3 +1,4 @@
+import { cashFinancialAssets } from './cash-financial-assets.js';
 import { FACILITY_TYPE_CATALOG, processWorld, PRODUCT_CATALOG } from './domain.js';
 import { processAssetAuctions } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
@@ -125,7 +126,10 @@ export function operatingAssetsFor(player) {
     const facility = FACILITY_BY_ID.get(String(group.facilityTypeId || ''));
     return sum + (facility ? safeNonNegativeInteger(group.count) * facility.systemValue : 0);
   }, 0);
-  return cash + commodity + facilities - activeLoanLiability(player) - weeklySettlementLiability(player);
+  const investedCost = Object.values(player.commodityInvestmentAccount?.positions ?? {}).reduce((sum, row) => sum + row.cost, 0);
+  const prepaid = (player.facilityGroups ?? []).reduce((sum, row) => sum + Number(row.cashCycle?.totalCost ?? 0), 0)
+    + (player.commercialBuildingGroups ?? []).reduce((sum, row) => sum + Number(row.cashOperatingCycle?.totalCost ?? 0), 0);
+  return cash + commodity + facilities + investedCost + prepaid - activeLoanLiability(player) - weeklySettlementLiability(player);
 }
 
 function recentTradePriceFor(world, kind, assetId, provinceId = DEFAULT_PROVINCE_ID) {
@@ -156,7 +160,8 @@ export function wealthAssetsFor(world, player) {
     sum + safeNonNegativeInteger(group.count)
       * recentTradePriceFor(world, 'facility', String(group.facilityTypeId || ''), group.provinceId)
   ), 0);
-  return cash + commodity + facility - activeLoanLiability(player) - weeklySettlementLiability(player);
+  const financial = cashFinancialAssets(world, player, world.lastProcessedAt, { allowUnavailable: true });
+  return financial.total === null ? null : cash + commodity + facility + financial.total - activeLoanLiability(player) - weeklySettlementLiability(player);
 }
 
 function createEmptyPeriodState(period, partial) {
@@ -392,7 +397,7 @@ function internalRowsFor(world, state, boardId) {
     }
     const trading = state.trading[userId] || { score: 0, tradeCount: 0, buyers: {} };
     return { ...common, score: safeNonNegativeNumber(trading.score), secondary: safeNonNegativeInteger(trading.tradeCount), tertiary: Object.keys(trading.buyers || {}).length };
-  }).sort(compareLeaderboardRows).map((entry, index) => ({ ...entry, rank: index + 1 }));
+  }).filter((entry) => entry.score !== null).sort(compareLeaderboardRows).map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
 function publicEntry(entry, currentUserId, rewardEnabled) {
@@ -440,17 +445,7 @@ function readPolicyAdjustment(player) {
 }
 
 function readOperatingAssets(player) {
-  const cash = safeNonNegativeInteger(player?.credits)
-    + safeNonNegativeInteger(player?.frozenCredits)
-    + safeNonNegativeInteger(player?.bankAccount?.depositCredits);
-  const commodity = PRODUCT_CATALOG.reduce((sum, product) => (
-    sum + inventoryQuantity(player, product.id) * product.basePrice
-  ), 0);
-  const facilities = (player?.facilityGroups || []).reduce((sum, group) => {
-    const facility = FACILITY_BY_ID.get(String(group.facilityTypeId || ''));
-    return sum + (facility ? safeNonNegativeInteger(group.count) * facility.systemValue : 0);
-  }, 0);
-  return cash + commodity + facilities - activeLoanLiability(player) - weeklySettlementLiability(player);
+  return operatingAssetsFor(player);
 }
 
 function snapshotRowsFor(world, state, boardId) {
@@ -502,7 +497,7 @@ function snapshotRowsFor(world, state, boardId) {
       secondary: safeNonNegativeInteger(trading.tradeCount),
       tertiary: Object.keys(trading.buyers || {}).length,
     };
-  }).sort(compareLeaderboardRows).map((entry, index) => ({ ...entry, rank: index + 1 }));
+  }).filter((entry) => entry.score !== null).sort(compareLeaderboardRows).map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
 function snapshotRowsByBoard(world, state) {

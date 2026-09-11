@@ -4,12 +4,18 @@ import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { AssetAllocationChart } from '../charts/AssetAllocationChart';
 import { PagePanel, WidgetHeading } from '../ui/layout';
 import { buildAssetAllocation } from '../../utils/assetAllocation';
-import { formatCurrency, formatNumber } from '../../utils/formatters';
+import { formatCurrency, formatAssetCurrency, formatNumber } from '../../utils/formatters';
 import '../../styles/entity-list-header.css';
 
 export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
   const { game, derived } = model;
   const commercialValue = game.assetSummary.commercialValue ?? 0;
+  const cashMode = game.economyMode === 'cash';
+  const investmentValue = game.assetSummary.investmentValue ?? 0;
+  const workInProgressValue = game.assetSummary.workInProgressValue ?? 0;
+  const allocationCommodity = cashMode ? investmentValue : derived.commodityValue;
+  const allocationBuildings = derived.facilityValue + commercialValue + (cashMode ? workInProgressValue : 0);
+  const valuationAvailable = game.assetSummary.valuationAvailable !== false;
   const commercialBuildingCount = ((game as typeof game & {
     commercialBuildingGroups?: Array<{ count: number }>;
   }).commercialBuildingGroups ?? []).reduce(
@@ -18,15 +24,15 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
   );
   const { cashShare, commodityShare, facilityShare } = buildAssetAllocation(
     derived.cashValue,
-    derived.commodityValue,
-    derived.facilityValue + commercialValue,
+    allocationCommodity,
+    allocationBuildings,
   );
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
   const frozenFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.frozenCount || 0) + Number(group.mortgagedCount || 0) + Number(group.contractCollateralCount || 0), 0);
   const frozenAssetValue = game.assetSummary.frozenAssetValue ?? game.frozenCredits;
-  const availableAssetValue = game.assetSummary.availableAssetValue ?? (derived.totalAssets - frozenAssetValue);
-  const grossAssetValue = game.assetSummary.grossAssetValue ?? (derived.totalAssets + (game.assetSummary.liabilityValue || 0));
+  const availableAssetValue = derived.totalAssets === null ? null : game.assetSummary.availableAssetValue ?? (derived.totalAssets - frozenAssetValue);
+  const grossAssetValue = derived.totalAssets === null ? null : game.assetSummary.grossAssetValue ?? (derived.totalAssets + (game.assetSummary.liabilityValue || 0));
   const liabilityValue = game.assetSummary.liabilityValue ?? 0;
   const bankDepositValue = game.assetSummary.bankDepositValue ?? game.bankAccount.depositCredits;
   const availableCommodityValue = game.assetSummary.availableCommodityValue ?? derived.commodityValue;
@@ -38,23 +44,23 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
     <PagePanel className="asset-overview-card">
       <WidgetHeading
         title="资产总览"
-        action={<span className="muted">商品按当日官方价、工厂按最近产权成交价、商业建筑按目录系统价值估值</span>}
+        action={<span className="muted">{cashMode ? '期货按指数价、已投入经营周期按成本、建筑按正式资产价值估值' : '商品按当日官方价、工厂按最近产权成交价、商业建筑按目录系统价值估值'}</span>}
       />
 
       <div className="asset-overview-body">
         <section className="asset-total-summary" aria-label="当前净资产">
           <span className="asset-summary-label">当前净资产</span>
           <strong className="asset-total-value">
-            <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>
+            <CurrencyAmount>{formatAssetCurrency(derived.totalAssets)}</CurrencyAmount>
           </strong>
           <div className="asset-total-splits">
             <span>
               <small>可支配净资产</small>
-              <strong><CurrencyAmount>{formatCurrency(availableAssetValue)}</CurrencyAmount></strong>
+              <strong><CurrencyAmount>{formatAssetCurrency(availableAssetValue)}</CurrencyAmount></strong>
             </span>
             <span>
               <small>资产毛值</small>
-              <strong><CurrencyAmount>{formatCurrency(grossAssetValue)}</CurrencyAmount></strong>
+              <strong><CurrencyAmount>{formatAssetCurrency(grossAssetValue)}</CurrencyAmount></strong>
             </span>
             <span>
               <small>贷款负债</small>
@@ -68,16 +74,17 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
         </section>
 
         <section className="asset-allocation-summary" aria-label="资产配置比例">
-          <AssetAllocationChart
+          {valuationAvailable ? <AssetAllocationChart
             cash={derived.cashValue}
-            commodities={derived.commodityValue}
-            facilities={derived.facilityValue + commercialValue}
-          />
-          <div className="allocation-legend">
+            commodities={allocationCommodity}
+            facilities={allocationBuildings}
+            commodityLabel={cashMode ? '期货' : '商品'}
+          /> : <span role="status">资产估值待核对</span>}
+          {valuationAvailable && <div className="allocation-legend">
             <span><i className="cash-dot" />现金 <strong>{cashShare}%</strong></span>
-            <span><i className="commodity-dot" />商品 <strong>{commodityShare}%</strong></span>
+            <span><i className="commodity-dot" />{cashMode ? '期货' : '商品'} <strong>{commodityShare}%</strong></span>
             <span><i className="facility-dot" />建筑 <strong>{facilityShare}%</strong></span>
-          </div>
+          </div>}
         </section>
 
         <section className="asset-composition-section" aria-labelledby="asset-composition-title">
@@ -99,6 +106,20 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
               <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(game.credits + bankDepositValue)}</CurrencyAmount></span>
               <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></span>
             </div>
+            {cashMode ? <>
+              <div className="asset-composition-row commodity" role="row" aria-label="商品期货资产">
+                <span className="asset-composition-name" role="cell"><i className="commodity-dot" /><span>商品期货</span></span>
+                <strong role="cell" data-label="总计"><CurrencyAmount>{formatAssetCurrency(valuationAvailable ? investmentValue : null)}</CurrencyAmount></strong>
+                <span role="cell" data-label="可用"><CurrencyAmount>{formatAssetCurrency(valuationAvailable ? investmentValue : null)}</CurrencyAmount></span>
+                <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(0)}</CurrencyAmount></span>
+              </div>
+              <div className="asset-composition-row operating" role="row" aria-label="已投入经营周期资产">
+                <span className="asset-composition-name" role="cell"><span>经营投入</span></span>
+                <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(workInProgressValue)}</CurrencyAmount></strong>
+                <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(0)}</CurrencyAmount></span>
+                <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(workInProgressValue)}</CurrencyAmount></span>
+              </div>
+            </> : (
             <div
               className="asset-composition-row commodity"
               role="row"
@@ -112,6 +133,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
               <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(availableCommodityValue)}</CurrencyAmount></span>
               <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(frozenCommodityValue)}</CurrencyAmount></span>
             </div>
+            )}
             <div
               className="asset-composition-row facility"
               role="row"

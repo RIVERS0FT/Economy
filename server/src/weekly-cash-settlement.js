@@ -1,3 +1,4 @@
+import { cashFinancialAssets, cashMigrationWeeklyAdjustment } from './cash-financial-assets.js';
 import { randomUUID } from 'node:crypto';
 import { MARKET_DEMAND_GROUP_CATALOG } from './market-demand/catalog.js';
 import { allocateMoneyBudget } from './market-demand/math.js';
@@ -227,9 +228,8 @@ export function ensurePlayerWeeklyCashSettlement(player, now = Date.now()) {
 }
 
 function loanLiability(player) {
-  const loan = player?.bankAccount?.activeLoan;
-  if (!loan) return 0;
-  return addMoney(safeMoney(loan.principalOutstanding), safeMoney(loan.interestOutstanding));
+  const loans = [player?.bankAccount?.activeLoan, player?.bankAccount?.creditLoan].filter(Boolean);
+  return loans.reduce((sum, loan) => addMoney(sum, addMoney(safeMoney(loan.principalOutstanding), safeMoney(loan.interestOutstanding))), 0);
 }
 
 export function weeklySettlementLiability(player) {
@@ -243,15 +243,17 @@ function currencyAssets(player) {
   );
 }
 
-function settlementBaseFor(player) {
-  const cash = currencyAssets(player);
+function settlementBaseFor(world, player, at) {
+  const cash = addMoney(currencyAssets(player), cashFinancialAssets(world, player, at).investmentEquity);
+  const migrationAdjustment = cashMigrationWeeklyAdjustment(player, at);
   const loan = loanLiability(player);
   const priorSettlement = weeklySettlementLiability(player);
   return {
     currencyAssets: cash,
     loanLiability: loan,
     priorSettlementLiability: priorSettlement,
-    taxBase: Math.max(0, subtractMoney(subtractMoney(cash, loan), priorSettlement)),
+    migrationAdjustment,
+    taxBase: Math.max(0, subtractMoney(subtractMoney(subtractMoney(cash, loan), priorSettlement), migrationAdjustment)),
   };
 }
 
@@ -274,7 +276,7 @@ function createAssessment(world, player, type, weekKey, assessedAt) {
   const state = ensureWeeklyCashSettlementWorld(world, assessedAt, { normalizePlayers: false });
   const playerState = ensurePlayerWeeklyCashSettlement(player, assessedAt);
   if (playerState.pendingSettlement) return playerState.pendingSettlement;
-  const base = settlementBaseFor(player);
+  const base = settlementBaseFor(world, player, assessedAt);
   const amountDue = floorRate(base.taxBase, WEEKLY_CASH_SETTLEMENT_RATE_BPS);
   const settlement = {
     id: `weekly-cash-settlement-${player.userId}-${weekKey}-${type}`,
@@ -284,6 +286,7 @@ function createAssessment(world, player, type, weekKey, assessedAt) {
     loanLiability: base.loanLiability,
     priorSettlementLiability: base.priorSettlementLiability,
     taxBase: base.taxBase,
+    migrationAdjustment: base.migrationAdjustment,
     rateBps: WEEKLY_CASH_SETTLEMENT_RATE_BPS,
     amountDue,
     amountCollected: 0,
@@ -291,6 +294,9 @@ function createAssessment(world, player, type, weekKey, assessedAt) {
     assessedAt,
     appliedAt: null,
   };
+  if (player.cashInventoryMigration && player.cashInventoryMigration.at <= assessedAt) {
+    player.cashInventoryMigration.weeklyAdjustmentApplied = true;
+  }
   playerState.pendingSettlement = amountDue > 0 ? settlement : null;
   playerState.lastClosedWeekKey = weekKey;
   playerState.totals.assessedCredits = addMoney(playerState.totals.assessedCredits, amountDue);
@@ -474,7 +480,12 @@ export function createWeeklyCashSettlementClientState(world, player, now = Date.
     ? player.weeklyCashSettlement
     : defaultPlayerState(now);
   const period = weeklyCashPeriodFor(now);
-  const base = settlementBaseFor(player);
+  let base;
+  try { base = settlementBaseFor(world, player, now); }
+  catch (error) {
+    if (error.code !== 'CASH_PRICE_UNAVAILABLE') throw error;
+    base = { taxBase: null };
+  }
   return {
     version: WEEKLY_CASH_SETTLEMENT_VERSION,
     timeZone: WEEKLY_CASH_TIME_ZONE,
@@ -487,7 +498,8 @@ export function createWeeklyCashSettlementClientState(world, player, now = Date.
     activatedAt: playerState.activeWeekKey === period.key ? playerState.activatedAt : null,
     interestEligibleFrom: playerState.activeWeekKey === period.key ? playerState.interestEligibleFrom : null,
     estimatedTaxBase: base.taxBase,
-    estimatedAssessment: floorRate(base.taxBase, WEEKLY_CASH_SETTLEMENT_RATE_BPS),
+    valuationAvailable: base.taxBase !== null,
+    estimatedAssessment: base.taxBase === null ? null : floorRate(base.taxBase, WEEKLY_CASH_SETTLEMENT_RATE_BPS),
     outstandingCredits: weeklySettlementLiability(player),
     pendingSettlement: playerState.pendingSettlement ? structuredClone(playerState.pendingSettlement) : null,
     lastSettlement: playerState.lastSettlement ? structuredClone(playerState.lastSettlement) : null,

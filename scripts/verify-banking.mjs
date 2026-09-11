@@ -86,7 +86,7 @@ for (const text of [
 ]) requireText('server/src/game-routes.js', text);
 
 for (const text of [
-  '<PageLayout title="银行">',
+  '<PageLayout title="投资">',
   '<AssetOverviewPanel model={model} />',
   'title="资金管理"',
   '本周资金计划',

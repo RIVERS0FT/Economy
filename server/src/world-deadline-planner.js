@@ -1,3 +1,5 @@
+import { nextCashProductionDeadline } from './cash-production-runtime.js';
+import { nextCommodityInvestmentDeadline } from './commodity-investment-runtime.js';
 import { createContractRuntimeIndex } from './contract-runtime-index.js';
 import { nextDailyCheckInResetAt } from './daily-check-in.js';
 import { nextBankDeadlineAt } from './banking.js';
@@ -96,6 +98,7 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
   const deadlines = {
     // Player facility production is settled lazily per player and is intentionally absent from the global scheduler.
     facility: null,
+    cashProduction: nextCashProductionDeadline(world),
     // Scheduled market processing runs the full world processor. Keep transport folded into the existing market
     // deadline contract, then fold commercial completions into that same authoritative world-processing domain.
     market: earlier(marketDeadline(world, normalizedNow), transportDeadline),
@@ -104,6 +107,7 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
     leaderboard: leaderboardDeadline(world, normalizedNow),
     checkIn: nextDailyCheckInResetAt(normalizedNow),
     bank: nextBankDeadlineAt(world, normalizedNow),
+    investment: nextCommodityInvestmentDeadline(world, normalizedNow),
     weeklyCashSettlement: nextWeeklyCashSettlementDeadlineAt(world, normalizedNow),
     research: nextResearchDeadlineAt(world),
     transport: transportDeadline,

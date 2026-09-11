@@ -53,6 +53,10 @@ for (const path of [
   'server/test/contract-audit.test.js',
   'server/test/state-polling.test.js',
   'server/test/runtime-hot-path.test.js',
+  'server/test/commodity-investments.test.js',
+  'server/test/cash-production-cycles.test.js',
+  'server/test/cash-economy-migration.test.js',
+  'server/test/cash-economy-price-history.test.js',
 ]) check(existsSync(resolve(root, path)), `覆盖率关键测试缺失: ${path}`);
 
 for (const source of [
@@ -64,6 +68,11 @@ for (const source of [
   'server/src/banking.js',
   'server/src/asset-auctions.js',
   'server/src/state-partitions.js',
+  'server/src/commodity-investments.js',
+  'server/src/commodity-investment-prices.js',
+  'server/src/cash-operating-market.js',
+  'server/src/cash-production-cycles.js',
+  'server/src/cash-economy-migration.js',
 ]) check(existsSync(resolve(root, source)), `覆盖率关键源码缺失: ${source}`);
 
 for (const token of [

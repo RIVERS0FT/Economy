@@ -96,9 +96,9 @@ for (const text of [
 ]) requireText(stylesPath, text);
 
 forbidText(navigationPath, "{ id: 'assets', label: '资产' }");
-requireText(navigationPath, "{ id: 'bank', label: '银行' }");
+requireText(navigationPath, "{ id: 'bank', label: '投资' }");
 for (const text of [
-  '独立资产页面已经永久删除，资产总览唯一归属银行页',
+  '独立资产页面已经永久删除，资产总览唯一归属投资页',
   '页面顺序固定为“资产总览／资金管理／银行贷款／银行记录”',
   '不得恢复独立资产页',
   '资产估值唯一读取服务器权威结果',

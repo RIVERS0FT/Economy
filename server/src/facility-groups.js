@@ -1,3 +1,8 @@
+import { cashFinancialAssets } from './cash-financial-assets.js';
+import { processCashProductionGroup, stopCashProduction } from './cash-production-runtime.js';
+import { cashAdd, cashMicros, cashMoney } from './cash-economy-money.js';
+import { requireCashProvince } from './commodity-investment-prices.js';
+import { quoteCashOperatingInputs, cashInputTotal, prepareCashMarketBookings, commitCashMarketBookings } from './cash-operating-market.js';
 import { activeProductionRecipe, legacyProductionOperatingCost, PRODUCTION_BALANCE_VERSION } from './production-balance.js';
 import { buildingAvailableInput, buildingFreezeSource, reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { consumeBuildingCommodity } from './commodity-freezes.js';
@@ -139,7 +144,7 @@ function expandAvailableFacilities(group, previousCount, nextCount, now) {
   const currentRate = commitStaffingRate(group, now);
   group.staffingRateBps = scaleStaffingRateForExpansion(currentRate, previous, next);
   group.staffingUpdatedAt = Math.max(0, Number(now) || 0);
-  if (group.status === 'running') group.participatingCount = next;
+  if (group.status === 'running' && !group.cashCycle) group.participatingCount = next;
 }
 
 function applyConfigurationStaffingPenalty(group, now) {
@@ -147,7 +152,7 @@ function applyConfigurationStaffingPenalty(group, now) {
   const after = Math.max(0, before - FACILITY_CONFIGURATION_STAFFING_PENALTY_BPS);
   group.staffingRateBps = after;
   group.staffingUpdatedAt = Math.max(0, Number(now) || 0);
-  group.staffingBatchCarryBps = 0;
+  if (!group.cashCycle) group.staffingBatchCarryBps = 0;
   return { before, after };
 }
 
@@ -378,7 +383,7 @@ function normalizeStatusReason(value, enabled) {
   const mapped = raw === 'listed' ? 'no_available_facility' : raw;
   const allowed = new Set([
     'manual', 'insufficient_funds',
-    'insufficient_input', 'no_available_facility', 'maintenance',
+    'insufficient_input', 'no_available_facility', 'maintenance', 'unprofitable', 'price_unavailable',
   ]);
   if (!allowed.has(mapped)) return enabled ? undefined : 'manual';
   if (!enabled && mapped !== 'manual') return 'manual';
@@ -425,6 +430,13 @@ function createGroup(typeId, overrides = {}, now = Date.now()) {
       productionLegacyRecipeId: normalizedRecipeId,
     } : previousBoundary;
   return {
+    ...(overrides.cashCycleSequence === undefined ? {} : {
+      cashCycleSequence: overrides.cashCycleSequence,
+      cashLastCompletedSequence: overrides.cashLastCompletedSequence ?? 0,
+      cashCycle: overrides.cashCycle ? clone(overrides.cashCycle) : null,
+      lastCashCycle: overrides.lastCashCycle ? clone(overrides.lastCashCycle) : null,
+      ...(overrides.cashPriceRetryAt ? { cashPriceRetryAt: overrides.cashPriceRetryAt, cashPriceError: overrides.cashPriceError } : {}),
+    }),
     facilityTypeId: typeId,
     productionBalanceVersion: PRODUCTION_BALANCE_VERSION,
     ...costBoundary,
@@ -453,6 +465,14 @@ function normalizeGroup(group, now = Date.now()) {
   const legacyPendingRecipe = recipesFor(type).find((recipe) => recipe.id === group?.pendingRecipeId);
   const normalized = createGroup(type.id, group, now);
   normalized.count = Math.max(0, Math.floor(normalized.count));
+  if (normalized.cashCycle) {
+    // The prepaid asset remains with its payer even when every physical factory has been transferred.
+    normalized.participatingCount = normalized.cashCycle.physicalCount;
+    normalized.cycleStartedAt = normalized.cashCycle.startedAt;
+    normalized.status = 'running';
+    delete normalized.statusReason;
+    return normalized;
+  }
   normalized.participatingCount = Math.min(normalized.count, Math.floor(normalized.participatingCount));
 
   if (normalized.status === 'running' && legacyPendingJoinCount > 0) {
@@ -683,7 +703,7 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
       .filter(Boolean);
     for (const group of player.facilityGroups) {
       const available = availableGroupCount(world, player, group);
-      if (group.status === 'running') {
+      if (group.status === 'running' && !group.cashCycle) {
         const previousCount = group.participatingCount;
         if (available > previousCount) expandAvailableFacilities(group, previousCount, available, now);
         else group.participatingCount = available;
@@ -815,6 +835,10 @@ function transferableGroupCount(world, player, group) {
 }
 
 function reconcileFacilityGroup(world, player, group, now) {
+  if (world.cashEconomy?.version === 1) {
+    processCashProductionGroup(world, player, group, now);
+    return;
+  }
   const type = typeFor(group.facilityTypeId);
   if (!type) return;
 
@@ -899,6 +923,10 @@ function executeCycle(world, player, group, type, count, capacity, cycleDueAt, n
 
 
 function processGroup(world, player, group, now, completedEvents = []) {
+  if (world.cashEconomy?.version === 1) {
+    processCashProductionGroup(world, player, group, now);
+    return;
+  }
   reconcileFacilityGroup(world, player, group, now);
   const type = typeFor(group.facilityTypeId);
   if (!type || group.status !== 'running' || !group.cycleStartedAt) return;
@@ -1062,6 +1090,12 @@ function buildFacilityGroup(world, userId, payload, now) {
   const type = typeFor(payload.facilityTypeId);
   const provinceId = normalizeProvinceId(payload.provinceId);
   if (!type) return result(false, '工厂类型不存在');
+  if (world.cashEconomy?.version === 1) {
+    requireCashProvince(payload.provinceId);
+    if (!Number.isSafeInteger(payload.quantity) || payload.quantity < 1 || payload.quantity > 100) {
+      return result(false, '建造数量必须为 1 到 100 的整数');
+    }
+  }
   const quantity = normalizePositiveInteger(payload.quantity ?? 1, 100);
   if (!quantity) return result(false, '建造数量必须为 1 到 100 的整数');
   const existingGroup = groupFor(player, type.id, false, now, provinceId);
@@ -1075,15 +1109,29 @@ function buildFacilityGroup(world, userId, payload, now) {
     if (!Number.isSafeInteger(required) || required < 1) return result(false, '建造材料数量超出系统可表示范围');
     buildInputs.push({ productId: String(item.productId || ''), quantity: required });
   }
-  if (player.credits < totalCost) return result(false, '建造资金不足');
-  const missingInput = buildInputs.find((item) => inventoryFor(player, item.productId, provinceId).available < item.quantity);
-  if (missingInput) {
+  const cashInputs = world.cashEconomy?.version === 1
+    ? quoteCashOperatingInputs(world, provinceId, type.buildInputs, quantity, now) : null;
+  const materialCost = cashInputs ? cashInputTotal(cashInputs) : 0;
+  const requiredCost = cashAdd(totalCost, materialCost);
+  if (player.credits < requiredCost) return result(false, '建造资金不足');
+  const missingInput = cashInputs ? null : buildInputs.find((item) => inventoryFor(player, item.productId, provinceId).available < item.quantity);
+  if (!cashInputs && missingInput) {
     const product = PRODUCT_CATALOG.find((item) => item.id === missingInput.productId);
     return result(false, `${product?.name || missingInput.productId}建造材料不足`);
   }
 
-  player.credits -= totalCost;
-  for (const item of buildInputs) inventoryFor(player, item.productId, provinceId).available -= item.quantity;
+  if (cashInputs) {
+    const booking = prepareCashMarketBookings(world, cashInputs.map((item) => ({
+      provinceId, productId: item.productId, side: 'buy', quantity: item.quantity,
+      price: item.unitPrice, at: now, processedAt: now, execution: 'construction-input',
+    })));
+    commitCashMarketBookings(world, booking);
+    player.credits = cashMoney(cashMicros(player.credits) - cashMicros(requiredCost));
+    player.stats.constructionMaterialsPaid = cashAdd(player.stats.constructionMaterialsPaid ?? 0, materialCost);
+  } else {
+    player.credits -= totalCost;
+    for (const item of buildInputs) inventoryFor(player, item.productId, provinceId).available -= item.quantity;
+  }
   player.stats.constructionPayroll = Number(player.stats.constructionPayroll || 0) + totalCost;
   player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + totalCost;
   player.stats.facilitiesConstructed = Number(player.stats.facilitiesConstructed || 0) + quantity;
@@ -1116,6 +1164,10 @@ function startFacilityGroup(world, userId, payload, now) {
   const group = type ? groupFor(player, type.id, false, now, payload.provinceId) : null;
   if (!type || !group || availableGroupCount(world, player, group) < 1) return result(false, '工厂集群不存在或没有可用生产权');
   group.enabled = true;
+  if (world.cashEconomy?.version === 1) {
+    const applied = processCashProductionGroup(world, player, group, now, { manual: true });
+    return result(true, applied.started || group.cashCycle ? '生产周期已启动' : '运行意图已开启，等待完整投入条件');
+  }
   if (group.status !== 'running' && group.autoOperationBootstrapPending === true) {
     bootstrapBuildingAutoOperation(world, player, now, group.provinceId);
   }
@@ -1132,6 +1184,7 @@ function pauseFacilityGroup(world, userId, payload, now) {
   const type = typeFor(payload.facilityTypeId);
   const group = type ? groupFor(player, type.id, false, now, payload.provinceId) : null;
   if (!group) return result(false, '工厂集群不存在');
+  if (world.cashEconomy?.version === 1) return stopCashProduction(player, group, now);
   setGroupStopped(group, 'manual', now);
   return result(true, `${type.name}已停止生产并关闭自动恢复`);
 }
@@ -1164,6 +1217,10 @@ function setGroupRecipe(world, userId, payload, now) {
   const { before, after } = applyConfigurationStaffingPenalty(group, now);
   group.activeRecipeId = recipe.id;
   delete group.pendingRecipeId;
+  if (world.cashEconomy?.version === 1) {
+    // The current snapshot still uses its original recipe and paid amount; only a later cycle changes.
+    return result(true, group.cashCycle ? '生产配置已更新，将用于下一周期' : '生产配置已更新');
+  }
 
   if (group.status === 'running') {
     group.participatingCount = availableGroupCount(world, player, group);
@@ -1229,6 +1286,7 @@ function setGroupRecipes(world, userId, payload, now) {
 }
 
 function reduceRunningGroupForSellOrder(group, type, quantity, now = Date.now()) {
+  if (group.cashCycle) return;
   if (group.status !== 'running') return;
   group.participatingCount = Math.max(0, group.participatingCount - quantity);
   if (group.participatingCount < 1) {
@@ -1405,7 +1463,7 @@ export function transferFacilityAuctionQuantity(
     return result(false, '拍卖工厂冻结数量不足');
   }
   sellerGroup.count -= normalizedQuantity;
-  if (sellerGroup.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== sellerGroup);
+  if (sellerGroup.count === 0 && !sellerGroup.cashCycle) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== sellerGroup);
   addPurchasedGroup(world, buyer, type.id, normalizedQuantity, now, provinceId);
   return result(true, '拍卖工厂已转移');
 }
@@ -1478,7 +1536,8 @@ function recentTradePriceFor(world, kind, assetId, provinceId = DEFAULT_PROVINCE
   return Number.isFinite(Number(market?.lastTradePrice)) ? Math.max(0, Number(market.lastTradePrice)) : 0;
 }
 
-function assetSummaryFor(world, player) {
+function assetSummaryFor(world, player, now = world.lastProcessedAt) {
+  const financial = cashFinancialAssets(world, player, now, { allowUnavailable: true });
   const commodity = Object.entries(player.inventories || {}).reduce((summary, [key, inventory]) => {
     const { provinceId, assetId } = splitProvinceScopedKey(key);
     const price = recentTradePriceFor(world, 'commodity', assetId, provinceId);
@@ -1519,13 +1578,16 @@ function assetSummaryFor(world, player) {
   const inTransitCommodityValue = commodity.inTransit;
   const commodityValue = availableCommodityValue + frozenCommodityValue + inTransitCommodityValue;
   const facilityValue = availableFacilityValue + mortgagedFacilityValue + frozenFacilityValue;
-  const grossAssetValue = cashValue + commodityValue + facilityValue + commercialValue;
+  const grossAssetValue = financial.total === null ? null : cashValue + commodityValue + facilityValue + commercialValue + financial.total;
   const liabilityValue = activeLoanLiability(player) + weeklySettlementLiability(player) + contractLiabilityValue;
-  const netAssetValue = grossAssetValue - liabilityValue;
-  const availableAssetValue = availableCashValue + bankDepositValue + availableCommodityValue + availableFacilityValue + commercialValue - liabilityValue;
-  const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue + mortgagedFacilityValue + contractReceivableValue;
+  const netAssetValue = grossAssetValue === null ? null : grossAssetValue - liabilityValue;
+  const availableAssetValue = financial.investmentEquity === null ? null : availableCashValue + bankDepositValue + availableCommodityValue + availableFacilityValue + commercialValue + financial.investmentEquity - liabilityValue;
+  const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue + mortgagedFacilityValue + contractReceivableValue + financial.productionWorkInProgress;
   return {
     cashValue,
+    valuationAvailable: financial.valuationAvailable,
+    investmentValue: financial.investmentEquity,
+    workInProgressValue: financial.productionWorkInProgress,
     commodityValue,
     facilityValue,
     commercialValue,
@@ -1581,6 +1643,7 @@ function createLeaderboard(world, currentUserId, now) {
         isCurrentPlayer: player.userId === currentUserId,
       };
     })
+    .filter((entry) => entry.totalAssets !== null)
     .sort((left, right) => right.totalAssets - left.totalAssets || left.playerName.localeCompare(right.playerName))
     .slice(0, 100)
     .map((entry, index) => ({ rank: index + 1, ...entry }));
@@ -1603,6 +1666,10 @@ function clientGroup(world, player, group, now) {
     staffingRateBps,
   );
   const {
+    cashCycle: _cashCycle,
+    cashCycleSequence: _cashCycleSequence,
+    cashLastCompletedSequence: _cashLastCompletedSequence,
+    cashPriceRetryAt: _cashPriceRetryAt,
     cycleWageMultiplierBps: _cycleWageMultiplierBps,
     cycleStaffingRateBps: _legacyCycleStaffingRateBps,
     cycleRecordedLifetimeOutput: _cycleRecordedLifetimeOutput,
@@ -1614,6 +1681,10 @@ function clientGroup(world, player, group, now) {
   } = clone(group);
   return {
     ...publicGroup,
+    ...(group.cashCycle ? { cashCycle: Object.fromEntries([
+      'id', 'recipeId', 'startedAt', 'completesAt', 'physicalCount', 'effectiveCount',
+      'inputs', 'materialCost', 'operatingCost', 'totalCost', 'output', 'expectedRevenue', 'expectedProfit',
+    ].map((key) => [key, structuredClone(group.cashCycle[key])])) } : {}),
     staffingRateBps,
     staffingUpdatedAt: Math.max(0, Number(now) || 0),
     productionSettlementStaffingRateBps: normalizeStaffingRate(group.staffingRateBps) ?? FACILITY_STAFFING_FULL_BPS,
@@ -1670,7 +1741,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
     provinceFacilityMarkets: clone(provinceFacilityMarkets),
     facilityMarkets: clone(provinceFacilityMarkets[DEFAULT_PROVINCE_ID] || {}),
     valuationPrices: valuationPricesFor(world, player),
-    assetSummary: assetSummaryFor(world, player),
+    assetSummary: assetSummaryFor(world, player, now),
     leaderboard: createLeaderboard(world, userId, now),
   };
 }

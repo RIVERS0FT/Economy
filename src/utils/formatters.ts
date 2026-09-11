@@ -105,3 +105,12 @@ export function formatDuration(ms: number) {
   if (minutes > 0) return seconds > 0 ? `${minutes}m ${seconds.toString().padStart(2, '0')}s` : `${minutes}m`;
   return `${seconds}s`;
 }
+
+/** Unknown authoritative asset values must not be displayed as zero money. */
+export function formatAssetCurrency(value: number | null) {
+  return value === null ? '待核对' : formatCurrency(value);
+}
+
+export function formatCompactAssetCurrency(value: number | null) {
+  return value === null ? '待核对' : formatCompactCurrency(value);
+}

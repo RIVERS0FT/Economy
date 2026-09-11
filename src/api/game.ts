@@ -1,3 +1,4 @@
+import type { CommodityInvestmentTradeInput } from '../types';
 import { installIdempotentGameWriteFetch } from './idempotentGameWriteFetch';
 import { assertGameWriteSession, captureGameWriteSession, endGameWriteSession, GameWriteSessionChangedError } from './gameWriteSession';
 import { GameWriteUnconfirmedError, isUnconfirmedWriteStatus, WRITE_RESULT_UNCONFIRMED, WRITE_RESULT_UNCONFIRMED_MESSAGE } from './gameWriteConfirmation';
@@ -756,6 +757,7 @@ export const gameActions = {
     unload,
     load,
   }),
+  tradeCommodityInvestment: (input: CommodityInvestmentTradeInput) => postAction('/investments/trades', { ...input }),
   bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),
   bankWithdraw: (amount: number) => postAction('/bank/withdrawals', { amount }),
   bankBorrow: (amount: number, termHours: number, autoRepay = true) => (

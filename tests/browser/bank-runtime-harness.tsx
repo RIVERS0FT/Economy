@@ -17,8 +17,10 @@ const fixedNow = Date.UTC(2026, 6, 20, 4, 0, 0);
 document.documentElement.dataset.appSurface = 'game';
 
 const model = {
+  user: { id: 77701, name: '银行测试' },
   game: {
     version: 44,
+    saveEpoch: 1,
     lastProcessedAt: fixedNow,
     credits: 1_500,
     frozenCredits: 200,

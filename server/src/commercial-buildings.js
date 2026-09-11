@@ -1,3 +1,6 @@
+import { quoteCashOperatingInputs, cashInputTotal, prepareCashMarketBookings, commitCashMarketBookings } from './cash-operating-market.js';
+import { cashAdd, cashMicros, cashMoney } from './cash-economy-money.js';
+import { commercialAutoOperationPolicyFor } from '../../shared/commercial-auto-operation.js';
 import { buildingAvailableInput, buildingFreezeSource, reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { consumeBuildingCommodity } from './commodity-freezes.js';
 import { bootstrapBuildingAutoOperation, completeBuildingCycleAutoOperation } from './cycle-auto-operation.js';
@@ -277,19 +280,30 @@ function startCycle(world, player, group, type, startedAt) {
   const popularityProtected = group.popularityProtectionCycles > 0 && naturalPopularityChange < 0;
   const popularityChange = popularityProtected ? 0 : naturalPopularityChange;
   const requirements = cycleRequirements(type, capacity.effectiveCount, starRating, serviceLevel);
-  const requiredCredits = roundInternalMoney(requirements.operatingCost + requirements.serviceCost);
+  const cashMode = world.cashEconomy?.version === 1;
+  let cashInputs = null;
+  if (cashMode) {
+    try { cashInputs = quoteCashOperatingInputs(world, group.provinceId, type.consumptionInputs, capacity.effectiveCount, startedAt); }
+    catch (error) {
+      if (error.code !== 'CASH_PRICE_UNAVAILABLE') throw error;
+      setBlocked(group, 'price_unavailable', startedAt);
+      return false;
+    }
+  }
+  const materialCost = cashInputs ? cashInputTotal(cashInputs) : 0;
+  const requiredCredits = roundInternalMoney(requirements.operatingCost + requirements.serviceCost + materialCost);
   if (requiredCredits === null || requiredCredits > player.credits) {
     setBlocked(group, 'insufficient_funds', startedAt);
     return false;
   }
-  for (const input of requirements.inputs) {
+  for (const input of cashMode ? [] : requirements.inputs) {
     if (buildingAvailableInput(player, group, input.productId, 'commercial') < input.quantity) {
       setBlocked(group, 'insufficient_input', startedAt);
       return false;
     }
   }
 
-  const inputValue = requirements.inputs.reduce((sum, input) => (
+  const inputValue = cashMode ? materialCost : requirements.inputs.reduce((sum, input) => (
     sum + input.quantity * officialPriceFor(world, input.productId, group.provinceId)
   ), 0);
   const revenue = roundInternalMoney(inputValue + requirements.operatingCost + requirements.profit);
@@ -298,6 +312,14 @@ function startCycle(world, player, group, type, startedAt) {
     return false;
   }
 
+  if (cashInputs) {
+    const booking = prepareCashMarketBookings(world, cashInputs.map((input) => ({
+      provinceId: group.provinceId, productId: input.productId, side: 'buy', quantity: input.quantity,
+      price: input.unitPrice, at: startedAt, processedAt: startedAt, execution: 'commercial-input',
+    })));
+    commitCashMarketBookings(world, booking);
+    player.stats.commercialMaterialsPaid = cashAdd(player.stats.commercialMaterialsPaid ?? 0, materialCost);
+  }
   player.credits = roundInternalMoney(player.credits - requiredCredits) ?? 0;
   player.stats.systemSinks = normalizeNonNegativeMoney(Number(player.stats.systemSinks || 0) + requiredCredits);
   player.stats.commercialOperatingCosts = normalizeNonNegativeMoney(
@@ -308,8 +330,10 @@ function startCycle(world, player, group, type, startedAt) {
   );
   let goodsConsumed = 0;
   for (const input of requirements.inputs) {
-    const inventory = inventoryForProvince(player, input.productId, group.provinceId);
-    consumeBuildingCommodity(inventory, 'commercial', buildingFreezeSource(group, 'commercial'), input.quantity);
+    if (!cashMode) {
+      const inventory = inventoryForProvince(player, input.productId, group.provinceId);
+      consumeBuildingCommodity(inventory, 'commercial', buildingFreezeSource(group, 'commercial'), input.quantity);
+    }
     goodsConsumed += input.quantity;
   }
 
@@ -334,6 +358,8 @@ function startCycle(world, player, group, type, startedAt) {
   group.pendingOperatingCost = requirements.operatingCost;
   group.pendingServiceCost = requirements.serviceCost;
   group.pendingInputValue = roundInternalMoney(inputValue);
+  if (cashMode) group.cashOperatingCycle = { version: 1, totalCost: requiredCredits,
+    inputs: cashInputs, startedAt, completesAt: startedAt + type.cycleMs };
   group.pendingInputs = requirements.inputs.map((input) => ({ ...input }));
   group.pendingProfit = requirements.profit;
   group.pendingGoodsConsumed = goodsConsumed;
@@ -388,6 +414,7 @@ function settleCycle(player, group) {
   delete group.pendingServiceCost;
   delete group.pendingInputValue;
   delete group.pendingInputs;
+  delete group.cashOperatingCycle;
   delete group.cycleActive;
   delete group.pendingStaffingRateBps;
   delete group.pendingEffectiveCount;
@@ -403,6 +430,18 @@ function settleCycle(player, group) {
 function processGroup(world, player, group, now, { allowInitialBootstrap = true, allowCycleStart = true } = {}) {
   const type = typeFor(group.commercialTypeId);
   if (!type) return;
+  if (world.cashEconomy?.version === 1) {
+    if (hasCommercialCycle(group) && group.cycleCompletesAt <= now) settleCycle(player, group);
+    if (hasCommercialCycle(group)) return;
+    if (!group.enabled || !allowCycleStart || !commercialAutoOperationPolicyFor(group).enabled
+      || player.__suppressInitialAutoOperationBootstrap === true) {
+      group.status = 'stopped'; group.statusReason = 'manual'; group.participatingCount = 0;
+      return;
+    }
+    // No backfilled offline purchases. One new complete paid cycle starts at the actual processing time.
+    startCycle(world, player, group, type, now);
+    return;
+  }
   let cycles = 0;
   let lastCompletedAt = 0;
   while (hasCommercialCycle(group) && Number(group.cycleCompletesAt || Number.POSITIVE_INFINITY) <= now) {
@@ -507,7 +546,7 @@ function stopCommercialBuilding(world, userId, payload, now) {
   const type = typeFor(payload.commercialTypeId);
   const group = player && type ? groupFor(player, type.id, payload.provinceId, false, now) : null;
   if (!player || !type || !group) return result(false, '商业建筑集群不存在');
-  processGroup(world, player, group, now, { allowInitialBootstrap: false });
+  processGroup(world, player, group, now, { allowInitialBootstrap: false, allowCycleStart: world.cashEconomy?.version !== 1 });
   if (group.enabled) commitCommercialStaffing(group, now);
   group.enabled = false;
   if (hasCommercialCycle(group)) {
@@ -526,7 +565,7 @@ function setCommercialAutoOperation(world, userId, payload, now) {
   if (!group || group.count < 1) return result(false, '商业建筑集群不存在');
   const policy = normalizeCommercialAutoOperationPolicy(payload.policy);
   if (!policy) return result(false, '自动经营策略无效');
-  processGroup(world, player, group, now, { allowInitialBootstrap: false });
+  processGroup(world, player, group, now, { allowInitialBootstrap: false, allowCycleStart: world.cashEconomy?.version !== 1 });
   group.autoOperationPolicy = policy;
   return result(true, policy.enabled ? '商业自动经营策略已保存' : '商业自动经营已关闭');
 }

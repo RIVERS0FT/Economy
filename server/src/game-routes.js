@@ -23,6 +23,7 @@ function resolveActionUnchecked(method, path) {
   if (method === 'POST' && path === '/api/game/gem-shop/exchange') return { action: 'exchangeGems', category: 'general' };
   if (method === 'POST' && path === '/api/game/gem-shop/quote/reject') return { action: 'rejectGemShopQuote', category: 'general' };
   if (method === 'POST' && path === '/api/game/facilities/construction/accelerate') return { action: 'retiredFacilityConstructionAcceleration', category: 'general' };
+  if (method === 'POST' && path === '/api/game/investments/trades') return { action: 'tradeCommodityInvestment', category: 'orders' };
   if (method === 'POST' && path === '/api/game/bank/deposits') return { action: 'bankDeposit', category: 'general' };
   if (method === 'POST' && path === '/api/game/bank/withdrawals') return { action: 'bankWithdraw', category: 'general' };
   if (method === 'POST' && path === '/api/game/bank/loans') return { action: 'bankBorrow', category: 'general' };

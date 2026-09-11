@@ -140,6 +140,7 @@ function procureBuildingPlans(
  * Eligibility is an explicit first-construction marker; old/migrated or transferred groups never infer it from zero output.
  */
 export function bootstrapBuildingAutoOperation(world, player, now, provinceId) {
+  if (world.cashEconomy?.version === 1) return false;
   // Runtime action preprocessing may temporarily suppress bootstrap so a stop/configuration action cannot buy first.
   // This transient flag is deleted before the player action is executed and is never persisted.
   if (player?.__suppressInitialAutoOperationBootstrap === true) return false;
@@ -152,6 +153,7 @@ export function bootstrapBuildingAutoOperation(world, player, now, provinceId) {
 }
 
 export function recordCompletedIndustrialOutput(world, player, group, productId, output, now) {
+  if (world.cashEconomy?.version === 1) return undefined;
   if (output > 0) {
     recordDailyProductProduction(player, group.provinceId, productId, output, now);
     allocateDailySupplyReservesForSupplier(world, player.userId, group.provinceId, productId, now, { process: false });
@@ -161,6 +163,7 @@ export function recordCompletedIndustrialOutput(world, player, group, productId,
 
 /** Called only after a real, committed-in-this-transaction cycle result, never by a client timer. */
 export function completeBuildingCycleAutoOperation(world, player, group, kind, completedAt, now) {
+  if (world.cashEconomy?.version === 1) return false;
   if (!Number.isFinite(completedAt) || completedAt <= 0 || completedAt > now) return false;
   delete group.autoOperationBootstrapPending;
   const sourceId = buildingFreezeSource(group, kind);

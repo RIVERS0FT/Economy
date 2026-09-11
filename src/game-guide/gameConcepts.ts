@@ -1,4 +1,8 @@
 export const GAME_CONCEPTS = {
+  'commodity-futures': {
+    label: '商品期货',
+    description: '全额资金买入，不提供交易杠杆或做空。持仓不参与生产和运输，只按主动卖出、合约到期或明确的违约追偿规则现金结算；到期不自动续期。投资买卖不改变地区经营价格。',
+  },
   'transport-trip': {
     label: '每趟运输',
     description: '一趟从起点出发并返回起点。往返路线沿原路返回，环线完整运行一圈；每个设置的停靠站均可重新装卸。',

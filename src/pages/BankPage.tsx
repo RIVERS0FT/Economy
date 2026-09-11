@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { AssetOverviewPanel } from '../components/assets/AssetOverviewPanel';
+import { InvestmentWorkspace } from '../components/investment/InvestmentWorkspace';
 import { BankIcon, FactoryIcon } from '../components/icons/GameIcons';
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -75,7 +76,7 @@ function utilizationSurchargeBps(utilizationBps: number) {
   return 200;
 }
 
-export function BankPage({ model }: { model: LoadedGameViewModel }) {
+function BankCapitalPanel({ model }: { model: LoadedGameViewModel }) {
   const { bankAccount, bankSummary } = model.game;
   const provinces = model.game.provinces || [];
   const weeklyCashSettlement = bankSummary.weeklyCashSettlement;
@@ -106,7 +107,8 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
         - (recentDefault ? bankSummary.recentDefaultPenaltyBps : 0),
     ),
   );
-  const creditAssetValue = Math.max(0, model.game.assetSummary.netAssetValue ?? model.game.assetSummary.totalAssets);
+  const creditAssetValue = bankSummary.valuationAvailable === false ? 0 : Math.max(0, bankSummary.assetCreditValue
+    ?? model.game.assetSummary.netAssetValue ?? model.game.assetSummary.totalAssets ?? 0);
   const maximumLoan = floorMoney(creditAssetValue * creditRatioBps / 10_000);
   const requestedLoan = parseMoneyDraft(loanDraft, { min: 0.01, max: Math.max(0.01, maximumLoan) });
   const creditUtilizationBps = requestedLoan && maximumLoan > 0
@@ -165,8 +167,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   return (
-    <PageLayout title="银行">
-      <AssetOverviewPanel model={model} />
+    <>
 
       <PagePanel className="bank-cash-panel">
         <WidgetHeading title="资金管理" action={<BankIcon />} />
@@ -256,8 +257,8 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
               />
               <DataRow label="昨日入账利息" value={<CurrencyAmount>{formatCurrency(bankAccount.lastDepositInterestEarned)}</CurrencyAmount>} tone="success" />
               <DataRow label="累计存款利息" value={<CurrencyAmount>{formatCurrency(bankAccount.totalDepositInterestEarned)}</CurrencyAmount>} />
-              <DataRow label="预计周末计税资金" value={<CurrencyAmount>{formatCurrency(weeklyCashSettlement.estimatedTaxBase)}</CurrencyAmount>} />
-              <DataRow label="预计周扣除" value={<CurrencyAmount>{formatCurrency(weeklyCashSettlement.estimatedAssessment)}</CurrencyAmount>} tone="warning" />
+              <DataRow label="预计周末计税资金" value={<CurrencyAmount>{weeklyCashSettlement.estimatedTaxBase === null ? '待核对' : formatCurrency(weeklyCashSettlement.estimatedTaxBase)}</CurrencyAmount>} />
+              <DataRow label="预计周扣除" value={<CurrencyAmount>{weeklyCashSettlement.estimatedAssessment === null ? '待核对' : formatCurrency(weeklyCashSettlement.estimatedAssessment)}</CurrencyAmount>} tone="warning" />
               <DataRow label="待完成结算" value={<CurrencyAmount>{formatCurrency(weeklyCashSettlement.outstandingCredits)}</CurrencyAmount>} tone={weeklyCashSettlement.outstandingCredits > 0 ? 'danger' : 'neutral'} />
             </DataList>
             <p className="bank-settlement-countdown">结息时间：{formatTime(bankSummary.nextInterestSettlementAt)}</p>
@@ -343,7 +344,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
             </div>
 
             <DataList>
-              <DataRow label="授信资产净值" value={<CurrencyAmount>{formatCurrency(creditAssetValue)}</CurrencyAmount>} />
+              <DataRow label="授信资产净值" value={<CurrencyAmount>{bankSummary.valuationAvailable === false ? '待核对' : formatCurrency(creditAssetValue)}</CurrencyAmount>} />
               <DataRow label="最高可贷额度" value={<CurrencyAmount>{formatCurrency(maximumLoan)}</CurrencyAmount>} tone="success" />
             </DataList>
 
@@ -416,7 +417,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
               </DataList>
             </div>
 
-            <Button block disabled={!requestedLoan || Boolean(pending)} onClick={() => submit(
+            <Button block disabled={!requestedLoan || requestedLoan > maximumLoan || bankSummary.valuationAvailable === false || Boolean(pending)} onClick={() => submit(
               'borrow',
               () => model.bankBorrow(requestedLoan || 0, loanTermHours, true),
               () => setLoanDraft(''),
@@ -457,6 +458,16 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
           </div>
         )}
       </PagePanel>
+    </>
+  );
+}
+
+export function BankPage({ model }: { model: LoadedGameViewModel }) {
+  return (
+    <PageLayout title="投资">
+      <AssetOverviewPanel model={model} />
+      <InvestmentWorkspace key={`${model.user.id}:${model.game.saveEpoch}`} model={model}
+        capital={<BankCapitalPanel model={model} />} />
     </PageLayout>
   );
 }

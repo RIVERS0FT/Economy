@@ -11,7 +11,7 @@ test('bank page exposes asset credit amount, term and utilization without collat
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('bank-runtime-test.html');
 
-  await expect(page.getByRole('heading', { name: '银行', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '投资', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '资产总览', exact: true })).toBeVisible();
   await expect(page.getByText('当前净资产', { exact: true })).toHaveCount(1);
   await expect(page.getByText('贷款负债', { exact: true })).toHaveCount(1);
