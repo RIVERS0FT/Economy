@@ -175,7 +175,7 @@ test('legacy paid route expansions are refunded once and normalized to one slot 
   assert.equal(route.vehicleCount, 3);
   assert.equal(player.credits, beforeExpansion - 2 * TRANSPORT_MODE_POLICY.rail.vehiclePurchaseCost);
   migrateTransportWorld(world, now + 2);
-  assert.equal(route.vehicleCount, 1);
+  assert.equal(player.transportRoutes[0].vehicleCount, 1);
   assert.equal(player.credits, beforeExpansion);
   assert.equal(player.stats.transportFleetMigrationRefund, 2 * TRANSPORT_MODE_POLICY.rail.vehiclePurchaseCost);
   const once = JSON.stringify({ credits: player.credits, stats: player.stats, state: player.transportSlotState });
