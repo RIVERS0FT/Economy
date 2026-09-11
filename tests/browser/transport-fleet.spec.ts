@@ -1,9 +1,84 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { CURRENT_CLIENT_STATE_VERSION } from '../../server/shared/economy-state-version.js';
+
+async function initializeWriteAuthority(page: Page) {
+  await page.route('**/economy-api/game/state**', (route) => route.fulfill({ json: {
+    revision: 1,
+    unchanged: false,
+    serverNow: Date.now(),
+    partitionRevisions: {
+      catalog: 'catalog-0001',
+      player: 'player-00001',
+      market: 'market-00001',
+      auction: 'auction-0001',
+      contract: 'contract-0001',
+      leaderboard: 'leader-00001',
+    },
+    patches: {
+      catalog: {
+        version: CURRENT_CLIENT_STATE_VERSION,
+        products: [{ id: 'wheat', name: '小麦', category: 'agriculture', basePrice: 1 }],
+        facilityTypes: [{
+          id: 'farm',
+          name: '农场',
+          category: 'industrial',
+          complexity: 'C1',
+          buildCost: 100,
+          buildTimeMs: 0,
+          cycleMs: 300_000,
+          operatingCost: 1,
+          inputs: [],
+          output: { productId: 'wheat', quantity: 1 },
+          systemValue: 100,
+          defaultRecipeId: 'farm-standard',
+          recipes: [{
+            id: 'farm-standard',
+            name: '标准',
+            cycleMs: 300_000,
+            operatingCost: 1,
+            inputs: [],
+            output: { productId: 'wheat', quantity: 1 },
+          }],
+        }],
+        commercialBuildingTypes: [{ id: 'convenience-store', name: '便利店' }],
+        researchLevels: [{ id: 'C1', rank: 1, cost: 0, durationMs: 0 }],
+        provinces: [{ id: 'A', name: '加利福尼亚', shortName: 'CA', mapName: 'California', longitude: -100, latitude: 30 }],
+        defaultProvinceId: 'A',
+      },
+      player: {
+        userId: 8912,
+        saveEpoch: 1,
+        playerName: '运输测试玩家',
+        registeredAt: 1_800_000_000_000,
+        credits: 10_000,
+        frozenCredits: 0,
+        inventories: {},
+        provinceInventories: {},
+        lastProcessedAt: Date.now(),
+        facilityGroups: [],
+        stats: {},
+      },
+      market: { orders: [], markets: {} },
+      auction: { assetAuctions: [] },
+      contract: { productionContracts: [] },
+      leaderboard: { leaderboard: [] },
+    },
+  } }));
+  const epoch = await page.evaluate(async () => {
+    const session = await import('/economy/src/api/gameWriteSession.ts');
+    const api = await import('/economy/src/api/game.ts');
+    session.beginGameWriteSession(8912);
+    const response = await api.getGameState();
+    return response.state?.saveEpoch;
+  });
+  expect(epoch).toBe(1);
+}
 
 async function open(page: Page) {
   await page.route(/\/transport-fleet-harness$/, (route) => route.fulfill({ contentType: 'text/html',
     body: '<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Transport slots</title><div id="root"></div><script type="module" src="/economy/tests/browser/transport-fleet-harness.tsx"></script></html>' }));
   await page.goto('transport-fleet-harness');
+  await initializeWriteAuthority(page);
   await page.waitForFunction(() => Boolean(window.transportFleet));
 }
 async function patch(page: Page, value: Record<string, unknown>) {
@@ -50,12 +125,13 @@ test('technology slots render as independent tool choices with persistent traini
 
 test('switching an idle slot sends one authoritative command and resets only that tool training', async ({ page }) => {
   const requests: Route[] = [];
-  await page.route('**/api/game/transport', (route) => { requests.push(route); });
+  await page.route('**/economy-api/game/transport', (route) => { requests.push(route); });
   await open(page);
   const card = page.locator('[data-slot-id="transport-slot-2"]');
   const select = card.getByRole('combobox', { name: '运输工具' });
   await chooseTool(page, select, '飞机');
   await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].request().headers()['x-economy-save-epoch']).toBe('1');
   expect(requests[0].request().postDataJSON()).toMatchObject({ operation: 'slot-configure', slotId: 'transport-slot-2', mode: 'air' });
   await requests[0].fulfill({ json: { revision: 42, result: { ok: true, message: '槽位 2 已切换为飞机，培养进度已重置', transportSlots: configuredSlots('air') } } });
   await expect(select).toContainText('飞机');
@@ -68,7 +144,7 @@ test('switching an idle slot sends one authoritative command and resets only tha
 
 test('occupied slots cannot change tools and become editable after the trip releases the slot', async ({ page }) => {
   const requests: Route[] = [];
-  await page.route('**/api/game/transport', (route) => { requests.push(route); route.abort(); });
+  await page.route('**/economy-api/game/transport', (route) => { requests.push(route); route.abort(); });
   await open(page);
   const slot = page.locator('[data-slot-id="transport-slot-1"]');
   await expect(slot).toHaveAttribute('data-slot-occupied', 'true');
