@@ -45,7 +45,8 @@ export function transportWaitingLabel(estimate: TransportRouteEstimate) {
 }
 
 function transportSlotNumber(slotId: string | null) {
-  const value = Number(slotId?.split('-').at(-1));
+  const parts = slotId?.split('-') ?? [];
+  const value = Number(parts[parts.length - 1]);
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
