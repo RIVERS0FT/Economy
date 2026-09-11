@@ -14,7 +14,10 @@ test('investment page trades only explicit amounts, remembers tabs and reuses ba
   await expect(page.getByLabel('卖出数量', { exact: true })).toBeVisible();
   await page.getByLabel('卖出数量', { exact: true }).fill('40');
   await page.getByRole('button', { name: '确认卖出', exact: true }).click();
-  await expect(page.locator('body')).toHaveAttribute('data-investment-calls', /"quantity":40,"side":"sell"/);
+  await expect.poll(async () => {
+    const calls = JSON.parse(await page.locator('body').getAttribute('data-investment-calls') || '[]');
+    return calls.at(-1);
+  }).toMatchObject({ quantity: 40, side: 'sell' });
   await page.getByRole('tab', { name: '资金', exact: true }).click();
   await expect(page.getByRole('heading', { name: '资金管理', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '银行贷款', exact: true })).toBeVisible();
