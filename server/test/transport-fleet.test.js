@@ -117,6 +117,7 @@ test('tool proficiency is frozen into each paid trip and levels up only after th
   assert.equal(start(world, route, [{ productId: 'wheat', quantity: 200 }]).ok, true);
   const shipment = world.transportShipments[0];
   const policy = transportCyclePolicyForShipment(shipment);
+  const gained = Math.max(1, Math.min(12, Math.ceil(shipment.cycleDistanceKm / 500)));
   assert.equal(shipment.transportToolLevel, 1);
   assert.equal(policy.transportToolLevel, 1);
   assert.equal(policy.transportToolSpeedBonusBps, 0);
@@ -126,11 +127,11 @@ test('tool proficiency is frozen into each paid trip and levels up only after th
   processTransportWorld(world, shipment.arrivesAt + 1);
   const completed = service(world, shipment);
   assert.equal(completed.ok, true);
-  assert.equal(player.transportSlotState.slots[0].experience, 3);
+  assert.equal(player.transportSlotState.slots[0].experience, 2 + gained);
   assert.equal(transportSlotClientState(world, user.id).slots[0].level, 2);
   assert.match(completed.message, /Lv\.2/);
   assert.equal(shipment.transportTrainingAwarded, true);
-  assert.equal(shipment.transportTrainingExperience, 1);
+  assert.equal(shipment.transportTrainingExperience, gained);
 });
 
 test('trained tools improve travel speed without changing cargo capacity, cash freight or fuel demand', () => {
