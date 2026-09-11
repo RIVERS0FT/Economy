@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../src/app/interactionBootstrap';
 import type { LoadedGameViewModel } from '../../src/app/gameViewModel';
@@ -126,4 +127,48 @@ const model = {
   bankSetAutoRepay: async () => ({ ok: true, message: '自动还款已更新' }),
 } as unknown as LoadedGameViewModel;
 
-createRoot(document.getElementById('root') as HTMLElement).render(<BankPage model={model} />);
+function InvestmentHarness() {
+  const [game, setGame] = useState(() => {
+    const value = structuredClone(model.game);
+    const now = Date.now();
+    value.lastProcessedAt = now;
+    value.saveEpoch = 1;
+    value.commodityInvestmentQuotes = { wheat: { productId: 'wheat', contractId: 'wheat-current',
+      price: 2, priceDateKey: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(now),
+      expiresAt: now + 24 * 60 * 60 * 1000, available: true, feeBps: 100 } };
+    value.commodityInvestment = { enabled: true, equity: 0, principal: 0, unrealizedProfit: 0,
+      realizedProfit: 0, feesPaid: 0, positions: [], recentTransactions: [], valuationAvailable: true };
+    value.assetSummary.investmentValue = 0;
+    value.bankSummary.assetCreditValue = 3560;
+    value.bankSummary.maximumLoanCredits = 1246;
+    return value;
+  });
+  const calls = useRef<unknown[]>([]);
+  const testModel = { ...model, user: { id: 9801 }, game,
+    tradeCommodityInvestment: async (payload: { productId: string; contractId: string; quantity: number; side: 'buy' | 'sell'; priceDateKey: string }) => {
+      calls.current.push(payload); document.body.dataset.investmentCalls = JSON.stringify(calls.current);
+      if (location.search.includes('unknown=1') && calls.current.length === 1) {
+        return { ok: false, code: 'OPERATION_RESULT_UNCONFIRMED', message: '交易结果未确认' };
+      }
+      setGame((previous) => {
+        const next = structuredClone(previous);
+        const account = next.commodityInvestment!;
+        const old = account.positions[0];
+        const quantity = (old?.quantity ?? 0) + (payload.side === 'buy' ? payload.quantity : -payload.quantity);
+        next.credits += payload.side === 'buy' ? -payload.quantity * 2 : payload.quantity * 1.98;
+        account.equity = quantity * 2; account.principal = quantity * 2;
+        account.positions = quantity ? [{ productId: 'wheat', contractId: payload.contractId, quantity,
+          cost: quantity * 2, averageCost: 2, price: 2, value: quantity * 2, unrealizedProfit: 0,
+          expiresAt: next.commodityInvestmentQuotes!.wheat.expiresAt!, status: 'open' }] : [];
+        next.assetSummary.investmentValue = account.equity;
+        return next;
+      });
+      return { ok: true, message: '', revision: calls.current.length };
+    },
+  } as unknown as LoadedGameViewModel;
+  return <BankPage model={testModel} />;
+}
+
+createRoot(document.getElementById('root') as HTMLElement).render(
+  location.search.includes('investment=1') ? <InvestmentHarness /> : <BankPage model={model} />,
+);

@@ -562,13 +562,16 @@ export interface AssetSummary {
   facilityValue: number;
   commercialValue?: number;
   bankDepositValue: number;
+  investmentValue?: number | null;
+  assetValuationAvailable?: boolean;
+  operatingWorkInProgressValue?: number;
   contractReceivableValue?: number;
   contractLiabilityValue?: number;
   contractLockedFacilityValue?: number;
-  grossAssetValue: number;
+  grossAssetValue: number | null;
   liabilityValue: number;
-  netAssetValue: number;
-  totalAssets: number;
+  netAssetValue: number | null;
+  totalAssets: number | null;
   availableCashValue?: number;
   frozenCashValue?: number;
   availableCommodityValue?: number;
@@ -576,7 +579,7 @@ export interface AssetSummary {
   availableFacilityValue?: number;
   mortgagedFacilityValue?: number;
   frozenFacilityValue?: number;
-  availableAssetValue?: number;
+  availableAssetValue?: number | null;
   frozenAssetValue?: number;
 }
 
@@ -696,14 +699,18 @@ export interface WeeklyCashSettlementState {
   interestActive: boolean;
   activatedAt: number | null;
   interestEligibleFrom: number | null;
-  estimatedTaxBase: number;
-  estimatedAssessment: number;
+  pendingValuation?: boolean;
+  estimatedTaxBase: number | null;
+  estimatedAssessment: number | null;
   outstandingCredits: number;
   pendingSettlement: WeeklyCashSettlementRecord | null;
   lastSettlement: WeeklyCashSettlementRecord | null;
 }
 
 export interface BankSummaryState {
+  assetCreditValue?: number | null;
+  maximumLoanCredits?: number;
+  assetValuationAvailable?: boolean;
   nextInterestSettlementAt: number;
   lastDailyInterestCredits: number;
   lastDailyRatePpm: number;
@@ -742,8 +749,61 @@ export interface EconomicCalendarState {
   events: EconomicCalendarEvent[];
 }
 
+export interface CommodityInvestmentQuote {
+  available: boolean;
+  productId: string;
+  contractId?: string;
+  startsAt?: number;
+  expiresAt?: number;
+  priceDateKey?: string;
+  price?: number;
+  feeBps?: number;
+  message?: string;
+}
+
+export interface CommodityInvestmentPosition {
+  productId: string;
+  contractId: string;
+  quantity: number;
+  cost: number;
+  averageCost: number | null;
+  value: number | null;
+  price: number | null;
+  unrealizedProfit: number | null;
+  expiresAt: number;
+  status: 'open' | 'expiry-pending';
+}
+
+export interface CommodityInvestmentTransaction {
+  id: string;
+  type: 'buy' | 'sell' | 'expiry' | 'bank-collection';
+  productId: string;
+  contractId: string;
+  quantity: number;
+  price: number;
+  gross: number;
+  principalReleased: number;
+  fee: number;
+  cashChange: number;
+  createdAt: number;
+  processedAt: number;
+}
+
+export interface CommodityInvestmentState {
+  enabled: boolean;
+  valuationAvailable: boolean;
+  equity: number | null;
+  principal: number;
+  unrealizedProfit: number | null;
+  realizedProfit: number;
+  feesPaid: number;
+  positions: CommodityInvestmentPosition[];
+  recentTransactions: CommodityInvestmentTransaction[];
+  message?: string;
+}
+
 export interface EconomyState extends CommercialStateFields {
-  version: 44;
+  version: 45;
   userId: number;
   playerName: string;
   startingProvinceId: string;
@@ -757,6 +817,8 @@ export interface EconomyState extends CommercialStateFields {
   checkIn: DailyCheckInState;
   bankAccount: BankAccountState;
   bankSummary: BankSummaryState;
+  commodityInvestmentQuotes?: Record<string, CommodityInvestmentQuote>;
+  commodityInvestment?: CommodityInvestmentState;
   inventories: Record<string, ProductInventory>;
   provinces: ProvinceDefinition[];
   defaultProvinceId: string;

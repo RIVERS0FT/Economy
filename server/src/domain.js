@@ -1,3 +1,4 @@
+import { archiveCashPriceDay, cashDateKey, pruneCashPriceArchive } from './commodity-investment-prices.js';
 import { migrateCommodityFreezeSources } from './commodity-freeze-state.js';
 import { releaseLegacyOrderFreeze } from './commodity-freezes.js';
 import { multiplyMoneyByInteger, normalizePlayerMoneyInput, normalizeWorldMoneyPrecision } from './money.js';
@@ -311,9 +312,21 @@ export function processWorld(world, now = Date.now(), { migrate = true } = {}) {
     migrateWorld(world, now);
     ensurePopulationEconomy(world, now);
   }
+  if (world.cashEconomy?.version === 1) {
+    // Save the published pre-rollover date before the market resets its daily counters.
+    const dates = new Set(Object.values(world.markets || {}).map((market) => market.priceDateKey).filter(Boolean));
+    for (const date of dates) {
+      const at = Date.parse(`${date}T00:00:00+08:00`);
+      if (Number.isSafeInteger(at) && cashDateKey(at) === date) archiveCashPriceDay(world, at);
+    }
+  }
   core.processWorld(world, now, { migrate: false });
   marketDemand.process(world, now);
   balancedMarket.processPriceCycles(world, now);
+  if (world.cashEconomy?.version === 1) {
+    archiveCashPriceDay(world, now);
+    pruneCashPriceArchive(world, now);
+  }
   processCommercialWorld(world, now);
   processTransportWorld(world, now);
   processedWorldAt.set(world, now);

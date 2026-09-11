@@ -1,3 +1,4 @@
+import { investmentBookValue } from './commodity-investment-runtime.js';
 import { ensurePlayer } from './domain.js';
 import { applyAssetAuctionAction } from './asset-auctions.js';
 import { cancelOpenProductionContractForSaveDeletion } from './contracts.js';
@@ -204,6 +205,14 @@ function analyzeDeletion(store, world, player, userId, now) {
     auctions: 0,
     contracts: 0,
   };
+
+  if (investmentBookValue(player) > 0) {
+    blockers.push(blocker('commodity_investment_position', '仍持有商品期货，请先卖出或完成到期结算', 'bank'));
+  }
+
+  if (player.weeklyCashSettlement?.pendingInvestmentAssessment) {
+    blockers.push(blocker('commodity_investment_assessment', '商品投资关联的周资金结算仍待确认，暂不能删除存档', 'bank'));
+  }
 
   if (activeLoanLiability(player) > 0) {
     blockers.push(blocker(

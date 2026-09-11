@@ -1,3 +1,4 @@
+import { createCommodityInvestmentClientState, processCommodityInvestmentWorld } from './commodity-investment-runtime.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -7,6 +8,7 @@ import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import { AuthoritativeWriteExecutor } from './authoritative-write-executor.js';
 import {
   createWorld,
+  processWorld,
   ensurePlayer,
   migrateWorld,
 } from './domain.js';
@@ -183,6 +185,7 @@ export function createVersionedClientState(world, userId, now, checkIn) {
     ...createWarehouseSummaryReadOnly(player),
     ...createAssetAuctionClientState(world, userId, now),
     ...createBankClientState(world, player, now),
+    ...createCommodityInvestmentClientState(world, player, now),
     ...createResearchClientState(world, player, now),
     version: CURRENT_CLIENT_STATE_VERSION,
   };
@@ -765,6 +768,10 @@ export class EconomyStore {
   processWorldIfDue(world, now, _currentUserId, { force = false } = {}) {
   if (!force && now < this.nextWorldProcessingAt) return false;
   measureRequestPhase('worldProcessMs', () => {
+    if (world.cashEconomy?.version === 1) {
+      processWorld(world, now, { migrate: false });
+      processCommodityInvestmentWorld(world, now);
+    }
     processLeaderboardWorld(world, now, {
       migrate: false,
       onGemReward: (reward) => this.recordGemLedgerEvent(reward),

@@ -9,6 +9,8 @@ import '../../styles/entity-list-header.css';
 
 export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
   const { game, derived } = model;
+  const investmentValue = game.assetSummary.investmentValue;
+  const workInProgress = game.assetSummary.operatingWorkInProgressValue ?? 0;
   const commercialValue = game.assetSummary.commercialValue ?? 0;
   const commercialBuildingCount = ((game as typeof game & {
     commercialBuildingGroups?: Array<{ count: number }>;
@@ -18,15 +20,15 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
   );
   const { cashShare, commodityShare, facilityShare } = buildAssetAllocation(
     derived.cashValue,
-    derived.commodityValue,
+    derived.commodityValue + (investmentValue ?? 0),
     derived.facilityValue + commercialValue,
   );
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
   const frozenFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.frozenCount || 0) + Number(group.mortgagedCount || 0) + Number(group.contractCollateralCount || 0), 0);
   const frozenAssetValue = game.assetSummary.frozenAssetValue ?? game.frozenCredits;
-  const availableAssetValue = game.assetSummary.availableAssetValue ?? (derived.totalAssets - frozenAssetValue);
-  const grossAssetValue = game.assetSummary.grossAssetValue ?? (derived.totalAssets + (game.assetSummary.liabilityValue || 0));
+  const availableAssetValue = derived.totalAssets === null ? null : game.assetSummary.availableAssetValue ?? (derived.totalAssets - frozenAssetValue);
+  const grossAssetValue = derived.totalAssets === null ? null : game.assetSummary.grossAssetValue ?? (derived.totalAssets + (game.assetSummary.liabilityValue || 0));
   const liabilityValue = game.assetSummary.liabilityValue ?? 0;
   const bankDepositValue = game.assetSummary.bankDepositValue ?? game.bankAccount.depositCredits;
   const availableCommodityValue = game.assetSummary.availableCommodityValue ?? derived.commodityValue;
@@ -67,18 +69,20 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
           </div>
         </section>
 
-        <section className="asset-allocation-summary" aria-label="资产配置比例">
+        {investmentValue !== null && workInProgress === 0 ? <section className="asset-allocation-summary" aria-label="资产配置比例">
           <AssetAllocationChart
             cash={derived.cashValue}
-            commodities={derived.commodityValue}
+            commodities={derived.commodityValue + (investmentValue ?? 0)}
             facilities={derived.facilityValue + commercialValue}
           />
           <div className="allocation-legend">
             <span><i className="cash-dot" />现金 <strong>{cashShare}%</strong></span>
-            <span><i className="commodity-dot" />商品 <strong>{commodityShare}%</strong></span>
+            <span><i className="commodity-dot" />商品与投资 <strong>{commodityShare}%</strong></span>
             <span><i className="facility-dot" />建筑 <strong>{facilityShare}%</strong></span>
           </div>
         </section>
+
+        : null}
 
         <section className="asset-composition-section" aria-labelledby="asset-composition-title">
           <h3 id="asset-composition-title">资产构成</h3>
@@ -112,6 +116,16 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
               <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(availableCommodityValue)}</CurrencyAmount></span>
               <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(frozenCommodityValue)}</CurrencyAmount></span>
             </div>
+            {game.commodityInvestment?.enabled ? <div className="asset-composition-row investment" role="row">
+              <span className="asset-composition-name" role="cell">商品投资</span>
+              <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(investmentValue ?? null)}</CurrencyAmount></strong>
+              <span role="cell" data-label="可用">仅可平仓</span><span role="cell" data-label="冻结">—</span>
+            </div> : null}
+            {workInProgress > 0 ? <div className="asset-composition-row operating" role="row">
+              <span className="asset-composition-name" role="cell">已投入经营</span>
+              <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(workInProgress)}</CurrencyAmount></strong>
+              <span role="cell" data-label="可用">不可支取</span><span role="cell" data-label="冻结">—</span>
+            </div> : null}
             <div
               className="asset-composition-row facility"
               role="row"

@@ -1,0 +1,42 @@
+.investment-content,
+.investment-order-panel,
+.investment-holdings,
+.investment-history {
+  display: grid;
+  gap: var(--space-4, 1rem);
+  min-width: 0;
+}
+
+.investment-position {
+  min-width: 0;
+}
+
+.investment-position .widget-heading h2,
+.investment-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 0.75rem);
+  min-width: 0;
+}
+
+.investment-history-row > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.investment-history-row small {
+  display: block;
+}
+
+.investment-tabs {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 580px) {
+  .investment-history-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}

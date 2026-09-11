@@ -154,6 +154,14 @@ export function resetGameSession() {
 
 export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
 
+export interface CommodityInvestmentTradeInput {
+  productId: string;
+  contractId: string;
+  priceDateKey: string;
+  side: 'buy' | 'sell';
+  quantity: number;
+}
+
 export interface GameActionResult { ok: boolean; message: string; code?: string; }
 export interface GameActionResponse {
   result: GameActionResult;
@@ -405,7 +413,9 @@ async function postAction(path: string, body: Record<string, unknown> = {}) {
   if (manualCommodity) { delete requestBody.price; delete requestBody.productionSettlement; }
   const directControl = /^\/facilities\/[^/]+\/(start|stop|pause)$/.test(path);
   if (directControl) delete requestBody.productionSettlement;
-  const claim = manualCommodity || directControl ? null : pendingProductionSettlement;
+  const investment = path === '/investments/commodities';
+  if (investment) delete requestBody.productionSettlement;
+  const claim = manualCommodity || directControl || investment ? null : pendingProductionSettlement;
   const payload = claim ? { ...requestBody, productionSettlement: claim } : requestBody;
   try {
     const response = await request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(payload) });
@@ -756,6 +766,7 @@ export const gameActions = {
     unload,
     load,
   }),
+  tradeCommodityInvestment: (input: CommodityInvestmentTradeInput) => postAction('/investments/commodities', { ...input }),
   bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),
   bankWithdraw: (amount: number) => postAction('/bank/withdrawals', { amount }),
   bankBorrow: (amount: number, termHours: number, autoRepay = true) => (

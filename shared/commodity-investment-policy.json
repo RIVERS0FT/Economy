@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "timeZone": "Asia/Shanghai",
+  "feeBps": 100,
+  "weights": [
+    {
+      "provinceId": "110000",
+      "weight": 2526290
+    },
+    {
+      "provinceId": "120000",
+      "weight": 227475
+    },
+    {
+      "provinceId": "130000",
+      "weight": 400704
+    },
+    {
+      "provinceId": "140000",
+      "weight": 135761
+    },
+    {
+      "provinceId": "150000",
+      "weight": 374880
+    },
+    {
+      "provinceId": "210000",
+      "weight": 235580
+    },
+    {
+      "provinceId": "220000",
+      "weight": 59512
+    },
+    {
+      "provinceId": "230000",
+      "weight": 1361251
+    },
+    {
+      "provinceId": "310000",
+      "weight": 554573
+    },
+    {
+      "provinceId": "320000",
+      "weight": 90908
+    },
+    {
+      "provinceId": "330000",
+      "weight": 732059
+    },
+    {
+      "provinceId": "340000",
+      "weight": 339863
+    },
+    {
+      "provinceId": "350000",
+      "weight": 153400
+    },
+    {
+      "provinceId": "360000",
+      "weight": 145110
+    },
+    {
+      "provinceId": "370000",
+      "weight": 213960
+    },
+    {
+      "provinceId": "410000",
+      "weight": 221485
+    },
+    {
+      "provinceId": "420000",
+      "weight": 84093
+    },
+    {
+      "provinceId": "430000",
+      "weight": 346417
+    },
+    {
+      "provinceId": "440000",
+      "weight": 483803
+    },
+    {
+      "provinceId": "450000",
+      "weight": 524045
+    },
+    {
+      "provinceId": "460000",
+      "weight": 324128
+    },
+    {
+      "provinceId": "500000",
+      "weight": 123851
+    },
+    {
+      "provinceId": "510000",
+      "weight": 322804
+    },
+    {
+      "provinceId": "520000",
+      "weight": 62603
+    },
+    {
+      "provinceId": "530000",
+      "weight": 103226
+    },
+    {
+      "provinceId": "540000",
+      "weight": 172658
+    },
+    {
+      "provinceId": "610000",
+      "weight": 92406
+    },
+    {
+      "provinceId": "620000",
+      "weight": 592882
+    },
+    {
+      "provinceId": "630000",
+      "weight": 97421
+    },
+    {
+      "provinceId": "640000",
+      "weight": 1248145
+    },
+    {
+      "provinceId": "650000",
+      "weight": 553487
+    },
+    {
+      "provinceId": "710000",
+      "weight": 43728
+    },
+    {
+      "provinceId": "810000",
+      "weight": 596163
+    },
+    {
+      "provinceId": "820000",
+      "weight": 179981
+    },
+    {
+      "provinceId": "US-OR",
+      "weight": 234578
+    },
+    {
+      "provinceId": "US-PA",
+      "weight": 738930
+    },
+    {
+      "provinceId": "US-RI",
+      "weight": 61338
+    },
+    {
+      "provinceId": "US-SC",
+      "weight": 264656
+    },
+    {
+      "provinceId": "US-SD",
+      "weight": 47927
+    },
+    {
+      "provinceId": "US-TN",
+      "weight": 351525
+    },
+    {
+      "provinceId": "US-TX",
+      "weight": 1595278
+    },
+    {
+      "provinceId": "US-UT",
+      "weight": 174396
+    },
+    {
+      "provinceId": "US-VA",
+      "weight": 486123
+    },
+    {
+      "provinceId": "US-VT",
+      "weight": 38173
+    },
+    {
+      "provinceId": "US-WA",
+      "weight": 472900
+    },
+    {
+      "provinceId": "US-WI",
+      "weight": 310876
+    },
+    {
+      "provinceId": "US-WV",
+      "weight": 84235
+    },
+    {
+      "provinceId": "US-WY",
+      "weight": 33257
+    }
+  ]
+}

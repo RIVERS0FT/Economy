@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { InvestmentPage } from './InvestmentPage';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { AssetOverviewPanel } from '../components/assets/AssetOverviewPanel';
 import { BankIcon, FactoryIcon } from '../components/icons/GameIcons';
@@ -76,6 +77,14 @@ function utilizationSurchargeBps(utilizationBps: number) {
 }
 
 export function BankPage({ model }: { model: LoadedGameViewModel }) {
+  const identity = `${model.user?.id ?? 'preview'}:${model.game.saveEpoch}`;
+  if (model.game.commodityInvestment?.enabled) {
+    return <InvestmentPage key={identity} model={model} funds={<BankFundsPanel model={model} />} />;
+  }
+  return <PageLayout title="银行"><AssetOverviewPanel model={model} /><BankFundsPanel key={identity} model={model} /></PageLayout>;
+}
+
+export function BankFundsPanel({ model }: { model: LoadedGameViewModel }) {
   const { bankAccount, bankSummary } = model.game;
   const provinces = model.game.provinces || [];
   const weeklyCashSettlement = bankSummary.weeklyCashSettlement;
@@ -106,8 +115,9 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
         - (recentDefault ? bankSummary.recentDefaultPenaltyBps : 0),
     ),
   );
-  const creditAssetValue = Math.max(0, model.game.assetSummary.netAssetValue ?? model.game.assetSummary.totalAssets);
-  const maximumLoan = floorMoney(creditAssetValue * creditRatioBps / 10_000);
+  const creditAssetValue = Math.max(0, bankSummary.assetCreditValue
+    ?? model.game.assetSummary.netAssetValue ?? model.game.assetSummary.totalAssets ?? 0);
+  const maximumLoan = bankSummary.maximumLoanCredits ?? floorMoney(creditAssetValue * creditRatioBps / 10_000);
   const requestedLoan = parseMoneyDraft(loanDraft, { min: 0.01, max: Math.max(0.01, maximumLoan) });
   const creditUtilizationBps = requestedLoan && maximumLoan > 0
     ? Math.min(10_000, Math.ceil(requestedLoan * 10_000 / maximumLoan))
@@ -165,8 +175,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   return (
-    <PageLayout title="银行">
-      <AssetOverviewPanel model={model} />
+    <>
 
       <PagePanel className="bank-cash-panel">
         <WidgetHeading title="资金管理" action={<BankIcon />} />
@@ -343,7 +352,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
             </div>
 
             <DataList>
-              <DataRow label="授信资产净值" value={<CurrencyAmount>{formatCurrency(creditAssetValue)}</CurrencyAmount>} />
+              <DataRow label="授信资产净值" value={<CurrencyAmount>{formatCurrency(bankSummary.assetValuationAvailable === false ? null : creditAssetValue)}</CurrencyAmount>} />
               <DataRow label="最高可贷额度" value={<CurrencyAmount>{formatCurrency(maximumLoan)}</CurrencyAmount>} tone="success" />
             </DataList>
 
@@ -457,6 +466,6 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
           </div>
         )}
       </PagePanel>
-    </PageLayout>
+    </>
   );
 }

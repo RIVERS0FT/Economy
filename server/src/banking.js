@@ -1,3 +1,4 @@
+import { collectCommodityInvestmentForDebt, investmentFinancialPosition, isInvestmentPriceUnavailable } from './commodity-investment-runtime.js';
 import { randomUUID } from 'node:crypto';
 import * as legacy from './banking-legacy.js';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';
@@ -175,7 +176,12 @@ function prudentFacilityUnitValue(world, facilityTypeId, provinceId) {
   return Math.max(0, Math.min(systemValue || marketValue, marketValue || systemValue));
 }
 
-export function bankCreditAssetValue(world, player) {
+export function bankCreditAssetValue(world, player, now = world.lastProcessedAt) {
+  if (player.weeklyCashSettlement?.pendingInvestmentAssessment) {
+    const error = new Error('周资金结算估值尚未确认，暂不能新增贷款');
+    error.code = 'CASH_PRICE_UNAVAILABLE'; error.statusCode = 409;
+    throw error;
+  }
   const financialPosition = playerLoanFinancialPosition(world, player.userId);
   const cash = safeMoney(player.credits)
     + safeMoney(player.frozenCredits)
@@ -197,7 +203,8 @@ export function bankCreditAssetValue(world, player) {
     const type = COMMERCIAL_BY_ID.get(String(group?.commercialTypeId || ''));
     return sum + Math.max(0, Number(group?.count || 0)) * safeMoney(type?.systemValue);
   }, 0);
-  const grossAssets = safeMoney(cash + commodity + facilities + commercial);
+  const investment = investmentFinancialPosition(world, player, now).prudentValue;
+  const grossAssets = safeMoney(cash + commodity + facilities + commercial + investment);
   const liabilities = safeMoney(
     activeLoanLiability(player)
     + weeklySettlementLiability(player)
@@ -255,7 +262,7 @@ export function calculateAssetCreditAssessment(world, player, requestedAmount = 
   ensureBankWorld(world, now);
   const account = ensurePlayerBankAccount(player, now);
   const selectedTermHours = normalizeTermHours(termHours);
-  const assetValue = bankCreditAssetValue(world, player);
+  const assetValue = bankCreditAssetValue(world, player, now);
   const credit = creditRatioFor(account, now);
   const maximumLoanCredits = floorCents(assetValue * credit.ratioBps / 10_000);
   const requested = requestedAmount === undefined
@@ -522,6 +529,10 @@ function collectCreditDefault(world, player, now) {
   beginCreditDefault(world, player, now);
   repayCreditLoanFromBalance(world, player, 'deposit', now, { collection: true });
   if (ensurePlayerBankAccount(player, now).creditLoan) repayCreditLoanFromBalance(world, player, 'cash', now, { collection: true });
+  if (ensurePlayerBankAccount(player, now).creditLoan) {
+    collectCommodityInvestmentForDebt(world, player, creditLoanLiability(player), now);
+    repayCreditLoanFromBalance(world, player, 'cash', now, { collection: true });
+  }
   if (ensurePlayerBankAccount(player, now).creditLoan) collectAvailableCommodities(world, player, now);
   if (ensurePlayerBankAccount(player, now).creditLoan) collectAvailableFacilities(world, player, now);
   if (ensurePlayerBankAccount(player, now).creditLoan) collectAvailableCommercialBuildings(world, player, now);
@@ -710,7 +721,12 @@ export function createBankClientState(world, player, now = Date.now()) {
   const legacyState = legacy.createBankClientState(world, player, now);
   const account = ensurePlayerBankAccount(player, now);
   const currentLoan = legacyState.bankAccount.activeLoan || publicCreditLoan(account.creditLoan);
-  const assetAssessment = calculateAssetCreditAssessment(world, player, undefined, 72, now);
+  let assetAssessment;
+  try { assetAssessment = calculateAssetCreditAssessment(world, player, undefined, 72, now); }
+  catch (error) {
+    if (!isInvestmentPriceUnavailable(error)) throw error;
+    assetAssessment = { assetValue: null, maximumLoanCredits: 0 };
+  }
   return {
     ...legacyState,
     bankAccount: {
@@ -729,6 +745,7 @@ export function createBankClientState(world, player, now = Date.now()) {
       minimumLoanToValueBps: BANK_MINIMUM_CREDIT_RATIO_BPS,
       maximumLoanToValueBps: BANK_MAXIMUM_CREDIT_RATIO_BPS,
       assetCreditValue: assetAssessment.assetValue,
+      assetValuationAvailable: assetAssessment.assetValue !== null,
       maximumLoanCredits: assetAssessment.maximumLoanCredits,
       loanTermOptionsHours: BANK_LOAN_TERM_OPTIONS_HOURS,
     },

@@ -1,3 +1,5 @@
+import { readInvestmentFinancialPosition } from './commodity-investment-runtime.js';
+import { cashProductionWorkInProgress } from './cash-production-cycles.js';
 import { activeProductionRecipe, legacyProductionOperatingCost, PRODUCTION_BALANCE_VERSION } from './production-balance.js';
 import { buildingAvailableInput, buildingFreezeSource, reconcileBuildingInputFreezes } from './building-input-freezes.js';
 import { consumeBuildingCommodity } from './commodity-freezes.js';
@@ -1478,7 +1480,7 @@ function recentTradePriceFor(world, kind, assetId, provinceId = DEFAULT_PROVINCE
   return Number.isFinite(Number(market?.lastTradePrice)) ? Math.max(0, Number(market.lastTradePrice)) : 0;
 }
 
-function assetSummaryFor(world, player) {
+function assetSummaryFor(world, player, now = world.lastProcessedAt) {
   const commodity = Object.entries(player.inventories || {}).reduce((summary, [key, inventory]) => {
     const { provinceId, assetId } = splitProvinceScopedKey(key);
     const price = recentTradePriceFor(world, 'commodity', assetId, provinceId);
@@ -1519,10 +1521,13 @@ function assetSummaryFor(world, player) {
   const inTransitCommodityValue = commodity.inTransit;
   const commodityValue = availableCommodityValue + frozenCommodityValue + inTransitCommodityValue;
   const facilityValue = availableFacilityValue + mortgagedFacilityValue + frozenFacilityValue;
-  const grossAssetValue = cashValue + commodityValue + facilityValue + commercialValue;
+  const investmentValue = readInvestmentFinancialPosition(world, player, now).equity;
+  const operatingWorkInProgressValue = cashProductionWorkInProgress(player);
+  const grossAssetValue = investmentValue === null ? null : cashValue + commodityValue + facilityValue + commercialValue
+    + investmentValue + operatingWorkInProgressValue;
   const liabilityValue = activeLoanLiability(player) + weeklySettlementLiability(player) + contractLiabilityValue;
-  const netAssetValue = grossAssetValue - liabilityValue;
-  const availableAssetValue = availableCashValue + bankDepositValue + availableCommodityValue + availableFacilityValue + commercialValue - liabilityValue;
+  const netAssetValue = grossAssetValue === null ? null : grossAssetValue - liabilityValue;
+  const availableAssetValue = investmentValue === null ? null : availableCashValue + bankDepositValue + availableCommodityValue + availableFacilityValue + commercialValue + investmentValue - liabilityValue;
   const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue + mortgagedFacilityValue + contractReceivableValue;
   return {
     cashValue,
@@ -1530,6 +1535,9 @@ function assetSummaryFor(world, player) {
     facilityValue,
     commercialValue,
     bankDepositValue,
+    investmentValue,
+    assetValuationAvailable: investmentValue !== null,
+    operatingWorkInProgressValue,
     contractReceivableValue,
     contractLiabilityValue,
     contractLockedFacilityValue,
@@ -1565,7 +1573,7 @@ function valuationPricesFor(world, player) {
 function createLeaderboard(world, currentUserId, now) {
   return Object.values(world.players || {})
     .map((player) => {
-      const summary = assetSummaryFor(world, player);
+      const summary = assetSummaryFor(world, player, now);
       return {
         playerName: player.playerName,
         totalAssets: summary.totalAssets,
@@ -1581,6 +1589,7 @@ function createLeaderboard(world, currentUserId, now) {
         isCurrentPlayer: player.userId === currentUserId,
       };
     })
+    .filter((entry) => entry.totalAssets !== null)
     .sort((left, right) => right.totalAssets - left.totalAssets || left.playerName.localeCompare(right.playerName))
     .slice(0, 100)
     .map((entry, index) => ({ rank: index + 1, ...entry }));
@@ -1670,7 +1679,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
     provinceFacilityMarkets: clone(provinceFacilityMarkets),
     facilityMarkets: clone(provinceFacilityMarkets[DEFAULT_PROVINCE_ID] || {}),
     valuationPrices: valuationPricesFor(world, player),
-    assetSummary: assetSummaryFor(world, player),
+    assetSummary: assetSummaryFor(world, player, now),
     leaderboard: createLeaderboard(world, userId, now),
   };
 }

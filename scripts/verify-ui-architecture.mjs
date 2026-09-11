@@ -158,7 +158,7 @@ for (const text of [
 for (const text of [
   "import { NavigationIcon } from '../icons/GameIcons'",
   '<NavigationIcon name={id} />',
-  'navigationItems.filter(({ id }) => !excludedTabs.includes(id)).map(({ id, label })',
+  'navigationItems.filter(({ id }) => !excludedTabs.includes(id)).map(({ id, label: originalLabel })',
   'excludedTabs?: readonly TabId[];',
 ]) {
   if (!navigationItems.includes(text)) failures.push(`${navigationItemsPath} 缺少: ${text}`);
