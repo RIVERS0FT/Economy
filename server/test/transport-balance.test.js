@@ -15,16 +15,28 @@ import {
 const now = 1_780_000_000_000;
 const user = { id: 251, email: 'transport-balance@example.com', name: 'Transport Balance' };
 const round = (value) => Math.round(value * 1_000_000) / 1_000_000;
+const slotIdByMode = { road: 'transport-slot-1', rail: 'transport-slot-2', air: 'transport-slot-3' };
+function paidPolicy(mode) {
+  return {
+    ...createTransportCyclePolicy(mode),
+    transportSlotId: slotIdByMode[mode],
+    transportToolLevel: 1,
+    transportToolSpeedBonusBps: 0,
+  };
+}
 function fixture(mode = 'road') {
   const world = createWorld(now);
   world.transportShipments = [];
   const player = ensurePlayer(world, user, now);
   player.credits = 100000;
+  player.research ||= {};
+  player.research.unlockedComplexity = 'C2';
   inventoryForProvince(player, 'industrial-fuel', '110000').available = 10000;
   const created = applyCreateTransportRoute(world, user, {
     sourceProvinceId: '110000', destinationProvinceId: '130000', mode,
   }, now);
   assert.equal(created.ok, true);
+  migrateTransportWorld(world, now);
   return { world, player, route: player.transportRoutes[0] };
 }
 function service(world, shipment, unload = [], load = []) {
@@ -51,7 +63,7 @@ for (const [mode, capacity, rate, seconds] of [
     assert.equal(cycle.fuelPurchased, Math.ceil(cycle.distanceKm * TRANSPORT_MODES[mode].fuelPerKm));
     assert.equal(cycle.fuelCost, 0);
     assert.equal(inventoryForProvince(player, 'industrial-fuel', '110000').available, 10000 - cycle.fuelPurchased);
-    assert.deepEqual(shipment.policySnapshot, createTransportCyclePolicy(mode));
+    assert.deepEqual(shipment.policySnapshot, paidPolicy(mode));
     assert.equal(shipment.arrivesAt - shipment.departsAt, transportPolicyDurationMs(shipment.policySnapshot, shipment.currentLeg.distanceKm));
     processTransportWorld(world, shipment.arrivesAt + 1);
     const afterFirstLeg = player.credits;
@@ -93,7 +105,7 @@ test('client-supplied rates, capacity, distance and deadlines never override a n
   forged.load[0].quantity = 500;
   assert.equal(applyStartTransportCycle(world, user, forged, now + 1).ok, true);
   const shipment = world.transportShipments[0];
-  assert.deepEqual(shipment.policySnapshot, createTransportCyclePolicy('air'));
+  assert.deepEqual(shipment.policySnapshot, paidPolicy('air'));
   assert.equal(shipment.cost, transportCycleCost(route).totalCost);
   assert.ok(shipment.arrivesAt > now + 1);
 });
