@@ -74,7 +74,11 @@ requireText('src/components/shell/GameShell.tsx', [
   '<CompactRank',
   'ariaLabel={rankLabel}',
   'compactValue: formatCompactCurrency(game.credits)',
-  'compactValue: formatCompactCurrency(derived.totalAssets)',
+  'compactValue: formatCompactAssetCurrency(derived.totalAssets)',
+]);
+requireText('src/utils/formatters.ts', [
+  "return value === null ? '待核对' : formatCompactCurrency(value);",
+  "return value === null ? '待核对' : formatCurrency(value);",
 ]);
 requireText('src/components/ui/CompactNumber.tsx', ['SafeTooltip', 'formatFullNumber(value)', 'formatCompactCurrency(value)']);
 requireText('src/components/ui/CurrencyAmount.tsx', ['SafeTooltip', 'formatCompactCurrency(primitive.value)']);

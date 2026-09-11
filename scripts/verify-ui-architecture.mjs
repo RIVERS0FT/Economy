@@ -167,7 +167,7 @@ for (const text of [
 for (const legacyIcon of ['⌂', '↕', '⚙', '◫', '♛', 'icon:']) {
   if (navigationConfig.includes(legacyIcon)) failures.push(`${navigationConfigPath} 不得包含字符图标: ${legacyIcon}`);
 }
-requireText(navigationConfigPath, "{ id: 'bank', label: '银行' }");
+requireText(navigationConfigPath, "{ id: 'bank', label: '投资' }");
 forbidText(navigationConfigPath, "{ id: 'assets', label: '资产' }");
 forbidText(navigationConfigPath, "{ id: 'assets', label: '资金' }");
 

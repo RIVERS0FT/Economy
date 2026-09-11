@@ -1,6 +1,6 @@
 .investment-content {
   display: grid;
-  gap: var(--page-section-gap);
+  gap: var(--layout-gutter);
   min-width: 0;
 }
 
