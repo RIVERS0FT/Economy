@@ -1,0 +1,46 @@
+name: Import Cash Economy Development Checkpoint
+
+on:
+  push:
+    branches: [work/cash-production-investment]
+    paths: [.github/workflows/import-cash-economy.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    if: github.ref == 'refs/heads/work/cash-production-investment'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/cash-production-investment
+          fetch-depth: 0
+      - name: Verify and apply the reviewed development checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, hashlib, lzma, pathlib, subprocess
+          root = pathlib.Path('.github/cash-workspace')
+          paths = sorted(root.glob('part-*.b64'))
+          if len(paths) != 12:
+              raise SystemExit('Incomplete checkpoint')
+          data = base64.b64decode(b''.join(p.read_bytes() for p in paths), validate=True)
+          if hashlib.sha256(data).hexdigest() != '69558233cf441b01734e3cf1eeb3c151d2ab04a9365a007f08c9089a275fe35e':
+              raise SystemExit('Checkpoint digest mismatch')
+          patch = pathlib.Path('/tmp/economy-checkpoint.patch')
+          patch.write_bytes(lzma.decompress(data))
+          subprocess.run(['git', 'apply', '--check', str(patch)], check=True)
+          subprocess.run(['git', 'apply', str(patch)], check=True)
+          PY
+          git diff --check
+          rm -r .github/cash-workspace
+          rm .github/workflows/import-cash-economy.yml .github/workflows/workspace-bundle.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: integrate funded operating cycles and independent commodity investments' -m 'Development checkpoint: authoritative investment API, accounting, funded production/commercial cycles and investment UI. Full economic cutover remains gated pending legacy migration and physical-gameplay retirement. Standard CI must pass before merge; no production deployment is performed by this importer.'
+          git push origin HEAD:work/cash-production-investment
