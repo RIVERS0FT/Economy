@@ -9,6 +9,10 @@ async function open(page: Page) {
 async function patch(page: Page, value: Record<string, unknown>) {
   await page.evaluate((value) => window.transportFleet.patch(value), value);
 }
+async function chooseTool(page: Page, trigger: ReturnType<Page['getByRole']>, option: string) {
+  await trigger.click();
+  await page.getByRole('listbox').getByRole('option').filter({ has: page.getByText(option, { exact: true }) }).click();
+}
 
 function configuredSlots(mode: 'road' | 'rail' | 'air' = 'air') {
   return {
@@ -39,7 +43,7 @@ test('technology slots render as independent tool choices with persistent traini
   await expect(occupied).toContainText('速度 +15%');
   await expect(occupied).toContainText('熟练度 38 / 54');
   const free = page.locator('[data-slot-id="transport-slot-2"]');
-  await expect(free.getByRole('combobox', { name: '运输工具' })).toHaveValue('rail');
+  await expect(free.getByRole('combobox', { name: '运输工具' })).toContainText('火车');
   await expect(free).toContainText('火车 Lv.3');
   await expect(page.getByRole('button', { name: '增加运力', exact: true })).toHaveCount(0);
 });
@@ -50,11 +54,11 @@ test('switching an idle slot sends one authoritative command and resets only tha
   await open(page);
   const card = page.locator('[data-slot-id="transport-slot-2"]');
   const select = card.getByRole('combobox', { name: '运输工具' });
-  await select.selectOption('air');
+  await chooseTool(page, select, '飞机');
   await expect.poll(() => requests.length).toBe(1);
   expect(requests[0].request().postDataJSON()).toMatchObject({ operation: 'slot-configure', slotId: 'transport-slot-2', mode: 'air' });
   await requests[0].fulfill({ json: { revision: 42, result: { ok: true, message: '槽位 2 已切换为飞机，培养进度已重置', transportSlots: configuredSlots('air') } } });
-  await expect(select).toHaveValue('air');
+  await expect(select).toContainText('飞机');
   await expect(card).toContainText('飞机 Lv.1');
   await expect(card).toContainText('熟练度 0 / 3');
   await expect(page.getByText('槽位 2 已切换为飞机，培养进度已重置', { exact: true })).toHaveCount(0);
