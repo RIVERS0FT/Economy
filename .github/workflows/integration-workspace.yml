@@ -1,0 +1,27 @@
+name: Cash Investment Integration Workspace
+on:
+  push:
+    branches: [work/cash-investment-integration]
+    paths: [.github/workflows/integration-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e2a479441cf4aa51027069f1d441b591434fa2bc
+          persist-credentials: false
+      - name: Bundle source only
+        run: |
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/economy-source.tar.gz"
+          git rev-parse HEAD > "$RUNNER_TEMP/source-sha.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economy-cash-integration-source
+          path: |
+            ${{ runner.temp }}/economy-source.tar.gz
+            ${{ runner.temp }}/source-sha.txt
+          retention-days: 1
