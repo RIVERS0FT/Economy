@@ -1,0 +1,72 @@
+.transport-slot-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 14px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.transport-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.transport-slot-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+}
+
+.transport-slot-heading,
+.transport-slot-training-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.transport-slot-card > .ui-field {
+  margin-top: 12px;
+}
+
+.transport-slot-training {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.transport-slot-training-heading span,
+.transport-slot-training small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.transport-slot-progress {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-inset);
+}
+
+.transport-slot-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+}
+
+.transport-slot-card > .ui-helper-text {
+  display: block;
+  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  .transport-slot-grid {
+    grid-template-columns: 1fr;
+  }
+}

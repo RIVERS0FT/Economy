@@ -21,6 +21,7 @@ const transportPolicy = read('shared/transport-policy.js');
 const provinceAccess = read('server/src/province-access.js');
 const stateEconomicBaselines = read('server/src/state-economic-baselines.js');
 const transport = read('server/src/transport.js') + '\n' + read('server/src/transport-core.js');
+const transportAdapter = read('server/src/transport.js');
 const domain = read('server/src/domain.js');
 const worldDeadlinePlanner = read('server/src/world-deadline-planner.js');
 const storageV2 = read('server/src/world-storage-v2.js');
@@ -37,8 +38,10 @@ const localPreview = read('src/app/LocalGamePreviewApp.tsx');
 const provincePage = read('src/pages/ProvincePage.tsx');
 const warehousePanel = read('src/components/warehouse/WarehouseInventoryPanel.tsx');
 const transportPage = read('src/pages/TransportPage.tsx');
+const transportSlotsPanel = read('src/transport/TransportSlotsPanel.tsx');
 const transportPresentation = transportPage + read('src/transport/TransportEconomics.tsx') + read('src/game-guide/gameConcepts.ts');
 const transportCoordinator = read('src/transport/useOnlineTransport.ts');
+const transportPlanning = read('src/transport/transportPlanning.js');
 const routeDraft = read('src/components/shell/TransportRouteDraftContext.tsx');
 const pageStack = read('src/navigation/playerPageStack.ts');
 const navigation = read('src/config/navigation.ts');
@@ -51,6 +54,7 @@ const transportCss = read('src/styles/transport-page.css');
 const provinceLogistics = read('src/utils/provinceLogistics.ts');
 const provinceEconomicLevel = read('src/utils/provinceEconomicLevel.ts');
 const transportTest = existsSync('server/test/transport.test.js') ? read('server/test/transport.test.js') : '';
+const slotTest = existsSync('server/test/transport-fleet.test.js') ? read('server/test/transport-fleet.test.js') : '';
 
 for (const owner of [
   '`PRODUCT_AND_GAMEPLAY_DESIGN.md`',
@@ -70,7 +74,6 @@ requireText(productDesign, '综合分数固定为 PCE `50%` + 平均周薪 `30%`
 for (const text of [
   '起始州与目的州相同即为环线',
   '起始州与目的州不相同即固定为往返路线',
-  '运输费和燃料仅按距离收取，一次性结算',
   '每趟运费 = 全线距离 × 运输方式 transportFeePerKm',
   '每趟燃料数量 = ceil(全线距离 × 运输方式 fuelPerKm × N)',
   '服务器不再遍历全部商品和全部交付节点寻找“最优货物”',
@@ -78,12 +81,18 @@ for (const text of [
   '玩家离线 10 分钟或 10 天，单次恢复都最多完成当前一段',
   '`transportRoutes` 与进行中／历史 `transportShipments` 均属于玩家私有运输状态',
   '每名玩家最多保存 50 条路线',
-  '同时真正处于 `in-transit` 的运输最多 20 笔',
-  '运输参数快照',
-]) requireText(warehouseDesign, text, `仓库设计缺少节点循环运输规则：${text}`);
+  '运输并发唯一由全局运输槽位控制',
+  '| 运输槽位 | 2 | 3 | 5 | 8 | 12 | 16 | 20 |',
+  '每个槽位一次只允许选择一种运输工具：卡车、火车或飞机',
+  '中间停靠绝不释放槽位',
+  '切换到不同工具时，该槽位原工具培养进度清零',
+  '培养当前唯一效果是运输速度',
+  '旧路线已经购买的 `vehicleCount > 1`',
+  '旧 `route-expand` 玩家动作在新模型中必须拒绝',
+]) requireText(warehouseDesign, text, `仓库设计缺少运输槽位／工具培养规则：${text}`);
 
 for (const text of [
-  '运输页只显示运输路线目录',
+  '运输页正文先显示全局运输槽位区，再显示运输路线目录',
   '`transport-route`',
   '运输记录唯一显示在对应路线页面',
   '路线名称允许单独修改',
@@ -94,7 +103,7 @@ for (const text of [
   '节点装卸',
   '每趟运费',
   '每趟燃料',
-]) requireText(pageDesign, text, `页面设计缺少新运输页面规则：${text}`);
+]) requireText(pageDesign, text, `页面设计缺少运输页面规则：${text}`);
 
 for (const text of [
   '在途运输标记',
@@ -112,7 +121,7 @@ for (const text of [
   '客户端负责节点装卸规划',
   '服务端只结算当前到期运输段',
   '`transportShipments` 与 `transportRoutes` 一并归入 `player.misc`',
-]) requireText(serverDesign, text, `服务器设计缺少新运输权威边界：${text}`);
+]) requireText(serverDesign, text, `服务器设计缺少运输权威边界：${text}`);
 requireText(orderBookDesign, '运输中的商品按起始州官方系统价计入玩家财富', '订单簿设计必须记录在途估值口径。');
 
 if (provinceEconomicPolicy.version !== 2) failures.push('地区水平策略版本必须为 2。');
@@ -164,6 +173,20 @@ for (const text of [
   "creditPopulationEmployment(world, cycleCost.transportFee, 'transportService')",
   "message: '路线创建后不可修改，请删除后重新建立'",
 ]) requireText(transport, text, `运输模块缺少：${text}`);
+for (const text of [
+  'TRANSPORT_SLOT_LIMIT_BY_STAGE',
+  'C1: 2', 'C2: 3', 'C3: 5', 'C4: 8', 'C5: 12', 'C6: 16', 'C7: 20',
+  'TRANSPORT_TOOL_MAX_LEVEL = 10',
+  'TRANSPORT_TOOL_SPEED_BONUS_BPS_PER_LEVEL = 300',
+  "payload.operation === 'slot-configure'",
+  "payload.operation === 'route-expand'",
+  'slot.experience = 0',
+  "trip.status !== 'arrived'",
+  'trip.transportTrainingAwarded = true',
+  'trip.policySnapshot.transportSlotId = slot.id',
+  'route.vehicleCount = 1',
+  'transportFleetMigrationRefund',
+]) requireText(transportAdapter, text, `运输槽位权威实现缺少：${text}`);
 for (const text of [
   'automaticManifestForRoute',
   'shipmentOpportunitySpread',
@@ -239,6 +262,15 @@ for (const text of [
 forbidText(transportCoordinator, 'setInterval', '在线运输协调器不得新增轮询器。');
 
 for (const text of [
+  'transportSlotState(game)',
+  "shipment.status !== 'arrived'",
+  "reason: 'transport-tool-unavailable'",
+  'vehicleCount: 1',
+  'transportSlotId',
+  'transportToolLevel',
+]) requireText(transportPlanning, text, `客户端槽位调度缺少：${text}`);
+
+for (const text of [
   'data-transport-route-index="true"',
   "currentLocation?.type === 'transport-route'",
   'routeTripLabel',
@@ -249,8 +281,17 @@ for (const text of [
   '每趟运费',
   '每趟燃料',
   '本趟已付运费',
-  '离线最多完成当前一段',
-]) requireText(transportPresentation, text, `运输页缺少新趟次/节点状态或行程业务语义：${text}`);
+  '运输槽位',
+  '单槽基础载荷',
+]) requireText(transportPresentation, text, `运输页缺少槽位/趟次/节点状态业务语义：${text}`);
+for (const text of [
+  'data-transport-slots="true"',
+  'label="运输工具"',
+  "operation: 'slot-configure'",
+  '完成运输自动培养工具',
+  '切换运输工具会重置该槽位的培养进度',
+]) requireText(transportSlotsPanel, text, `运输槽位界面缺少：${text}`);
+forbidText(transportPage, 'TransportFleetExpansion', '运输页不得恢复路线增购组件。');
 forbidText(transportPage, 'dispatchTransportRoute', '运输页不得恢复手动发运动作。');
 forbidText(transportPage, 'ToggleField', '运输页不得恢复自动发运开关。');
 forbidText(transportPage, 'IntegerInput', '运输路线不得恢复固定运输数量输入。');
@@ -290,6 +331,14 @@ for (const text of [
   'client node service unloads and loads atomically without another fee',
   'legacy in-transit shipment migrates without fuel backcharge and stops at its next node',
 ]) requireText(transportTest, text, `运输测试缺少：${text}`);
+for (const text of [
+  'technology stage is the only gameplay source of simultaneous transport slot count',
+  'each unlocked slot selects one transport tool',
+  'a trip occupies its matching slot from departure through intermediate docking until final return',
+  'tool proficiency is frozen into each paid trip',
+  'trained tools improve travel speed without changing cargo capacity, cash freight or fuel demand',
+  'legacy paid route expansions are refunded once',
+]) requireText(slotTest, text, `运输槽位回归测试缺少：${text}`);
 
 if (warehousePanel.includes('WarehouseTransportPanel')) failures.push('仓库不得继续承载跨州运输。');
 if (warehousePanel.includes('warehouse-product-card-in-transit')) failures.push('仓库商品卡不得显示在途数量；在途信息唯一归属运输功能。');
@@ -304,8 +353,8 @@ requireText(transportPolicy, 'Math.ceil(distanceKm * fuelPerKm * vehicleCount)',
 requireText(provinceMap, 'entry.destinationName ?', '运输地图货物没有实际目的地时不能显示空箭头或猜测目的地。');
 
 if (failures.length) {
-  console.error(`州级经济与节点循环运输验证失败：\n- ${failures.join('\n- ')}`);
+  console.error(`州级经济与运输槽位验证失败：\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('州级经济与节点循环运输验证通过：路线业务行程仍按环线／往返结算，地图只使用单一正式几何；客户端装卸、距离计费、整趟燃料商品预扣、单段离线到站与私有状态切片均已锁定。');
+console.log('州级经济与运输槽位验证通过：路线仍按环线／往返结算；科技阶段控制并发槽位，每个槽位选择单一运输工具并通过完整趟次培养，停靠持续占槽；节点装卸、距离计费、商品燃料、单段离线和私有状态边界保持稳定。');

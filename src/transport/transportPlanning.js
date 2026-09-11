@@ -1,65 +1,71 @@
-import { transportCyclePolicyForShipment, transportFleetCost, transportRouteVehicleCount } from '../../shared/transport-policy.js';
+import { transportCyclePolicyForShipment, transportFleetCost } from '../../shared/transport-policy.js';
 import {
   TRANSPORT_MODES,
-  TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER,
   transportCycleCost,
   transportCycleDurationMs,
   transportTraversalStopIds,
 } from '../utils/provinceLogistics.ts';
-import { planTransportCycle, planTransportNode, transportOperationFingerprint, transportOfficialQuote } from './transportPlanner.js';
+import { planTransportCycle, planTransportNode, transportOperationFingerprint } from './transportPlanner.js';
 
-/** A loose capacity bound: only original stock that could gain value matters.
- * Repeated visits share stock; future production and simulated deliveries do not
- * justify extra vehicles. Missing prices keep a conservative upper bound.
- */
-function fleetCandidateLimit(game, traversal, unitCapacity, owned, now) {
-  const provinces = [...new Set(traversal)];
-  const maximum = unitCapacity * owned;
-  let total = 0;
-  for (const { id } of game.products) {
-    const quotes = provinces.map((provinceId) => transportOfficialQuote(game, provinceId, id, now));
-    const highest = Math.max(0, ...quotes.map((quote) => quote?.price ?? 0));
-    for (let index = 0; index < provinces.length; index += 1) {
-      if (quotes[index] && quotes[index].price >= highest && quotes.every(Boolean)) continue;
-      const stock = Number(game.provinceInventories?.[provinces[index]]?.[id]?.available);
-      if (Number.isSafeInteger(stock) && stock > 0) total = Math.min(maximum, total + stock);
-      if (total >= maximum) return owned;
-    }
-  }
-  return Math.max(1, Math.ceil(total / unitCapacity));
+function transportSlotState(game) {
+  const value = game?.research?.transportSlots;
+  return value && Array.isArray(value.slots) && Number.isSafeInteger(value.limit) ? value : null;
+}
+
+function activeTransportTrips(game) {
+  return (game.transportShipments ?? []).filter((shipment) => shipment.status !== 'arrived');
+}
+
+function slotAvailability(game, mode) {
+  const state = transportSlotState(game);
+  if (!state) return { ready: true, slot: null, reason: '', activeCount: activeTransportTrips(game).length };
+  const active = activeTransportTrips(game);
+  if (active.length >= state.limit) return { ready: false, slot: null, reason: 'in-transit-limit', activeCount: active.length };
+  const occupied = new Set(active.map((shipment) => String(shipment.slotId || '')).filter(Boolean));
+  const matching = state.slots.filter((slot) => slot.mode === mode);
+  if (matching.length === 0) return { ready: false, slot: null, reason: 'transport-tool-unavailable', activeCount: active.length };
+  const slot = matching.find((candidate) => !occupied.has(String(candidate.id || ''))) ?? null;
+  return slot
+    ? { ready: true, slot, reason: '', activeCount: active.length }
+    : { ready: false, slot: null, reason: 'in-transit-limit', activeCount: active.length };
+}
+
+function slotAdjustedDuration(durationMs, slot) {
+  const bonusBps = Math.max(0, Number(slot?.speedBonusBps || 0));
+  return bonusBps > 0 ? Math.max(1_000, Math.round(durationMs * 10_000 / (10_000 + bonusBps))) : durationMs;
 }
 
 export function estimateTransportRoute(game, route, now, provinceById = new Map(game.provinces.map((province) => [province.id, province]))) {
   const cycle = transportCycleCost(route, route.mode, provinceById);
-  const durationMs = transportCycleDurationMs(route, route.mode, provinceById);
+  const baseDurationMs = transportCycleDurationMs(route, route.mode, provinceById);
   const unitCapacity = TRANSPORT_MODES[route.mode]?.capacity ?? 0;
-  const ownedVehicleCount = transportRouteVehicleCount(route);
   const traversal = transportTraversalStopIds(route);
-  const inTransitCount = (game.transportShipments ?? []).filter((shipment) => shipment.status === 'in-transit').length;
-  const candidate = (vehicleCount) => {
-    const cost = unitCapacity > 0 ? transportFleetCost(route.mode, cycle.distanceKm, vehicleCount) : cycle;
-    const capacity = unitCapacity * vehicleCount;
-    return {
-      ...cost, durationMs, capacity, vehicleCount, ownedVehicleCount,
-      ...planTransportCycle({
-        game, traversal, capacity,
-        cycleCost: cost.transportFee, fuelQuantity: cost.fuelPurchased, durationMs, now,
-        atInTransitLimit: inTransitCount >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER,
-      }),
-    };
+  const availability = slotAvailability(game, route.mode);
+  const cost = unitCapacity > 0 ? transportFleetCost(route.mode, cycle.distanceKm, 1) : cycle;
+  const durationMs = slotAdjustedDuration(baseDurationMs, availability.slot);
+  const planned = planTransportCycle({
+    game,
+    traversal,
+    capacity: unitCapacity,
+    cycleCost: cost.transportFee,
+    fuelQuantity: cost.fuelPurchased,
+    durationMs,
+    now,
+    atInTransitLimit: availability.reason === 'in-transit-limit',
+  });
+  const reason = !availability.ready && (planned.reason === 'ready' || planned.reason === 'in-transit-limit')
+    ? availability.reason : planned.reason;
+  return {
+    ...cost,
+    durationMs,
+    capacity: unitCapacity,
+    vehicleCount: 1,
+    ownedVehicleCount: 1,
+    transportSlotId: availability.slot?.id ?? null,
+    transportToolLevel: availability.slot?.level ?? 1,
+    ...planned,
+    reason,
   };
-  let best = candidate(1);
-  if (unitCapacity < 1 || ownedVehicleCount === 1) return best;
-  const limit = fleetCandidateLimit(game, traversal, unitCapacity, ownedVehicleCount, now);
-  for (let count = 2; count <= limit; count += 1) {
-    const estimate = candidate(count);
-    // Affordable, fueled and profitable smaller fleets win over blocked larger
-    // fleets. Equal gains keep the earlier (smaller) count. No full-load gate.
-    if (best.reason === 'ready' && estimate.reason !== 'ready') continue;
-    if ((estimate.reason === 'ready' && best.reason !== 'ready')
-      || (estimate.netGain !== null && (best.netGain === null || estimate.netGain > best.netGain))) best = estimate;
-  }
-  return best;
 }
 
 /** Final unloading, other docks, custody maintenance, task starts, then trade; each tier rotates. */
@@ -68,8 +74,7 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
   const shipments = Array.isArray(game.transportShipments) ? game.transportShipments : [];
   const activeByRoute = new Map(shipments.filter((shipment) => shipment.status !== 'arrived')
     .map((shipment) => [shipment.routeId, shipment]));
-  const inTransitCount = shipments.filter((shipment) => shipment.status === 'in-transit').length;
-  const hasSlot = inTransitCount < TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER;
+  const activeCount = shipments.filter((shipment) => shipment.status !== 'arrived').length;
   const lastIndex = routes.findIndex((route) => route.id === lastRouteId);
   const ordered = [...routes.slice(lastIndex + 1), ...routes.slice(0, lastIndex + 1)];
   const provinceById = new Map(game.provinces.map((province) => [province.id, province]));
@@ -84,9 +89,6 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
     if (active) {
       if (active.status !== 'docked') continue;
       const finalVisit = Number(active.currentVisitIndex) >= traversal.length - 1;
-      if (!finalVisit && !hasSlot) continue;
-      // Confirmed tasks have fixed destinations and separate escrow. Never pass
-      // their cargo through the speculative trade selector or trust client quantities.
       const plan = active.taskTrip
         ? { visitIndex: Number(active.currentVisitIndex), unload: [], load: [] }
         : planTransportNode({
@@ -96,7 +98,7 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
       const command = {
         kind: 'service', routeId: route.id,
         key: `service:${active.cycleId ?? active.id}:${plan.visitIndex}`,
-        fingerprint: transportOperationFingerprint(game, traversal, active, inTransitCount),
+        fingerprint: transportOperationFingerprint(game, traversal, active, activeCount),
         cycleId: active.cycleId ?? active.id,
         ...plan,
       };
@@ -108,18 +110,19 @@ export function transportMaintenanceCandidates(game, now, lastRouteId = null) {
           key: `task-maintain:${route.id}`, fingerprint: task.fingerprint });
         continue;
       }
-      if (!hasSlot) continue;
+      const availability = slotAvailability(game, route.mode);
+      if (!availability.ready) continue;
       if (task?.ready) {
         taskStarts.push({ kind: 'task', operation: 'task-cycle-start', routeId: route.id,
-          key: `task-start:${route.id}`, fingerprint: `${task.fingerprint}:${inTransitCount}` });
+          key: `task-start:${route.id}`, fingerprint: `${task.fingerprint}:${availability.slot?.id ?? 'compat'}:${activeCount}` });
         continue;
       }
       const estimate = estimateTransportRoute(game, route, now, provinceById);
       if (estimate.reason !== 'ready') continue;
       starts.push({
         kind: 'start', routeId: route.id, key: `start:${route.id}`,
-        fingerprint: transportOperationFingerprint(game, traversal, null, inTransitCount, estimate.vehicleCount),
-        load: estimate.firstLoad, vehicleCount: estimate.vehicleCount,
+        fingerprint: `${transportOperationFingerprint(game, traversal, null, activeCount, 1)}:${estimate.transportSlotId ?? 'compat'}:${estimate.transportToolLevel}`,
+        load: estimate.firstLoad, vehicleCount: 1,
       });
     }
   }
