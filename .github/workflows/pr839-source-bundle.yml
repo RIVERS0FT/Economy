@@ -1,0 +1,27 @@
+name: PR839 Source Bundle
+
+on:
+  push:
+    branches:
+      - work/cash-investment-integration
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Pack source
+        run: |
+          tar --exclude=.git --exclude=node_modules --exclude=dist --exclude=coverage --exclude=playwright-report --exclude=test-results -czf "$RUNNER_TEMP/economy-pr839-source.tar.gz" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economy-pr839-source
+          path: ${{ runner.temp }}/economy-pr839-source.tar.gz
+          retention-days: 1
+          if-no-files-found: error
